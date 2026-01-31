@@ -7,7 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	_ "github.com/ingo/agent-readyness/pkg/types"
+	"github.com/ingo/agent-readyness/internal/pipeline"
 )
 
 var scanCmd = &cobra.Command{
@@ -24,8 +24,8 @@ var scanCmd = &cobra.Command{
 			return err
 		}
 
-		fmt.Printf("Scanning: %s\n", dir)
-		return nil
+		p := pipeline.New(cmd.OutOrStdout(), verbose)
+		return p.Run(dir)
 	},
 }
 

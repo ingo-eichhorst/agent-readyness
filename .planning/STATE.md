@@ -10,28 +10,28 @@ See: .planning/PROJECT.md (updated 2026-01-31)
 ## Current Position
 
 Phase: 2 of 5 (Core Analysis)
-Plan: 4 of 5 in current phase
-Status: In progress
-Last activity: 2026-01-31 -- Completed 02-04-PLAN.md
+Plan: 5 of 5 in current phase
+Status: Phase complete
+Last activity: 2026-01-31 -- Completed 02-05-PLAN.md
 
-Progress: [######....] ~47%
+Progress: [########..] ~53%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 7
-- Average duration: 6 min
-- Total execution time: 45 min
+- Total plans completed: 8
+- Average duration: 7 min
+- Total execution time: 53 min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-foundation | 3 | 9 min | 3 min |
-| 02-core-analysis | 4 | 36 min | 9 min |
+| 02-core-analysis | 5 | 44 min | 9 min |
 
 **Recent Trend:**
-- Last 5 plans: 02-01 (10 min), 02-02 (8 min), 02-03 (9 min), 02-04 (9 min)
+- Last 5 plans: 02-01 (10 min), 02-02 (8 min), 02-03 (9 min), 02-04 (9 min), 02-05 (8 min)
 - Trend: stable (go/packages loading dominates test time)
 
 *Updated after each plan completion*
@@ -69,6 +69,9 @@ Recent decisions affecting current work:
 - [02-04]: Coverage search order: cover.out -> lcov.info/coverage.lcov -> cobertura.xml/coverage.xml
 - [02-04]: Test isolation uses file-level imports not function-level
 - [02-04]: Assertion density counts both std testing and testify selector expressions
+- [02-05]: Analyzer errors logged as warnings, do not abort pipeline
+- [02-05]: Color thresholds: complexity avg >10 yellow, >20 red; similar bands for other metrics
+- [02-05]: Verbose mode shows top-5 lists for complexity and function length
 
 ### Pending Todos
 
@@ -80,6 +83,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-01-31T20:02:00Z
-Stopped at: Completed 02-04-PLAN.md
+Last session: 2026-01-31T20:11:00Z
+Stopped at: Completed 02-05-PLAN.md (Phase 2 complete)
 Resume file: None

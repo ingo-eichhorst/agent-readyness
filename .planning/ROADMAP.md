@@ -85,9 +85,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 04-01-PLAN.md -- Recommendation engine: impact simulation, ranking, effort estimation (TDD)
-- [ ] 04-02-PLAN.md -- Terminal recommendation rendering and JSON output
-- [ ] 04-03-PLAN.md -- Pipeline wiring, --threshold/--json flags, exit code handling
+- [x] 04-01-PLAN.md -- Recommendation engine: impact simulation, ranking, effort estimation (TDD)
+- [x] 04-02-PLAN.md -- Terminal recommendation rendering and JSON output
+- [x] 04-03-PLAN.md -- Pipeline wiring, --threshold/--json flags, exit code handling
 
 ### Phase 5: Hardening
 **Goal**: The tool handles real-world edge cases gracefully and performs well on large codebases
@@ -112,5 +112,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 | 1. Foundation | 3/3 | Complete | 2026-01-31 |
 | 2. Core Analysis | 5/5 | Complete | 2026-01-31 |
 | 3. Scoring Model | 3/3 | Complete | 2026-01-31 |
-| 4. Recommendations and Output | 0/3 | Not started | - |
+| 4. Recommendations and Output | 3/3 | Complete | 2026-01-31 |
 | 5. Hardening | 0/TBD | Not started | - |

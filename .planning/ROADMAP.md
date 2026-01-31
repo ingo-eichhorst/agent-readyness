@@ -65,10 +65,12 @@ Plans:
   2. A composite score is calculated using weighted average (C1: 25%, C3: 20%, C6: 15%) and displayed alongside the tier rating (Agent-Ready/Assisted/Limited/Hostile)
   3. Running with `--verbose` shows the per-metric breakdown contributing to each category score
   4. Scoring thresholds are configurable (not hardcoded), enabling future tuning without code changes
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 03-01: TBD
+- [ ] 03-01-PLAN.md -- Scoring foundation: types, config, interpolation, composite, tier classification (TDD)
+- [ ] 03-02-PLAN.md -- Category scorers: C1/C3/C6 metric extraction and per-category scoring (TDD)
+- [ ] 03-03-PLAN.md -- Pipeline integration, terminal score rendering, --config flag
 
 ### Phase 4: Recommendations and Output
 **Goal**: Users see a polished terminal report with scores, tier rating, and actionable improvement recommendations
@@ -108,6 +110,6 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 |-------|----------------|--------|-----------|
 | 1. Foundation | 3/3 | Complete | 2026-01-31 |
 | 2. Core Analysis | 5/5 | Complete | 2026-01-31 |
-| 3. Scoring Model | 0/TBD | Not started | - |
+| 3. Scoring Model | 0/3 | Not started | - |
 | 4. Recommendations and Output | 0/TBD | Not started | - |
 | 5. Hardening | 0/TBD | Not started | - |

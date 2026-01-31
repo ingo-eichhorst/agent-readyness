@@ -2,11 +2,11 @@
 
 ## What This Is
 
-A Go CLI tool that analyzes codebases and produces a 1-10 composite score measuring how well a repository supports AI coding agent workflows. Team leads use ARS to assess whether their codebases are ready for safe agent adoption, prioritize refactoring work, track improvements over time, and justify investment in code quality.
+A CLI tool that analyzes Go codebases and produces a composite score (1-10) measuring how well the repository supports AI agent workflows. ARS evaluates code health, architectural navigability, and testing infrastructure, then generates actionable improvement recommendations ranked by impact.
 
 ## Core Value
 
-Team leads get an objective, research-backed assessment of whether their codebases are safe for AI agent adoption, with specific actionable improvements ranked by impact.
+Accurate, evidence-based scoring that predicts agent success and identifies specific improvements teams should make before adopting AI coding agents.
 
 ## Requirements
 
@@ -16,110 +16,70 @@ Team leads get an objective, research-backed assessment of whether their codebas
 
 ### Active
 
-#### CLI & Core Infrastructure
-- [ ] CLI accepts repository path and options via `ars scan [path]`
-- [ ] Auto-detect language from file extensions and project structure
-- [ ] Exit codes: 0 (success), 1 (error)
-- [ ] Output formatted results to terminal (text)
-
-#### Language Support
-- [ ] Analyze Python codebases (C1, C3, C6 metrics)
-- [ ] Analyze Go codebases (C1, C3, C6 metrics)
-- [ ] Analyze TypeScript codebases (C1, C3, C6 metrics)
-
-#### C1: Code Health & Structural Integrity (25% weight)
-- [ ] Measure cyclomatic complexity (McCabe) per function
-- [ ] Measure cognitive complexity (nested control flow depth)
-- [ ] Measure function length (lines per function)
-- [ ] Measure file size (lines per file)
-- [ ] Measure coupling - afferent (incoming dependencies)
-- [ ] Measure coupling - efferent (outgoing dependencies)
-- [ ] Measure cohesion (LCOM - Lack of Cohesion of Methods)
-- [ ] Detect code duplication (duplicated code blocks %)
-
-#### C3: Architectural Navigability (20% weight)
-- [ ] Measure directory depth (max nesting level)
-- [ ] Measure module fanout (avg references per module)
-- [ ] Detect circular dependencies (import cycles)
-- [ ] Check entry point clarity (main/index files present)
-- [ ] Measure import path complexity (relative path segments)
-- [ ] Detect dead code ratio (unreferenced exports %)
-- [ ] Check architectural layering violations
-
-#### C6: Testing & Verifiability Infrastructure (15% weight)
-- [ ] Estimate test coverage (% lines/branches - static approximation)
-- [ ] Measure test-to-code ratio (test LOC / source LOC)
-- [ ] Estimate test isolation (% tests with external dependencies)
-- [ ] Measure assertion density (assertions per test)
-- [ ] Check test naming conventions (`should_*`, `it_*`, `test_*`)
-- [ ] Estimate fast test ratio (% tests likely <1s - heuristic)
-- [ ] Measure fixture complexity (lines in setup/teardown)
-
-#### Scoring & Recommendations
-- [ ] Calculate weighted composite score: 0.25×C1 + 0.20×C3 + 0.15×C6
-- [ ] Normalize to 1-10 scale with piecewise linear interpolation
-- [ ] Assign tier rating: Agent-Ready (8-10), Agent-Assisted (6-7.9), Agent-Limited (4-5.9), Agent-Hostile (1-3.9)
-- [ ] Generate Top 5 improvement recommendations ranked by (Max Gain × Ease × Category Weight)
-- [ ] Display per-category scores and overall composite score
+- [ ] CLI accepts directory path and scans Go codebase
+- [ ] Auto-detects Go projects (go.mod, .go files)
+- [ ] C1: Code Health analysis (cyclomatic complexity, function length, file size, coupling, duplication)
+- [ ] C3: Architectural Navigability analysis (directory depth, module fanout, circular dependencies, import complexity, dead code)
+- [ ] C6: Testing Infrastructure analysis (test coverage, test-to-code ratio, test isolation, assertion density)
+- [ ] Composite score calculation using weighted average (C1: 25%, C3: 20%, C6: 15%)
+- [ ] Per-category scores with metric breakdowns
+- [ ] Top 5 improvement recommendations ranked by impact
+- [ ] Terminal text output with tier rating (Agent-Ready, Agent-Assisted, Agent-Limited, Agent-Hostile)
+- [ ] Exit codes: 0 (success), 1 (error), 2 (below threshold if --threshold specified)
+- [ ] Usage: `ars scan <directory>`
 
 ### Out of Scope
 
-**Deferred to Phase 2:**
-- C2 (Semantic Explicitness & Type Safety) category — full type annotation analysis
-- C4 (Documentation Quality) category — README, comments, API docs analysis
-- C5 (Temporal & Operational Dynamics) category — requires git log parsing, churn analysis
-- C7 (Agent Evaluation - LLM Judge) category — subjective LLM-based scoring
-- Java language support — needed but deferred
-- JavaScript (non-TypeScript) support — defer until Java complete
-- HTML/JSON/Markdown output formats — terminal text only in v1
-- `--threshold` flag for CI gating — no CI integration yet
-- `--baseline` comparison mode for tracking — no persistence in v1
-- Coverage report parsing (lcov, cobertura, JaCoCo) — use static approximation instead
-- Dynamic test execution for accurate timing — use static heuristics
-
-**Explicitly Excluded:**
-- Cloud-hosted service — CLI tool only, users run locally
-- Automated code fixes — analysis only, no mutations
-- Real-time IDE linting — batch analysis only
-- Competitive benchmarking — single repo focus
+- Python/TypeScript analyzers — Phase 2
+- C2 (Semantic Explicitness), C4 (Documentation), C5 (Temporal Dynamics) — Phase 2
+- C7 (LLM Judge) — Future, high cost
+- HTML reports — Phase 2
+- JSON output — Phase 2
+- GitHub Action — Future
+- VS Code extension — Future
+- Multi-language repository support — Phase 2
+- Incremental scanning / caching — Future
+- Automated code fixes — analysis only, never mutations
 
 ## Context
 
 **Research Foundation:**
-- Detailed PRD exists in `.specs/prd.md` with academic backing
-- Based on Borg et al. (2026) Code Health framework, RepoGraph (Zhang 2024), SWE-bench (Jimenez 2024), CrossCodeEval (Ding 2023)
-- 7-category MECE taxonomy defined with specific metrics and thresholds
-- v1 implements 3 of 7 categories (C1, C3, C6) to ship faster and validate approach
+- Borg et al. (2026): Code Health metrics predict maintainability
+- RepoGraph (Zhang et al., 2024): Graph-based architectural metrics correlate with agent task success
+- SWE-bench (Jimenez et al., 2024): Test coverage correlates with agent task completion (47%)
+- CrossCodeEval: Agents perform better on well-structured codebases
 
-**Organizational Context:**
-- Multiple teams with Python, Go, TypeScript, and Java codebases (Java deferred to Phase 2)
-- Team leads are primary users
-- Need to assess codebase readiness before agent adoption rollout
-- Will use scores to: gate agent adoption, prioritize refactoring, track progress, justify investment
+**Use Case:**
+Internal tooling to identify which repositories need investment before agent adoption. Teams lack objective metrics to prioritize codebase improvements or track agent-readiness over time.
 
-**Technical Context:**
-- Static analysis only in v1 (no running tests, no git operations beyond reading file tree)
-- Must handle typical repos (<100k LOC) efficiently
-- Cross-platform distribution requirement (Linux, macOS, Windows)
+**Test Strategy:**
+- First test case: this repository (agent-readiness)
+- Validation: open source Go libraries
+- Real repos inform metric thresholds and scoring model
+
+**Target Users:**
+- Engineering leaders prioritizing investment
+- Developers wanting specific improvement guidance
+- Platform engineers enforcing quality standards in CI
 
 ## Constraints
 
-- **Tech Stack**: Go — single binary distribution, cross-platform, strong CLI/parser ecosystem
-- **Timeline**: Target 1-2 weeks for v1, but quality over speed (full Phase 1 scope may take 3-4 weeks)
-- **Performance**: Should scan typical repo (<100k LOC) in under 30 seconds
-- **Languages**: Must support Python, Go, TypeScript in v1 (cannot ship without all three)
-- **Output**: Terminal text only (no file I/O, no HTML generation in v1)
-- **Dependencies**: Minimize external dependencies; prefer stdlib where possible
+- **Timeline**: ASAP — ship working v1 quickly
+- **Philosophy**: KISS + TDD, simplicity is king
+- **Tech stack**: Go, no heavy frameworks
+- **Performance**: Should handle large repos (10k+ files) in reasonable time (<5 min)
+- **Testing**: TDD approach, test on real codebases
+- **Parsing**: Use simple, reliable parsers (avoid over-engineering)
 
 ## Key Decisions
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Go for implementation | Single binary, cross-platform, strong stdlib, good for CLI tools | — Pending |
-| Phase 1: C1+C3+C6 only (3 of 7 categories) | Ship faster, validate approach with highest-impact metrics, defer C2/C4/C5/C7 | — Pending |
-| Static analysis only in v1 | Avoid complexity of running coverage tools, git forensics; use heuristics where needed | — Pending |
-| Terminal text output only | Immediate value, simple implementation, defer HTML/JSON formatting | — Pending |
-| Normalize partial category scores | C1+C3+C6 = 60% of full model; scale to 1-10 for v1, add categories in v2 | — Pending |
+| Start with Go only | Get one language right, validate scoring model before expanding | — Pending |
+| Use weighted composite score | Research shows different metrics have different predictive power | — Pending |
+| Focus on C1, C3, C6 first | Structural quality and testing are highest-impact, measurable categories | — Pending |
+| KISS over frameworks | Fast iteration, easier to maintain, lower barrier to contribution | — Pending |
+| Test on real repos | Synthetic tests won't reveal threshold accuracy issues | — Pending |
 
 ---
 *Last updated: 2026-01-31 after initialization*

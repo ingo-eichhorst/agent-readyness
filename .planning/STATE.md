@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-01-31)
 
 **Core value:** Accurate, evidence-based scoring that predicts agent success and identifies specific improvements teams should make before adopting AI coding agents.
-**Current focus:** Phase 3 - Scoring Model (COMPLETE)
+**Current focus:** Phase 4 - Recommendations and Output (IN PROGRESS)
 
 ## Current Position
 
-Phase: 3 of 5 (Scoring Model)
-Plan: 3 of 3 in current phase
-Status: Phase complete
-Last activity: 2026-01-31 -- Completed 03-03-PLAN.md
+Phase: 4 of 5 (Recommendations and Output)
+Plan: 1 of 3 in current phase
+Status: In progress
+Last activity: 2026-01-31 -- Completed 04-01-PLAN.md
 
-Progress: [##########] ~100%
+Progress: [████████████████████░░░░░░░░░░] ~67% (12/18 plans)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 11
+- Total plans completed: 12
 - Average duration: 6 min
-- Total execution time: 63 min
+- Total execution time: 67 min
 
 **By Phase:**
 
@@ -30,10 +30,11 @@ Progress: [##########] ~100%
 | 01-foundation | 3 | 9 min | 3 min |
 | 02-core-analysis | 5 | 44 min | 9 min |
 | 03-scoring-model | 3 | 10 min | 3 min |
+| 04-recommendations-and-output | 1 | 4 min | 4 min |
 
 **Recent Trend:**
-- Last 5 plans: 02-04 (9 min), 02-05 (8 min), 03-01 (3 min), 03-02 (3 min), 03-03 (4 min)
-- Trend: fast for pure-logic and wiring plans (no go/packages loading in scoring)
+- Last 5 plans: 02-05 (8 min), 03-01 (3 min), 03-02 (3 min), 03-03 (4 min), 04-01 (4 min)
+- Trend: consistent fast execution for pure-logic TDD plans
 
 *Updated after each plan completion*
 
@@ -84,6 +85,10 @@ Recent decisions affecting current work:
 - [03-03]: Scoring errors produce warnings, do not crash pipeline
 - [03-03]: RenderScores is separate function from RenderSummary
 - [03-03]: Score color thresholds: green >= 8.0, yellow >= 6.0, red < 6.0
+- [04-01]: findTargetBreakpoint selects minimal next-better breakpoint (smallest improvement step)
+- [04-01]: Hard metrics (complexity_avg, duplication_rate) get +1 effort level bump
+- [04-01]: Effort thresholds: gap < 1.0 = Low, < 2.5 = Medium, >= 2.5 = High
+- [04-01]: simulateComposite deep-copies categories to avoid mutation of input ScoredResult
 
 ### Pending Todos
 
@@ -95,6 +100,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-01-31T21:30:00Z
-Stopped at: Completed 03-03-PLAN.md (Phase 3 complete)
+Last session: 2026-01-31T22:32:00Z
+Stopped at: Completed 04-01-PLAN.md
 Resume file: None

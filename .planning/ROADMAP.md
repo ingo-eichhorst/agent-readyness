@@ -30,11 +30,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Vendor directories and generated code are automatically excluded from discovered files
   4. `ars --help` prints usage documentation and `ars --version` prints the version string
   5. The pipeline architecture processes files through discovery, parsing, and a stub analyzer, producing structured output
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 01-01: TBD
-- [ ] 01-02: TBD
+- [ ] 01-01-PLAN.md -- Project init, shared types, CLI skeleton with cobra
+- [ ] 01-02-PLAN.md -- TDD file discovery engine and Go file classifier
+- [ ] 01-03-PLAN.md -- Pipeline architecture, terminal output, wire scan command
 
 ### Phase 2: Core Analysis
 **Goal**: The tool measures all C1, C3, and C6 metrics accurately across real Go codebases
@@ -103,7 +104,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 0/TBD | Not started | - |
+| 1. Foundation | 0/3 | Planned | - |
 | 2. Core Analysis | 0/TBD | Not started | - |
 | 3. Scoring Model | 0/TBD | Not started | - |
 | 4. Recommendations and Output | 0/TBD | Not started | - |

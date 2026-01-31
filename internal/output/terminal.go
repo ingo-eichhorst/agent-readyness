@@ -7,6 +7,7 @@ import (
 
 	"github.com/fatih/color"
 
+	"github.com/ingo/agent-readyness/internal/recommend"
 	"github.com/ingo/agent-readyness/pkg/types"
 )
 
@@ -384,6 +385,43 @@ func tierColor(tier string) *color.Color {
 		return color.New(color.FgYellow, color.Bold)
 	default:
 		return color.New(color.FgRed, color.Bold)
+	}
+}
+
+// RenderRecommendations prints ranked improvement recommendations to w.
+// Each recommendation shows rank, summary, impact, effort, and action.
+func RenderRecommendations(w io.Writer, recs []recommend.Recommendation) {
+	bold := color.New(color.Bold)
+	green := color.New(color.FgGreen)
+
+	fmt.Fprintln(w)
+	bold.Fprintln(w, "Top Recommendations")
+	fmt.Fprintln(w, "\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550")
+
+	if len(recs) == 0 {
+		green.Fprintln(w, "  No recommendations -- all metrics are excellent!")
+		return
+	}
+
+	for i, rec := range recs {
+		bold.Fprintf(w, "  %d. %s\n", rec.Rank, rec.Summary)
+
+		impactColor := scoreColor(rec.ScoreImprovement * 20) // map 0.5->10 for green threshold
+		if rec.ScoreImprovement >= 0.5 {
+			impactColor = color.New(color.FgGreen)
+		} else if rec.ScoreImprovement >= 0.2 {
+			impactColor = color.New(color.FgYellow)
+		} else {
+			impactColor = color.New(color.FgRed)
+		}
+		impactColor.Fprintf(w, "     Impact: +%.1f points\n", rec.ScoreImprovement)
+
+		fmt.Fprintf(w, "     Effort: %s\n", rec.Effort)
+		fmt.Fprintf(w, "     Action: %s\n", rec.Action)
+
+		if i < len(recs)-1 {
+			fmt.Fprintln(w)
+		}
 	}
 }
 

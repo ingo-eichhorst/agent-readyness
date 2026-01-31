@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ingo/agent-readyness/internal/recommend"
 	"github.com/ingo/agent-readyness/pkg/types"
 )
 
@@ -226,5 +227,70 @@ func TestRenderSummaryWithMetricsVerbose(t *testing.T) {
 		if !strings.Contains(out, check) {
 			t.Errorf("verbose output missing %q\nGot:\n%s", check, out)
 		}
+	}
+}
+
+func TestRenderRecommendations(t *testing.T) {
+	recs := []recommend.Recommendation{
+		{
+			Rank:             1,
+			Category:         "C6",
+			MetricName:       "coverage_percent",
+			CurrentValue:     30,
+			CurrentScore:     3.0,
+			TargetValue:      50,
+			ScoreImprovement: 0.8,
+			Effort:           "Medium",
+			Summary:          "Improve test coverage from 30.0 to 50.0 -- Without test coverage data, agents cannot assess change safety",
+			Action:           "Increase test coverage from 30% to 50%",
+		},
+		{
+			Rank:             2,
+			Category:         "C1",
+			MetricName:       "complexity_avg",
+			CurrentValue:     18,
+			CurrentScore:     4.5,
+			TargetValue:      10,
+			ScoreImprovement: 0.3,
+			Effort:           "High",
+			Summary:          "Improve average complexity from 18.0 to 10.0 -- High complexity makes functions harder for agents",
+			Action:           "Refactor functions with cyclomatic complexity > 18",
+		},
+	}
+
+	var buf bytes.Buffer
+	RenderRecommendations(&buf, recs)
+	out := buf.String()
+
+	checks := []string{
+		"Top Recommendations",
+		"1.",
+		"2.",
+		"Improve test coverage",
+		"Impact: +0.8 points",
+		"Effort: Medium",
+		"Effort: High",
+		"Increase test coverage",
+		"Refactor functions",
+		"Impact: +0.3 points",
+	}
+
+	for _, check := range checks {
+		if !strings.Contains(out, check) {
+			t.Errorf("output missing %q\nGot:\n%s", check, out)
+		}
+	}
+}
+
+func TestRenderRecommendationsEmpty(t *testing.T) {
+	var buf bytes.Buffer
+	RenderRecommendations(&buf, nil)
+	out := buf.String()
+
+	if !strings.Contains(out, "No recommendations") {
+		t.Errorf("empty recommendations should show excellent message\nGot:\n%s", out)
+	}
+	if !strings.Contains(out, "excellent") {
+		t.Errorf("empty recommendations should contain 'excellent'\nGot:\n%s", out)
 	}
 }

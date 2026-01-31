@@ -21,6 +21,7 @@ var scanCmd = &cobra.Command{
 	Use:   "scan <directory>",
 	Short: "Scan a Go project for agent readiness",
 	Args:  cobra.ExactArgs(1),
+	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		dir, err := filepath.Abs(args[0])
 		if err != nil {

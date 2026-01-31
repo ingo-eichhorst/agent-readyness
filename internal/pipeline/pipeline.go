@@ -8,6 +8,7 @@ import (
 	"github.com/ingo/agent-readyness/internal/discovery"
 	"github.com/ingo/agent-readyness/internal/output"
 	"github.com/ingo/agent-readyness/internal/parser"
+	"github.com/ingo/agent-readyness/internal/recommend"
 	"github.com/ingo/agent-readyness/internal/scoring"
 	"github.com/ingo/agent-readyness/pkg/types"
 )
@@ -80,10 +81,38 @@ func (p *Pipeline) Run(dir string) error {
 		p.scored = scored
 	}
 
-	// Stage 4: Render output
-	output.RenderSummary(p.writer, result, p.results, p.verbose)
+	// Stage 3.6: Generate recommendations
+	var recs []recommend.Recommendation
 	if p.scored != nil {
-		output.RenderScores(p.writer, p.scored, p.verbose)
+		recs = recommend.Generate(p.scored, p.scorer.Config)
+	}
+
+	// Stage 4: Render output
+	if p.jsonOutput {
+		// JSON mode: build report and render as JSON
+		if p.scored != nil {
+			report := output.BuildJSONReport(p.scored, recs, p.verbose)
+			if err := output.RenderJSON(p.writer, report); err != nil {
+				return fmt.Errorf("render JSON: %w", err)
+			}
+		}
+	} else {
+		// Terminal mode: render summary, scores, then recommendations
+		output.RenderSummary(p.writer, result, p.results, p.verbose)
+		if p.scored != nil {
+			output.RenderScores(p.writer, p.scored, p.verbose)
+		}
+		if len(recs) > 0 {
+			output.RenderRecommendations(p.writer, recs)
+		}
+	}
+
+	// Stage 5: Threshold check (AFTER rendering so output is always displayed)
+	if p.threshold > 0 && p.scored != nil && p.scored.Composite < p.threshold {
+		return &types.ExitError{
+			Code:    2,
+			Message: fmt.Sprintf("Score %.1f is below threshold %.1f", p.scored.Composite, p.threshold),
+		}
 	}
 
 	return nil

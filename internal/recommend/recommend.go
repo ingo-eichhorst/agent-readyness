@@ -49,12 +49,12 @@ var actionTemplates = map[string]string{
 	"func_length_avg":       "Break up functions longer than %.0f lines into focused helpers",
 	"file_size_avg":         "Split files larger than %.0f lines into cohesive modules",
 	"duplication_rate":      "Extract duplicated code blocks (currently %.1f%% duplication) into shared functions",
-	"afferent_coupling_avg": "Reduce incoming dependencies by introducing interfaces or facade patterns",
-	"efferent_coupling_avg": "Reduce outgoing dependencies by applying dependency inversion",
+	"afferent_coupling_avg": "Reduce avg incoming dependencies from %.1f by introducing interfaces or facade patterns",
+	"efferent_coupling_avg": "Reduce avg outgoing dependencies from %.1f by applying dependency inversion",
 	"max_dir_depth":         "Flatten directory structure from depth %d to at most %d",
-	"module_fanout_avg":     "Reduce module fan-out by consolidating related imports",
-	"circular_deps":         "Break circular dependencies by extracting shared interfaces",
-	"import_complexity_avg": "Simplify imports by reducing average import count per file",
+	"module_fanout_avg":     "Reduce avg module fan-out from %.1f by consolidating related imports",
+	"circular_deps":         "Break %d circular dependencies by extracting shared interfaces",
+	"import_complexity_avg": "Simplify imports (avg %.1f per file) by reducing import count",
 	"dead_exports":          "Remove %.0f unused exported symbols to reduce API surface",
 	"test_to_code_ratio":    "Add tests to improve test-to-code ratio from %.2f to %.2f",
 	"coverage_percent":      "Increase test coverage from %.0f%% to %.0f%%",
@@ -355,6 +355,10 @@ func buildAction(metricName string, currentValue, targetValue float64) string {
 		return fmt.Sprintf(tmpl, currentValue, targetValue)
 	case "coverage_percent", "test_isolation":
 		return fmt.Sprintf(tmpl, currentValue, targetValue)
+	case "afferent_coupling_avg", "efferent_coupling_avg", "module_fanout_avg", "import_complexity_avg":
+		return fmt.Sprintf(tmpl, currentValue)
+	case "circular_deps":
+		return fmt.Sprintf(tmpl, int(currentValue))
 	case "assertion_density_avg":
 		return fmt.Sprintf(tmpl, currentValue)
 	case "test_file_ratio":

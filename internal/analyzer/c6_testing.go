@@ -6,7 +6,6 @@ import (
 	"encoding/xml"
 	"fmt"
 	"go/ast"
-	"go/token"
 	"os"
 	"path/filepath"
 	"strings"
@@ -479,6 +478,3 @@ func countAssertions(fn *ast.FuncDecl) int {
 
 	return count
 }
-
-// Ensure fset import is used for token package reference.
-var _ token.FileSet

@@ -5,33 +5,34 @@
 See: .planning/PROJECT.md (updated 2026-01-31)
 
 **Core value:** Accurate, evidence-based scoring that predicts agent success and identifies specific improvements teams should make before adopting AI coding agents.
-**Current focus:** Phase 1 - Foundation (COMPLETE)
+**Current focus:** Phase 2 - Core Analysis (In Progress)
 
 ## Current Position
 
-Phase: 1 of 5 (Foundation) -- COMPLETE
-Plan: 3 of 3 in current phase
-Status: Phase complete
-Last activity: 2026-01-31 -- Completed 01-03-PLAN.md
+Phase: 2 of 5 (Core Analysis)
+Plan: 1 of 5 in current phase
+Status: In progress
+Last activity: 2026-01-31 -- Completed 02-01-PLAN.md
 
-Progress: [##........] ~20%
+Progress: [###.......] ~27%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 3
-- Average duration: 3 min
-- Total execution time: 9 min
+- Total plans completed: 4
+- Average duration: 4 min
+- Total execution time: 19 min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-foundation | 3 | 9 min | 3 min |
+| 02-core-analysis | 1 | 10 min | 10 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (2 min), 01-02 (3 min), 01-03 (4 min)
-- Trend: stable
+- Last 5 plans: 01-01 (2 min), 01-02 (3 min), 01-03 (4 min), 02-01 (10 min)
+- Trend: increased (go/packages loading is slow in tests)
 
 *Updated after each plan completion*
 
@@ -56,10 +57,13 @@ Recent decisions affecting current work:
 - [01-03]: Pipeline uses interface-based stages (Parser, Analyzer) for Phase 2 plug-in
 - [01-03]: fatih/color auto-disables ANSI when not a TTY
 - [01-03]: Output rendering separated from pipeline logic in internal/output
+- [02-01]: NeedForTest flag required for go/packages test package identification
+- [02-01]: ParsedPackage as new type in internal/parser (not evolution of ParsedFile)
+- [02-01]: Parser.Parse takes rootDir string, not []DiscoveredFile
 
 ### Pending Todos
 
-None yet.
+None.
 
 ### Blockers/Concerns
 
@@ -67,6 +71,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-01-31T18:04:00Z
-Stopped at: Completed 01-03-PLAN.md (Phase 1 complete)
+Last session: 2026-01-31T19:47:00Z
+Stopped at: Completed 02-01-PLAN.md
 Resume file: None

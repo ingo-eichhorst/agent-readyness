@@ -11,7 +11,11 @@ import (
 	"github.com/ingo/agent-readyness/internal/scoring"
 )
 
-var configPath string
+var (
+	configPath string
+	threshold  float64
+	jsonOutput bool
+)
 
 var scanCmd = &cobra.Command{
 	Use:   "scan <directory>",
@@ -32,13 +36,15 @@ var scanCmd = &cobra.Command{
 			return fmt.Errorf("load scoring config: %w", err)
 		}
 
-		p := pipeline.New(cmd.OutOrStdout(), verbose, cfg)
+		p := pipeline.New(cmd.OutOrStdout(), verbose, cfg, threshold, jsonOutput)
 		return p.Run(dir)
 	},
 }
 
 func init() {
 	scanCmd.Flags().StringVar(&configPath, "config", "", "path to scoring config YAML file")
+	scanCmd.Flags().Float64Var(&threshold, "threshold", 0, "minimum composite score (exit code 2 if below)")
+	scanCmd.Flags().BoolVar(&jsonOutput, "json", false, "output results as JSON")
 	rootCmd.AddCommand(scanCmd)
 }
 

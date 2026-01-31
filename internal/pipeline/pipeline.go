@@ -14,24 +14,28 @@ import (
 
 // Pipeline orchestrates the scan workflow: discover -> parse -> analyze -> score -> output.
 type Pipeline struct {
-	verbose   bool
-	writer    io.Writer
-	parser    Parser
-	analyzers []Analyzer
-	scorer    *scoring.Scorer
-	results   []*types.AnalysisResult
-	scored    *types.ScoredResult
+	verbose    bool
+	writer     io.Writer
+	parser     Parser
+	analyzers  []Analyzer
+	scorer     *scoring.Scorer
+	results    []*types.AnalysisResult
+	scored     *types.ScoredResult
+	threshold  float64
+	jsonOutput bool
 }
 
 // New creates a Pipeline with GoPackagesParser, all three analyzers, and a scorer.
 // If cfg is nil, DefaultConfig is used.
-func New(w io.Writer, verbose bool, cfg *scoring.ScoringConfig) *Pipeline {
+func New(w io.Writer, verbose bool, cfg *scoring.ScoringConfig, threshold float64, jsonOutput bool) *Pipeline {
 	if cfg == nil {
 		cfg = scoring.DefaultConfig()
 	}
 	return &Pipeline{
-		verbose: verbose,
-		writer:  w,
+		verbose:    verbose,
+		writer:     w,
+		threshold:  threshold,
+		jsonOutput: jsonOutput,
 		parser:  &parser.GoPackagesParser{},
 		analyzers: []Analyzer{
 			&analyzer.C1Analyzer{},

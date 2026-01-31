@@ -18,7 +18,7 @@ func TestPipelineRun(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	p := New(&buf, false, nil)
+	p := New(&buf, false, nil, 0, false)
 
 	if err := p.Run(root); err != nil {
 		t.Fatalf("Pipeline.Run() returned error: %v", err)
@@ -69,7 +69,7 @@ func TestPipelineRunVerbose(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	p := New(&buf, true, nil)
+	p := New(&buf, true, nil, 0, false)
 
 	if err := p.Run(root); err != nil {
 		t.Fatalf("Pipeline.Run() returned error: %v", err)
@@ -121,7 +121,7 @@ func TestPipelineAnalyzerErrorContinues(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	p := New(&buf, false, nil)
+	p := New(&buf, false, nil, 0, false)
 
 	// Replace analyzers with one that errors and one stub
 	p.analyzers = []Analyzer{
@@ -146,7 +146,7 @@ func TestPipelineScoringStage(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	p := New(&buf, false, nil)
+	p := New(&buf, false, nil, 0, false)
 
 	if err := p.Run(root); err != nil {
 		t.Fatalf("Pipeline.Run() returned error: %v", err)

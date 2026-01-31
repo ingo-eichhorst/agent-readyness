@@ -1,9 +1,12 @@
 package cmd
 
 import (
+	"errors"
 	"os"
 
 	"github.com/spf13/cobra"
+
+	"github.com/ingo/agent-readyness/pkg/types"
 )
 
 var (
@@ -20,11 +23,17 @@ var rootCmd = &cobra.Command{
 
 func init() {
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "enable verbose output")
+	rootCmd.SilenceErrors = true
 }
 
 // Execute runs the root command and exits with code 1 on error.
+// ExitError is handled specially: its Code is used as the exit code.
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
+		var exitErr *types.ExitError
+		if errors.As(err, &exitErr) {
+			os.Exit(exitErr.Code)
+		}
 		os.Exit(1)
 	}
 }

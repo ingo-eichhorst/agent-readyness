@@ -23,3 +23,15 @@ type SubScore struct {
 	Weight     float64 // Weight within category
 	Available  bool    // Whether the metric data was available
 }
+
+// ExitError is returned when the CLI should exit with a specific code.
+// For example, threshold violations exit with code 2.
+type ExitError struct {
+	Code    int
+	Message string
+}
+
+// Error implements the error interface.
+func (e *ExitError) Error() string {
+	return e.Message
+}

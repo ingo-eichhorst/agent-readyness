@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Foundation** - CLI skeleton, Go file discovery, and pipeline architecture
 - [x] **Phase 2: Core Analysis** - C1 (Code Health), C3 (Architecture), C6 (Testing) metric analyzers
-- [ ] **Phase 3: Scoring Model** - Per-category and composite scoring with tier ratings
+- [x] **Phase 3: Scoring Model** - Per-category and composite scoring with tier ratings
 - [ ] **Phase 4: Recommendations and Output** - Terminal output, improvement recommendations, CI gating
 - [ ] **Phase 5: Hardening** - Edge cases, performance optimization, progress indicators
 
@@ -82,11 +82,12 @@ Plans:
   3. Recommendations are framed in agent-readiness terms (not generic code quality language)
   4. Running with `--threshold X` exits with code 2 when the composite score falls below X
   5. Running with `--verbose` shows detailed per-metric breakdown alongside the standard output
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 04-01: TBD
-- [ ] 04-02: TBD
+- [ ] 04-01-PLAN.md -- Recommendation engine: impact simulation, ranking, effort estimation (TDD)
+- [ ] 04-02-PLAN.md -- Terminal recommendation rendering and JSON output
+- [ ] 04-03-PLAN.md -- Pipeline wiring, --threshold/--json flags, exit code handling
 
 ### Phase 5: Hardening
 **Goal**: The tool handles real-world edge cases gracefully and performs well on large codebases
@@ -111,5 +112,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 | 1. Foundation | 3/3 | Complete | 2026-01-31 |
 | 2. Core Analysis | 5/5 | Complete | 2026-01-31 |
 | 3. Scoring Model | 3/3 | Complete | 2026-01-31 |
-| 4. Recommendations and Output | 0/TBD | Not started | - |
+| 4. Recommendations and Output | 0/3 | Not started | - |
 | 5. Hardening | 0/TBD | Not started | - |

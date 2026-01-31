@@ -10,29 +10,29 @@ See: .planning/PROJECT.md (updated 2026-01-31)
 ## Current Position
 
 Phase: 2 of 5 (Core Analysis)
-Plan: 1 of 5 in current phase
+Plan: 2 of 5 in current phase
 Status: In progress
-Last activity: 2026-01-31 -- Completed 02-01-PLAN.md
+Last activity: 2026-01-31 -- Completed 02-02-PLAN.md
 
-Progress: [###.......] ~27%
+Progress: [####......] ~33%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 4
-- Average duration: 4 min
-- Total execution time: 19 min
+- Total plans completed: 5
+- Average duration: 5 min
+- Total execution time: 27 min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-foundation | 3 | 9 min | 3 min |
-| 02-core-analysis | 1 | 10 min | 10 min |
+| 02-core-analysis | 2 | 18 min | 9 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (2 min), 01-02 (3 min), 01-03 (4 min), 02-01 (10 min)
-- Trend: increased (go/packages loading is slow in tests)
+- Last 5 plans: 01-02 (3 min), 01-03 (4 min), 02-01 (10 min), 02-02 (8 min)
+- Trend: stable (go/packages loading dominates test time)
 
 *Updated after each plan completion*
 
@@ -60,6 +60,9 @@ Recent decisions affecting current work:
 - [02-01]: NeedForTest flag required for go/packages test package identification
 - [02-01]: ParsedPackage as new type in internal/parser (not evolution of ParsedFile)
 - [02-01]: Parser.Parse takes rootDir string, not []DiscoveredFile
+- [02-02]: gocyclo complexity matched via fset position key to merge with function length data
+- [02-02]: AST statement-sequence FNV hashing for duplication detection
+- [02-02]: Stub C3/C6 analyzer types added to unblock pre-existing test files
 
 ### Pending Todos
 
@@ -71,6 +74,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-01-31T19:47:00Z
-Stopped at: Completed 02-01-PLAN.md
+Last session: 2026-01-31T20:00:00Z
+Stopped at: Completed 02-02-PLAN.md
 Resume file: None

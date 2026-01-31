@@ -10,28 +10,28 @@ See: .planning/PROJECT.md (updated 2026-01-31)
 ## Current Position
 
 Phase: 2 of 5 (Core Analysis)
-Plan: 3 of 5 in current phase
+Plan: 4 of 5 in current phase
 Status: In progress
-Last activity: 2026-01-31 -- Completed 02-03-PLAN.md
+Last activity: 2026-01-31 -- Completed 02-04-PLAN.md
 
-Progress: [#####.....] ~40%
+Progress: [######....] ~47%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 6
+- Total plans completed: 7
 - Average duration: 6 min
-- Total execution time: 36 min
+- Total execution time: 45 min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-foundation | 3 | 9 min | 3 min |
-| 02-core-analysis | 3 | 27 min | 9 min |
+| 02-core-analysis | 4 | 36 min | 9 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-03 (4 min), 02-01 (10 min), 02-02 (8 min), 02-03 (9 min)
+- Last 5 plans: 02-01 (10 min), 02-02 (8 min), 02-03 (9 min), 02-04 (9 min)
 - Trend: stable (go/packages loading dominates test time)
 
 *Updated after each plan completion*
@@ -66,6 +66,9 @@ Recent decisions affecting current work:
 - [02-03]: Dead code detection uses go/types scope + cross-package Uses map
 - [02-03]: Single-package modules skip dead code detection (avoids false positives)
 - [02-03]: filterSourcePackages utility filters test packages for all C3 metrics
+- [02-04]: Coverage search order: cover.out -> lcov.info/coverage.lcov -> cobertura.xml/coverage.xml
+- [02-04]: Test isolation uses file-level imports not function-level
+- [02-04]: Assertion density counts both std testing and testify selector expressions
 
 ### Pending Todos
 
@@ -77,6 +80,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-01-31T20:01:00Z
-Stopped at: Completed 02-03-PLAN.md
+Last session: 2026-01-31T20:02:00Z
+Stopped at: Completed 02-04-PLAN.md
 Resume file: None

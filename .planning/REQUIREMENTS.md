@@ -46,12 +46,12 @@ Requirements for initial release (Go language only, C1/C3/C6 categories).
 
 ### Scoring Model
 
-- [ ] **SCORE-01**: Generates per-category score (1-10) for C1, C3, C6
-- [ ] **SCORE-02**: Calculates composite score using weighted average (C1: 25%, C3: 20%, C6: 15%)
-- [ ] **SCORE-03**: Assigns tier rating (Agent-Ready 8-10, Agent-Assisted 6-8, Agent-Limited 4-6, Agent-Hostile 1-4)
-- [ ] **SCORE-04**: Uses piecewise linear interpolation between threshold values
-- [ ] **SCORE-05**: Provides verbose mode showing per-metric breakdown
-- [ ] **SCORE-06**: Scoring thresholds are configurable (foundation for tuning)
+- [x] **SCORE-01**: Generates per-category score (1-10) for C1, C3, C6
+- [x] **SCORE-02**: Calculates composite score using weighted average (C1: 25%, C3: 20%, C6: 15%)
+- [x] **SCORE-03**: Assigns tier rating (Agent-Ready 8-10, Agent-Assisted 6-8, Agent-Limited 4-6, Agent-Hostile 1-4)
+- [x] **SCORE-04**: Uses piecewise linear interpolation between threshold values
+- [x] **SCORE-05**: Provides verbose mode showing per-metric breakdown
+- [x] **SCORE-06**: Scoring thresholds are configurable (foundation for tuning)
 
 ### Recommendations
 
@@ -132,28 +132,28 @@ Which phases cover which requirements. Updated during roadmap creation.
 | FOUND-07 | Phase 5 | Pending |
 | FOUND-08 | Phase 1 | Complete |
 | FOUND-09 | Phase 1 | Complete |
-| C1-01 | Phase 2 | Pending |
-| C1-02 | Phase 2 | Pending |
-| C1-03 | Phase 2 | Pending |
-| C1-04 | Phase 2 | Pending |
-| C1-05 | Phase 2 | Pending |
-| C1-06 | Phase 2 | Pending |
-| C3-01 | Phase 2 | Pending |
-| C3-02 | Phase 2 | Pending |
-| C3-03 | Phase 2 | Pending |
-| C3-04 | Phase 2 | Pending |
-| C3-05 | Phase 2 | Pending |
-| C6-01 | Phase 2 | Pending |
-| C6-02 | Phase 2 | Pending |
-| C6-03 | Phase 2 | Pending |
-| C6-04 | Phase 2 | Pending |
-| C6-05 | Phase 2 | Pending |
-| SCORE-01 | Phase 3 | Pending |
-| SCORE-02 | Phase 3 | Pending |
-| SCORE-03 | Phase 3 | Pending |
-| SCORE-04 | Phase 3 | Pending |
-| SCORE-05 | Phase 3 | Pending |
-| SCORE-06 | Phase 3 | Pending |
+| C1-01 | Phase 2 | Complete |
+| C1-02 | Phase 2 | Complete |
+| C1-03 | Phase 2 | Complete |
+| C1-04 | Phase 2 | Complete |
+| C1-05 | Phase 2 | Complete |
+| C1-06 | Phase 2 | Complete |
+| C3-01 | Phase 2 | Complete |
+| C3-02 | Phase 2 | Complete |
+| C3-03 | Phase 2 | Complete |
+| C3-04 | Phase 2 | Complete |
+| C3-05 | Phase 2 | Complete |
+| C6-01 | Phase 2 | Complete |
+| C6-02 | Phase 2 | Complete |
+| C6-03 | Phase 2 | Complete |
+| C6-04 | Phase 2 | Complete |
+| C6-05 | Phase 2 | Complete |
+| SCORE-01 | Phase 3 | Complete |
+| SCORE-02 | Phase 3 | Complete |
+| SCORE-03 | Phase 3 | Complete |
+| SCORE-04 | Phase 3 | Complete |
+| SCORE-05 | Phase 3 | Complete |
+| SCORE-06 | Phase 3 | Complete |
 | REC-01 | Phase 4 | Pending |
 | REC-02 | Phase 4 | Pending |
 | REC-03 | Phase 4 | Pending |

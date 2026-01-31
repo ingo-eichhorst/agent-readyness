@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-01-31)
 ## Current Position
 
 Phase: 3 of 5 (Scoring Model)
-Plan: 1 of 3 in current phase
+Plan: 2 of 3 in current phase
 Status: In progress
-Last activity: 2026-01-31 -- Completed 03-01-PLAN.md
+Last activity: 2026-01-31 -- Completed 03-02-PLAN.md
 
-Progress: [#########.] ~82%
+Progress: [#########.] ~87%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 9
+- Total plans completed: 10
 - Average duration: 6 min
-- Total execution time: 56 min
+- Total execution time: 59 min
 
 **By Phase:**
 
@@ -29,10 +29,10 @@ Progress: [#########.] ~82%
 |-------|-------|-------|----------|
 | 01-foundation | 3 | 9 min | 3 min |
 | 02-core-analysis | 5 | 44 min | 9 min |
-| 03-scoring-model | 1 | 3 min | 3 min |
+| 03-scoring-model | 2 | 6 min | 3 min |
 
 **Recent Trend:**
-- Last 5 plans: 02-02 (8 min), 02-03 (9 min), 02-04 (9 min), 02-05 (8 min), 03-01 (3 min)
+- Last 5 plans: 02-03 (9 min), 02-04 (9 min), 02-05 (8 min), 03-01 (3 min), 03-02 (3 min)
 - Trend: fast for pure-logic TDD plans (no go/packages loading)
 
 *Updated after each plan completion*
@@ -77,6 +77,9 @@ Recent decisions affecting current work:
 - [03-01]: Composite normalizes by sum of active weights (0.60), not 1.0
 - [03-01]: Tier boundaries use >= semantics (8.0 is Agent-Ready)
 - [03-01]: categoryScore returns 5.0 (neutral) when no sub-scores available
+- [03-02]: scoreMetrics generic helper avoids code duplication across scoreC1/C3/C6
+- [03-02]: Unavailable metrics passed as map[string]bool to scoreMetrics rather than sentinel values
+- [03-02]: Config metric names used as raw value map keys (complexity_avg not cyclomatic_complexity_avg)
 
 ### Pending Todos
 
@@ -88,6 +91,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-01-31T21:18:00Z
-Stopped at: Completed 03-01-PLAN.md
+Last session: 2026-01-31T21:24:00Z
+Stopped at: Completed 03-02-PLAN.md
 Resume file: None

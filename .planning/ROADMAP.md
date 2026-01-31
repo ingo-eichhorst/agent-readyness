@@ -12,7 +12,7 @@ ARS delivers a Go CLI that scans codebases and produces a composite agent-readin
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Foundation** - CLI skeleton, Go file discovery, and pipeline architecture
+- [x] **Phase 1: Foundation** - CLI skeleton, Go file discovery, and pipeline architecture
 - [ ] **Phase 2: Core Analysis** - C1 (Code Health), C3 (Architecture), C6 (Testing) metric analyzers
 - [ ] **Phase 3: Scoring Model** - Per-category and composite scoring with tier ratings
 - [ ] **Phase 4: Recommendations and Output** - Terminal output, improvement recommendations, CI gating
@@ -33,9 +33,9 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans**: 3 plans
 
 Plans:
-- [ ] 01-01-PLAN.md -- Project init, shared types, CLI skeleton with cobra
-- [ ] 01-02-PLAN.md -- TDD file discovery engine and Go file classifier
-- [ ] 01-03-PLAN.md -- Pipeline architecture, terminal output, wire scan command
+- [x] 01-01-PLAN.md -- Project init, shared types, CLI skeleton with cobra
+- [x] 01-02-PLAN.md -- TDD file discovery engine and Go file classifier
+- [x] 01-03-PLAN.md -- Pipeline architecture, terminal output, wire scan command
 
 ### Phase 2: Core Analysis
 **Goal**: The tool measures all C1, C3, and C6 metrics accurately across real Go codebases
@@ -104,7 +104,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 0/3 | Planned | - |
+| 1. Foundation | 3/3 | Complete | 2026-01-31 |
 | 2. Core Analysis | 0/TBD | Not started | - |
 | 3. Scoring Model | 0/TBD | Not started | - |
 | 4. Recommendations and Output | 0/TBD | Not started | - |

@@ -9,15 +9,15 @@ Requirements for initial release (Go language only, C1/C3/C6 categories).
 
 ### Foundation
 
-- [ ] **FOUND-01**: CLI accepts directory path as primary argument
-- [ ] **FOUND-02**: Auto-detects Go projects (go.mod presence, .go files)
-- [ ] **FOUND-03**: Provides `--help` flag with usage documentation
-- [ ] **FOUND-04**: Provides `--version` flag showing current version
-- [ ] **FOUND-05**: Clear error messages with actionable guidance when inputs invalid
-- [ ] **FOUND-06**: Exit codes: 0 (success), 1 (error), 2 (below threshold)
+- [x] **FOUND-01**: CLI accepts directory path as primary argument
+- [x] **FOUND-02**: Auto-detects Go projects (go.mod presence, .go files)
+- [x] **FOUND-03**: Provides `--help` flag with usage documentation
+- [x] **FOUND-04**: Provides `--version` flag showing current version
+- [x] **FOUND-05**: Clear error messages with actionable guidance when inputs invalid
+- [x] **FOUND-06**: Exit codes: 0 (success), 1 (error), 2 (below threshold)
 - [ ] **FOUND-07**: Handles edge cases (symlinks, syntax errors, Unicode paths)
-- [ ] **FOUND-08**: Excludes vendor directories and generated code automatically
-- [ ] **FOUND-09**: Properly classifies Go files (_test.go, build tags, platform-specific)
+- [x] **FOUND-08**: Excludes vendor directories and generated code automatically
+- [x] **FOUND-09**: Properly classifies Go files (_test.go, build tags, platform-specific)
 
 ### C1: Code Health & Structural Integrity
 
@@ -123,15 +123,15 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| FOUND-01 | Phase 1 | Pending |
-| FOUND-02 | Phase 1 | Pending |
-| FOUND-03 | Phase 1 | Pending |
-| FOUND-04 | Phase 1 | Pending |
-| FOUND-05 | Phase 1 | Pending |
-| FOUND-06 | Phase 1 | Pending |
+| FOUND-01 | Phase 1 | Complete |
+| FOUND-02 | Phase 1 | Complete |
+| FOUND-03 | Phase 1 | Complete |
+| FOUND-04 | Phase 1 | Complete |
+| FOUND-05 | Phase 1 | Complete |
+| FOUND-06 | Phase 1 | Complete |
 | FOUND-07 | Phase 5 | Pending |
-| FOUND-08 | Phase 1 | Pending |
-| FOUND-09 | Phase 1 | Pending |
+| FOUND-08 | Phase 1 | Complete |
+| FOUND-09 | Phase 1 | Complete |
 | C1-01 | Phase 2 | Pending |
 | C1-02 | Phase 2 | Pending |
 | C1-03 | Phase 2 | Pending |

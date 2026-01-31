@@ -281,14 +281,110 @@ func renderC6(w io.Writer, ar *types.AnalysisResult, verbose bool) {
 	}
 }
 
+// categoryDisplayNames maps category identifiers to human-readable labels.
+var categoryDisplayNames = map[string]string{
+	"C1": "Code Health",
+	"C3": "Architecture",
+	"C6": "Testing",
+}
+
+// metricDisplayNames maps metric identifiers to human-readable labels.
+var metricDisplayNames = map[string]string{
+	"complexity_avg":        "Complexity avg",
+	"func_length_avg":       "Func length avg",
+	"file_size_avg":         "File size avg",
+	"afferent_coupling_avg": "Afferent coupling",
+	"efferent_coupling_avg": "Efferent coupling",
+	"duplication_rate":      "Duplication rate",
+	"max_dir_depth":         "Max dir depth",
+	"module_fanout_avg":     "Module fanout avg",
+	"circular_deps":         "Circular deps",
+	"import_complexity_avg": "Import complexity",
+	"dead_exports":          "Dead exports",
+	"test_to_code_ratio":    "Test-to-code ratio",
+	"coverage_percent":      "Coverage",
+	"test_isolation":        "Test isolation",
+	"assertion_density_avg": "Assertion density",
+	"test_file_ratio":       "Test file ratio",
+}
+
 // RenderScores prints a formatted scoring section showing per-category scores,
 // composite score, and tier rating. When verbose is true, per-metric sub-score
 // breakdowns are shown beneath each category.
 func RenderScores(w io.Writer, scored *types.ScoredResult, verbose bool) {
-	// Stub - full implementation in Task 2
-	_ = w
-	_ = scored
-	_ = verbose
+	bold := color.New(color.Bold)
+
+	fmt.Fprintln(w)
+	bold.Fprintln(w, "Agent Readiness Score")
+	fmt.Fprintln(w, "\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550")
+
+	for _, cat := range scored.Categories {
+		displayName := categoryDisplayNames[cat.Name]
+		if displayName == "" {
+			displayName = cat.Name
+		}
+		label := fmt.Sprintf("%s: %-20s", cat.Name, displayName)
+
+		sc := scoreColor(cat.Score)
+		sc.Fprintf(w, "  %s%.1f / 10\n", label, cat.Score)
+
+		if verbose {
+			renderSubScores(w, cat.SubScores)
+		}
+	}
+
+	fmt.Fprintln(w, "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500")
+
+	// Composite score
+	cc := scoreColor(scored.Composite)
+	cc.Fprintf(w, "  Composite Score:          %.1f / 10\n", scored.Composite)
+
+	// Tier rating
+	tc := tierColor(scored.Tier)
+	fmt.Fprintf(w, "  Rating:                   ")
+	tc.Fprintln(w, scored.Tier)
+}
+
+// renderSubScores prints per-metric sub-score details indented beneath a category.
+func renderSubScores(w io.Writer, subScores []types.SubScore) {
+	for _, ss := range subScores {
+		displayName := metricDisplayNames[ss.MetricName]
+		if displayName == "" {
+			displayName = ss.MetricName
+		}
+
+		if !ss.Available {
+			fmt.Fprintf(w, "    %-22s n/a         (%.0f%%, excluded)\n",
+				displayName+":", ss.Weight*100)
+			continue
+		}
+
+		fmt.Fprintf(w, "    %-22s %7.1f  ->  %-4.1f  (%.0f%%)\n",
+			displayName+":", ss.RawValue, ss.Score, ss.Weight*100)
+	}
+}
+
+// scoreColor returns a color based on score thresholds: green >= 8, yellow >= 6, red < 6.
+func scoreColor(score float64) *color.Color {
+	if score >= 8.0 {
+		return color.New(color.FgGreen)
+	}
+	if score >= 6.0 {
+		return color.New(color.FgYellow)
+	}
+	return color.New(color.FgRed)
+}
+
+// tierColor returns a color for tier badge display.
+func tierColor(tier string) *color.Color {
+	switch tier {
+	case "Agent-Ready":
+		return color.New(color.FgGreen, color.Bold)
+	case "Agent-Assisted":
+		return color.New(color.FgYellow, color.Bold)
+	default:
+		return color.New(color.FgRed, color.Bold)
+	}
 }
 
 // joinCycle formats a dependency cycle as "A -> B -> C -> A".

@@ -56,7 +56,7 @@ Requirements for initial release (Go language only, C1/C3/C6 categories).
 ### Recommendations
 
 - [ ] **REC-01**: Generates Top 5 improvement recommendations
-- [ ] **REC-02**: Ranks recommendations by impact (max potential gain × ease × category weight)
+- [ ] **REC-02**: Ranks recommendations by impact (max potential gain x ease x category weight)
 - [ ] **REC-03**: Includes estimated score improvement for each recommendation
 - [ ] **REC-04**: Provides effort estimate (Low/Medium/High) for each improvement
 - [ ] **REC-05**: Frames recommendations in agent-readiness terms
@@ -123,15 +123,56 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| FOUND-01 | TBD | Pending |
-| FOUND-02 | TBD | Pending |
-| ... | ... | ... |
+| FOUND-01 | Phase 1 | Pending |
+| FOUND-02 | Phase 1 | Pending |
+| FOUND-03 | Phase 1 | Pending |
+| FOUND-04 | Phase 1 | Pending |
+| FOUND-05 | Phase 1 | Pending |
+| FOUND-06 | Phase 1 | Pending |
+| FOUND-07 | Phase 5 | Pending |
+| FOUND-08 | Phase 1 | Pending |
+| FOUND-09 | Phase 1 | Pending |
+| C1-01 | Phase 2 | Pending |
+| C1-02 | Phase 2 | Pending |
+| C1-03 | Phase 2 | Pending |
+| C1-04 | Phase 2 | Pending |
+| C1-05 | Phase 2 | Pending |
+| C1-06 | Phase 2 | Pending |
+| C3-01 | Phase 2 | Pending |
+| C3-02 | Phase 2 | Pending |
+| C3-03 | Phase 2 | Pending |
+| C3-04 | Phase 2 | Pending |
+| C3-05 | Phase 2 | Pending |
+| C6-01 | Phase 2 | Pending |
+| C6-02 | Phase 2 | Pending |
+| C6-03 | Phase 2 | Pending |
+| C6-04 | Phase 2 | Pending |
+| C6-05 | Phase 2 | Pending |
+| SCORE-01 | Phase 3 | Pending |
+| SCORE-02 | Phase 3 | Pending |
+| SCORE-03 | Phase 3 | Pending |
+| SCORE-04 | Phase 3 | Pending |
+| SCORE-05 | Phase 3 | Pending |
+| SCORE-06 | Phase 3 | Pending |
+| REC-01 | Phase 4 | Pending |
+| REC-02 | Phase 4 | Pending |
+| REC-03 | Phase 4 | Pending |
+| REC-04 | Phase 4 | Pending |
+| REC-05 | Phase 4 | Pending |
+| OUT-01 | Phase 4 | Pending |
+| OUT-02 | Phase 4 | Pending |
+| OUT-03 | Phase 4 | Pending |
+| OUT-04 | Phase 4 | Pending |
+| OUT-05 | Phase 4 | Pending |
+| OUT-06 | Phase 4 | Pending |
+| OUT-07 | Phase 5 | Pending |
+| OUT-08 | Phase 5 | Pending |
 
 **Coverage:**
-- v1 requirements: 38 total
-- Mapped to phases: 0 (roadmap not created yet)
-- Unmapped: 38 ⚠️
+- v1 requirements: 44 total
+- Mapped to phases: 44
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-01-31*
-*Last updated: 2026-01-31 after initial definition*
+*Last updated: 2026-01-31 after roadmap creation*

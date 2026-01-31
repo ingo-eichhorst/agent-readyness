@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-01-31)
 
 **Core value:** Accurate, evidence-based scoring that predicts agent success and identifies specific improvements teams should make before adopting AI coding agents.
-**Current focus:** Phase 4 - Recommendations and Output (IN PROGRESS)
+**Current focus:** Phase 4 - Recommendations and Output (COMPLETE)
 
 ## Current Position
 
 Phase: 4 of 5 (Recommendations and Output)
-Plan: 2 of 3 in current phase
-Status: In progress
-Last activity: 2026-01-31 -- Completed 04-02-PLAN.md
+Plan: 3 of 3 in current phase
+Status: Phase complete
+Last activity: 2026-01-31 -- Completed 04-03-PLAN.md
 
-Progress: [█████████████████████░░░░░░░░░] ~72% (13/18 plans)
+Progress: [███████████████████████░░░░░░░] ~78% (14/18 plans)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 13
-- Average duration: 5 min
-- Total execution time: 69 min
+- Total plans completed: 14
+- Average duration: 6 min
+- Total execution time: 77 min
 
 **By Phase:**
 
@@ -30,11 +30,11 @@ Progress: [█████████████████████░░
 | 01-foundation | 3 | 9 min | 3 min |
 | 02-core-analysis | 5 | 44 min | 9 min |
 | 03-scoring-model | 3 | 10 min | 3 min |
-| 04-recommendations-and-output | 2 | 6 min | 3 min |
+| 04-recommendations-and-output | 3 | 14 min | 5 min |
 
 **Recent Trend:**
-- Last 5 plans: 03-01 (3 min), 03-02 (3 min), 03-03 (4 min), 04-01 (4 min), 04-02 (2 min)
-- Trend: consistent fast execution for pure-logic and output rendering plans
+- Last 5 plans: 03-02 (3 min), 03-03 (4 min), 04-01 (4 min), 04-02 (2 min), 04-03 (8 min)
+- Trend: 04-03 slightly longer due to bug fix deviation and import cycle resolution
 
 *Updated after each plan completion*
 
@@ -93,6 +93,10 @@ Recent decisions affecting current work:
 - [04-02]: JSON version field "1" for future schema evolution
 - [04-02]: JSONMetric omitempty controls verbose metric inclusion in JSON
 - [04-02]: RenderJSON uses json.NewEncoder for streaming to io.Writer
+- [04-03]: ExitError in pkg/types to avoid cmd<->pipeline import cycle
+- [04-03]: Threshold check AFTER rendering so output always displayed before exit
+- [04-03]: SilenceUsage on scan command prevents usage dump on ExitError
+- [04-03]: SilenceErrors on root command prevents Cobra double-printing
 
 ### Pending Todos
 
@@ -104,6 +108,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-01-31T22:37:00Z
-Stopped at: Completed 04-02-PLAN.md
+Last session: 2026-01-31T22:43:55Z
+Stopped at: Completed 04-03-PLAN.md (Phase 4 complete)
 Resume file: None

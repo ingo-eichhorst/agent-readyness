@@ -1,39 +1,34 @@
 package pipeline
 
-import "github.com/ingo/agent-readyness/pkg/types"
+import (
+	"github.com/ingo/agent-readyness/internal/parser"
+	"github.com/ingo/agent-readyness/pkg/types"
+)
 
-// Parser converts discovered files into parsed files with AST information.
-// Phase 1 uses StubParser; Phase 2 plugs in real implementations.
+// Parser loads and parses Go packages from a module directory.
+// Phase 1 used StubParser; Phase 2 uses GoPackagesParser.
 type Parser interface {
-	Parse(files []types.DiscoveredFile) ([]types.ParsedFile, error)
+	Parse(rootDir string) ([]*parser.ParsedPackage, error)
 }
 
-// Analyzer runs a specific analysis pass over parsed files.
-// Phase 1 uses StubAnalyzer; Phase 2 plugs in real implementations.
+// Analyzer runs a specific analysis pass over parsed packages.
+// Phase 1 used StubAnalyzer; Phase 2 plugs in real implementations.
 type Analyzer interface {
 	Name() string
-	Analyze(files []types.ParsedFile) (*types.AnalysisResult, error)
+	Analyze(pkgs []*parser.ParsedPackage) (*types.AnalysisResult, error)
 }
 
-// StubParser is a passthrough parser that converts DiscoveredFiles to ParsedFiles
-// without any AST processing. Used in Phase 1.
+// StubParser is a no-op parser that returns an empty package slice.
+// Used as fallback when no real parser is configured.
 type StubParser struct{}
 
-// Parse converts each DiscoveredFile to a ParsedFile by copying path and class fields.
-func (s *StubParser) Parse(files []types.DiscoveredFile) ([]types.ParsedFile, error) {
-	parsed := make([]types.ParsedFile, len(files))
-	for i, f := range files {
-		parsed[i] = types.ParsedFile{
-			Path:    f.Path,
-			RelPath: f.RelPath,
-			Class:   f.Class,
-		}
-	}
-	return parsed, nil
+// Parse returns an empty ParsedPackage slice without loading anything.
+func (s *StubParser) Parse(rootDir string) ([]*parser.ParsedPackage, error) {
+	return []*parser.ParsedPackage{}, nil
 }
 
 // StubAnalyzer is a no-op analyzer that returns an empty result.
-// Used in Phase 1 as a placeholder.
+// Used as a placeholder when no real analyzers are configured.
 type StubAnalyzer struct{}
 
 // Name returns the analyzer name.
@@ -42,7 +37,7 @@ func (s *StubAnalyzer) Name() string {
 }
 
 // Analyze returns an empty AnalysisResult.
-func (s *StubAnalyzer) Analyze(files []types.ParsedFile) (*types.AnalysisResult, error) {
+func (s *StubAnalyzer) Analyze(pkgs []*parser.ParsedPackage) (*types.AnalysisResult, error) {
 	return &types.AnalysisResult{
 		Name:    "stub",
 		Metrics: make(map[string]interface{}),

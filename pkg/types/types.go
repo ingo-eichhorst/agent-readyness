@@ -55,6 +55,88 @@ type ScanResult struct {
 
 // AnalysisResult holds the output of a single analysis pass (Phase 2).
 type AnalysisResult struct {
-	Name    string                 // Name of the analysis (e.g., "complexity")
-	Metrics map[string]interface{} // Analysis metrics
+	Name     string                 // Name of the analysis (e.g., "complexity")
+	Category string                 // Category identifier (e.g., "C1", "C3", "C6")
+	Metrics  map[string]interface{} // Analysis metrics
+}
+
+// MetricSummary holds avg/max for a numeric metric.
+type MetricSummary struct {
+	Avg       float64
+	Max       int
+	MaxEntity string // which function/file has the max
+}
+
+// FunctionMetric holds per-function analysis data.
+type FunctionMetric struct {
+	Package    string
+	Name       string
+	File       string
+	Line       int
+	Complexity int
+	LineCount  int
+}
+
+// DuplicateBlock represents a detected code clone.
+type DuplicateBlock struct {
+	FileA     string
+	StartA    int
+	EndA      int
+	FileB     string
+	StartB    int
+	EndB      int
+	LineCount int
+}
+
+// C1Metrics holds Code Health metric results.
+type C1Metrics struct {
+	CyclomaticComplexity MetricSummary
+	FunctionLength       MetricSummary
+	FileSize             MetricSummary
+	AfferentCoupling     map[string]int   // pkg path -> incoming dep count
+	EfferentCoupling     map[string]int   // pkg path -> outgoing dep count
+	DuplicationRate      float64          // percentage 0-100
+	DuplicatedBlocks     []DuplicateBlock
+	Functions            []FunctionMetric // per-function detail
+}
+
+// C3Metrics holds Architectural Navigability metric results.
+type C3Metrics struct {
+	MaxDirectoryDepth int
+	AvgDirectoryDepth float64
+	ModuleFanout      MetricSummary // avg refs per module
+	CircularDeps      [][]string    // each cycle as list of package paths
+	ImportComplexity  MetricSummary // avg relative path segments
+	DeadExports       []DeadExport  // unreferenced exported symbols
+}
+
+// DeadExport represents an exported symbol not referenced within the module.
+type DeadExport struct {
+	Package string
+	Name    string
+	File    string
+	Line    int
+	Kind    string // "func", "type", "var", "const"
+}
+
+// C6Metrics holds Testing Infrastructure metric results.
+type C6Metrics struct {
+	TestFileCount    int
+	SourceFileCount  int
+	TestToCodeRatio  float64          // test LOC / source LOC
+	CoveragePercent  float64          // -1 if not available
+	CoverageSource   string           // "go-cover", "lcov", "cobertura", "none"
+	TestIsolation    float64          // percentage of tests without external deps
+	AssertionDensity MetricSummary    // assertions per test function
+	TestFunctions    []TestFunctionMetric
+}
+
+// TestFunctionMetric holds per-test-function data.
+type TestFunctionMetric struct {
+	Package        string
+	Name           string
+	File           string
+	Line           int
+	AssertionCount int
+	HasExternalDep bool
 }

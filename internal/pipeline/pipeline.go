@@ -34,15 +34,15 @@ func (p *Pipeline) Run(dir string) error {
 		return err
 	}
 
-	// Stage 2: Parse files (stub passthrough in Phase 1)
-	parsedFiles, err := p.parser.Parse(result.Files)
+	// Stage 2: Parse packages (loads ASTs, type info, imports via go/packages)
+	pkgs, err := p.parser.Parse(dir)
 	if err != nil {
 		return err
 	}
 
-	// Stage 3: Analyze files (stub no-op in Phase 1)
+	// Stage 3: Analyze packages
 	for _, analyzer := range p.analyzers {
-		_, err := analyzer.Analyze(parsedFiles)
+		_, err := analyzer.Analyze(pkgs)
 		if err != nil {
 			return err
 		}

@@ -5,8 +5,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-
-	"github.com/ingo/agent-readyness/pkg/types"
 )
 
 func TestPipelineRun(t *testing.T) {
@@ -60,32 +58,30 @@ func TestPipelineRunVerbose(t *testing.T) {
 	}
 }
 
-func TestStubParserPassthrough(t *testing.T) {
-	files := []types.DiscoveredFile{
-		{Path: "/a/b/main.go", RelPath: "main.go", Class: types.ClassSource},
-		{Path: "/a/b/main_test.go", RelPath: "main_test.go", Class: types.ClassTest},
-		{Path: "/a/b/vendor/x.go", RelPath: "vendor/x.go", Class: types.ClassExcluded, ExcludeReason: "vendor"},
-	}
-
-	parser := &StubParser{}
-	parsed, err := parser.Parse(files)
+func TestStubParserReturnsEmpty(t *testing.T) {
+	p := &StubParser{}
+	pkgs, err := p.Parse("/nonexistent")
 	if err != nil {
 		t.Fatalf("StubParser.Parse() returned error: %v", err)
 	}
 
-	if len(parsed) != len(files) {
-		t.Fatalf("expected %d parsed files, got %d", len(files), len(parsed))
+	if len(pkgs) != 0 {
+		t.Fatalf("expected 0 packages from StubParser, got %d", len(pkgs))
+	}
+}
+
+func TestStubAnalyzerReturnsEmpty(t *testing.T) {
+	a := &StubAnalyzer{}
+	if a.Name() != "stub" {
+		t.Errorf("expected name 'stub', got %q", a.Name())
 	}
 
-	for i, p := range parsed {
-		if p.Path != files[i].Path {
-			t.Errorf("file %d: expected Path %q, got %q", i, files[i].Path, p.Path)
-		}
-		if p.RelPath != files[i].RelPath {
-			t.Errorf("file %d: expected RelPath %q, got %q", i, files[i].RelPath, p.RelPath)
-		}
-		if p.Class != files[i].Class {
-			t.Errorf("file %d: expected Class %v, got %v", i, files[i].Class, p.Class)
-		}
+	result, err := a.Analyze(nil)
+	if err != nil {
+		t.Fatalf("StubAnalyzer.Analyze() returned error: %v", err)
+	}
+
+	if result.Name != "stub" {
+		t.Errorf("expected result name 'stub', got %q", result.Name)
 	}
 }

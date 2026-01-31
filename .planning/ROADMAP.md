@@ -47,12 +47,14 @@ Plans:
   3. Running `ars scan` reports directory depth, module fanout, circular dependencies, import complexity, and dead code
   4. Running `ars scan` detects test files, calculates test-to-code ratio, parses coverage reports, identifies test isolation issues, and reports assertion density
   5. All metrics produce correct results when validated against known Go repositories (e.g., this repository, standard library packages)
-**Plans**: TBD
+**Plans**: 5 plans
 
 Plans:
-- [ ] 02-01: TBD
-- [ ] 02-02: TBD
-- [ ] 02-03: TBD
+- [ ] 02-01-PLAN.md -- Parser with go/packages, types evolution, pipeline interface update
+- [ ] 02-02-PLAN.md -- C1 Code Health analyzer (complexity, function length, file size, coupling, duplication)
+- [ ] 02-03-PLAN.md -- C3 Architecture analyzer (directory depth, fanout, circular deps, import complexity, dead code)
+- [ ] 02-04-PLAN.md -- C6 Testing analyzer (test detection, ratio, coverage, isolation, assertions)
+- [ ] 02-05-PLAN.md -- Pipeline wiring, terminal output for metrics, end-to-end integration
 
 ### Phase 3: Scoring Model
 **Goal**: Raw metrics are converted into meaningful per-category and composite scores that predict agent readiness
@@ -105,7 +107,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation | 3/3 | Complete | 2026-01-31 |
-| 2. Core Analysis | 0/TBD | Not started | - |
+| 2. Core Analysis | 0/5 | In progress | - |
 | 3. Scoring Model | 0/TBD | Not started | - |
 | 4. Recommendations and Output | 0/TBD | Not started | - |
 | 5. Hardening | 0/TBD | Not started | - |

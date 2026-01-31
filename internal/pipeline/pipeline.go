@@ -8,20 +8,27 @@ import (
 	"github.com/ingo/agent-readyness/internal/discovery"
 	"github.com/ingo/agent-readyness/internal/output"
 	"github.com/ingo/agent-readyness/internal/parser"
+	"github.com/ingo/agent-readyness/internal/scoring"
 	"github.com/ingo/agent-readyness/pkg/types"
 )
 
-// Pipeline orchestrates the scan workflow: discover -> parse -> analyze -> output.
+// Pipeline orchestrates the scan workflow: discover -> parse -> analyze -> score -> output.
 type Pipeline struct {
 	verbose   bool
 	writer    io.Writer
 	parser    Parser
 	analyzers []Analyzer
+	scorer    *scoring.Scorer
 	results   []*types.AnalysisResult
+	scored    *types.ScoredResult
 }
 
-// New creates a Pipeline with GoPackagesParser and all three analyzers.
-func New(w io.Writer, verbose bool) *Pipeline {
+// New creates a Pipeline with GoPackagesParser, all three analyzers, and a scorer.
+// If cfg is nil, DefaultConfig is used.
+func New(w io.Writer, verbose bool, cfg *scoring.ScoringConfig) *Pipeline {
+	if cfg == nil {
+		cfg = scoring.DefaultConfig()
+	}
 	return &Pipeline{
 		verbose: verbose,
 		writer:  w,
@@ -31,6 +38,7 @@ func New(w io.Writer, verbose bool) *Pipeline {
 			&analyzer.C3Analyzer{},
 			&analyzer.C6Analyzer{},
 		},
+		scorer: &scoring.Scorer{Config: cfg},
 	}
 }
 
@@ -60,8 +68,19 @@ func (p *Pipeline) Run(dir string) error {
 		p.results = append(p.results, ar)
 	}
 
+	// Stage 3.5: Score results
+	scored, err := p.scorer.Score(p.results)
+	if err != nil {
+		fmt.Fprintf(p.writer, "Warning: scoring error: %v\n", err)
+	} else {
+		p.scored = scored
+	}
+
 	// Stage 4: Render output
 	output.RenderSummary(p.writer, result, p.results, p.verbose)
+	if p.scored != nil {
+		output.RenderScores(p.writer, p.scored, p.verbose)
+	}
 
 	return nil
 }

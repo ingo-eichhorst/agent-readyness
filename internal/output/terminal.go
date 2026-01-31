@@ -281,6 +281,16 @@ func renderC6(w io.Writer, ar *types.AnalysisResult, verbose bool) {
 	}
 }
 
+// RenderScores prints a formatted scoring section showing per-category scores,
+// composite score, and tier rating. When verbose is true, per-metric sub-score
+// breakdowns are shown beneath each category.
+func RenderScores(w io.Writer, scored *types.ScoredResult, verbose bool) {
+	// Stub - full implementation in Task 2
+	_ = w
+	_ = scored
+	_ = verbose
+}
+
 // joinCycle formats a dependency cycle as "A -> B -> C -> A".
 func joinCycle(cycle []string) string {
 	if len(cycle) == 0 {

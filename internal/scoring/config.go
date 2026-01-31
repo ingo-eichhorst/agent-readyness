@@ -1,10 +1,17 @@
 package scoring
 
+import (
+	"fmt"
+	"os"
+
+	"gopkg.in/yaml.v3"
+)
+
 // Breakpoint defines a mapping from a raw metric value to a score.
 // Breakpoints must be sorted by Value in ascending order.
 type Breakpoint struct {
-	Value float64 // raw metric value
-	Score float64 // corresponding score (1-10)
+	Value float64 `yaml:"value"` // raw metric value
+	Score float64 `yaml:"score"` // corresponding score (1-10)
 }
 
 // MetricThresholds defines the breakpoints for scoring a single metric.
@@ -241,4 +248,26 @@ func DefaultConfig() *ScoringConfig {
 			{Name: "Agent-Hostile", MinScore: 1.0},
 		},
 	}
+}
+
+// LoadConfig loads a ScoringConfig from a YAML file at path.
+// If path is empty, returns DefaultConfig().
+// The YAML is unmarshaled into a copy of DefaultConfig so that
+// missing fields retain their default values.
+func LoadConfig(path string) (*ScoringConfig, error) {
+	if path == "" {
+		return DefaultConfig(), nil
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("read scoring config: %w", err)
+	}
+
+	cfg := DefaultConfig()
+	if err := yaml.Unmarshal(data, cfg); err != nil {
+		return nil, fmt.Errorf("parse scoring config: %w", err)
+	}
+
+	return cfg, nil
 }

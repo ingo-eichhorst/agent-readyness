@@ -1,6 +1,10 @@
 package scoring
 
-import "testing"
+import (
+	"os"
+	"path/filepath"
+	"testing"
+)
 
 func TestDefaultConfig_Structure(t *testing.T) {
 	cfg := DefaultConfig()
@@ -161,5 +165,80 @@ func TestDefaultConfig_MetricNames(t *testing.T) {
 		if !found {
 			t.Errorf("missing C6 metric %q", name)
 		}
+	}
+}
+
+func TestLoadConfig_EmptyPath(t *testing.T) {
+	cfg, err := LoadConfig("")
+	if err != nil {
+		t.Fatalf("LoadConfig('') returned error: %v", err)
+	}
+	if cfg == nil {
+		t.Fatal("LoadConfig('') returned nil")
+	}
+	// Should be equivalent to DefaultConfig
+	if cfg.C1.Weight != 0.25 {
+		t.Errorf("C1 weight = %v, want 0.25", cfg.C1.Weight)
+	}
+}
+
+func TestLoadConfig_YAMLOverride(t *testing.T) {
+	yamlContent := `
+c1:
+  weight: 0.40
+  name: "Code Health"
+  metrics:
+    - name: complexity_avg
+      weight: 1.0
+      breakpoints:
+        - value: 1
+          score: 10
+        - value: 50
+          score: 1
+`
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
+	if err := os.WriteFile(path, []byte(yamlContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := LoadConfig(path)
+	if err != nil {
+		t.Fatalf("LoadConfig() returned error: %v", err)
+	}
+
+	// C1 weight should be overridden
+	if cfg.C1.Weight != 0.40 {
+		t.Errorf("C1 weight = %v, want 0.40", cfg.C1.Weight)
+	}
+
+	// C1 metrics should be overridden (only 1 metric now)
+	if len(cfg.C1.Metrics) != 1 {
+		t.Errorf("C1 metrics count = %d, want 1", len(cfg.C1.Metrics))
+	}
+
+	// C3 should retain defaults since not in YAML
+	if cfg.C3.Weight != 0.20 {
+		t.Errorf("C3 weight = %v, want 0.20 (default)", cfg.C3.Weight)
+	}
+}
+
+func TestLoadConfig_FileNotFound(t *testing.T) {
+	_, err := LoadConfig("/nonexistent/config.yaml")
+	if err == nil {
+		t.Fatal("LoadConfig() should return error for missing file")
+	}
+}
+
+func TestLoadConfig_InvalidYAML(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "bad.yaml")
+	if err := os.WriteFile(path, []byte("{{{{not yaml"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := LoadConfig(path)
+	if err == nil {
+		t.Fatal("LoadConfig() should return error for invalid YAML")
 	}
 }

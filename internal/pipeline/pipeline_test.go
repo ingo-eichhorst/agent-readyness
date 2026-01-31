@@ -18,7 +18,7 @@ func TestPipelineRun(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	p := New(&buf, false)
+	p := New(&buf, false, nil)
 
 	if err := p.Run(root); err != nil {
 		t.Fatalf("Pipeline.Run() returned error: %v", err)
@@ -69,7 +69,7 @@ func TestPipelineRunVerbose(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	p := New(&buf, true)
+	p := New(&buf, true, nil)
 
 	if err := p.Run(root); err != nil {
 		t.Fatalf("Pipeline.Run() returned error: %v", err)
@@ -121,7 +121,7 @@ func TestPipelineAnalyzerErrorContinues(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	p := New(&buf, false)
+	p := New(&buf, false, nil)
 
 	// Replace analyzers with one that errors and one stub
 	p.analyzers = []Analyzer{
@@ -136,6 +136,52 @@ func TestPipelineAnalyzerErrorContinues(t *testing.T) {
 	out := buf.String()
 	if !strings.Contains(out, "Warning:") {
 		t.Error("expected warning about analyzer error in output")
+	}
+}
+
+func TestPipelineScoringStage(t *testing.T) {
+	root, err := filepath.Abs("../../testdata/valid-go-project")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var buf bytes.Buffer
+	p := New(&buf, false, nil)
+
+	if err := p.Run(root); err != nil {
+		t.Fatalf("Pipeline.Run() returned error: %v", err)
+	}
+
+	// Verify scored result is populated after Run
+	if p.scored == nil {
+		t.Fatal("pipeline scored result is nil after Run()")
+	}
+
+	if p.scored.Composite <= 0 {
+		t.Errorf("composite score should be > 0, got %v", p.scored.Composite)
+	}
+
+	if p.scored.Tier == "" {
+		t.Error("tier should not be empty")
+	}
+
+	// Should have categories for C1, C3, C6
+	catNames := make(map[string]bool)
+	for _, cat := range p.scored.Categories {
+		catNames[cat.Name] = true
+	}
+
+	for _, want := range []string{"C1", "C3", "C6"} {
+		if !catNames[want] {
+			t.Errorf("missing category %q in scored result", want)
+		}
+	}
+
+	// Each category score should be in valid range (1-10)
+	for _, cat := range p.scored.Categories {
+		if cat.Score < 1 || cat.Score > 10 {
+			t.Errorf("category %q score %v out of range [1,10]", cat.Name, cat.Score)
+		}
 	}
 }
 

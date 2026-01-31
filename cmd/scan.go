@@ -8,7 +8,10 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/ingo/agent-readyness/internal/pipeline"
+	"github.com/ingo/agent-readyness/internal/scoring"
 )
+
+var configPath string
 
 var scanCmd = &cobra.Command{
 	Use:   "scan <directory>",
@@ -24,12 +27,18 @@ var scanCmd = &cobra.Command{
 			return err
 		}
 
-		p := pipeline.New(cmd.OutOrStdout(), verbose)
+		cfg, err := scoring.LoadConfig(configPath)
+		if err != nil {
+			return fmt.Errorf("load scoring config: %w", err)
+		}
+
+		p := pipeline.New(cmd.OutOrStdout(), verbose, cfg)
 		return p.Run(dir)
 	},
 }
 
 func init() {
+	scanCmd.Flags().StringVar(&configPath, "config", "", "path to scoring config YAML file")
 	rootCmd.AddCommand(scanCmd)
 }
 

@@ -21,28 +21,28 @@ Requirements for initial release (Go language only, C1/C3/C6 categories).
 
 ### C1: Code Health & Structural Integrity
 
-- [ ] **C1-01**: Calculates cyclomatic complexity per function (avg and max)
-- [ ] **C1-02**: Measures function length in lines (avg and max)
-- [ ] **C1-03**: Measures file size in lines (avg and max)
-- [ ] **C1-04**: Calculates afferent coupling (incoming dependencies per module)
-- [ ] **C1-05**: Calculates efferent coupling (outgoing dependencies per module)
-- [ ] **C1-06**: Detects duplicated code blocks and reports duplication rate (%)
+- [x] **C1-01**: Calculates cyclomatic complexity per function (avg and max)
+- [x] **C1-02**: Measures function length in lines (avg and max)
+- [x] **C1-03**: Measures file size in lines (avg and max)
+- [x] **C1-04**: Calculates afferent coupling (incoming dependencies per module)
+- [x] **C1-05**: Calculates efferent coupling (outgoing dependencies per module)
+- [x] **C1-06**: Detects duplicated code blocks and reports duplication rate (%)
 
 ### C3: Architectural Navigability
 
-- [ ] **C3-01**: Measures directory depth (max nesting level)
-- [ ] **C3-02**: Calculates module fanout (avg references per module)
-- [ ] **C3-03**: Detects circular dependencies (import cycle count)
-- [ ] **C3-04**: Measures import path complexity (avg relative path segments)
-- [ ] **C3-05**: Identifies dead code (unreferenced exported functions/types)
+- [x] **C3-01**: Measures directory depth (max nesting level)
+- [x] **C3-02**: Calculates module fanout (avg references per module)
+- [x] **C3-03**: Detects circular dependencies (import cycle count)
+- [x] **C3-04**: Measures import path complexity (avg relative path segments)
+- [x] **C3-05**: Identifies dead code (unreferenced exported functions/types)
 
 ### C6: Testing & Verifiability Infrastructure
 
-- [ ] **C6-01**: Detects test files (*_test.go pattern)
-- [ ] **C6-02**: Calculates test-to-code ratio (test LOC / source LOC)
-- [ ] **C6-03**: Parses coverage reports if present (lcov, cobertura formats)
-- [ ] **C6-04**: Identifies test isolation (% tests with external dependencies)
-- [ ] **C6-05**: Calculates assertion density (assertions per test function)
+- [x] **C6-01**: Detects test files (*_test.go pattern)
+- [x] **C6-02**: Calculates test-to-code ratio (test LOC / source LOC)
+- [x] **C6-03**: Parses coverage reports if present (lcov, cobertura formats)
+- [x] **C6-04**: Identifies test isolation (% tests with external dependencies)
+- [x] **C6-05**: Calculates assertion density (assertions per test function)
 
 ### Scoring Model
 

@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Foundation** - CLI skeleton, Go file discovery, and pipeline architecture
 - [x] **Phase 2: Core Analysis** - C1 (Code Health), C3 (Architecture), C6 (Testing) metric analyzers
 - [x] **Phase 3: Scoring Model** - Per-category and composite scoring with tier ratings
-- [ ] **Phase 4: Recommendations and Output** - Terminal output, improvement recommendations, CI gating
+- [x] **Phase 4: Recommendations and Output** - Terminal output, improvement recommendations, CI gating
 - [ ] **Phase 5: Hardening** - Edge cases, performance optimization, progress indicators
 
 ## Phase Details
@@ -97,10 +97,11 @@ Plans:
   1. Symlinks, files with syntax errors, and Unicode paths are handled without crashes or misleading results
   2. Scanning a 50k LOC repository completes in under 30 seconds
   3. Long-running scans display progress indicators so the user knows work is happening
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 05-01: TBD
+- [ ] 05-01-PLAN.md -- Edge case resilience: symlinks, permission errors, Unicode paths in walker
+- [ ] 05-02-PLAN.md -- Parallel analyzers, stderr progress spinner, TTY detection
 
 ## Progress
 
@@ -113,4 +114,4 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 | 2. Core Analysis | 5/5 | Complete | 2026-01-31 |
 | 3. Scoring Model | 3/3 | Complete | 2026-01-31 |
 | 4. Recommendations and Output | 3/3 | Complete | 2026-01-31 |
-| 5. Hardening | 0/TBD | Not started | - |
+| 5. Hardening | 0/2 | Not started | - |

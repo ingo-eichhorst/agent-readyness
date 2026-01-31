@@ -10,28 +10,28 @@ See: .planning/PROJECT.md (updated 2026-01-31)
 ## Current Position
 
 Phase: 2 of 5 (Core Analysis)
-Plan: 2 of 5 in current phase
+Plan: 3 of 5 in current phase
 Status: In progress
-Last activity: 2026-01-31 -- Completed 02-02-PLAN.md
+Last activity: 2026-01-31 -- Completed 02-03-PLAN.md
 
-Progress: [####......] ~33%
+Progress: [#####.....] ~40%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 5
-- Average duration: 5 min
-- Total execution time: 27 min
+- Total plans completed: 6
+- Average duration: 6 min
+- Total execution time: 36 min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-foundation | 3 | 9 min | 3 min |
-| 02-core-analysis | 2 | 18 min | 9 min |
+| 02-core-analysis | 3 | 27 min | 9 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-02 (3 min), 01-03 (4 min), 02-01 (10 min), 02-02 (8 min)
+- Last 5 plans: 01-03 (4 min), 02-01 (10 min), 02-02 (8 min), 02-03 (9 min)
 - Trend: stable (go/packages loading dominates test time)
 
 *Updated after each plan completion*
@@ -63,6 +63,9 @@ Recent decisions affecting current work:
 - [02-02]: gocyclo complexity matched via fset position key to merge with function length data
 - [02-02]: AST statement-sequence FNV hashing for duplication detection
 - [02-02]: Stub C3/C6 analyzer types added to unblock pre-existing test files
+- [02-03]: Dead code detection uses go/types scope + cross-package Uses map
+- [02-03]: Single-package modules skip dead code detection (avoids false positives)
+- [02-03]: filterSourcePackages utility filters test packages for all C3 metrics
 
 ### Pending Todos
 
@@ -74,6 +77,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-01-31T20:00:00Z
-Stopped at: Completed 02-02-PLAN.md
+Last session: 2026-01-31T20:01:00Z
+Stopped at: Completed 02-03-PLAN.md
 Resume file: None

@@ -10,6 +10,19 @@ import (
 // It also implements GoAwareAnalyzer for Go-specific analysis via SetGoPackages.
 type C2Analyzer struct {
 	goAnalyzer *C2GoAnalyzer
+	pyAnalyzer *C2PythonAnalyzer
+	tsAnalyzer *C2TypeScriptAnalyzer
+}
+
+// NewC2Analyzer creates a C2Analyzer with Tree-sitter-based language analyzers.
+// If tsParser is nil, only Go analysis (via SetGoPackages) is available.
+func NewC2Analyzer(tsParser *parser.TreeSitterParser) *C2Analyzer {
+	a := &C2Analyzer{}
+	if tsParser != nil {
+		a.pyAnalyzer = NewC2PythonAnalyzer(tsParser)
+		a.tsAnalyzer = NewC2TypeScriptAnalyzer(tsParser)
+	}
+	return a
 }
 
 // Name returns the analyzer display name.
@@ -44,9 +57,26 @@ func (a *C2Analyzer) Analyze(targets []*types.AnalysisTarget) (*types.AnalysisRe
 				continue
 			}
 			metrics.PerLanguage[types.LangGo] = langMetrics
-		case types.LangPython, types.LangTypeScript:
-			// Python and TypeScript analyzers will be added in Plan 04
-			continue
+
+		case types.LangPython:
+			if a.pyAnalyzer == nil {
+				continue
+			}
+			langMetrics, err := a.pyAnalyzer.Analyze(target)
+			if err != nil {
+				continue
+			}
+			metrics.PerLanguage[types.LangPython] = langMetrics
+
+		case types.LangTypeScript:
+			if a.tsAnalyzer == nil {
+				continue
+			}
+			langMetrics, err := a.tsAnalyzer.Analyze(target)
+			if err != nil {
+				continue
+			}
+			metrics.PerLanguage[types.LangTypeScript] = langMetrics
 		}
 	}
 

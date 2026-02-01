@@ -2,19 +2,19 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-01-31)
+See: .planning/PROJECT.md (updated 2026-02-01)
 
 **Core value:** Accurate, evidence-based scoring that predicts agent success and identifies specific improvements teams should make before adopting AI coding agents.
-**Current focus:** Phase 5 - Hardening (COMPLETE)
+**Current focus:** Defining requirements for v2 milestone
 
 ## Current Position
 
-Phase: 5 of 5 (Hardening)
-Plan: 2 of 2 in current phase
-Status: Phase complete
-Last activity: 2026-02-01 -- Completed 05-02-PLAN.md
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements for v2 milestone
+Last activity: 2026-02-01 -- Milestone v2 started
 
-Progress: [██████████████████████████████] 100%
+Progress: [                              ] 0%
 
 ## Performance Metrics
 

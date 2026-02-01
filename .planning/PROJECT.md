@@ -2,7 +2,7 @@
 
 ## What This Is
 
-A CLI tool that analyzes Go codebases and produces a composite score (1-10) measuring how well the repository supports AI agent workflows. ARS evaluates code health, architectural navigability, and testing infrastructure, then generates actionable improvement recommendations ranked by impact.
+A CLI tool that analyzes codebases (Go, Python, TypeScript) and produces a composite score (1-10) measuring how well the repository supports AI agent workflows. ARS evaluates seven dimensions of agent-readiness (code health, semantic explicitness, architecture, documentation, temporal dynamics, testing, and agent evaluation), then generates actionable improvement recommendations ranked by impact.
 
 ## Core Value
 
@@ -30,19 +30,30 @@ Accurate, evidence-based scoring that predicts agent success and identifies spec
 
 ### Active
 
-(To be defined for next milestone)
+**Current Milestone: v2 Complete Analysis Framework**
+
+**Goal:** Transform ARS from a Go-specific structural analyzer into a comprehensive, multi-language agent-readiness assessment tool with all seven research-backed analysis categories.
+
+**Target features:**
+- Complete all 7 analysis categories (C1-C7) for comprehensive agent-readiness evaluation
+- Multi-language support: Go, Python, TypeScript analyzers with language-specific metrics
+- Headless agent evaluation (C7) using Claude Code for genuine agent-in-the-loop assessment
+- HTML reports with research citations, metric explanations, and visual score presentation
+- Configurable scoring via .arsrc.yml for custom weights and thresholds
+- Deep documentation quality analysis (C4) with content evaluation, not just presence checks
+- Git-based temporal analysis (C5) for code churn, hotspots, and ownership patterns
 
 ### Out of Scope
 
-- Python/TypeScript analyzers — v2
-- C2 (Semantic Explicitness), C4 (Documentation), C5 (Temporal Dynamics) — v2
-- C7 (LLM Judge) — Future, high cost
-- HTML reports — v2
-- GitHub Action — Future
-- VS Code extension — Future
-- Multi-language repository support — v2
-- Incremental scanning / caching — Future
-- Automated code fixes — analysis only, never mutations
+- GitHub Action — v3 (requires CI integration testing)
+- VS Code extension — v3 (requires IDE integration)
+- Incremental scanning / caching — v3 (optimize after full feature set exists)
+- Monorepo per-package scoring — v3 (requires workspace detection)
+- Trend dashboard / web UI — Future (requires persistence layer)
+- Markdown report output — v3 (additional output format)
+- Automated code fixes — Never (analysis only, no mutations)
+- Real-time IDE linting — Never (batch analysis only)
+- Competitive analysis — Never (single repo focus)
 
 ## Context
 
@@ -74,12 +85,13 @@ Internal tooling to identify which repositories need investment before agent ado
 
 ## Constraints
 
-- **Timeline**: ASAP — ship working v1 quickly
-- **Philosophy**: KISS + TDD, simplicity is king
-- **Tech stack**: Go, no heavy frameworks
-- **Performance**: Should handle large repos (10k+ files) in reasonable time (<5 min)
-- **Testing**: TDD approach, test on real codebases
-- **Parsing**: Use simple, reliable parsers (avoid over-engineering)
+- **Philosophy**: KISS + TDD, simplicity is king — avoid over-engineering even with expanded scope
+- **Tech stack**: Go for core, leverage Tree-sitter for multi-language parsing
+- **Performance**: <30s for 50k LOC repos (maintained from v1), C7 excluded from timing (opt-in, high latency)
+- **Testing**: TDD approach, validate on diverse real-world codebases (Go, Python, TypeScript)
+- **Git requirement**: C5 requires .git directory — fail with clear error if missing (no fallbacks)
+- **LLM costs**: C7 uses headless Claude Code — estimate and warn about costs before running
+- **Report quality**: HTML reports must be polished, research-backed, technical (not generic AI output)
 
 ## Key Decisions
 
@@ -94,4 +106,4 @@ Internal tooling to identify which repositories need investment before agent ado
 | Parallel analyzer execution | Reduce wall-clock time for large codebases | ✓ Good - Performance meets <30s requirement |
 
 ---
-*Last updated: 2026-02-01 after v1 milestone completion*
+*Last updated: 2026-02-01 after v2 milestone initialization*

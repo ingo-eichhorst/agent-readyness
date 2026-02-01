@@ -23,7 +23,7 @@ Phases 1-5 delivered Go-only CLI with C1 (Code Health), C3 (Architecture), C6 (T
 - Integer phases (6, 7, 8, 9, 10): Planned milestone work
 - Decimal phases (e.g., 7.1): Urgent insertions if needed (marked with INSERTED)
 
-- [ ] **Phase 6: Multi-Language Foundation + C2 Semantic Explicitness** - Generalize abstractions for Go/Python/TypeScript, add Tree-sitter parsing, implement C2 across all languages, build config system
+- [x] **Phase 6: Multi-Language Foundation + C2 Semantic Explicitness** - Generalize abstractions for Go/Python/TypeScript, add Tree-sitter parsing, implement C2 across all languages, build config system
 - [ ] **Phase 7: Python + TypeScript Analysis (C1/C3/C6)** - Port existing code health, architecture, and testing analyzers to Python and TypeScript via Tree-sitter
 - [ ] **Phase 8: C5 Temporal Dynamics** - Git-based temporal analysis with native git CLI for churn, hotspots, author fragmentation, and temporal coupling
 - [ ] **Phase 9: C4 Documentation Quality + HTML Reports** - Documentation analysis with LLM content evaluation, plus polished HTML report generation
@@ -44,10 +44,10 @@ Phases 1-5 delivered Go-only CLI with C1 (Code Health), C3 (Architecture), C6 (T
 **Plans**: 4 plans
 
 Plans:
-- [ ] 06-01-PLAN.md -- AnalysisTarget abstraction + pipeline interface refactoring
-- [ ] 06-02-PLAN.md -- Multi-language discovery + Tree-sitter parser integration
-- [ ] 06-03-PLAN.md -- C2 Go analyzer + map-based scoring expansion
-- [ ] 06-04-PLAN.md -- C2 Python/TypeScript + config system + CLI wiring
+- [x] 06-01-PLAN.md -- AnalysisTarget abstraction + pipeline interface refactoring
+- [x] 06-02-PLAN.md -- Multi-language discovery + Tree-sitter parser integration
+- [x] 06-03-PLAN.md -- C2 Go analyzer + map-based scoring expansion
+- [x] 06-04-PLAN.md -- C2 Python/TypeScript + config system + CLI wiring
 
 ### Phase 7: Python + TypeScript Analysis (C1/C3/C6)
 **Goal**: Users get full code health (C1), architecture (C3), and testing (C6) analysis for Python and TypeScript projects, matching the depth of Go analysis
@@ -119,7 +119,7 @@ Phases execute in numeric order: 6 -> 7 -> 8 -> 9 -> 10
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 6. Multi-Language + C2 | v2 | 0/4 | Planned | - |
+| 6. Multi-Language + C2 | v2 | 4/4 | Complete | 2026-02-01 |
 | 7. Python + TS (C1/C3/C6) | v2 | 0/2 | Not started | - |
 | 8. C5 Temporal | v2 | 0/2 | Not started | - |
 | 9. C4 Docs + HTML | v2 | 0/3 | Not started | - |

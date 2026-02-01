@@ -180,13 +180,107 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| (To be filled by roadmapper) | | |
+| LANG-01 | Phase 6 | Pending |
+| LANG-02 | Phase 6 | Pending |
+| LANG-03 | Phase 6 | Pending |
+| LANG-04 | Phase 6 | Pending |
+| LANG-05 | Phase 6 | Pending |
+| LANG-06 | Phase 6 | Pending |
+| LANG-07 | Phase 6 | Pending |
+| C2-GO-01 | Phase 6 | Pending |
+| C2-GO-02 | Phase 6 | Pending |
+| C2-GO-03 | Phase 6 | Pending |
+| C2-GO-04 | Phase 6 | Pending |
+| C2-PY-01 | Phase 6 | Pending |
+| C2-PY-02 | Phase 6 | Pending |
+| C2-PY-03 | Phase 6 | Pending |
+| C2-PY-04 | Phase 6 | Pending |
+| C2-TS-01 | Phase 6 | Pending |
+| C2-TS-02 | Phase 6 | Pending |
+| C2-TS-03 | Phase 6 | Pending |
+| C2-TS-04 | Phase 6 | Pending |
+| SCORE-01 | Phase 6 | Pending |
+| SCORE-02 | Phase 6 | Pending |
+| SCORE-03 | Phase 6 | Pending |
+| SCORE-04 | Phase 6 | Pending |
+| SCORE-05 | Phase 6 | Pending |
+| SCORE-06 | Phase 6 | Pending |
+| SCORE-07 | Phase 6 | Pending |
+| SCORE-08 | Phase 6 | Pending |
+| CLI-04 | Phase 6 | Pending |
+| CLI-07 | Phase 6 | Pending |
+| CLI-08 | Phase 6 | Pending |
+| PY-01 | Phase 7 | Pending |
+| PY-02 | Phase 7 | Pending |
+| PY-03 | Phase 7 | Pending |
+| PY-04 | Phase 7 | Pending |
+| PY-05 | Phase 7 | Pending |
+| PY-06 | Phase 7 | Pending |
+| PY-07 | Phase 7 | Pending |
+| PY-08 | Phase 7 | Pending |
+| PY-09 | Phase 7 | Pending |
+| TS-01 | Phase 7 | Pending |
+| TS-02 | Phase 7 | Pending |
+| TS-03 | Phase 7 | Pending |
+| TS-04 | Phase 7 | Pending |
+| TS-05 | Phase 7 | Pending |
+| TS-06 | Phase 7 | Pending |
+| TS-07 | Phase 7 | Pending |
+| TS-08 | Phase 7 | Pending |
+| TS-09 | Phase 7 | Pending |
+| C5-01 | Phase 8 | Pending |
+| C5-02 | Phase 8 | Pending |
+| C5-03 | Phase 8 | Pending |
+| C5-04 | Phase 8 | Pending |
+| C5-05 | Phase 8 | Pending |
+| C5-06 | Phase 8 | Pending |
+| C5-07 | Phase 8 | Pending |
+| C5-08 | Phase 8 | Pending |
+| C4-01 | Phase 9 | Pending |
+| C4-02 | Phase 9 | Pending |
+| C4-03 | Phase 9 | Pending |
+| C4-04 | Phase 9 | Pending |
+| C4-05 | Phase 9 | Pending |
+| C4-06 | Phase 9 | Pending |
+| C4-07 | Phase 9 | Pending |
+| C4-08 | Phase 9 | Pending |
+| C4-09 | Phase 9 | Pending |
+| C4-10 | Phase 9 | Pending |
+| C4-11 | Phase 9 | Pending |
+| C4-12 | Phase 9 | Pending |
+| C4-13 | Phase 9 | Pending |
+| C4-14 | Phase 9 | Pending |
+| HTML-01 | Phase 9 | Pending |
+| HTML-02 | Phase 9 | Pending |
+| HTML-03 | Phase 9 | Pending |
+| HTML-04 | Phase 9 | Pending |
+| HTML-05 | Phase 9 | Pending |
+| HTML-06 | Phase 9 | Pending |
+| HTML-07 | Phase 9 | Pending |
+| HTML-08 | Phase 9 | Pending |
+| HTML-09 | Phase 9 | Pending |
+| HTML-10 | Phase 9 | Pending |
+| CLI-01 | Phase 9 | Pending |
+| CLI-03 | Phase 9 | Pending |
+| CLI-05 | Phase 9 | Pending |
+| CLI-06 | Phase 9 | Pending |
+| C7-01 | Phase 10 | Pending |
+| C7-02 | Phase 10 | Pending |
+| C7-03 | Phase 10 | Pending |
+| C7-04 | Phase 10 | Pending |
+| C7-05 | Phase 10 | Pending |
+| C7-06 | Phase 10 | Pending |
+| C7-07 | Phase 10 | Pending |
+| C7-08 | Phase 10 | Pending |
+| C7-09 | Phase 10 | Pending |
+| C7-10 | Phase 10 | Pending |
+| CLI-02 | Phase 10 | Pending |
 
 **Coverage:**
-- v2 requirements: 80 total
-- Mapped to phases: 0 (pending roadmap)
-- Unmapped: 80 ⚠️
+- v2 requirements: 95 total
+- Mapped to phases: 95
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-01*
-*Last updated: 2026-02-01 after initial definition*
+*Last updated: 2026-02-01 after v2 roadmap creation*

@@ -12,7 +12,13 @@ import (
 // C3Analyzer implements the pipeline.Analyzer interface for C3: Architectural Navigability.
 // It also implements GoAwareAnalyzer for Go-specific analysis via SetGoPackages.
 type C3Analyzer struct {
-	pkgs []*parser.ParsedPackage
+	pkgs     []*parser.ParsedPackage
+	tsParser *parser.TreeSitterParser
+}
+
+// NewC3Analyzer creates a C3Analyzer with Tree-sitter parser for multi-language analysis.
+func NewC3Analyzer(tsParser *parser.TreeSitterParser) *C3Analyzer {
+	return &C3Analyzer{tsParser: tsParser}
 }
 
 // Name returns the analyzer display name.
@@ -26,10 +32,89 @@ func (a *C3Analyzer) SetGoPackages(pkgs []*parser.ParsedPackage) {
 }
 
 // Analyze runs all 5 C3 sub-analyses and returns a combined AnalysisResult.
-func (a *C3Analyzer) Analyze(_ []*arstypes.AnalysisTarget) (*arstypes.AnalysisResult, error) {
-	pkgs := a.pkgs
-	// Filter to source (non-test) packages only.
-	srcPkgs := filterSourcePackages(pkgs)
+func (a *C3Analyzer) Analyze(targets []*arstypes.AnalysisTarget) (*arstypes.AnalysisResult, error) {
+	metrics := &arstypes.C3Metrics{}
+
+	// Go analysis (existing logic)
+	if a.pkgs != nil {
+		goMetrics := a.analyzeGoC3()
+		metrics = goMetrics
+	}
+
+	// Python/TypeScript analysis via targets
+	for _, target := range targets {
+		switch target.Language {
+		case arstypes.LangPython:
+			if a.tsParser == nil {
+				continue
+			}
+			parsed, err := a.tsParser.ParseTargetFiles(target)
+			if err != nil {
+				continue
+			}
+			defer parser.CloseAll(parsed)
+
+			srcFiles := pyFilterSourceFiles(parsed)
+
+			pyGraph := pyBuildImportGraph(parsed)
+			pyDead := pyDetectDeadCode(parsed)
+			pyMaxDepth, pyAvgDepth := pyAnalyzeDirectoryDepth(parsed, target.RootDir)
+
+			// Merge Python results into metrics
+			if pyMaxDepth > metrics.MaxDirectoryDepth {
+				metrics.MaxDirectoryDepth = pyMaxDepth
+			}
+			if pyAvgDepth > metrics.AvgDirectoryDepth {
+				metrics.AvgDirectoryDepth = pyAvgDepth
+			}
+
+			// Import graph metrics
+			pyCycles := detectCircularDeps(pyGraph)
+			metrics.CircularDeps = append(metrics.CircularDeps, pyCycles...)
+
+			// Module fanout from Python import graph
+			if len(srcFiles) > 0 {
+				totalFanout := 0
+				maxFanout := 0
+				maxEntity := ""
+				for file, deps := range pyGraph.Forward {
+					fanout := len(deps)
+					totalFanout += fanout
+					if fanout > maxFanout {
+						maxFanout = fanout
+						maxEntity = file
+					}
+				}
+				if len(pyGraph.Forward) > 0 {
+					pyFanout := arstypes.MetricSummary{
+						Avg:       float64(totalFanout) / float64(len(pyGraph.Forward)),
+						Max:       maxFanout,
+						MaxEntity: maxEntity,
+					}
+					// Merge: if Go had fanout, pick higher max
+					if pyFanout.Max > metrics.ModuleFanout.Max {
+						metrics.ModuleFanout = pyFanout
+					}
+				}
+			}
+
+			metrics.DeadExports = append(metrics.DeadExports, pyDead...)
+
+		case arstypes.LangTypeScript:
+			// Placeholder for Plan 02
+		}
+	}
+
+	return &arstypes.AnalysisResult{
+		Name:     "C3: Architecture",
+		Category: "C3",
+		Metrics:  map[string]interface{}{"c3": metrics},
+	}, nil
+}
+
+// analyzeGoC3 runs Go-specific C3 analysis.
+func (a *C3Analyzer) analyzeGoC3() *arstypes.C3Metrics {
+	srcPkgs := filterSourcePackages(a.pkgs)
 
 	modulePath := detectModulePath(srcPkgs)
 	graph := BuildImportGraph(srcPkgs, modulePath)
@@ -40,7 +125,7 @@ func (a *C3Analyzer) Analyze(_ []*arstypes.AnalysisTarget) (*arstypes.AnalysisRe
 	importComp := analyzeImportComplexity(srcPkgs, modulePath)
 	deadExports := detectDeadCode(srcPkgs)
 
-	metrics := &arstypes.C3Metrics{
+	return &arstypes.C3Metrics{
 		MaxDirectoryDepth: maxDepth,
 		AvgDirectoryDepth: avgDepth,
 		ModuleFanout:      fanout,
@@ -48,12 +133,6 @@ func (a *C3Analyzer) Analyze(_ []*arstypes.AnalysisTarget) (*arstypes.AnalysisRe
 		ImportComplexity:  importComp,
 		DeadExports:       deadExports,
 	}
-
-	return &arstypes.AnalysisResult{
-		Name:     "C3: Architecture",
-		Category: "C3",
-		Metrics:  map[string]interface{}{"c3": metrics},
-	}, nil
 }
 
 // filterSourcePackages returns only non-test packages.

@@ -18,7 +18,13 @@ import (
 // C1Analyzer implements the pipeline.Analyzer interface for C1: Code Health metrics.
 // It also implements GoAwareAnalyzer for Go-specific analysis via SetGoPackages.
 type C1Analyzer struct {
-	pkgs []*parser.ParsedPackage
+	pkgs     []*parser.ParsedPackage
+	tsParser *parser.TreeSitterParser
+}
+
+// NewC1Analyzer creates a C1Analyzer with Tree-sitter parser for multi-language analysis.
+func NewC1Analyzer(tsParser *parser.TreeSitterParser) *C1Analyzer {
+	return &C1Analyzer{tsParser: tsParser}
 }
 
 // Name returns the analyzer display name.
@@ -36,9 +42,109 @@ func (a *C1Analyzer) SetGoPackages(pkgs []*parser.ParsedPackage) {
 
 // Analyze runs all 6 C1 sub-analyses on the given packages and returns
 // a combined AnalysisResult with Category "C1".
-func (a *C1Analyzer) Analyze(_ []*types.AnalysisTarget) (*types.AnalysisResult, error) {
+func (a *C1Analyzer) Analyze(targets []*types.AnalysisTarget) (*types.AnalysisResult, error) {
+	metrics := &C1MetricsResult{
+		AfferentCoupling: make(map[string]int),
+		EfferentCoupling: make(map[string]int),
+	}
+
+	var allFunctions []types.FunctionMetric
+	var allDuplicates []types.DuplicateBlock
+	var totalDupRate float64
+	dupRateCount := 0
+	var allFileSizes []types.MetricSummary
+
+	// Go analysis (existing logic, via SetGoPackages)
+	if a.pkgs != nil {
+		goFunctions, goDuplicates, goDupRate, goFileSize, goCoupling := a.analyzeGoC1()
+		allFunctions = append(allFunctions, goFunctions...)
+		allDuplicates = append(allDuplicates, goDuplicates...)
+		if goDupRate > 0 {
+			totalDupRate += goDupRate
+			dupRateCount++
+		}
+		allFileSizes = append(allFileSizes, goFileSize)
+		// Apply Go coupling directly
+		for k, v := range goCoupling.afferent {
+			metrics.AfferentCoupling[k] = v
+		}
+		for k, v := range goCoupling.efferent {
+			metrics.EfferentCoupling[k] = v
+		}
+	}
+
+	// Python/TypeScript analysis via targets
+	for _, target := range targets {
+		switch target.Language {
+		case types.LangPython:
+			if a.tsParser == nil {
+				continue
+			}
+			parsed, err := a.tsParser.ParseTargetFiles(target)
+			if err != nil {
+				continue
+			}
+			defer parser.CloseAll(parsed)
+
+			srcFiles := pyFilterSourceFiles(parsed)
+			pyFunctions := pyAnalyzeFunctions(srcFiles)
+			allFunctions = append(allFunctions, pyFunctions...)
+
+			pyFileSize := pyAnalyzeFileSizes(srcFiles)
+			allFileSizes = append(allFileSizes, pyFileSize)
+
+			pyDups, pyRate := pyAnalyzeDuplication(srcFiles)
+			allDuplicates = append(allDuplicates, pyDups...)
+			if pyRate > 0 {
+				totalDupRate += pyRate
+				dupRateCount++
+			}
+
+		case types.LangTypeScript:
+			// Placeholder for Plan 02
+		}
+	}
+
+	// Build combined metrics
+	metrics.Functions = allFunctions
+	metrics.CyclomaticComplexity = computeComplexitySummary(allFunctions)
+	metrics.FunctionLength = computeFunctionLengthSummary(allFunctions)
+	metrics.DuplicatedBlocks = allDuplicates
+
+	// Merge file sizes: pick the best summary across languages
+	if len(allFileSizes) > 0 {
+		bestFileSize := allFileSizes[0]
+		for _, fs := range allFileSizes[1:] {
+			if fs.Max > bestFileSize.Max {
+				bestFileSize.Max = fs.Max
+				bestFileSize.MaxEntity = fs.MaxEntity
+			}
+			// Re-average would need total count; use max-based approach
+		}
+		metrics.FileSize = bestFileSize
+	}
+
+	// Average duplication rate
+	if dupRateCount > 0 {
+		metrics.DuplicationRate = totalDupRate / float64(dupRateCount)
+	}
+
+	return &types.AnalysisResult{
+		Name:     "C1: Code Health",
+		Category: "C1",
+		Metrics:  map[string]interface{}{"c1": metrics},
+	}, nil
+}
+
+// goCouplingResult holds afferent and efferent coupling maps from Go analysis.
+type goCouplingResult struct {
+	afferent map[string]int
+	efferent map[string]int
+}
+
+// analyzeGoC1 runs Go-specific C1 analysis and returns its components.
+func (a *C1Analyzer) analyzeGoC1() ([]types.FunctionMetric, []types.DuplicateBlock, float64, types.MetricSummary, goCouplingResult) {
 	pkgs := a.pkgs
-	// Filter to source packages only (skip test packages)
 	var srcPkgs []*parser.ParsedPackage
 	for _, pkg := range pkgs {
 		if pkg.ForTest != "" {
@@ -47,37 +153,23 @@ func (a *C1Analyzer) Analyze(_ []*types.AnalysisTarget) (*types.AnalysisResult, 
 		srcPkgs = append(srcPkgs, pkg)
 	}
 
-	metrics := &C1MetricsResult{
-		AfferentCoupling: make(map[string]int),
-		EfferentCoupling: make(map[string]int),
-	}
-
-	// C1-01: Cyclomatic Complexity + C1-02: Function Length
 	functions := analyzeFunctions(srcPkgs)
-	metrics.Functions = functions
-	metrics.CyclomaticComplexity = computeComplexitySummary(functions)
-	metrics.FunctionLength = computeFunctionLengthSummary(functions)
+	fileSize := analyzeFileSizes(srcPkgs)
+	duplicates, dupRate := analyzeDuplication(srcPkgs)
 
-	// C1-03: File Size
-	metrics.FileSize = analyzeFileSizes(srcPkgs)
-
-	// C1-04 & C1-05: Coupling
+	// Coupling
 	modulePath := detectModulePath(srcPkgs)
 	graph := BuildImportGraph(srcPkgs, modulePath)
-
+	coupling := goCouplingResult{
+		afferent: make(map[string]int),
+		efferent: make(map[string]int),
+	}
 	for _, pkg := range srcPkgs {
-		metrics.AfferentCoupling[pkg.PkgPath] = len(graph.Reverse[pkg.PkgPath])
-		metrics.EfferentCoupling[pkg.PkgPath] = len(graph.Forward[pkg.PkgPath])
+		coupling.afferent[pkg.PkgPath] = len(graph.Reverse[pkg.PkgPath])
+		coupling.efferent[pkg.PkgPath] = len(graph.Forward[pkg.PkgPath])
 	}
 
-	// C1-06: Duplication
-	metrics.DuplicatedBlocks, metrics.DuplicationRate = analyzeDuplication(srcPkgs)
-
-	return &types.AnalysisResult{
-		Name:     "C1: Code Health",
-		Category: "C1",
-		Metrics:  map[string]interface{}{"c1": metrics},
-	}, nil
+	return functions, duplicates, dupRate, fileSize, coupling
 }
 
 // analyzeFunctions extracts per-function complexity and line count from all source packages.

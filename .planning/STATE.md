@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-01-31)
 
 **Core value:** Accurate, evidence-based scoring that predicts agent success and identifies specific improvements teams should make before adopting AI coding agents.
-**Current focus:** Phase 5 - Hardening (IN PROGRESS)
+**Current focus:** Phase 5 - Hardening (COMPLETE)
 
 ## Current Position
 
 Phase: 5 of 5 (Hardening)
-Plan: 1 of 2 in current phase
-Status: In progress
-Last activity: 2026-02-01 -- Completed 05-01-PLAN.md
+Plan: 2 of 2 in current phase
+Status: Phase complete
+Last activity: 2026-02-01 -- Completed 05-02-PLAN.md
 
-Progress: [████████████████████████████░░] ~94%
+Progress: [██████████████████████████████] 100%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 15
+- Total plans completed: 16
 - Average duration: 5 min
-- Total execution time: 79 min
+- Total execution time: 82 min
 
 **By Phase:**
 
@@ -31,11 +31,11 @@ Progress: [███████████████████████
 | 02-core-analysis | 5 | 44 min | 9 min |
 | 03-scoring-model | 3 | 10 min | 3 min |
 | 04-recommendations-and-output | 3 | 14 min | 5 min |
-| 05-hardening | 1 | 2 min | 2 min |
+| 05-hardening | 2 | 5 min | 3 min |
 
 **Recent Trend:**
-- Last 5 plans: 03-03 (4 min), 04-01 (4 min), 04-02 (2 min), 04-03 (8 min), 05-01 (2 min)
-- Trend: Fast execution for hardening plan with focused scope
+- Last 5 plans: 04-01 (4 min), 04-02 (2 min), 04-03 (8 min), 05-01 (2 min), 05-02 (3 min)
+- Trend: Consistent fast execution through hardening phase
 
 *Updated after each plan completion*
 
@@ -101,6 +101,10 @@ Recent decisions affecting current work:
 - [05-01]: Walker warnings go to os.Stderr to preserve JSON stdout output
 - [05-01]: Symlink detection uses d.Type()&fs.ModeSymlink before IsDir check
 - [05-01]: Error recovery returns fs.SkipDir for directory errors, nil for file errors
+- [05-02]: Spinner writes to os.Stderr only, preventing --json stdout corruption
+- [05-02]: TTY detection via go-isatty gates all spinner output (suppressed in CI/pipes)
+- [05-02]: Parallel analyzer errors return nil to avoid aborting sibling analyzers
+- [05-02]: Results sorted by Category string for deterministic C1/C3/C6 ordering
 
 ### Pending Todos
 
@@ -112,6 +116,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-01T10:47:01Z
-Stopped at: Completed 05-01-PLAN.md
+Last session: 2026-02-01T10:49:31Z
+Stopped at: Completed 05-02-PLAN.md (Phase 5 complete - all phases done)
 Resume file: None

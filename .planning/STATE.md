@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-01-31)
 
 **Core value:** Accurate, evidence-based scoring that predicts agent success and identifies specific improvements teams should make before adopting AI coding agents.
-**Current focus:** Phase 4 - Recommendations and Output (COMPLETE)
+**Current focus:** Phase 5 - Hardening (IN PROGRESS)
 
 ## Current Position
 
-Phase: 4 of 5 (Recommendations and Output)
-Plan: 3 of 3 in current phase
-Status: Phase complete
-Last activity: 2026-01-31 -- Completed 04-03-PLAN.md
+Phase: 5 of 5 (Hardening)
+Plan: 1 of 2 in current phase
+Status: In progress
+Last activity: 2026-02-01 -- Completed 05-01-PLAN.md
 
-Progress: [███████████████████████░░░░░░░] ~80%
+Progress: [████████████████████████████░░] ~94%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 14
-- Average duration: 6 min
-- Total execution time: 77 min
+- Total plans completed: 15
+- Average duration: 5 min
+- Total execution time: 79 min
 
 **By Phase:**
 
@@ -31,10 +31,11 @@ Progress: [███████████████████████
 | 02-core-analysis | 5 | 44 min | 9 min |
 | 03-scoring-model | 3 | 10 min | 3 min |
 | 04-recommendations-and-output | 3 | 14 min | 5 min |
+| 05-hardening | 1 | 2 min | 2 min |
 
 **Recent Trend:**
-- Last 5 plans: 03-02 (3 min), 03-03 (4 min), 04-01 (4 min), 04-02 (2 min), 04-03 (8 min)
-- Trend: 04-03 slightly longer due to bug fix deviation and import cycle resolution
+- Last 5 plans: 03-03 (4 min), 04-01 (4 min), 04-02 (2 min), 04-03 (8 min), 05-01 (2 min)
+- Trend: Fast execution for hardening plan with focused scope
 
 *Updated after each plan completion*
 
@@ -97,6 +98,9 @@ Recent decisions affecting current work:
 - [04-03]: Threshold check AFTER rendering so output always displayed before exit
 - [04-03]: SilenceUsage on scan command prevents usage dump on ExitError
 - [04-03]: SilenceErrors on root command prevents Cobra double-printing
+- [05-01]: Walker warnings go to os.Stderr to preserve JSON stdout output
+- [05-01]: Symlink detection uses d.Type()&fs.ModeSymlink before IsDir check
+- [05-01]: Error recovery returns fs.SkipDir for directory errors, nil for file errors
 
 ### Pending Todos
 
@@ -108,6 +112,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-01-31T22:43:55Z
-Stopped at: Completed 04-03-PLAN.md (Phase 4 complete)
+Last session: 2026-02-01T10:47:01Z
+Stopped at: Completed 05-01-PLAN.md
 Resume file: None

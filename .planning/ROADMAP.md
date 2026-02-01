@@ -58,11 +58,11 @@ Plans:
   2. User can run `ars scan` on a TypeScript project and see C3 scores (import graph, dead code, directory depth) comparable to Go analysis
   3. User can run `ars scan` on a Python project and see C6 scores with pytest/unittest detection and coverage.py parsing
   4. User can run `ars scan` on a TypeScript project and see C6 scores with Jest/Mocha/Vitest detection and Istanbul/lcov parsing
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 07-01: Python C1/C3/C6 analyzers via Tree-sitter
-- [ ] 07-02: TypeScript C1/C3/C6 analyzers via Tree-sitter
+- [ ] 07-01-PLAN.md -- Python C1/C3/C6 analyzers + dispatcher refactoring + pipeline wiring
+- [ ] 07-02-PLAN.md -- TypeScript C1/C3/C6 analyzers + end-to-end verification
 
 ### Phase 8: C5 Temporal Dynamics
 **Goal**: Users can see git-based temporal analysis revealing code churn hotspots, ownership patterns, and change coupling that affect agent effectiveness

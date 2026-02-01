@@ -37,8 +37,20 @@ var scanCmd = &cobra.Command{
 			return fmt.Errorf("load scoring config: %w", err)
 		}
 
-		p := pipeline.New(cmd.OutOrStdout(), verbose, cfg, threshold, jsonOutput)
-		return p.Run(dir)
+		spinner := pipeline.NewSpinner(os.Stderr)
+		onProgress := func(stage, detail string) {
+			spinner.Update(detail)
+		}
+		spinner.Start("Scanning...")
+
+		p := pipeline.New(cmd.OutOrStdout(), verbose, cfg, threshold, jsonOutput, onProgress)
+		err = p.Run(dir)
+		if err != nil {
+			spinner.Stop("") // clear spinner before error
+			return err
+		}
+		spinner.Stop("Done.")
+		return nil
 	},
 }
 

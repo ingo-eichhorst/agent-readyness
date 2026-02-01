@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ingo/agent-readyness/internal/parser"
 	"github.com/ingo/agent-readyness/pkg/types"
@@ -18,7 +19,7 @@ func TestPipelineRun(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	p := New(&buf, false, nil, 0, false)
+	p := New(&buf, false, nil, 0, false, nil)
 
 	if err := p.Run(root); err != nil {
 		t.Fatalf("Pipeline.Run() returned error: %v", err)
@@ -69,7 +70,7 @@ func TestPipelineRunVerbose(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	p := New(&buf, true, nil, 0, false)
+	p := New(&buf, true, nil, 0, false, nil)
 
 	if err := p.Run(root); err != nil {
 		t.Fatalf("Pipeline.Run() returned error: %v", err)
@@ -121,7 +122,7 @@ func TestPipelineAnalyzerErrorContinues(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	p := New(&buf, false, nil, 0, false)
+	p := New(&buf, false, nil, 0, false, nil)
 
 	// Replace analyzers with one that errors and one stub
 	p.analyzers = []Analyzer{
@@ -146,7 +147,7 @@ func TestPipelineScoringStage(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	p := New(&buf, false, nil, 0, false)
+	p := New(&buf, false, nil, 0, false, nil)
 
 	if err := p.Run(root); err != nil {
 		t.Fatalf("Pipeline.Run() returned error: %v", err)
@@ -192,4 +193,106 @@ func (e *errorAnalyzer) Name() string { return "error-test" }
 
 func (e *errorAnalyzer) Analyze(_ []*parser.ParsedPackage) (*types.AnalysisResult, error) {
 	return nil, errors.New("test error")
+}
+
+// slowAnalyzer sleeps for a given duration then returns a result with the given category.
+type slowAnalyzer struct {
+	name     string
+	category string
+	delay    time.Duration
+}
+
+func (s *slowAnalyzer) Name() string { return s.name }
+
+func (s *slowAnalyzer) Analyze(_ []*parser.ParsedPackage) (*types.AnalysisResult, error) {
+	time.Sleep(s.delay)
+	return &types.AnalysisResult{
+		Name:     s.name,
+		Category: s.category,
+		Metrics:  make(map[string]interface{}),
+	}, nil
+}
+
+func TestParallelAnalyzers(t *testing.T) {
+	root, err := filepath.Abs("../../testdata/valid-go-project")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var buf bytes.Buffer
+	p := New(&buf, false, nil, 0, false, nil)
+
+	// Replace analyzers with slow mocks (each sleeps 200ms)
+	p.analyzers = []Analyzer{
+		&slowAnalyzer{name: "slow-c6", category: "C6", delay: 200 * time.Millisecond},
+		&slowAnalyzer{name: "slow-c1", category: "C1", delay: 200 * time.Millisecond},
+		&slowAnalyzer{name: "slow-c3", category: "C3", delay: 200 * time.Millisecond},
+	}
+
+	// First, measure baseline pipeline time without analyzers
+	var buf2 bytes.Buffer
+	baseline := New(&buf2, false, nil, 0, false, nil)
+	baseline.analyzers = []Analyzer{} // no analyzers
+	baseStart := time.Now()
+	_ = baseline.Run(root) // ignore errors from empty analyzers
+	baselineTime := time.Since(baseStart)
+
+	start := time.Now()
+	if err := p.Run(root); err != nil {
+		t.Fatalf("Pipeline.Run() returned error: %v", err)
+	}
+	elapsed := time.Since(start)
+
+	// The analyzer portion should be ~200ms (parallel), not ~600ms (sequential).
+	// Total = baseline + analyzer_time. Sequential would add 600ms, parallel adds ~200ms.
+	analyzerTime := elapsed - baselineTime
+	// Allow generous margin: if parallel, analyzerTime < 400ms; if sequential, >= 600ms.
+	if analyzerTime > 500*time.Millisecond {
+		t.Errorf("expected parallel analyzer execution under 500ms, analyzer portion took %v (total=%v, baseline=%v)", analyzerTime, elapsed, baselineTime)
+	}
+
+	// Verify deterministic ordering: results should be sorted by category (C1, C3, C6)
+	if len(p.results) != 3 {
+		t.Fatalf("expected 3 results, got %d", len(p.results))
+	}
+	expectedOrder := []string{"C1", "C3", "C6"}
+	for i, want := range expectedOrder {
+		if p.results[i].Category != want {
+			t.Errorf("result[%d].Category = %q, want %q", i, p.results[i].Category, want)
+		}
+	}
+}
+
+func TestProgressCallbackInvoked(t *testing.T) {
+	root, err := filepath.Abs("../../testdata/valid-go-project")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var stages []string
+	onProgress := func(stage, detail string) {
+		stages = append(stages, stage)
+	}
+
+	var buf bytes.Buffer
+	p := New(&buf, false, nil, 0, false, onProgress)
+
+	if err := p.Run(root); err != nil {
+		t.Fatalf("Pipeline.Run() returned error: %v", err)
+	}
+
+	// Should have received progress callbacks for all stages
+	expectedStages := []string{"discover", "parse", "analyze", "score", "render"}
+	for _, want := range expectedStages {
+		found := false
+		for _, got := range stages {
+			if got == want {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("missing progress callback for stage %q, got stages: %v", want, stages)
+		}
+	}
 }

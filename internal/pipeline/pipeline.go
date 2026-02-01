@@ -3,6 +3,10 @@ package pipeline
 import (
 	"fmt"
 	"io"
+	"sort"
+	"sync"
+
+	"golang.org/x/sync/errgroup"
 
 	"github.com/ingo/agent-readyness/internal/analyzer"
 	"github.com/ingo/agent-readyness/internal/discovery"
@@ -24,20 +28,25 @@ type Pipeline struct {
 	scored     *types.ScoredResult
 	threshold  float64
 	jsonOutput bool
+	onProgress ProgressFunc
 }
 
 // New creates a Pipeline with GoPackagesParser, all three analyzers, and a scorer.
-// If cfg is nil, DefaultConfig is used.
-func New(w io.Writer, verbose bool, cfg *scoring.ScoringConfig, threshold float64, jsonOutput bool) *Pipeline {
+// If cfg is nil, DefaultConfig is used. If onProgress is nil, a no-op is used.
+func New(w io.Writer, verbose bool, cfg *scoring.ScoringConfig, threshold float64, jsonOutput bool, onProgress ProgressFunc) *Pipeline {
 	if cfg == nil {
 		cfg = scoring.DefaultConfig()
+	}
+	if onProgress == nil {
+		onProgress = func(string, string) {}
 	}
 	return &Pipeline{
 		verbose:    verbose,
 		writer:     w,
 		threshold:  threshold,
 		jsonOutput: jsonOutput,
-		parser:  &parser.GoPackagesParser{},
+		onProgress: onProgress,
+		parser:     &parser.GoPackagesParser{},
 		analyzers: []Analyzer{
 			&analyzer.C1Analyzer{},
 			&analyzer.C3Analyzer{},
@@ -50,6 +59,7 @@ func New(w io.Writer, verbose bool, cfg *scoring.ScoringConfig, threshold float6
 // Run executes the full pipeline on the given directory.
 func (p *Pipeline) Run(dir string) error {
 	// Stage 1: Discover files
+	p.onProgress("discover", "Scanning files...")
 	walker := discovery.NewWalker()
 	result, err := walker.Discover(dir)
 	if err != nil {
@@ -57,23 +67,43 @@ func (p *Pipeline) Run(dir string) error {
 	}
 
 	// Stage 2: Parse packages (loads ASTs, type info, imports via go/packages)
+	p.onProgress("parse", "Parsing packages...")
 	pkgs, err := p.parser.Parse(dir)
 	if err != nil {
 		return err
 	}
 
-	// Stage 3: Analyze packages -- errors are logged but do not abort the scan
+	// Stage 3: Analyze packages in parallel -- errors are logged but do not abort the scan
+	p.onProgress("analyze", "Analyzing code...")
 	p.results = nil
+	g := new(errgroup.Group)
+	var mu sync.Mutex
+	var analysisResults []*types.AnalysisResult
+
 	for _, a := range p.analyzers {
-		ar, err := a.Analyze(pkgs)
-		if err != nil {
-			fmt.Fprintf(p.writer, "Warning: %s analyzer error: %v\n", a.Name(), err)
-			continue
-		}
-		p.results = append(p.results, ar)
+		a := a // capture loop variable
+		g.Go(func() error {
+			ar, err := a.Analyze(pkgs)
+			if err != nil {
+				fmt.Fprintf(p.writer, "Warning: %s analyzer error: %v\n", a.Name(), err)
+				return nil // don't abort other analyzers
+			}
+			mu.Lock()
+			analysisResults = append(analysisResults, ar)
+			mu.Unlock()
+			return nil
+		})
 	}
+	_ = g.Wait()
+
+	// Sort by category name for deterministic output (C1, C3, C6)
+	sort.Slice(analysisResults, func(i, j int) bool {
+		return analysisResults[i].Category < analysisResults[j].Category
+	})
+	p.results = analysisResults
 
 	// Stage 3.5: Score results
+	p.onProgress("score", "Computing scores...")
 	scored, err := p.scorer.Score(p.results)
 	if err != nil {
 		fmt.Fprintf(p.writer, "Warning: scoring error: %v\n", err)
@@ -88,6 +118,7 @@ func (p *Pipeline) Run(dir string) error {
 	}
 
 	// Stage 4: Render output
+	p.onProgress("render", "Generating output...")
 	if p.jsonOutput {
 		// JSON mode: build report and render as JSON
 		if p.scored != nil {

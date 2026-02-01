@@ -3,6 +3,7 @@ package pipeline
 import (
 	"fmt"
 	"io"
+	"path/filepath"
 	"sort"
 	"sync"
 
@@ -73,6 +74,16 @@ func (p *Pipeline) Run(dir string) error {
 		return err
 	}
 
+	// Stage 2.5: Build language-agnostic AnalysisTargets from parsed Go packages
+	targets := buildGoTargets(dir, pkgs)
+
+	// Stage 2.6: Inject Go packages into GoAwareAnalyzers
+	for _, a := range p.analyzers {
+		if ga, ok := a.(GoAwareAnalyzer); ok {
+			ga.SetGoPackages(pkgs)
+		}
+	}
+
 	// Stage 3: Analyze packages in parallel -- errors are logged but do not abort the scan
 	p.onProgress("analyze", "Analyzing code...")
 	p.results = nil
@@ -83,7 +94,7 @@ func (p *Pipeline) Run(dir string) error {
 	for _, a := range p.analyzers {
 		a := a // capture loop variable
 		g.Go(func() error {
-			ar, err := a.Analyze(pkgs)
+			ar, err := a.Analyze(targets)
 			if err != nil {
 				fmt.Fprintf(p.writer, "Warning: %s analyzer error: %v\n", a.Name(), err)
 				return nil // don't abort other analyzers
@@ -147,4 +158,50 @@ func (p *Pipeline) Run(dir string) error {
 	}
 
 	return nil
+}
+
+// buildGoTargets creates an []*types.AnalysisTarget from parsed Go packages.
+// This bridges the Go-specific parser output to the language-agnostic interface.
+func buildGoTargets(rootDir string, pkgs []*parser.ParsedPackage) []*types.AnalysisTarget {
+	seen := make(map[string]bool)
+	var files []types.SourceFile
+
+	for _, pkg := range pkgs {
+		isTest := pkg.ForTest != ""
+		for _, goFile := range pkg.GoFiles {
+			if seen[goFile] {
+				continue
+			}
+			seen[goFile] = true
+
+			relPath := goFile
+			if rel, err := filepath.Rel(rootDir, goFile); err == nil {
+				relPath = rel
+			}
+
+			class := types.ClassSource
+			if isTest {
+				class = types.ClassTest
+			}
+
+			files = append(files, types.SourceFile{
+				Path:     goFile,
+				RelPath:  relPath,
+				Language: types.LangGo,
+				Class:    class,
+			})
+		}
+	}
+
+	if len(files) == 0 {
+		return nil
+	}
+
+	return []*types.AnalysisTarget{
+		{
+			Language: types.LangGo,
+			RootDir:  rootDir,
+			Files:    files,
+		},
+	}
 }

@@ -31,7 +31,8 @@ func TestC1_CyclomaticComplexity(t *testing.T) {
 	pkgs := loadTestPackages(t, "complexity")
 
 	analyzer := &C1Analyzer{}
-	result, err := analyzer.Analyze(pkgs)
+	analyzer.SetGoPackages(pkgs)
+	result, err := analyzer.Analyze(nil)
 	if err != nil {
 		t.Fatalf("Analyze failed: %v", err)
 	}
@@ -79,7 +80,8 @@ func TestC1_FunctionLength(t *testing.T) {
 	pkgs := loadTestPackages(t, "complexity")
 
 	analyzer := &C1Analyzer{}
-	result, err := analyzer.Analyze(pkgs)
+	analyzer.SetGoPackages(pkgs)
+	result, err := analyzer.Analyze(nil)
 	if err != nil {
 		t.Fatalf("Analyze failed: %v", err)
 	}
@@ -111,7 +113,8 @@ func TestC1_FileSize(t *testing.T) {
 	pkgs := loadTestPackages(t, "complexity")
 
 	analyzer := &C1Analyzer{}
-	result, err := analyzer.Analyze(pkgs)
+	analyzer.SetGoPackages(pkgs)
+	result, err := analyzer.Analyze(nil)
 	if err != nil {
 		t.Fatalf("Analyze failed: %v", err)
 	}
@@ -133,7 +136,8 @@ func TestC1_AfferentCoupling(t *testing.T) {
 	pkgs := loadTestPackages(t, "coupling")
 
 	analyzer := &C1Analyzer{}
-	result, err := analyzer.Analyze(pkgs)
+	analyzer.SetGoPackages(pkgs)
+	result, err := analyzer.Analyze(nil)
 	if err != nil {
 		t.Fatalf("Analyze failed: %v", err)
 	}
@@ -153,7 +157,8 @@ func TestC1_EfferentCoupling(t *testing.T) {
 	pkgs := loadTestPackages(t, "coupling")
 
 	analyzer := &C1Analyzer{}
-	result, err := analyzer.Analyze(pkgs)
+	analyzer.SetGoPackages(pkgs)
+	result, err := analyzer.Analyze(nil)
 	if err != nil {
 		t.Fatalf("Analyze failed: %v", err)
 	}
@@ -179,7 +184,8 @@ func TestC1_Duplication(t *testing.T) {
 	pkgs := loadTestPackages(t, "duplication")
 
 	analyzer := &C1Analyzer{}
-	result, err := analyzer.Analyze(pkgs)
+	analyzer.SetGoPackages(pkgs)
+	result, err := analyzer.Analyze(nil)
 	if err != nil {
 		t.Fatalf("Analyze failed: %v", err)
 	}

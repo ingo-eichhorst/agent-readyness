@@ -10,15 +10,24 @@ import (
 )
 
 // C3Analyzer implements the pipeline.Analyzer interface for C3: Architectural Navigability.
-type C3Analyzer struct{}
+// It also implements GoAwareAnalyzer for Go-specific analysis via SetGoPackages.
+type C3Analyzer struct {
+	pkgs []*parser.ParsedPackage
+}
 
 // Name returns the analyzer display name.
 func (a *C3Analyzer) Name() string {
 	return "C3: Architecture"
 }
 
+// SetGoPackages stores Go-specific parsed packages for use during Analyze.
+func (a *C3Analyzer) SetGoPackages(pkgs []*parser.ParsedPackage) {
+	a.pkgs = pkgs
+}
+
 // Analyze runs all 5 C3 sub-analyses and returns a combined AnalysisResult.
-func (a *C3Analyzer) Analyze(pkgs []*parser.ParsedPackage) (*arstypes.AnalysisResult, error) {
+func (a *C3Analyzer) Analyze(_ []*arstypes.AnalysisTarget) (*arstypes.AnalysisResult, error) {
+	pkgs := a.pkgs
 	// Filter to source (non-test) packages only.
 	srcPkgs := filterSourcePackages(pkgs)
 

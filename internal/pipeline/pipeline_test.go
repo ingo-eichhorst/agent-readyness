@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ingo/agent-readyness/internal/parser"
 	"github.com/ingo/agent-readyness/pkg/types"
 )
 
@@ -84,18 +83,6 @@ func TestPipelineRunVerbose(t *testing.T) {
 	}
 	if !strings.Contains(out, "main.go") {
 		t.Error("verbose output missing main.go")
-	}
-}
-
-func TestStubParserReturnsEmpty(t *testing.T) {
-	p := &StubParser{}
-	pkgs, err := p.Parse("/nonexistent")
-	if err != nil {
-		t.Fatalf("StubParser.Parse() returned error: %v", err)
-	}
-
-	if len(pkgs) != 0 {
-		t.Fatalf("expected 0 packages from StubParser, got %d", len(pkgs))
 	}
 }
 
@@ -191,7 +178,7 @@ type errorAnalyzer struct{}
 
 func (e *errorAnalyzer) Name() string { return "error-test" }
 
-func (e *errorAnalyzer) Analyze(_ []*parser.ParsedPackage) (*types.AnalysisResult, error) {
+func (e *errorAnalyzer) Analyze(_ []*types.AnalysisTarget) (*types.AnalysisResult, error) {
 	return nil, errors.New("test error")
 }
 
@@ -204,7 +191,7 @@ type slowAnalyzer struct {
 
 func (s *slowAnalyzer) Name() string { return s.name }
 
-func (s *slowAnalyzer) Analyze(_ []*parser.ParsedPackage) (*types.AnalysisResult, error) {
+func (s *slowAnalyzer) Analyze(_ []*types.AnalysisTarget) (*types.AnalysisResult, error) {
 	time.Sleep(s.delay)
 	return &types.AnalysisResult{
 		Name:     s.name,

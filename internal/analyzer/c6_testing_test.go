@@ -80,7 +80,8 @@ func TestC6_TestDetection(t *testing.T) {
 	)
 
 	a := &C6Analyzer{}
-	result, err := a.Analyze(pkgs)
+	a.SetGoPackages(pkgs)
+	result, err := a.Analyze(nil)
 	if err != nil {
 		t.Fatalf("Analyze: %v", err)
 	}
@@ -111,7 +112,8 @@ func TestC6_TestToCodeRatio(t *testing.T) {
 	)
 
 	a := &C6Analyzer{}
-	result, err := a.Analyze(pkgs)
+	a.SetGoPackages(pkgs)
+	result, err := a.Analyze(nil)
 	if err != nil {
 		t.Fatalf("Analyze: %v", err)
 	}
@@ -252,7 +254,8 @@ func TestWithHTTP(t *testing.T) {
 	)
 
 	a := &C6Analyzer{}
-	result, err := a.Analyze(pkgs)
+	a.SetGoPackages(pkgs)
+	result, err := a.Analyze(nil)
 	if err != nil {
 		t.Fatalf("Analyze: %v", err)
 	}
@@ -291,7 +294,8 @@ func TestBar(t *testing.T) {
 	)
 
 	a := &C6Analyzer{}
-	result, err := a.Analyze(pkgs)
+	a.SetGoPackages(pkgs)
+	result, err := a.Analyze(nil)
 	if err != nil {
 		t.Fatalf("Analyze: %v", err)
 	}
@@ -340,7 +344,8 @@ func TestWithAssert(t *testing.T) {
 	)
 
 	a := &C6Analyzer{}
-	result, err := a.Analyze(pkgs)
+	a.SetGoPackages(pkgs)
+	result, err := a.Analyze(nil)
 	if err != nil {
 		t.Fatalf("Analyze: %v", err)
 	}
@@ -369,7 +374,8 @@ func TestC6_ResultCategory(t *testing.T) {
 	)
 
 	a := &C6Analyzer{}
-	result, err := a.Analyze(pkgs)
+	a.SetGoPackages(pkgs)
+	result, err := a.Analyze(nil)
 	if err != nil {
 		t.Fatalf("Analyze: %v", err)
 	}

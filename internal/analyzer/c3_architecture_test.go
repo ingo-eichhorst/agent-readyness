@@ -24,7 +24,8 @@ func TestC3DirectoryDepth(t *testing.T) {
 	pkgs := loadTestPackages(t, "deepnest")
 
 	analyzer := &C3Analyzer{}
-	result, err := analyzer.Analyze(pkgs)
+	analyzer.SetGoPackages(pkgs)
+	result, err := analyzer.Analyze(nil)
 	if err != nil {
 		t.Fatalf("Analyze: %v", err)
 	}
@@ -46,7 +47,8 @@ func TestC3ModuleFanout(t *testing.T) {
 	pkgs := loadTestPackages(t, "coupling")
 
 	analyzer := &C3Analyzer{}
-	result, err := analyzer.Analyze(pkgs)
+	analyzer.SetGoPackages(pkgs)
+	result, err := analyzer.Analyze(nil)
 	if err != nil {
 		t.Fatalf("Analyze: %v", err)
 	}
@@ -69,7 +71,8 @@ func TestC3CircularDeps(t *testing.T) {
 	pkgs := loadTestPackages(t, "coupling")
 
 	analyzer := &C3Analyzer{}
-	result, err := analyzer.Analyze(pkgs)
+	analyzer.SetGoPackages(pkgs)
+	result, err := analyzer.Analyze(nil)
 	if err != nil {
 		t.Fatalf("Analyze: %v", err)
 	}
@@ -87,7 +90,8 @@ func TestC3ImportComplexity(t *testing.T) {
 	pkgs := loadTestPackages(t, "coupling")
 
 	analyzer := &C3Analyzer{}
-	result, err := analyzer.Analyze(pkgs)
+	analyzer.SetGoPackages(pkgs)
+	result, err := analyzer.Analyze(nil)
 	if err != nil {
 		t.Fatalf("Analyze: %v", err)
 	}
@@ -110,7 +114,8 @@ func TestC3DeadCode(t *testing.T) {
 	pkgs := loadTestPackages(t, "deadcode")
 
 	analyzer := &C3Analyzer{}
-	result, err := analyzer.Analyze(pkgs)
+	analyzer.SetGoPackages(pkgs)
+	result, err := analyzer.Analyze(nil)
 	if err != nil {
 		t.Fatalf("Analyze: %v", err)
 	}
@@ -143,7 +148,8 @@ func TestC3AnalyzerInterface(t *testing.T) {
 	}
 
 	pkgs := loadTestPackages(t, "deepnest")
-	result, err := a.Analyze(pkgs)
+	a.SetGoPackages(pkgs)
+	result, err := a.Analyze(nil)
 	if err != nil {
 		t.Fatalf("Analyze: %v", err)
 	}

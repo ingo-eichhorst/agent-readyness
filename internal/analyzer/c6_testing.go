@@ -18,15 +18,24 @@ import (
 // C6Analyzer implements the pipeline.Analyzer interface for C6: Testing Infrastructure.
 // It measures test detection, test-to-code ratio, coverage parsing,
 // test isolation, and assertion density.
-type C6Analyzer struct{}
+// It also implements GoAwareAnalyzer for Go-specific analysis via SetGoPackages.
+type C6Analyzer struct {
+	pkgs []*parser.ParsedPackage
+}
 
 // Name returns the analyzer display name.
 func (a *C6Analyzer) Name() string {
 	return "C6: Testing"
 }
 
+// SetGoPackages stores Go-specific parsed packages for use during Analyze.
+func (a *C6Analyzer) SetGoPackages(pkgs []*parser.ParsedPackage) {
+	a.pkgs = pkgs
+}
+
 // Analyze runs all 5 C6 sub-metrics over the parsed packages.
-func (a *C6Analyzer) Analyze(pkgs []*parser.ParsedPackage) (*types.AnalysisResult, error) {
+func (a *C6Analyzer) Analyze(_ []*types.AnalysisTarget) (*types.AnalysisResult, error) {
+	pkgs := a.pkgs
 	// Separate test packages from source packages
 	var srcPkgs, testPkgs []*parser.ParsedPackage
 	for _, pkg := range pkgs {

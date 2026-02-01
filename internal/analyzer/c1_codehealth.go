@@ -16,7 +16,10 @@ import (
 )
 
 // C1Analyzer implements the pipeline.Analyzer interface for C1: Code Health metrics.
-type C1Analyzer struct{}
+// It also implements GoAwareAnalyzer for Go-specific analysis via SetGoPackages.
+type C1Analyzer struct {
+	pkgs []*parser.ParsedPackage
+}
 
 // Name returns the analyzer display name.
 func (a *C1Analyzer) Name() string {
@@ -26,9 +29,15 @@ func (a *C1Analyzer) Name() string {
 // C1MetricsResult is the internal result type stored in AnalysisResult.Metrics["c1"].
 type C1MetricsResult = types.C1Metrics
 
+// SetGoPackages stores Go-specific parsed packages for use during Analyze.
+func (a *C1Analyzer) SetGoPackages(pkgs []*parser.ParsedPackage) {
+	a.pkgs = pkgs
+}
+
 // Analyze runs all 6 C1 sub-analyses on the given packages and returns
 // a combined AnalysisResult with Category "C1".
-func (a *C1Analyzer) Analyze(pkgs []*parser.ParsedPackage) (*types.AnalysisResult, error) {
+func (a *C1Analyzer) Analyze(_ []*types.AnalysisTarget) (*types.AnalysisResult, error) {
+	pkgs := a.pkgs
 	// Filter to source packages only (skip test packages)
 	var srcPkgs []*parser.ParsedPackage
 	for _, pkg := range pkgs {

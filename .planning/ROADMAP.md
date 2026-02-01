@@ -41,13 +41,13 @@ Phases 1-5 delivered Go-only CLI with C1 (Code Health), C3 (Architecture), C6 (T
   3. User can run `ars scan` on a mixed-language repo and see per-language C2 analysis in the output
   4. User can provide a `.arsrc.yml` config file to customize category weights, metric thresholds, and per-language overrides
   5. Non-LLM analysis completes in under 30 seconds for a 50k LOC repository
-**Plans**: TBD
+**Plans**: 4 plans
 
 Plans:
-- [ ] 06-01: AnalysisTarget abstraction + Tree-sitter parser integration
-- [ ] 06-02: Language detection + multi-language discovery pipeline
-- [ ] 06-03: C2 semantic explicitness analyzers (Go/Python/TypeScript)
-- [ ] 06-04: Config system (.arsrc.yml) + scoring expansion (7 categories)
+- [ ] 06-01-PLAN.md -- AnalysisTarget abstraction + pipeline interface refactoring
+- [ ] 06-02-PLAN.md -- Multi-language discovery + Tree-sitter parser integration
+- [ ] 06-03-PLAN.md -- C2 Go analyzer + map-based scoring expansion
+- [ ] 06-04-PLAN.md -- C2 Python/TypeScript + config system + CLI wiring
 
 ### Phase 7: Python + TypeScript Analysis (C1/C3/C6)
 **Goal**: Users get full code health (C1), architecture (C3), and testing (C6) analysis for Python and TypeScript projects, matching the depth of Go analysis
@@ -119,7 +119,7 @@ Phases execute in numeric order: 6 -> 7 -> 8 -> 9 -> 10
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 6. Multi-Language + C2 | v2 | 0/4 | Not started | - |
+| 6. Multi-Language + C2 | v2 | 0/4 | Planned | - |
 | 7. Python + TS (C1/C3/C6) | v2 | 0/2 | Not started | - |
 | 8. C5 Temporal | v2 | 0/2 | Not started | - |
 | 9. C4 Docs + HTML | v2 | 0/3 | Not started | - |

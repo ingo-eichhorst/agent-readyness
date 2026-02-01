@@ -9,6 +9,24 @@ type Scorer struct {
 	Config *ScoringConfig
 }
 
+// MetricExtractor extracts raw metric values from an AnalysisResult.
+// Returns raw values and a set of unavailable metrics.
+type MetricExtractor func(ar *types.AnalysisResult) (rawValues map[string]float64, unavailable map[string]bool)
+
+// metricExtractors maps category name to a function that extracts raw metric values.
+var metricExtractors = map[string]MetricExtractor{
+	"C1": extractC1,
+	"C2": extractC2,
+	"C3": extractC3,
+	"C6": extractC6,
+}
+
+// RegisterExtractor registers a metric extractor for a category.
+// This allows new categories to be added without modifying the scorer.
+func RegisterExtractor(category string, extractor MetricExtractor) {
+	metricExtractors[category] = extractor
+}
+
 // Interpolate computes the score for a given raw value using piecewise linear
 // interpolation over the provided breakpoints. Breakpoints must be sorted by
 // Value in ascending order.
@@ -110,17 +128,35 @@ func (s *Scorer) Score(results []*types.AnalysisResult) (*types.ScoredResult, er
 	var categories []types.CategoryScore
 
 	for _, ar := range results {
-		switch ar.Category {
-		case "C1":
-			categories = append(categories, s.scoreC1(ar))
-		case "C3":
-			categories = append(categories, s.scoreC3(ar))
-		case "C6":
-			categories = append(categories, s.scoreC6(ar))
-		default:
+		catConfig, ok := s.Config.Categories[ar.Category]
+		if !ok {
 			// Unknown categories are silently skipped
 			continue
 		}
+
+		extractor, ok := metricExtractors[ar.Category]
+		if !ok {
+			// No extractor registered for this category
+			continue
+		}
+
+		rawValues, unavailable := extractor(ar)
+		if rawValues == nil {
+			// Extractor returned nil -- metrics not found
+			categories = append(categories, types.CategoryScore{
+				Name:   ar.Category,
+				Weight: catConfig.Weight,
+			})
+			continue
+		}
+
+		subScores, score := scoreMetrics(catConfig, rawValues, unavailable)
+		categories = append(categories, types.CategoryScore{
+			Name:      ar.Category,
+			Score:     score,
+			Weight:    catConfig.Weight,
+			SubScores: subScores,
+		})
 	}
 
 	composite := s.computeComposite(categories)
@@ -133,74 +169,80 @@ func (s *Scorer) Score(results []*types.AnalysisResult) (*types.ScoredResult, er
 	}, nil
 }
 
-// scoreC1 extracts C1 (Code Health) metrics and computes the category score.
-func (s *Scorer) scoreC1(ar *types.AnalysisResult) types.CategoryScore {
+// extractC1 extracts C1 (Code Health) metrics from an AnalysisResult.
+func extractC1(ar *types.AnalysisResult) (map[string]float64, map[string]bool) {
 	raw, ok := ar.Metrics["c1"]
 	if !ok {
-		return types.CategoryScore{Name: "C1", Weight: s.Config.C1.Weight}
+		return nil, nil
 	}
 	m, ok := raw.(*types.C1Metrics)
 	if !ok {
-		return types.CategoryScore{Name: "C1", Weight: s.Config.C1.Weight}
+		return nil, nil
 	}
 
-	rawValues := map[string]float64{
+	return map[string]float64{
 		"complexity_avg":        m.CyclomaticComplexity.Avg,
 		"func_length_avg":      m.FunctionLength.Avg,
 		"file_size_avg":        m.FileSize.Avg,
 		"afferent_coupling_avg": avgMapValues(m.AfferentCoupling),
 		"efferent_coupling_avg": avgMapValues(m.EfferentCoupling),
 		"duplication_rate":      m.DuplicationRate,
-	}
-
-	subScores, score := scoreMetrics(s.Config.C1, rawValues, nil)
-
-	return types.CategoryScore{
-		Name:      "C1",
-		Score:     score,
-		Weight:    s.Config.C1.Weight,
-		SubScores: subScores,
-	}
+	}, nil
 }
 
-// scoreC3 extracts C3 (Architecture) metrics and computes the category score.
-func (s *Scorer) scoreC3(ar *types.AnalysisResult) types.CategoryScore {
+// extractC2 extracts C2 (Semantic Explicitness) metrics from an AnalysisResult.
+func extractC2(ar *types.AnalysisResult) (map[string]float64, map[string]bool) {
+	raw, ok := ar.Metrics["c2"]
+	if !ok {
+		return nil, nil
+	}
+	m, ok := raw.(*types.C2Metrics)
+	if !ok {
+		return nil, nil
+	}
+
+	if m.Aggregate == nil {
+		return nil, nil
+	}
+
+	return map[string]float64{
+		"type_annotation_coverage": m.Aggregate.TypeAnnotationCoverage,
+		"naming_consistency":       m.Aggregate.NamingConsistency,
+		"magic_number_ratio":       m.Aggregate.MagicNumberRatio,
+		"type_strictness":          m.Aggregate.TypeStrictness,
+		"null_safety":              m.Aggregate.NullSafety,
+	}, nil
+}
+
+// extractC3 extracts C3 (Architecture) metrics from an AnalysisResult.
+func extractC3(ar *types.AnalysisResult) (map[string]float64, map[string]bool) {
 	raw, ok := ar.Metrics["c3"]
 	if !ok {
-		return types.CategoryScore{Name: "C3", Weight: s.Config.C3.Weight}
+		return nil, nil
 	}
 	m, ok := raw.(*types.C3Metrics)
 	if !ok {
-		return types.CategoryScore{Name: "C3", Weight: s.Config.C3.Weight}
+		return nil, nil
 	}
 
-	rawValues := map[string]float64{
-		"max_dir_depth":         float64(m.MaxDirectoryDepth),
-		"module_fanout_avg":     m.ModuleFanout.Avg,
-		"circular_deps":         float64(len(m.CircularDeps)),
+	return map[string]float64{
+		"max_dir_depth":        float64(m.MaxDirectoryDepth),
+		"module_fanout_avg":    m.ModuleFanout.Avg,
+		"circular_deps":        float64(len(m.CircularDeps)),
 		"import_complexity_avg": m.ImportComplexity.Avg,
 		"dead_exports":          float64(len(m.DeadExports)),
-	}
-
-	subScores, score := scoreMetrics(s.Config.C3, rawValues, nil)
-
-	return types.CategoryScore{
-		Name:      "C3",
-		Score:     score,
-		Weight:    s.Config.C3.Weight,
-		SubScores: subScores,
-	}
+	}, nil
 }
 
-// scoreC6 extracts C6 (Testing) metrics and computes the category score.
-func (s *Scorer) scoreC6(ar *types.AnalysisResult) types.CategoryScore {
+// extractC6 extracts C6 (Testing) metrics from an AnalysisResult.
+func extractC6(ar *types.AnalysisResult) (map[string]float64, map[string]bool) {
 	raw, ok := ar.Metrics["c6"]
 	if !ok {
-		return types.CategoryScore{Name: "C6", Weight: s.Config.C6.Weight}
+		return nil, nil
 	}
 	m, ok := raw.(*types.C6Metrics)
 	if !ok {
-		return types.CategoryScore{Name: "C6", Weight: s.Config.C6.Weight}
+		return nil, nil
 	}
 
 	// Compute test_file_ratio with zero-division guard
@@ -210,11 +252,11 @@ func (s *Scorer) scoreC6(ar *types.AnalysisResult) types.CategoryScore {
 	}
 
 	rawValues := map[string]float64{
-		"test_to_code_ratio":  m.TestToCodeRatio,
-		"coverage_percent":    m.CoveragePercent,
-		"test_isolation":      m.TestIsolation,
+		"test_to_code_ratio":    m.TestToCodeRatio,
+		"coverage_percent":      m.CoveragePercent,
+		"test_isolation":        m.TestIsolation,
 		"assertion_density_avg": m.AssertionDensity.Avg,
-		"test_file_ratio":     testFileRatio,
+		"test_file_ratio":       testFileRatio,
 	}
 
 	// Mark coverage as unavailable if == -1
@@ -223,14 +265,7 @@ func (s *Scorer) scoreC6(ar *types.AnalysisResult) types.CategoryScore {
 		unavailable["coverage_percent"] = true
 	}
 
-	subScores, score := scoreMetrics(s.Config.C6, rawValues, unavailable)
-
-	return types.CategoryScore{
-		Name:      "C6",
-		Score:     score,
-		Weight:    s.Config.C6.Weight,
-		SubScores: subScores,
-	}
+	return rawValues, unavailable
 }
 
 // scoreMetrics is a generic scoring helper for any category.

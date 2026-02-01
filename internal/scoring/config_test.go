@@ -13,37 +13,61 @@ func TestDefaultConfig_Structure(t *testing.T) {
 		t.Fatal("DefaultConfig() returned nil")
 	}
 
+	if cfg.Categories == nil {
+		t.Fatal("Categories map is nil")
+	}
+
 	// C1 should have 6 metrics
-	if got := len(cfg.C1.Metrics); got != 6 {
+	c1 := cfg.Categories["C1"]
+	if got := len(c1.Metrics); got != 6 {
 		t.Errorf("C1 metrics count = %d, want 6", got)
 	}
-	if cfg.C1.Weight != 0.25 {
-		t.Errorf("C1 weight = %v, want 0.25", cfg.C1.Weight)
+	if c1.Weight != 0.25 {
+		t.Errorf("C1 weight = %v, want 0.25", c1.Weight)
 	}
-	if cfg.C1.Name != "Code Health" {
-		t.Errorf("C1 name = %q, want %q", cfg.C1.Name, "Code Health")
+	if c1.Name != "Code Health" {
+		t.Errorf("C1 name = %q, want %q", c1.Name, "Code Health")
+	}
+
+	// C2 should have 5 metrics
+	c2 := cfg.Categories["C2"]
+	if got := len(c2.Metrics); got != 5 {
+		t.Errorf("C2 metrics count = %d, want 5", got)
+	}
+	if c2.Weight != 0.10 {
+		t.Errorf("C2 weight = %v, want 0.10", c2.Weight)
+	}
+	if c2.Name != "Semantic Explicitness" {
+		t.Errorf("C2 name = %q, want %q", c2.Name, "Semantic Explicitness")
 	}
 
 	// C3 should have 5 metrics
-	if got := len(cfg.C3.Metrics); got != 5 {
+	c3 := cfg.Categories["C3"]
+	if got := len(c3.Metrics); got != 5 {
 		t.Errorf("C3 metrics count = %d, want 5", got)
 	}
-	if cfg.C3.Weight != 0.20 {
-		t.Errorf("C3 weight = %v, want 0.20", cfg.C3.Weight)
+	if c3.Weight != 0.20 {
+		t.Errorf("C3 weight = %v, want 0.20", c3.Weight)
 	}
-	if cfg.C3.Name != "Architecture" {
-		t.Errorf("C3 name = %q, want %q", cfg.C3.Name, "Architecture")
+	if c3.Name != "Architecture" {
+		t.Errorf("C3 name = %q, want %q", c3.Name, "Architecture")
 	}
 
 	// C6 should have 5 metrics
-	if got := len(cfg.C6.Metrics); got != 5 {
+	c6 := cfg.Categories["C6"]
+	if got := len(c6.Metrics); got != 5 {
 		t.Errorf("C6 metrics count = %d, want 5", got)
 	}
-	if cfg.C6.Weight != 0.15 {
-		t.Errorf("C6 weight = %v, want 0.15", cfg.C6.Weight)
+	if c6.Weight != 0.15 {
+		t.Errorf("C6 weight = %v, want 0.15", c6.Weight)
 	}
-	if cfg.C6.Name != "Testing" {
-		t.Errorf("C6 name = %q, want %q", cfg.C6.Name, "Testing")
+	if c6.Name != "Testing" {
+		t.Errorf("C6 name = %q, want %q", c6.Name, "Testing")
+	}
+
+	// Should have 4 categories
+	if got := len(cfg.Categories); got != 4 {
+		t.Errorf("categories count = %d, want 4", got)
 	}
 
 	// Tiers should have 4 entries
@@ -55,22 +79,13 @@ func TestDefaultConfig_Structure(t *testing.T) {
 func TestDefaultConfig_MetricWeightsSum(t *testing.T) {
 	cfg := DefaultConfig()
 
-	categories := []struct {
-		name    string
-		metrics []MetricThresholds
-	}{
-		{"C1", cfg.C1.Metrics},
-		{"C3", cfg.C3.Metrics},
-		{"C6", cfg.C6.Metrics},
-	}
-
-	for _, cat := range categories {
+	for name, cat := range cfg.Categories {
 		sum := 0.0
-		for _, m := range cat.metrics {
+		for _, m := range cat.Metrics {
 			sum += m.Weight
 		}
 		if diff := sum - 1.0; diff > 0.001 || diff < -0.001 {
-			t.Errorf("%s metric weights sum to %v, want 1.0", cat.name, sum)
+			t.Errorf("%s metric weights sum to %v, want 1.0", name, sum)
 		}
 	}
 }
@@ -78,18 +93,17 @@ func TestDefaultConfig_MetricWeightsSum(t *testing.T) {
 func TestDefaultConfig_BreakpointsSorted(t *testing.T) {
 	cfg := DefaultConfig()
 
-	allMetrics := append(cfg.C1.Metrics, cfg.C3.Metrics...)
-	allMetrics = append(allMetrics, cfg.C6.Metrics...)
-
-	for _, m := range allMetrics {
-		if len(m.Breakpoints) == 0 {
-			t.Errorf("metric %q has no breakpoints", m.Name)
-			continue
-		}
-		for i := 1; i < len(m.Breakpoints); i++ {
-			if m.Breakpoints[i].Value <= m.Breakpoints[i-1].Value {
-				t.Errorf("metric %q breakpoints not sorted by Value ascending at index %d: %v <= %v",
-					m.Name, i, m.Breakpoints[i].Value, m.Breakpoints[i-1].Value)
+	for catName, cat := range cfg.Categories {
+		for _, m := range cat.Metrics {
+			if len(m.Breakpoints) == 0 {
+				t.Errorf("%s metric %q has no breakpoints", catName, m.Name)
+				continue
+			}
+			for i := 1; i < len(m.Breakpoints); i++ {
+				if m.Breakpoints[i].Value <= m.Breakpoints[i-1].Value {
+					t.Errorf("%s metric %q breakpoints not sorted by Value ascending at index %d: %v <= %v",
+						catName, m.Name, i, m.Breakpoints[i].Value, m.Breakpoints[i-1].Value)
+				}
 			}
 		}
 	}
@@ -117,7 +131,8 @@ func TestDefaultConfig_MetricNames(t *testing.T) {
 		"efferent_coupling_avg": false,
 		"duplication_rate":     false,
 	}
-	for _, m := range cfg.C1.Metrics {
+	c1 := cfg.Categories["C1"]
+	for _, m := range c1.Metrics {
 		if _, ok := c1Names[m.Name]; !ok {
 			t.Errorf("unexpected C1 metric %q", m.Name)
 		}
@@ -129,6 +144,26 @@ func TestDefaultConfig_MetricNames(t *testing.T) {
 		}
 	}
 
+	c2Names := map[string]bool{
+		"type_annotation_coverage": false,
+		"naming_consistency":       false,
+		"magic_number_ratio":       false,
+		"type_strictness":          false,
+		"null_safety":              false,
+	}
+	c2 := cfg.Categories["C2"]
+	for _, m := range c2.Metrics {
+		if _, ok := c2Names[m.Name]; !ok {
+			t.Errorf("unexpected C2 metric %q", m.Name)
+		}
+		c2Names[m.Name] = true
+	}
+	for name, found := range c2Names {
+		if !found {
+			t.Errorf("missing C2 metric %q", name)
+		}
+	}
+
 	c3Names := map[string]bool{
 		"max_dir_depth":        false,
 		"module_fanout_avg":    false,
@@ -136,7 +171,8 @@ func TestDefaultConfig_MetricNames(t *testing.T) {
 		"import_complexity_avg": false,
 		"dead_exports":        false,
 	}
-	for _, m := range cfg.C3.Metrics {
+	c3 := cfg.Categories["C3"]
+	for _, m := range c3.Metrics {
 		if _, ok := c3Names[m.Name]; !ok {
 			t.Errorf("unexpected C3 metric %q", m.Name)
 		}
@@ -155,7 +191,8 @@ func TestDefaultConfig_MetricNames(t *testing.T) {
 		"assertion_density_avg": false,
 		"test_file_ratio":     false,
 	}
-	for _, m := range cfg.C6.Metrics {
+	c6 := cfg.Categories["C6"]
+	for _, m := range c6.Metrics {
 		if _, ok := c6Names[m.Name]; !ok {
 			t.Errorf("unexpected C6 metric %q", m.Name)
 		}
@@ -168,6 +205,20 @@ func TestDefaultConfig_MetricNames(t *testing.T) {
 	}
 }
 
+func TestDefaultConfig_CategoryAccessor(t *testing.T) {
+	cfg := DefaultConfig()
+
+	c1 := cfg.Category("C1")
+	if c1.Name != "Code Health" {
+		t.Errorf("Category(C1).Name = %q, want Code Health", c1.Name)
+	}
+
+	missing := cfg.Category("C99")
+	if missing.Name != "" {
+		t.Errorf("Category(C99).Name = %q, want empty", missing.Name)
+	}
+}
+
 func TestLoadConfig_EmptyPath(t *testing.T) {
 	cfg, err := LoadConfig("")
 	if err != nil {
@@ -177,24 +228,26 @@ func TestLoadConfig_EmptyPath(t *testing.T) {
 		t.Fatal("LoadConfig('') returned nil")
 	}
 	// Should be equivalent to DefaultConfig
-	if cfg.C1.Weight != 0.25 {
-		t.Errorf("C1 weight = %v, want 0.25", cfg.C1.Weight)
+	c1 := cfg.Categories["C1"]
+	if c1.Weight != 0.25 {
+		t.Errorf("C1 weight = %v, want 0.25", c1.Weight)
 	}
 }
 
 func TestLoadConfig_YAMLOverride(t *testing.T) {
 	yamlContent := `
-c1:
-  weight: 0.40
-  name: "Code Health"
-  metrics:
-    - name: complexity_avg
-      weight: 1.0
-      breakpoints:
-        - value: 1
-          score: 10
-        - value: 50
-          score: 1
+categories:
+  C1:
+    weight: 0.40
+    name: "Code Health"
+    metrics:
+      - name: complexity_avg
+        weight: 1.0
+        breakpoints:
+          - value: 1
+            score: 10
+          - value: 50
+            score: 1
 `
 	dir := t.TempDir()
 	path := filepath.Join(dir, "config.yaml")
@@ -208,18 +261,20 @@ c1:
 	}
 
 	// C1 weight should be overridden
-	if cfg.C1.Weight != 0.40 {
-		t.Errorf("C1 weight = %v, want 0.40", cfg.C1.Weight)
+	c1 := cfg.Categories["C1"]
+	if c1.Weight != 0.40 {
+		t.Errorf("C1 weight = %v, want 0.40", c1.Weight)
 	}
 
 	// C1 metrics should be overridden (only 1 metric now)
-	if len(cfg.C1.Metrics) != 1 {
-		t.Errorf("C1 metrics count = %d, want 1", len(cfg.C1.Metrics))
+	if len(c1.Metrics) != 1 {
+		t.Errorf("C1 metrics count = %d, want 1", len(c1.Metrics))
 	}
 
 	// C3 should retain defaults since not in YAML
-	if cfg.C3.Weight != 0.20 {
-		t.Errorf("C3 weight = %v, want 0.20 (default)", cfg.C3.Weight)
+	c3 := cfg.Categories["C3"]
+	if c3.Weight != 0.20 {
+		t.Errorf("C3 weight = %v, want 0.20 (default)", c3.Weight)
 	}
 }
 

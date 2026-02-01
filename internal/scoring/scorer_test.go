@@ -298,7 +298,7 @@ func TestFindMetric(t *testing.T) {
 	})
 }
 
-// --- scoreC1 tests ---
+// --- Score C1 tests (via Score method) ---
 
 func makeHealthyC1() *types.AnalysisResult {
 	return &types.AnalysisResult{
@@ -317,10 +317,20 @@ func makeHealthyC1() *types.AnalysisResult {
 	}
 }
 
+// scoreCategory is a test helper that scores a single analysis result and returns the category score.
+func scoreCategory(s *Scorer, ar *types.AnalysisResult) types.CategoryScore {
+	result, _ := s.Score([]*types.AnalysisResult{ar})
+	if len(result.Categories) == 0 {
+		catCfg := s.Config.Categories[ar.Category]
+		return types.CategoryScore{Name: ar.Category, Weight: catCfg.Weight}
+	}
+	return result.Categories[0]
+}
+
 func TestScoreC1_Healthy(t *testing.T) {
 	s := &Scorer{Config: DefaultConfig()}
 	ar := makeHealthyC1()
-	got := s.scoreC1(ar)
+	got := scoreCategory(s, ar)
 
 	if got.Name != "C1" {
 		t.Errorf("name = %q, want C1", got.Name)
@@ -360,7 +370,7 @@ func TestScoreC1_PoorCodebase(t *testing.T) {
 			},
 		},
 	}
-	got := s.scoreC1(ar)
+	got := scoreCategory(s, ar)
 	if got.Score > 4.0 {
 		t.Errorf("poor C1 score = %v, want < 4.0", got.Score)
 	}
@@ -382,7 +392,7 @@ func TestScoreC1_EmptyCouplingMaps(t *testing.T) {
 			},
 		},
 	}
-	got := s.scoreC1(ar)
+	got := scoreCategory(s, ar)
 
 	// Empty maps -> raw value 0 -> should get top score for coupling
 	for _, ss := range got.SubScores {
@@ -404,7 +414,7 @@ func TestScoreC1_InvalidMetricsType(t *testing.T) {
 		Category: "C1",
 		Metrics:  map[string]interface{}{"c1": "not-a-struct"},
 	}
-	got := s.scoreC1(ar)
+	got := scoreCategory(s, ar)
 	// Should return zero-value CategoryScore on type assertion failure
 	if got.Score != 0 {
 		t.Errorf("invalid metrics type score = %v, want 0", got.Score)
@@ -427,7 +437,7 @@ func TestScoreC1_CouplingAverage(t *testing.T) {
 			},
 		},
 	}
-	got := s.scoreC1(ar)
+	got := scoreCategory(s, ar)
 
 	for _, ss := range got.SubScores {
 		if ss.MetricName == "afferent_coupling_avg" {
@@ -462,7 +472,7 @@ func TestScoreC3_Healthy(t *testing.T) {
 			},
 		},
 	}
-	got := s.scoreC3(ar)
+	got := scoreCategory(s, ar)
 	if got.Name != "C3" {
 		t.Errorf("name = %q, want C3", got.Name)
 	}
@@ -500,7 +510,7 @@ func TestScoreC3_PoorArchitecture(t *testing.T) {
 			},
 		},
 	}
-	got := s.scoreC3(ar)
+	got := scoreCategory(s, ar)
 	if got.Score > 4.0 {
 		t.Errorf("poor C3 score = %v, want < 4.0", got.Score)
 	}
@@ -521,7 +531,7 @@ func TestScoreC3_MetricExtraction(t *testing.T) {
 			},
 		},
 	}
-	got := s.scoreC3(ar)
+	got := scoreCategory(s, ar)
 
 	expected := map[string]float64{
 		"max_dir_depth":        5.0,
@@ -561,7 +571,7 @@ func TestScoreC6_Healthy(t *testing.T) {
 			},
 		},
 	}
-	got := s.scoreC6(ar)
+	got := scoreCategory(s, ar)
 	if got.Name != "C6" {
 		t.Errorf("name = %q, want C6", got.Name)
 	}
@@ -598,7 +608,7 @@ func TestScoreC6_MissingCoverage(t *testing.T) {
 			},
 		},
 	}
-	got := s.scoreC6(ar)
+	got := scoreCategory(s, ar)
 
 	// Coverage sub-score should be marked unavailable
 	for _, ss := range got.SubScores {
@@ -636,7 +646,7 @@ func TestScoreC6_ZeroSourceFiles(t *testing.T) {
 		},
 	}
 	// Must not panic on zero division
-	got := s.scoreC6(ar)
+	got := scoreCategory(s, ar)
 
 	for _, ss := range got.SubScores {
 		if ss.MetricName == "test_file_ratio" {
@@ -663,7 +673,7 @@ func TestScoreC6_TestFileRatio(t *testing.T) {
 			},
 		},
 	}
-	got := s.scoreC6(ar)
+	got := scoreCategory(s, ar)
 
 	for _, ss := range got.SubScores {
 		if ss.MetricName == "test_file_ratio" {
@@ -672,6 +682,68 @@ func TestScoreC6_TestFileRatio(t *testing.T) {
 				t.Errorf("test_file_ratio raw = %v, want 0.75", ss.RawValue)
 			}
 		}
+	}
+}
+
+// --- scoreC2 tests ---
+
+func TestScoreC2_GoMetrics(t *testing.T) {
+	s := &Scorer{Config: DefaultConfig()}
+	ar := &types.AnalysisResult{
+		Name:     "semantic-explicitness",
+		Category: "C2",
+		Metrics: map[string]interface{}{
+			"c2": &types.C2Metrics{
+				Aggregate: &types.C2LanguageMetrics{
+					TypeAnnotationCoverage: 100,
+					NamingConsistency:      92,
+					MagicNumberRatio:       3.5,
+					TypeStrictness:         1,
+					NullSafety:             65,
+				},
+			},
+		},
+	}
+	got := scoreCategory(s, ar)
+
+	if got.Name != "C2" {
+		t.Errorf("name = %q, want C2", got.Name)
+	}
+	if got.Weight != 0.10 {
+		t.Errorf("weight = %v, want 0.10", got.Weight)
+	}
+	if len(got.SubScores) != 5 {
+		t.Fatalf("subscore count = %d, want 5", len(got.SubScores))
+	}
+	// TypeAnnotationCoverage=100 -> 10, NamingConsistency=92 -> ~7.4, MagicNumberRatio=3.5 -> ~8.7,
+	// TypeStrictness=1 -> 10, NullSafety=65 -> ~7.0
+	// Expected weighted average should be high
+	if got.Score < 7.0 {
+		t.Errorf("C2 score with good Go metrics = %v, want > 7.0", got.Score)
+	}
+
+	// Verify all sub-scores are available
+	for _, ss := range got.SubScores {
+		if !ss.Available {
+			t.Errorf("sub-score %q should be available", ss.MetricName)
+		}
+	}
+}
+
+func TestScoreC2_NilAggregate(t *testing.T) {
+	s := &Scorer{Config: DefaultConfig()}
+	ar := &types.AnalysisResult{
+		Name:     "semantic-explicitness",
+		Category: "C2",
+		Metrics: map[string]interface{}{
+			"c2": &types.C2Metrics{
+				Aggregate: nil,
+			},
+		},
+	}
+	got := scoreCategory(s, ar)
+	if got.Score != 0 {
+		t.Errorf("C2 score with nil aggregate = %v, want 0", got.Score)
 	}
 }
 
@@ -781,9 +853,10 @@ func TestScoreC1_CustomConfig(t *testing.T) {
 	// Replace complexity_avg breakpoints: now {1->1, 5->5, 10->10}
 	// With default config, complexity 3.0 -> interpolates between (1,10) and (5,8) -> ~9.0
 	// With custom config, complexity 3.0 -> interpolates between (1,1) and (5,5) -> 3.0
-	for i, m := range customCfg.C1.Metrics {
+	c1 := customCfg.Categories["C1"]
+	for i, m := range c1.Metrics {
 		if m.Name == "complexity_avg" {
-			customCfg.C1.Metrics[i].Breakpoints = []Breakpoint{
+			c1.Metrics[i].Breakpoints = []Breakpoint{
 				{Value: 1, Score: 1},
 				{Value: 5, Score: 5},
 				{Value: 10, Score: 10},
@@ -791,14 +864,15 @@ func TestScoreC1_CustomConfig(t *testing.T) {
 			break
 		}
 	}
+	customCfg.Categories["C1"] = c1
 
 	defaultScorer := &Scorer{Config: DefaultConfig()}
 	customScorer := &Scorer{Config: customCfg}
 
 	ar := makeHealthyC1() // complexity avg = 3.0
 
-	defaultResult := defaultScorer.scoreC1(ar)
-	customResult := customScorer.scoreC1(ar)
+	defaultResult := scoreCategory(defaultScorer, ar)
+	customResult := scoreCategory(customScorer, ar)
 
 	// Find the complexity sub-score in each
 	var defaultComplexityScore, customComplexityScore float64

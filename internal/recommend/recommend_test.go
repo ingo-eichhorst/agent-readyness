@@ -13,33 +13,36 @@ func buildScoredResult(cfg *scoring.ScoringConfig) *types.ScoredResult {
 	// Build a mediocre project: complexity_avg=12 (score ~5.4), func_length_avg=35 (score ~5.5),
 	// file_size_avg=200 (score ~7.3), afferent_coupling_avg=6 (score ~5.3),
 	// efferent_coupling_avg=3 (score ~7.2), duplication_rate=10 (score ~4.3)
+	c1Cfg := cfg.Categories["C1"]
 	c1Sub := []types.SubScore{
-		{MetricName: "complexity_avg", RawValue: 12, Score: scoring.Interpolate(cfg.C1.Metrics[0].Breakpoints, 12), Weight: 0.25, Available: true},
-		{MetricName: "func_length_avg", RawValue: 35, Score: scoring.Interpolate(cfg.C1.Metrics[1].Breakpoints, 35), Weight: 0.20, Available: true},
-		{MetricName: "file_size_avg", RawValue: 200, Score: scoring.Interpolate(cfg.C1.Metrics[2].Breakpoints, 200), Weight: 0.15, Available: true},
-		{MetricName: "afferent_coupling_avg", RawValue: 6, Score: scoring.Interpolate(cfg.C1.Metrics[3].Breakpoints, 6), Weight: 0.15, Available: true},
-		{MetricName: "efferent_coupling_avg", RawValue: 3, Score: scoring.Interpolate(cfg.C1.Metrics[4].Breakpoints, 3), Weight: 0.10, Available: true},
-		{MetricName: "duplication_rate", RawValue: 10, Score: scoring.Interpolate(cfg.C1.Metrics[5].Breakpoints, 10), Weight: 0.15, Available: true},
+		{MetricName: "complexity_avg", RawValue: 12, Score: scoring.Interpolate(c1Cfg.Metrics[0].Breakpoints, 12), Weight: 0.25, Available: true},
+		{MetricName: "func_length_avg", RawValue: 35, Score: scoring.Interpolate(c1Cfg.Metrics[1].Breakpoints, 35), Weight: 0.20, Available: true},
+		{MetricName: "file_size_avg", RawValue: 200, Score: scoring.Interpolate(c1Cfg.Metrics[2].Breakpoints, 200), Weight: 0.15, Available: true},
+		{MetricName: "afferent_coupling_avg", RawValue: 6, Score: scoring.Interpolate(c1Cfg.Metrics[3].Breakpoints, 6), Weight: 0.15, Available: true},
+		{MetricName: "efferent_coupling_avg", RawValue: 3, Score: scoring.Interpolate(c1Cfg.Metrics[4].Breakpoints, 3), Weight: 0.10, Available: true},
+		{MetricName: "duplication_rate", RawValue: 10, Score: scoring.Interpolate(c1Cfg.Metrics[5].Breakpoints, 10), Weight: 0.15, Available: true},
 	}
 
 	// C3: max_dir_depth=4 (~7.0), module_fanout_avg=4 (~7.3), circular_deps=0 (10),
 	// import_complexity_avg=3 (~7.0), dead_exports=8 (~7.6)
+	c3Cfg := cfg.Categories["C3"]
 	c3Sub := []types.SubScore{
-		{MetricName: "max_dir_depth", RawValue: 4, Score: scoring.Interpolate(cfg.C3.Metrics[0].Breakpoints, 4), Weight: 0.20, Available: true},
-		{MetricName: "module_fanout_avg", RawValue: 4, Score: scoring.Interpolate(cfg.C3.Metrics[1].Breakpoints, 4), Weight: 0.20, Available: true},
-		{MetricName: "circular_deps", RawValue: 0, Score: scoring.Interpolate(cfg.C3.Metrics[2].Breakpoints, 0), Weight: 0.25, Available: true},
-		{MetricName: "import_complexity_avg", RawValue: 3, Score: scoring.Interpolate(cfg.C3.Metrics[3].Breakpoints, 3), Weight: 0.15, Available: true},
-		{MetricName: "dead_exports", RawValue: 8, Score: scoring.Interpolate(cfg.C3.Metrics[4].Breakpoints, 8), Weight: 0.20, Available: true},
+		{MetricName: "max_dir_depth", RawValue: 4, Score: scoring.Interpolate(c3Cfg.Metrics[0].Breakpoints, 4), Weight: 0.20, Available: true},
+		{MetricName: "module_fanout_avg", RawValue: 4, Score: scoring.Interpolate(c3Cfg.Metrics[1].Breakpoints, 4), Weight: 0.20, Available: true},
+		{MetricName: "circular_deps", RawValue: 0, Score: scoring.Interpolate(c3Cfg.Metrics[2].Breakpoints, 0), Weight: 0.25, Available: true},
+		{MetricName: "import_complexity_avg", RawValue: 3, Score: scoring.Interpolate(c3Cfg.Metrics[3].Breakpoints, 3), Weight: 0.15, Available: true},
+		{MetricName: "dead_exports", RawValue: 8, Score: scoring.Interpolate(c3Cfg.Metrics[4].Breakpoints, 8), Weight: 0.20, Available: true},
 	}
 
 	// C6: test_to_code_ratio=0.3 (~4.8), coverage_percent=40 (score ~5.0),
 	// test_isolation=50 (~5.0), assertion_density_avg=1.5 (~5.0), test_file_ratio=0.4 (~4.7)
+	c6Cfg := cfg.Categories["C6"]
 	c6Sub := []types.SubScore{
-		{MetricName: "test_to_code_ratio", RawValue: 0.3, Score: scoring.Interpolate(cfg.C6.Metrics[0].Breakpoints, 0.3), Weight: 0.25, Available: true},
-		{MetricName: "coverage_percent", RawValue: 40, Score: scoring.Interpolate(cfg.C6.Metrics[1].Breakpoints, 40), Weight: 0.30, Available: true},
-		{MetricName: "test_isolation", RawValue: 50, Score: scoring.Interpolate(cfg.C6.Metrics[2].Breakpoints, 50), Weight: 0.15, Available: true},
-		{MetricName: "assertion_density_avg", RawValue: 1.5, Score: scoring.Interpolate(cfg.C6.Metrics[3].Breakpoints, 1.5), Weight: 0.15, Available: true},
-		{MetricName: "test_file_ratio", RawValue: 0.4, Score: scoring.Interpolate(cfg.C6.Metrics[4].Breakpoints, 0.4), Weight: 0.15, Available: true},
+		{MetricName: "test_to_code_ratio", RawValue: 0.3, Score: scoring.Interpolate(c6Cfg.Metrics[0].Breakpoints, 0.3), Weight: 0.25, Available: true},
+		{MetricName: "coverage_percent", RawValue: 40, Score: scoring.Interpolate(c6Cfg.Metrics[1].Breakpoints, 40), Weight: 0.30, Available: true},
+		{MetricName: "test_isolation", RawValue: 50, Score: scoring.Interpolate(c6Cfg.Metrics[2].Breakpoints, 50), Weight: 0.15, Available: true},
+		{MetricName: "assertion_density_avg", RawValue: 1.5, Score: scoring.Interpolate(c6Cfg.Metrics[3].Breakpoints, 1.5), Weight: 0.15, Available: true},
+		{MetricName: "test_file_ratio", RawValue: 0.4, Score: scoring.Interpolate(c6Cfg.Metrics[4].Breakpoints, 0.4), Weight: 0.15, Available: true},
 	}
 
 	// Compute category scores as weighted avg of available sub-scores
@@ -188,15 +191,11 @@ func simulateManually(scored *types.ScoredResult, cfg *scoring.ScoringConfig,
 }
 
 func getCatConfig(cfg *scoring.ScoringConfig, name string) *scoring.CategoryConfig {
-	switch name {
-	case "C1":
-		return &cfg.C1
-	case "C3":
-		return &cfg.C3
-	case "C6":
-		return &cfg.C6
+	cat, ok := cfg.Categories[name]
+	if !ok {
+		return nil
 	}
-	return nil
+	return &cat
 }
 
 func findMetricCfg(cat *scoring.CategoryConfig, name string) *scoring.MetricThresholds {

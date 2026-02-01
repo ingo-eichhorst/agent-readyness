@@ -146,15 +146,14 @@ func Generate(scored *types.ScoredResult, cfg *scoring.ScoringConfig) []Recommen
 
 // getCategoryConfig returns the CategoryConfig for a given category name.
 func getCategoryConfig(cfg *scoring.ScoringConfig, name string) *scoring.CategoryConfig {
-	switch name {
-	case "C1":
-		return &cfg.C1
-	case "C3":
-		return &cfg.C3
-	case "C6":
-		return &cfg.C6
+	if cfg.Categories == nil {
+		return nil
 	}
-	return nil
+	cat, ok := cfg.Categories[name]
+	if !ok {
+		return nil
+	}
+	return &cat
 }
 
 // findMetric finds a MetricThresholds by name in a category config.

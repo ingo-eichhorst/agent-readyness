@@ -15,7 +15,7 @@ Requirements for initial release (Go language only, C1/C3/C6 categories).
 - [x] **FOUND-04**: Provides `--version` flag showing current version
 - [x] **FOUND-05**: Clear error messages with actionable guidance when inputs invalid
 - [x] **FOUND-06**: Exit codes: 0 (success), 1 (error), 2 (below threshold)
-- [ ] **FOUND-07**: Handles edge cases (symlinks, syntax errors, Unicode paths)
+- [x] **FOUND-07**: Handles edge cases (symlinks, syntax errors, Unicode paths)
 - [x] **FOUND-08**: Excludes vendor directories and generated code automatically
 - [x] **FOUND-09**: Properly classifies Go files (_test.go, build tags, platform-specific)
 
@@ -69,8 +69,8 @@ Requirements for initial release (Go language only, C1/C3/C6 categories).
 - [ ] **OUT-04**: Recommendations section with Top 5 improvements
 - [ ] **OUT-05**: Optional `--threshold X` flag for CI gating (exit 2 if score < X)
 - [ ] **OUT-06**: Optional `--verbose` flag for detailed metric breakdown
-- [ ] **OUT-07**: Performance completes in <30s for 50k LOC repos
-- [ ] **OUT-08**: Progress indicators for long-running scans
+- [x] **OUT-07**: Performance completes in <30s for 50k LOC repos
+- [x] **OUT-08**: Progress indicators for long-running scans
 
 ## v2 Requirements
 
@@ -129,7 +129,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | FOUND-04 | Phase 1 | Complete |
 | FOUND-05 | Phase 1 | Complete |
 | FOUND-06 | Phase 1 | Complete |
-| FOUND-07 | Phase 5 | Pending |
+| FOUND-07 | Phase 5 | Complete |
 | FOUND-08 | Phase 1 | Complete |
 | FOUND-09 | Phase 1 | Complete |
 | C1-01 | Phase 2 | Complete |
@@ -165,8 +165,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | OUT-04 | Phase 4 | Complete |
 | OUT-05 | Phase 4 | Complete |
 | OUT-06 | Phase 4 | Complete |
-| OUT-07 | Phase 5 | Pending |
-| OUT-08 | Phase 5 | Pending |
+| OUT-07 | Phase 5 | Complete |
+| OUT-08 | Phase 5 | Complete |
 
 **Coverage:**
 - v1 requirements: 44 total
@@ -175,4 +175,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-01-31*
-*Last updated: 2026-01-31 after roadmap creation*
+*Last updated: 2026-02-01 after Phase 5 completion*

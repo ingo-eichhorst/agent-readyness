@@ -16,7 +16,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: Core Analysis** - C1 (Code Health), C3 (Architecture), C6 (Testing) metric analyzers
 - [x] **Phase 3: Scoring Model** - Per-category and composite scoring with tier ratings
 - [x] **Phase 4: Recommendations and Output** - Terminal output, improvement recommendations, CI gating
-- [ ] **Phase 5: Hardening** - Edge cases, performance optimization, progress indicators
+- [x] **Phase 5: Hardening** - Edge cases, performance optimization, progress indicators
 
 ## Phase Details
 
@@ -100,8 +100,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 05-01-PLAN.md -- Edge case resilience: symlinks, permission errors, Unicode paths in walker
-- [ ] 05-02-PLAN.md -- Parallel analyzers, stderr progress spinner, TTY detection
+- [x] 05-01-PLAN.md -- Edge case resilience: symlinks, permission errors, Unicode paths in walker
+- [x] 05-02-PLAN.md -- Parallel analyzers, stderr progress spinner, TTY detection
 
 ## Progress
 
@@ -114,4 +114,4 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 | 2. Core Analysis | 5/5 | Complete | 2026-01-31 |
 | 3. Scoring Model | 3/3 | Complete | 2026-01-31 |
 | 4. Recommendations and Output | 3/3 | Complete | 2026-01-31 |
-| 5. Hardening | 0/2 | Not started | - |
+| 5. Hardening | 2/2 | Complete | 2026-02-01 |

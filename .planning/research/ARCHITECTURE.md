@@ -1,454 +1,872 @@
-# Architecture Research
+# Architecture Research: v2 Multi-Language Expansion
 
-**Domain:** Go CLI static analysis tool
-**Researched:** 2026-01-31
-**Confidence:** HIGH
+**Domain:** Static analysis CLI tool -- expanding from Go-only to Go/Python/TypeScript
+**Researched:** 2026-02-01
+**Confidence:** HIGH (based on direct codebase analysis + verified library research)
 
-## Standard Architecture
+## Executive Summary
 
-### System Overview
+The v1 architecture is well-structured for expansion. The pipeline pattern (Discover -> Parse -> Analyze -> Score -> Recommend -> Render) remains correct. The primary architectural challenge is that the `Parser` interface and `Analyzer` interface are tightly coupled to `*parser.ParsedPackage` (a Go-specific type wrapping `go/packages` output). Multi-language support requires introducing a **language-agnostic intermediate representation** that all analyzers consume, while preserving Go's rich type information for Go-specific analysis.
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                          CLI Layer                               │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐                       │
-│  │  cobra    │  │  config  │  │  flags   │                       │
-│  │  commands │  │  loader  │  │  parser  │                       │
-│  └─────┬────┘  └─────┬────┘  └─────┬────┘                       │
-│        └──────────────┼─────────────┘                            │
-├───────────────────────┼─────────────────────────────────────────┤
-│                   Orchestrator                                   │
-│  ┌──────────────────────────────────────────────────────────┐   │
-│  │              Scanner / Pipeline Runner                     │   │
-│  │   (discovers files, dispatches to analyzers, collects)    │   │
-│  └─────────────────────────┬────────────────────────────────┘   │
-├────────────────────────────┼────────────────────────────────────┤
-│                      Analysis Layer                              │
-│  ┌─────────────┐  ┌───────────────┐  ┌──────────────────┐      │
-│  │ C1: Code    │  │ C3: Arch      │  │ C6: Testing      │      │
-│  │ Health      │  │ Navigability  │  │ Infrastructure   │      │
-│  │ Analyzer    │  │ Analyzer      │  │ Analyzer         │      │
-│  └──────┬──────┘  └───────┬───────┘  └────────┬─────────┘      │
-│         └─────────────────┼────────────────────┘                │
-├────────────────────────────┼────────────────────────────────────┤
-│                      Parsing Layer                               │
-│  ┌──────────────────────────────────────────────────────────┐   │
-│  │   go/parser + go/ast + go/token                           │   │
-│  │   (parse files into ASTs, provide token positions)        │   │
-│  └──────────────────────────────────────────────────────────┘   │
-├─────────────────────────────────────────────────────────────────┤
-│                      Scoring Layer                               │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐      │
-│  │ Per-Category  │  │ Composite    │  │ Recommendations  │      │
-│  │ Scorer       │  │ Scorer       │  │ Generator        │      │
-│  └──────────────┘  └──────────────┘  └──────────────────┘      │
-├─────────────────────────────────────────────────────────────────┤
-│                      Output Layer                                │
-│  ┌──────────────────────────────────────────────────────────┐   │
-│  │   Terminal Renderer (text output, tier badge, colors)     │   │
-│  └──────────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────────┘
-```
+The recommendation is a **dual-parser strategy**: keep `go/packages` for Go (it provides type info that Tree-sitter cannot), add Tree-sitter for Python/TypeScript, and introduce a unified `AnalysisTarget` type that both parsers produce. New analyzers (C2, C4, C5, C7) plug into the existing `Analyzer` interface with minimal changes. LLM-dependent analyzers (C4, C7) require a new async execution model with cost guards.
 
-### Component Responsibilities
+## Current Architecture (v1 Baseline)
 
-| Component | Responsibility | Typical Implementation |
-|-----------|----------------|------------------------|
-| CLI Layer | Parse flags, validate input, wire dependencies | Cobra commands in `cmd/` |
-| Config Loader | Load config from flags (and optionally file) | Simple struct, no Viper needed for v1 |
-| Scanner | Discover Go files, coordinate analysis pipeline | Walk directory, filter `.go` files, dispatch |
-| Parsing Layer | Parse Go source into ASTs | `go/parser.ParseFile` with `token.FileSet` |
-| C1 Analyzer | Cyclomatic complexity, function length, file size, coupling | AST traversal via `ast.Inspect` |
-| C3 Analyzer | Directory depth, module fanout, circular deps, import graph | File path analysis + import extraction from AST |
-| C6 Analyzer | Test coverage, test-to-code ratio, test isolation, assertions | `_test.go` detection, AST inspection for test funcs |
-| Per-Category Scorer | Convert raw metrics into 1-10 score per category | Threshold tables, linear interpolation |
-| Composite Scorer | Weighted average of category scores | C1: 25%, C3: 20%, C6: 15% (from PROJECT.md) |
-| Recommendations Generator | Identify top 5 improvements by impact | Sort metrics by distance-from-ideal, format suggestions |
-| Terminal Renderer | Format and print results to stdout | `fmt` or `text/tabwriter`, ANSI colors |
-
-## Recommended Project Structure
+### Pipeline Flow
 
 ```
-ars/
-├── main.go                    # Entry point, calls cmd.Execute()
-├── cmd/
-│   ├── root.go                # Root cobra command, global flags
-│   └── scan.go                # `ars scan <dir>` command
-├── internal/
-│   ├── scanner/
-│   │   └── scanner.go         # File discovery, pipeline orchestration
-│   ├── parser/
-│   │   └── parser.go          # Thin wrapper around go/parser
-│   ├── analyzer/
-│   │   ├── analyzer.go        # Analyzer interface definition
-│   │   ├── codehealth.go      # C1: complexity, function length, etc.
-│   │   ├── architecture.go    # C3: directory depth, imports, etc.
-│   │   └── testing.go         # C6: test coverage, ratios, etc.
-│   ├── scorer/
-│   │   ├── category.go        # Per-category scoring logic
-│   │   ├── composite.go       # Weighted composite score
-│   │   └── thresholds.go      # Score threshold definitions
-│   ├── recommend/
-│   │   └── recommend.go       # Top-5 improvement generator
-│   └── output/
-│       └── terminal.go        # Terminal text renderer
-├── pkg/
-│   └── types/
-│       └── types.go           # Shared types: FileMetrics, Score, etc.
-└── testdata/                  # Sample Go files for testing analyzers
-    ├── simple/
-    ├── complex/
-    └── large/
+CLI (cmd/scan.go)
+  |
+  v
+Pipeline.Run(dir)
+  |
+  +-- Stage 1: discovery.Walker.Discover(dir)  --> *types.ScanResult
+  |     (walks filesystem, classifies .go files)
+  |
+  +-- Stage 2: parser.GoPackagesParser.Parse(dir)  --> []*parser.ParsedPackage
+  |     (go/packages.Load with full type info)
+  |
+  +-- Stage 3: analyzers[].Analyze(pkgs)  --> []*types.AnalysisResult  (parallel via errgroup)
+  |     C1Analyzer, C3Analyzer, C6Analyzer
+  |
+  +-- Stage 3.5: scorer.Score(results)  --> *types.ScoredResult
+  |
+  +-- Stage 3.6: recommend.Generate(scored, config)  --> []Recommendation
+  |
+  +-- Stage 4: output.RenderSummary / RenderJSON  --> io.Writer
+  |
+  +-- Stage 5: threshold check  --> ExitError if below
 ```
 
-### Structure Rationale
+### Current Interfaces (from pipeline/interfaces.go)
 
-- **`cmd/`:** Thin command wrappers. Only CLI concerns (flags, arg validation, wiring). No business logic.
-- **`internal/`:** All business logic. Not importable by external packages, enforcing encapsulation.
-- **`internal/scanner/`:** Owns file discovery and orchestration. This is the pipeline driver.
-- **`internal/analyzer/`:** Each analyzer is a separate file implementing a shared interface. Easy to add new categories later (C2, C4, C5).
-- **`internal/scorer/`:** Separate from analysis. Analyzers produce raw metrics; scorers convert metrics to scores. This separation makes threshold tuning independent of metric collection.
-- **`internal/recommend/`:** Separate from scoring. Takes scored results, identifies highest-impact improvements.
-- **`internal/output/`:** Renderer is isolated so adding JSON/HTML output later is a new file, not a rewrite.
-- **`pkg/types/`:** Shared structs used across packages. Kept minimal to avoid circular imports.
-- **`testdata/`:** Real Go source files for testing. Analyzers are tested against known code with expected metrics.
-
-## Architectural Patterns
-
-### Pattern 1: Pipeline Architecture
-
-**What:** Data flows through a series of stages: Discover -> Parse -> Analyze -> Score -> Recommend -> Render. Each stage has a clear input/output contract.
-
-**When to use:** Always. This is the core pattern for static analysis tools. Golangci-lint uses exactly this pattern (Init -> Load Packages -> Run Linters -> Postprocess Issues -> Print Issues).
-
-**Trade-offs:**
-- Pro: Each stage is independently testable
-- Pro: Easy to add new stages or swap implementations
-- Pro: Natural parallelism boundaries (parse files concurrently, analyze concurrently)
-- Con: Slightly more boilerplate than a monolithic approach
-
-**Example:**
 ```go
-// Pipeline stages with clear boundaries
-type Pipeline struct {
-    scanner  *scanner.Scanner
-    parser   *parser.Parser
-    analyzers []analyzer.Analyzer
-    scorer   *scorer.Composite
-    recommender *recommend.Recommender
-    renderer *output.Terminal
+type Parser interface {
+    Parse(rootDir string) ([]*parser.ParsedPackage, error)
 }
 
-func (p *Pipeline) Run(dir string) (*types.Report, error) {
-    // Stage 1: Discover files
-    files, err := p.scanner.Discover(dir)
-    if err != nil {
-        return nil, fmt.Errorf("scan: %w", err)
-    }
-
-    // Stage 2: Parse files into ASTs
-    parsed, err := p.parser.ParseAll(files)
-    if err != nil {
-        return nil, fmt.Errorf("parse: %w", err)
-    }
-
-    // Stage 3: Run analyzers
-    metrics := make(map[string]*types.CategoryMetrics)
-    for _, a := range p.analyzers {
-        m, err := a.Analyze(parsed)
-        if err != nil {
-            return nil, fmt.Errorf("analyze %s: %w", a.Name(), err)
-        }
-        metrics[a.Name()] = m
-    }
-
-    // Stage 4: Score
-    scores := p.scorer.Score(metrics)
-
-    // Stage 5: Recommend improvements
-    recs := p.recommender.Top(scores, 5)
-
-    return &types.Report{Scores: scores, Recommendations: recs}, nil
-}
-```
-
-**Confidence:** HIGH -- This is the universal pattern for static analysis tools, confirmed by golangci-lint's architecture and every Go analysis tool surveyed.
-
-### Pattern 2: Analyzer Interface
-
-**What:** A common interface that all analyzers implement. Each analyzer receives parsed files and returns structured metrics.
-
-**When to use:** When you have multiple analysis categories (C1, C3, C6) that need to run on the same parsed data.
-
-**Trade-offs:**
-- Pro: Adding a new category means adding one file implementing the interface
-- Pro: Each analyzer is independently testable
-- Pro: Analyzers can run concurrently since they only read parsed data
-- Con: Interface must be general enough to accommodate different analysis types
-
-**Example:**
-```go
-// analyzer/analyzer.go
 type Analyzer interface {
     Name() string
-    Analyze(files []*ParsedFile) (*types.CategoryMetrics, error)
+    Analyze(pkgs []*parser.ParsedPackage) (*types.AnalysisResult, error)
+}
+```
+
+### Key Coupling Points
+
+| Component | Coupled To | Impact on v2 |
+|-----------|-----------|--------------|
+| `Parser` interface | Returns `[]*parser.ParsedPackage` (Go-specific) | Must generalize for multi-language |
+| `Analyzer` interface | Accepts `[]*parser.ParsedPackage` (Go-specific) | Must accept language-agnostic input |
+| `ParsedPackage` struct | Contains `*ast.File`, `*types.Package`, `*types.Info` | Go-only; Python/TS need different representation |
+| `discovery.Walker` | Only discovers `.go` files | Must discover `.py`, `.ts`, `.tsx`, `.js` |
+| `scoring.ScoringConfig` | Hard-codes C1, C3, C6 fields | Must add C2, C4, C5, C7 fields |
+| `output.RenderSummary` | Switch on "C1", "C3", "C6" categories | Must handle 7 categories |
+| `scoring.Scorer.Score` | Switch on "C1", "C3", "C6" categories | Must handle 7 categories |
+
+## Recommended Architecture (v2)
+
+### Strategy: Unified Analysis Target with Language-Specific Parsers
+
+```
+CLI (cmd/scan.go)
+  |
+  +-- Config: LoadConfig(.arsrc.yml)  --> *Config  [NEW]
+  |
+  v
+Pipeline.Run(dir, config)
+  |
+  +-- Stage 1: discovery.Walker.Discover(dir)  --> *types.ScanResult  [MODIFIED]
+  |     (discovers .go, .py, .ts, .tsx, .js files, classifies by language)
+  |
+  +-- Stage 2a: parser.GoParser.Parse(dir)          --> []*AnalysisTarget  [KEEP go/packages]
+  +-- Stage 2b: parser.TreeSitterParser.Parse(dir)   --> []*AnalysisTarget  [NEW]
+  |     (parallel per-language parsing)
+  |
+  +-- Stage 2c: git.LogParser.Parse(dir)  --> *GitHistory  [NEW, for C5]
+  |
+  +-- Stage 3: analyzers[].Analyze(targets, gitHistory, config)  --> []*AnalysisResult  [parallel]
+  |     C1, C2, C3, C4, C5, C6, C7 analyzers
+  |     (C4, C7 are opt-in with LLM cost warnings)
+  |
+  +-- Stage 3.5: scorer.Score(results)  --> *ScoredResult
+  +-- Stage 3.6: recommend.Generate(scored, config)  --> []Recommendation
+  |
+  +-- Stage 4: output.Render(format, scored, recs)  --> io.Writer
+  |     Terminal | JSON | HTML  [HTML is NEW]
+  |
+  +-- Stage 5: threshold check
+```
+
+### Question 1: Multi-Language Strategy
+
+**Recommendation: Unified parser interface, per-language implementations, shared intermediate representation.**
+
+Do NOT create per-language pipelines. The pipeline is the same for all languages -- only the parser stage differs. All analyzers should receive the same `AnalysisTarget` type regardless of source language.
+
+**Why not per-language pipelines:**
+- Duplicates scoring, recommendation, and output logic
+- Makes cross-language analysis (e.g., "does this polyglot repo have consistent naming?") impossible
+- Violates KISS -- one pipeline, multiple parsers is simpler
+
+**Proposed intermediate representation:**
+
+```go
+// AnalysisTarget is the language-agnostic unit of analysis.
+// For Go: one per package. For Python/TS: one per file or module.
+type AnalysisTarget struct {
+    Language    Language           // Go, Python, TypeScript
+    Path        string             // File or package path
+    Files       []SourceFile       // Source files in this target
+    Functions   []FunctionInfo     // Extracted function signatures
+    Imports     []ImportInfo       // Import/require statements
+    Classes     []ClassInfo        // Classes/structs (Python/TS)
+    Exports     []ExportInfo       // Exported symbols
+    TestFiles   []SourceFile       // Associated test files
+
+    // Language-specific extensions (type-assert when needed)
+    GoPackage   *parser.ParsedPackage  // Non-nil only for Go targets
+    TreeSitterTree *sitter.Tree        // Non-nil for TS/Python targets
 }
 
-// analyzer/codehealth.go
-type CodeHealth struct{}
+type SourceFile struct {
+    Path       string
+    RelPath    string
+    Language   Language
+    Lines      int
+    Class      types.FileClass  // source, test, generated, excluded
+    Content    []byte           // Raw source (needed for Tree-sitter queries)
+}
 
-func (c *CodeHealth) Name() string { return "code_health" }
+type FunctionInfo struct {
+    Name       string
+    File       string
+    Line       int
+    EndLine    int
+    Parameters int
+    IsExported bool
+    IsTest     bool
+    Complexity int   // Computed during parsing for Go (gocyclo), estimated for others
+}
+```
 
-func (c *CodeHealth) Analyze(files []*ParsedFile) (*types.CategoryMetrics, error) {
-    metrics := &types.CategoryMetrics{}
-    for _, f := range files {
-        ast.Inspect(f.AST, func(n ast.Node) bool {
-            switch node := n.(type) {
-            case *ast.FuncDecl:
-                metrics.AddFunction(functionMetrics(f.Fset, node))
-            }
-            return true
-        })
+**Key design decision:** Keep `GoPackage *parser.ParsedPackage` as an optional field on `AnalysisTarget`. This lets Go-specific analyzers (C1 uses `go/ast` for duplication detection, C3 uses `go/types` for dead export detection) continue accessing rich Go type information without forcing a lowest-common-denominator representation. Python/TS analyzers use `TreeSitterTree` instead.
+
+**Confidence:** HIGH -- This "adapter" pattern (shared interface + language-specific extensions) is standard in multi-language analysis tools like SonarQube and Semgrep.
+
+### Question 2: Tree-sitter Integration -- Add Alongside, Do NOT Replace
+
+**Recommendation: Keep `go/packages` for Go analysis. Add `smacker/go-tree-sitter` for Python and TypeScript only.**
+
+**Why NOT replace go/packages with Tree-sitter for Go:**
+
+| Capability | go/packages | Tree-sitter |
+|-----------|-------------|-------------|
+| Type information | Full `go/types.Info` (uses, defs, type assertions) | None |
+| Cross-package resolution | Yes (imports resolved, dependency graph) | No |
+| Dead export detection (C3) | Yes (via `types.Object` cross-reference) | Not possible |
+| Test package separation | Yes (`ForTest` field) | Manual (filename heuristic only) |
+| Cyclomatic complexity | Via gocyclo on `*ast.File` | Would need custom Tree-sitter queries |
+| AST fidelity for Go | Perfect (official parser) | Grammar may lag official Go spec |
+
+The v1 C3 analyzer's `detectDeadCode()` function uses `pkg.TypesInfo.Uses` to find cross-package references -- this requires full type checking that Tree-sitter cannot provide. The C1 analyzer uses `gocyclo.AnalyzeASTFile()` which operates on `*ast.File`. Replacing go/packages would regress Go analysis quality.
+
+**Tree-sitter for Python/TypeScript provides:**
+- Function/class extraction via S-expression queries
+- Import statement parsing
+- File structure analysis (nesting depth, complexity estimation)
+- Fast parsing (~36x faster than traditional parsers per Symflower benchmarks)
+- Error-tolerant parsing (partial files still produce useful ASTs)
+
+**Which Go binding to use:**
+
+| Binding | Pros | Cons | Recommendation |
+|---------|------|------|----------------|
+| `smacker/go-tree-sitter` | Bundled grammars, GC-managed, 398+ importers | Less modular, slightly larger binary | **Use this one** |
+| `tree-sitter/go-tree-sitter` | Official, modular grammar loading | Must call Close() manually (CGO finalizer bugs), newer/less proven | Avoid for now |
+
+**Use `smacker/go-tree-sitter`** because:
+1. Python and TypeScript grammars are bundled -- no separate grammar management
+2. GC-managed memory via `runtime.SetFinalizer` -- no manual Close() calls
+3. More mature with wider adoption (398+ importers vs newer official binding)
+4. Sufficient for structural analysis (we do not need incremental re-parsing)
+
+**Confidence:** HIGH -- verified via [smacker/go-tree-sitter](https://github.com/smacker/go-tree-sitter) documentation and [tree-sitter/go-tree-sitter](https://github.com/tree-sitter/go-tree-sitter) README.
+
+### Question 3: LLM-Dependent Analysis (C4, C7) Architecture
+
+**C4 (Documentation Quality)** needs LLM for content quality assessment (not just presence checks).
+**C7 (Agent Evaluation)** needs headless Claude Code spawning for real agent-in-the-loop tests.
+
+**Recommendation: Separate execution tiers with explicit opt-in and cost warnings.**
+
+```
+Tier 1 (Default): C1, C2, C3, C5, C6 -- Fast, local, deterministic
+Tier 2 (--enable-llm): C4 -- LLM API call, moderate latency (~5-15s)
+Tier 3 (--enable-c7): C7 -- Headless agent spawn, high latency (~60-300s), high cost
+```
+
+**Architecture for LLM calls:**
+
+```go
+// LLMClient abstracts LLM provider interactions.
+type LLMClient interface {
+    Evaluate(ctx context.Context, prompt string) (string, error)
+    EstimateCost(prompt string) float64
+}
+
+// C4Analyzer uses LLM for documentation quality scoring.
+type C4Analyzer struct {
+    LLM        LLMClient   // nil = skip LLM-based sub-metrics
+    Timeout    time.Duration
+    MaxRetries int
+}
+
+func (a *C4Analyzer) Analyze(targets []*AnalysisTarget) (*types.AnalysisResult, error) {
+    // Phase 1: Structural analysis (always runs, fast)
+    //   - README presence, API doc coverage, comment density
+    metrics := a.analyzeStructure(targets)
+
+    // Phase 2: Content quality (only if LLM client provided)
+    if a.LLM != nil {
+        ctx, cancel := context.WithTimeout(context.Background(), a.Timeout)
+        defer cancel()
+        quality, err := a.evaluateContentQuality(ctx, targets)
+        if err != nil {
+            // Degrade gracefully: log warning, use structural-only score
+            log.Printf("C4 LLM evaluation failed: %v (using structural metrics only)", err)
+        } else {
+            metrics.merge(quality)
+        }
     }
+
     return metrics, nil
 }
 ```
 
-**Confidence:** HIGH -- This is the standard Go interface pattern, directly modeled on how `golang.org/x/tools/go/analysis` structures its `Analyzer` type.
-
-### Pattern 3: Metric Collection then Scoring (Two-Phase)
-
-**What:** Separate raw metric collection from score computation. Analyzers produce numbers (cyclomatic complexity = 12, function length = 45 lines). Scorers convert those numbers into 1-10 scores using configurable thresholds.
-
-**When to use:** Always. Mixing metric collection with scoring makes threshold tuning painful and testing harder.
-
-**Trade-offs:**
-- Pro: Can tune scoring thresholds without changing analysis code
-- Pro: Can validate metric collection independently of scoring logic
-- Pro: Thresholds become configuration, not code
-- Con: Extra data structure for intermediate metrics
-
-**Example:**
-```go
-// Raw metrics from analyzer (no opinion about good/bad)
-type FunctionMetrics struct {
-    Name            string
-    CyclomaticComplexity int
-    LineCount       int
-    ParameterCount  int
-}
-
-// Scorer converts to 1-10 using thresholds
-func ScoreCyclomaticComplexity(avg float64) float64 {
-    // Thresholds based on Go community norms:
-    // <= 5: perfect (10), 5-10: good (7-9), 10-15: moderate (4-6), >15: poor (1-3)
-    switch {
-    case avg <= 5:
-        return 10.0
-    case avg <= 10:
-        return 7.0 + (10.0-avg)/5.0*3.0
-    case avg <= 15:
-        return 4.0 + (15.0-avg)/5.0*3.0
-    default:
-        return max(1.0, 4.0-(avg-15.0)/10.0*3.0)
-    }
-}
-```
-
-**Confidence:** HIGH -- Separation of measurement from judgment is a fundamental static analysis design principle.
-
-## Data Flow
-
-### Primary Analysis Flow
-
-```
-[User runs: ars scan ./myproject]
-    |
-    v
-[CLI Layer] -- validates args, creates pipeline
-    |
-    v
-[Scanner] -- walks directory tree
-    |          filters .go files (skip vendor/, .git/, testdata/)
-    |          returns []FilePath
-    v
-[Parser] -- calls go/parser.ParseFile for each file
-    |         uses shared token.FileSet for position tracking
-    |         returns []*ParsedFile{Path, AST, Fset}
-    v
-[Analyzers] -- each analyzer traverses ASTs independently
-    |           C1: walks functions, counts branches, measures length
-    |           C3: analyzes import graph, directory structure
-    |           C6: identifies test files, counts test funcs, checks patterns
-    |           returns map[category]*CategoryMetrics
-    v
-[Scorer] -- converts raw metrics to 1-10 scores per category
-    |         applies weights (C1:25%, C3:20%, C6:15%)
-    |         computes composite score
-    |         assigns tier (Agent-Ready/Assisted/Limited/Hostile)
-    v
-[Recommender] -- ranks metrics by distance from ideal
-    |             selects top 5 highest-impact improvements
-    |             generates actionable text
-    v
-[Renderer] -- formats report for terminal
-              prints category scores, composite score, tier, recommendations
-              exits with appropriate code (0/1/2)
-```
-
-### Key Data Types Flowing Through Pipeline
-
-```
-FilePath (string)
-    -> ParsedFile {Path, AST *ast.File, Fset *token.FileSet}
-        -> CategoryMetrics {Name, FileMetrics[], FunctionMetrics[], PackageMetrics[]}
-            -> CategoryScore {Name, Score float64, Details map[string]float64}
-                -> Report {CategoryScores[], CompositeScore, Tier, Recommendations[]}
-                    -> terminal output (string)
-```
-
-### Key Data Flows
-
-1. **File Discovery Flow:** CLI provides directory path -> Scanner recursively walks it -> filters to `.go` files only -> skips `vendor/`, `.git/`, `testdata/`, `_test.go` (for non-C6 analyzers).
-
-2. **AST Sharing Flow:** Parser creates ASTs once. All analyzers receive the same parsed ASTs as read-only input. No re-parsing. This is the main performance optimization at small scale.
-
-3. **Metrics Aggregation Flow:** Analyzers produce per-file and per-function metrics. Scorer aggregates file-level metrics into package-level, then project-level averages/distributions. Scoring happens at the project level.
-
-## Scaling Considerations
-
-| Scale | Architecture Adjustments |
-|-------|--------------------------|
-| Small repo (<100 files) | Sequential parse and analyze. No concurrency needed. Total time <1s. |
-| Medium repo (100-1000 files) | Parse files concurrently (worker pool, N=GOMAXPROCS). Analyze sequentially on pre-parsed ASTs. Total time ~5-15s. |
-| Large repo (1000-10000+ files) | Concurrent parsing with bounded workers. Consider streaming: parse-then-analyze per batch rather than loading all ASTs into memory at once. Total time ~30s-2min. |
-
-### Scaling Priorities
-
-1. **First bottleneck: Parsing.** `go/parser.ParseFile` is the most expensive per-file operation. Parallelize with a worker pool of `runtime.NumCPU()` goroutines. Use `parser.ParseComments` only if needed (C6 analyzer might need comments for `// nolint` detection, but probably not for v1).
-
-2. **Second bottleneck: Memory.** For 10k+ files, holding all ASTs in memory simultaneously could use significant RAM. Mitigation: process in batches -- parse N files, analyze them, discard ASTs, repeat. Per-file metrics are small structs; only the ASTs are large.
-
-3. **Third bottleneck (unlikely for v1): Import graph analysis.** C3's circular dependency detection requires building a full import graph. For very large repos this graph could be large, but Go import graphs are typically manageable. Use adjacency list representation, not matrix.
-
-### Concurrency Recommendation for ARS
-
-Keep it simple for v1:
+**C7 headless Claude Code integration:**
 
 ```go
-// Simple bounded concurrency for parsing
-func ParseConcurrently(paths []string, workers int) ([]*ParsedFile, error) {
-    results := make([]*ParsedFile, len(paths))
-    errs := make([]error, len(paths))
-    sem := make(chan struct{}, workers)
-    var wg sync.WaitGroup
+// C7Analyzer spawns headless Claude Code for agent evaluation.
+type C7Analyzer struct {
+    ClaudeCodePath string         // Path to claude binary
+    Timeout        time.Duration  // Per-task timeout (default 120s)
+    Tasks          []AgentTask    // Evaluation tasks to run
+}
 
-    for i, path := range paths {
-        wg.Add(1)
-        sem <- struct{}{}
-        go func(i int, path string) {
-            defer wg.Done()
-            defer func() { <-sem }()
-            results[i], errs[i] = parseFile(path)
-        }(i, path)
+func (a *C7Analyzer) Analyze(targets []*AnalysisTarget) (*types.AnalysisResult, error) {
+    // Pre-flight: estimate cost, warn user
+    cost := a.estimateCost(targets)
+    fmt.Fprintf(os.Stderr, "C7 estimated cost: $%.2f (API calls: %d)\n", cost.USD, cost.Calls)
+
+    results := make([]TaskResult, len(a.Tasks))
+    for i, task := range a.Tasks {
+        ctx, cancel := context.WithTimeout(context.Background(), a.Timeout)
+        result, err := a.runTask(ctx, task, targets)
+        cancel()
+        if err != nil {
+            results[i] = TaskResult{Status: "error", Error: err.Error()}
+            continue
+        }
+        results[i] = result
     }
-    wg.Wait()
-    // collect errors...
-    return results, firstError(errs)
+
+    return a.scoreResults(results), nil
+}
+
+func (a *C7Analyzer) runTask(ctx context.Context, task AgentTask, targets []*AnalysisTarget) (TaskResult, error) {
+    cmd := exec.CommandContext(ctx, a.ClaudeCodePath,
+        "-p", task.Prompt,
+        "--output-format", "json",
+        "--dangerously-skip-permissions",
+    )
+    cmd.Dir = targets[0].Path // run in project directory
+    output, err := cmd.Output()
+    // Parse JSON output, evaluate success criteria
+    ...
 }
 ```
 
-No external libraries needed. Go's built-in goroutines + channels + sync.WaitGroup are sufficient. Do NOT use `pond` or other worker pool libraries -- that violates KISS for this use case.
+**Key design decisions:**
+1. **Graceful degradation:** If LLM fails, C4 falls back to structural-only metrics (still useful). C7 failure means that category scores "n/a".
+2. **Explicit opt-in:** C4 LLM and C7 are behind flags, not default. Users must acknowledge cost.
+3. **Timeout per call:** Use `context.WithTimeout` -- 30s for C4 LLM calls, 120s per C7 task.
+4. **No retry for C7:** Agent tasks are expensive; retrying doubles cost. Log error and move on.
+5. **Sequential C7 tasks:** Do not parallelize agent spawns -- they are resource-intensive and may conflict.
 
-**Confidence:** HIGH -- This is idiomatic Go concurrency. The semaphore pattern with goroutines is standard.
+**Confidence:** HIGH for C4 architecture, MEDIUM for C7 (headless Claude Code interface details may change; the `claude -p` CLI is documented at [code.claude.com/docs/en/headless](https://code.claude.com/docs/en/headless) but specifics of output parsing need validation).
 
-## Anti-Patterns
+### Question 4: Git Analysis (C5) -- Separate Pre-Stage
 
-### Anti-Pattern 1: Using `go/packages` When You Only Need AST
+**Recommendation: Git analysis runs as a separate pre-stage before analyzers, not integrated into the scanner.**
 
-**What people do:** Import `golang.org/x/tools/go/packages` to load full type-checked package information.
+**Rationale:** Git history is a different data source than source files. The scanner discovers files on disk; git analysis reads `.git/objects` and commit logs. They have different failure modes (no `.git` directory = C5 unavailable, not a fatal error), different performance characteristics (git log on a large repo can take seconds), and different data shapes.
 
-**Why it's wrong:** `go/packages` invokes `go list` under the hood, which is slow (often 5-10x slower than direct `go/parser.ParseFile`). It loads type information, dependency graphs, and resolved imports -- most of which ARS does not need for v1. It also requires the target repo to have `go.mod` properly configured and all dependencies downloaded.
+```go
+// git/analyzer.go
+type GitAnalyzer struct{}
 
-**Do this instead:** Use `go/parser.ParseFile` directly. Walk the directory, find `.go` files, parse each one. Extract imports from `ast.File.Imports` directly. You get everything ARS needs (AST, function declarations, import paths, file positions) without the overhead of full type checking.
+type GitHistory struct {
+    Commits     []Commit
+    FileChanges map[string]FileChangeStats  // path -> change frequency, authors
+    HotSpots    []HotSpot                   // files with highest churn
+    AuthorStats map[string]AuthorStats      // author -> commit count, files touched
+    Age         time.Duration               // time since first commit
+}
 
-**When to reconsider:** If a future analyzer needs type-resolved information (e.g., "does this function return an error type?"), then `go/packages` or `go/types` becomes necessary. But for C1/C3/C6 in v1, AST-level analysis is sufficient.
+func (g *GitAnalyzer) Parse(dir string) (*GitHistory, error) {
+    // Use go-git (pure Go, no git binary dependency)
+    repo, err := git.PlainOpen(dir)
+    if err != nil {
+        return nil, fmt.Errorf("open git repo: %w (C5 requires .git directory)", err)
+    }
 
-**Confidence:** HIGH -- Verified by surveying gocyclo, staticcheck approach. Cyclomatic complexity, function length, import analysis, and test detection all work at AST level without type info.
+    // Iterate commit log
+    iter, err := repo.Log(&git.LogOptions{All: true})
+    ...
+}
+```
 
-### Anti-Pattern 2: Over-Abstracted Plugin System
+**Pipeline integration:**
 
-**What people do:** Build a plugin architecture with dynamic loading, configuration-driven analyzer registration, and hot-swapping.
+```go
+// In pipeline.go, add git parsing as Stage 2c (parallel with source parsing)
+g := new(errgroup.Group)
 
-**Why it's wrong:** ARS has three analyzers. A plugin system adds complexity (interface design, registration, configuration, error handling) that will never pay for itself. Golangci-lint needs plugins because it manages 100+ third-party linters. ARS does not.
+var targets []*AnalysisTarget
+var gitHistory *GitHistory
 
-**Do this instead:** Use a simple Go interface with concrete implementations compiled in. Adding a new analyzer means adding a file in `internal/analyzer/` and adding one line in the pipeline setup. That is the appropriate level of extensibility.
+g.Go(func() error {
+    var err error
+    targets, err = p.parseAll(dir)  // Go + Tree-sitter parsing
+    return err
+})
 
-### Anti-Pattern 3: Storing All Results in a Database
+g.Go(func() error {
+    var err error
+    gitHistory, err = p.gitAnalyzer.Parse(dir)
+    if err != nil {
+        // C5 unavailable -- not fatal
+        log.Printf("Git analysis unavailable: %v", err)
+    }
+    return nil  // never fail the pipeline for git issues
+})
 
-**What people do:** Use SQLite or similar to store intermediate analysis results for querying.
+g.Wait()
+```
 
-**Why it's wrong:** ARS is a single-run CLI tool. It scans, scores, and exits. There is no query interface, no historical comparison (in v1), no need for persistent storage. An in-memory struct flowing through the pipeline is the right data structure.
+**Library choice: `go-git/go-git` v5**
+- Pure Go implementation, no `git` binary dependency
+- Reads `.git` directory directly
+- Supports log iteration, diff stat, blame
+- Used by Gitea, Pulumi, and other production tools
 
-**Do this instead:** Use plain Go structs passed between pipeline stages. If historical comparison is needed later, serialize the final `Report` struct to JSON -- do not introduce a database.
+**Alternative considered: shelling out to `git log`**
+- Faster for simple operations (git's C implementation is optimized)
+- Requires git binary installed
+- Output parsing is fragile
+- **Rejected:** go-git is sufficient and avoids external dependency
 
-### Anti-Pattern 4: Premature Streaming Architecture
+**Confidence:** HIGH -- [go-git/go-git](https://github.com/go-git/go-git) is well-established and provides all needed git operations.
 
-**What people do:** Build a channel-based streaming pipeline where every stage communicates via channels.
+### Question 5: Config Loading -- Early, at CLI Init
 
-**Why it's wrong:** For ARS, the pipeline is simple and sequential at the stage level. Each stage needs ALL results from the previous stage (e.g., scoring needs all metrics from all files). Channels add complexity (error propagation, cancellation, backpressure) without enabling any meaningful streaming.
+**Recommendation: Load `.arsrc.yml` early in the CLI layer, pass config through pipeline.**
 
-**Do this instead:** Use simple function calls between stages. Concurrency belongs WITHIN a stage (parallel file parsing) not BETWEEN stages. The pipeline function in Pattern 1 above is the right approach.
+**Rationale:** Config affects which analyzers run (e.g., `enable_c7: true`), scoring weights, and output format. Loading late (per-analyzer) means each analyzer needs to find and parse the config file independently, violating DRY and making it impossible to validate config before starting analysis.
 
-## Integration Points
+```go
+// config/config.go
+type Config struct {
+    // Scoring weights (overrides defaults)
+    Scoring  *scoring.ScoringConfig `yaml:"scoring"`
 
-### External Services
+    // Analysis toggles
+    Analysis AnalysisConfig `yaml:"analysis"`
 
-None for v1. ARS is a standalone CLI tool with no network dependencies.
+    // Output preferences
+    Output   OutputConfig   `yaml:"output"`
+}
 
-### Internal Boundaries
+type AnalysisConfig struct {
+    EnableLLM  bool     `yaml:"enable_llm"`   // Enable C4 LLM evaluation
+    EnableC7   bool     `yaml:"enable_c7"`    // Enable headless agent eval
+    Languages  []string `yaml:"languages"`    // ["go", "python", "typescript"]
+    ExcludeDirs []string `yaml:"exclude_dirs"` // Additional dirs to skip
+}
 
-| Boundary | Communication | Notes |
-|----------|---------------|-------|
-| CLI -> Scanner | Function call with directory path | Scanner returns `[]string` of file paths |
-| Scanner -> Parser | Function call with file paths | Parser returns `[]*ParsedFile` with ASTs |
-| Parser -> Analyzers | Function call with parsed files | Each analyzer gets same `[]*ParsedFile`, returns `*CategoryMetrics` |
-| Analyzers -> Scorer | Function call with metrics map | Scorer returns `*ScoredReport` |
-| Scorer -> Recommender | Function call with scored report | Recommender returns `[]Recommendation` |
-| Recommender -> Renderer | Function call with full report | Renderer writes to `io.Writer` (defaults to `os.Stdout`) |
+type OutputConfig struct {
+    Format     string `yaml:"format"`      // "terminal", "json", "html"
+    HTMLOutput string `yaml:"html_output"` // Path for HTML report
+    Verbose    bool   `yaml:"verbose"`
+}
+```
 
-All boundaries are simple function calls in v1. No RPC, no events, no message passing. The `io.Writer` parameter for the renderer enables testing (write to `bytes.Buffer` instead of stdout).
+**Config resolution order (highest priority first):**
+1. CLI flags (`--json`, `--threshold`, `--enable-c7`)
+2. `.arsrc.yml` in project root
+3. Built-in defaults
 
-## Build Order Implications
+**Loading sequence:**
 
-Based on data flow dependencies, the recommended implementation order is:
+```go
+// In cmd/scan.go RunE:
+// 1. Load config file (if exists)
+cfg, err := config.Load(dir)  // looks for .arsrc.yml in dir
 
-| Order | Component | Depends On | Rationale |
-|-------|-----------|------------|-----------|
-| 1 | Shared types (`pkg/types/`) | Nothing | All components reference these structs |
-| 2 | CLI skeleton (`cmd/`) | Nothing | Validates project setup, gives a runnable binary immediately |
-| 3 | Scanner (`internal/scanner/`) | Types | File discovery is the pipeline entry point |
-| 4 | Parser (`internal/parser/`) | Types, Scanner | Must parse before analyzing |
-| 5 | One analyzer (start with C1) | Types, Parser | Proves the full pipeline works end-to-end |
-| 6 | Scorer + Thresholds | Types, Analyzer output | Converts metrics to scores |
-| 7 | Terminal Renderer | Types, Scorer output | Produces visible output |
-| 8 | Wire full pipeline | All above | End-to-end: directory in, report out |
-| 9 | Remaining analyzers (C3, C6) | Types, Parser | Add independently once pipeline works |
-| 10 | Recommender | Scorer output | Enhancement on top of scoring |
+// 2. Override with CLI flags
+if jsonOutput {
+    cfg.Output.Format = "json"
+}
+if threshold > 0 {
+    cfg.Scoring.Threshold = threshold
+}
 
-**Key insight:** Get one analyzer (C1: Code Health) working end-to-end through the full pipeline first. This validates the architecture. Then add C3 and C6 as parallel work streams -- they plug into the same interface.
+// 3. Pass to pipeline
+p := pipeline.New(cfg, os.Stdout)
+```
+
+**Why `.arsrc.yml` not `.arsrc.yaml`:**
+- Shorter, more common in CLI tools (`.eslintrc.yml`, `.golangci.yml`)
+- YAML spec allows both extensions
+
+**Integration with existing `scoring.LoadConfig`:**
+The v1 `scoring.LoadConfig(path)` loads scoring YAML from a `--config` flag path. In v2, this merges into the broader `.arsrc.yml` config. The `scoring` field in `.arsrc.yml` uses the same structure as the existing `ScoringConfig`, so existing scoring config files remain compatible.
+
+**Confidence:** HIGH -- This follows standard Go CLI patterns (Cobra + YAML config file).
+
+### Question 6: HTML Generation -- html/template + Embedded Charts
+
+**Recommendation: Use Go's `html/template` with embedded CSS/JS for self-contained single-file HTML reports. Use inline SVG for charts (no external dependencies).**
+
+**Why html/template (standard library):**
+- No external dependency
+- Type-safe template execution
+- Auto-escaping prevents XSS in metric values
+- Familiar to Go developers
+- Supports template composition (`{{template "header" .}}`)
+
+**Why NOT go-echarts:**
+- Requires external JS CDN (echarts.min.js is 1MB+) or bundled assets
+- Adds CGO complexity if using offline mode
+- Over-engineered for radar charts and bar charts
+- go-echarts produces standalone HTML files; embedding snippets requires [custom renderers](https://blog.cubieserver.de/2020/how-to-render-standalone-html-snippets-with-go-echarts/)
+
+**Why inline SVG charts:**
+- Zero external dependencies (no JS, no CDN)
+- Self-contained single HTML file
+- Simple to generate programmatically (radar chart = polygon coordinates)
+- Sufficient for 7-category radar chart + per-metric bar charts
+- Can be styled with embedded CSS
+
+**Implementation approach:**
+
+```go
+// output/html.go
+type HTMLRenderer struct {
+    tmpl *template.Template
+}
+
+//go:embed templates/*.html
+var templateFS embed.FS
+
+func NewHTMLRenderer() *HTMLRenderer {
+    tmpl := template.Must(template.New("report").
+        Funcs(template.FuncMap{
+            "radarChart": generateRadarSVG,
+            "barChart":   generateBarSVG,
+            "scoreColor": scoreColorCSS,
+        }).
+        ParseFS(templateFS, "templates/*.html"))
+    return &HTMLRenderer{tmpl: tmpl}
+}
+
+func (r *HTMLRenderer) Render(w io.Writer, scored *types.ScoredResult, recs []recommend.Recommendation) error {
+    data := buildReportData(scored, recs)
+    return r.tmpl.ExecuteTemplate(w, "report.html", data)
+}
+```
+
+**Template structure:**
+
+```
+internal/output/templates/
+  report.html      # Main report layout
+  header.html      # Score summary with radar chart
+  category.html    # Per-category detail section
+  recommendations.html  # Improvement recommendations
+  research.html    # Research citations and methodology
+  styles.css       # Embedded CSS (injected into <style>)
+```
+
+**Chart generation (pure Go -> SVG):**
+
+```go
+// Generate radar chart as inline SVG string
+func generateRadarSVG(categories []CategoryScore) template.HTML {
+    // Calculate polygon points for 7 categories on unit circle
+    // Each axis: 0 (center) to 10 (edge)
+    var points []string
+    n := len(categories)
+    for i, cat := range categories {
+        angle := float64(i) * 2 * math.Pi / float64(n) - math.Pi/2
+        r := cat.Score / 10.0 * radius
+        x := cx + r*math.Cos(angle)
+        y := cy + r*math.Sin(angle)
+        points = append(points, fmt.Sprintf("%.1f,%.1f", x, y))
+    }
+    // Return SVG polygon + axis lines + labels
+    ...
+}
+```
+
+**Confidence:** HIGH -- html/template is battle-tested; SVG generation is straightforward math. GoReporter uses a similar html/template approach for its [HTML reports](https://github.com/360EntSecGroup-Skylar/goreporter).
+
+### Question 7: Performance with 3 Languages -- Parallel Per-Language
+
+**Recommendation: Parse languages in parallel. Go parsing (go/packages) and Tree-sitter parsing (Python + TypeScript) run concurrently.**
+
+```go
+func (p *Pipeline) parseAll(dir string) ([]*AnalysisTarget, error) {
+    g := new(errgroup.Group)
+    var (
+        goTargets []*AnalysisTarget
+        pyTargets []*AnalysisTarget
+        tsTargets []*AnalysisTarget
+    )
+
+    // Parse Go packages (uses go/packages, ~2-10s for large repos)
+    g.Go(func() error {
+        var err error
+        goTargets, err = p.goParser.Parse(dir)
+        return err
+    })
+
+    // Parse Python files (Tree-sitter, very fast ~100ms for 50k LOC)
+    g.Go(func() error {
+        var err error
+        pyTargets, err = p.tsParser.ParsePython(dir, p.scanResult.PythonFiles)
+        return err
+    })
+
+    // Parse TypeScript files (Tree-sitter, very fast ~100ms for 50k LOC)
+    g.Go(func() error {
+        var err error
+        tsTargets, err = p.tsParser.ParseTypeScript(dir, p.scanResult.TypeScriptFiles)
+        return err
+    })
+
+    if err := g.Wait(); err != nil {
+        return nil, err
+    }
+
+    return append(append(goTargets, pyTargets...), tsTargets...), nil
+}
+```
+
+**Performance budget (50k LOC target):**
+
+| Stage | Expected Time | Bottleneck |
+|-------|---------------|------------|
+| Discovery (filesystem walk) | ~100ms | I/O |
+| Go parsing (go/packages) | ~2-8s | Type checking, dependency resolution |
+| Python parsing (Tree-sitter) | ~50-200ms | Very fast, syntax only |
+| TypeScript parsing (Tree-sitter) | ~50-200ms | Very fast, syntax only |
+| Git history (go-git) | ~1-5s | Depends on repo history depth |
+| Analyzers C1-C3, C5-C6 | ~1-3s | CPU-bound AST traversal |
+| C4 with LLM (opt-in) | ~5-15s | Network latency |
+| C7 with agent (opt-in) | ~60-300s | Agent execution |
+| Scoring + recommendations | ~10ms | Trivial |
+| Output rendering | ~50ms | Template execution (HTML) |
+| **Total (without C4/C7)** | **~5-15s** | **Well within 30s budget** |
+
+**Key insight:** `go/packages` is the bottleneck, not Tree-sitter. Tree-sitter parsing is ~36x faster than traditional parsers. The performance budget is dominated by Go's type checker, which we cannot avoid since C1/C3 analyzers depend on type information.
+
+**Confidence:** HIGH -- Tree-sitter performance claims verified via [Symflower benchmarks](https://symflower.com/en/company/blog/2023/parsing-code-with-tree-sitter/); go/packages latency confirmed from v1 experience.
+
+## Refactoring Plan: v1 -> v2
+
+### Phase 1: Interface Generalization (Minimal Refactoring)
+
+**Goal:** Make the pipeline accept multi-language targets without breaking existing Go analyzers.
+
+**Changes:**
+
+1. **New `AnalysisTarget` type** in `pkg/types/`:
+   - Language-agnostic fields (Language, Path, Files, Functions, Imports)
+   - `GoPackage *parser.ParsedPackage` for Go-specific data
+
+2. **New `Parser` interface** in `pipeline/interfaces.go`:
+   ```go
+   type Parser interface {
+       Parse(dir string, files []types.DiscoveredFile) ([]*types.AnalysisTarget, error)
+   }
+   ```
+
+3. **Adapt existing `GoPackagesParser`** to return `[]*types.AnalysisTarget` (wrapper that populates both generic fields and `GoPackage`).
+
+4. **Update `Analyzer` interface** signature:
+   ```go
+   type Analyzer interface {
+       Name() string
+       Analyze(targets []*types.AnalysisTarget) (*types.AnalysisResult, error)
+   }
+   ```
+
+5. **Update existing C1, C3, C6 analyzers** to extract `GoPackage` from targets:
+   ```go
+   func (a *C1Analyzer) Analyze(targets []*types.AnalysisTarget) (*types.AnalysisResult, error) {
+       pkgs := extractGoPackages(targets)  // helper filters Language==Go, returns GoPackage
+       // ... rest unchanged
+   }
+   ```
+
+**This is the critical refactoring.** Once the interface accepts `[]*AnalysisTarget`, new parsers and analyzers plug in without further interface changes.
+
+### Phase 2: Discovery Expansion
+
+**Modify `discovery.Walker` to:**
+- Accept configured languages: `walker.Discover(dir, []Language{Go, Python, TypeScript})`
+- Classify files by extension: `.go`, `.py`, `.ts`, `.tsx`, `.js`
+- Return per-language file lists in `ScanResult`
+- Add `Language` field to `DiscoveredFile`
+
+### Phase 3: Tree-sitter Parser
+
+**Add `parser/treesitter.go`:**
+- Implement `Parser` interface for Python and TypeScript
+- Extract function/class/import information via Tree-sitter queries
+- Populate `AnalysisTarget` with structural metrics
+
+### Phase 4: New Analyzers
+
+Each new analyzer implements the `Analyzer` interface:
+
+| Analyzer | Data Source | Special Requirements |
+|----------|-----------|---------------------|
+| C2 (Semantic Explicitness) | `AnalysisTarget.Functions`, `.Imports` | Naming analysis, type annotation checks |
+| C4 (Documentation) | `AnalysisTarget.Files` (source content) | LLM client for content quality (opt-in) |
+| C5 (Temporal Dynamics) | `GitHistory` (from git pre-stage) | Separate data source; needs interface extension |
+| C7 (Agent Evaluation) | Project directory | Claude Code binary; exec.Command |
+
+**C5 special case:** C5 needs `GitHistory`, not `[]*AnalysisTarget`. Options:
+
+Option A: Extend Analyzer interface to accept both:
+```go
+type Analyzer interface {
+    Name() string
+    Analyze(targets []*types.AnalysisTarget, opts ...AnalyzeOption) (*types.AnalysisResult, error)
+}
+type AnalyzeOption func(*AnalyzeContext)
+func WithGitHistory(h *GitHistory) AnalyzeOption { ... }
+```
+
+Option B: Give C5Analyzer a `GitHistory` field set during construction:
+```go
+type C5Analyzer struct {
+    History *GitHistory  // Set by pipeline before Analyze() is called
+}
+func (a *C5Analyzer) Analyze(targets []*types.AnalysisTarget) (*types.AnalysisResult, error) {
+    if a.History == nil { return unavailableResult(), nil }
+    // use a.History
+}
+```
+
+**Recommendation: Option B.** Simpler, no interface change needed. The pipeline sets `c5.History` after git parsing completes. If git parsing failed, `History` is nil and C5 returns "unavailable" gracefully.
+
+### Phase 5: Scoring Expansion
+
+**Modify `scoring/config.go`:**
+- Add C2, C4, C5, C7 to `ScoringConfig`
+- Each new category gets `CategoryConfig` with metrics and breakpoints
+- Update `DefaultConfig()` with research-backed defaults
+- Update `Scorer.Score()` to handle all 7 categories (replace switch with registry)
+
+```go
+// Replace hard-coded switch with scorer registry
+type CategoryScorer func(ar *types.AnalysisResult, cfg CategoryConfig) types.CategoryScore
+
+var scorerRegistry = map[string]CategoryScorer{
+    "C1": scoreC1,
+    "C2": scoreC2,
+    "C3": scoreC3,
+    "C4": scoreC4,
+    "C5": scoreC5,
+    "C6": scoreC6,
+    "C7": scoreC7,
+}
+
+func (s *Scorer) Score(results []*types.AnalysisResult) (*types.ScoredResult, error) {
+    var categories []types.CategoryScore
+    for _, ar := range results {
+        if scorer, ok := scorerRegistry[ar.Category]; ok {
+            cfg := s.Config.CategoryByName(ar.Category)
+            categories = append(categories, scorer(ar, cfg))
+        }
+    }
+    // ... compute composite, classify tier
+}
+```
+
+### Phase 6: Output Expansion
+
+**Add `output/html.go`:**
+- html/template-based renderer
+- Embedded templates via `embed.FS`
+- Inline SVG charts (radar + bar)
+- Research citations section
+
+**Modify `output/terminal.go`:**
+- Add render functions for C2, C4, C5, C7
+- Replace category switch with registry pattern (same as scorer)
+
+## Component Dependency Graph
+
+```
+                    .arsrc.yml
+                        |
+                    [Config Loader]
+                        |
+                    [Pipeline]
+                   /    |    \
+              [Discovery]  [Git Parser]
+                   |           |
+            [Go Parser]  [TS Parser]  --> []*AnalysisTarget + *GitHistory
+                   \      |      /
+                [Analyzer Registry]
+               /  |  |  |  |  |  \
+             C1  C2  C3  C4  C5  C6  C7
+              \   |   |   |   |   |  /
+               [Scorer Registry]
+                      |
+               [Recommender]
+                      |
+              [Output Registry]
+             /     |       \
+         Terminal  JSON    HTML
+```
+
+## Build Order for v2 Phases
+
+| Order | Work Item | Depends On | Effort |
+|-------|-----------|-----------|--------|
+| 1 | Generalize `AnalysisTarget` type + update interfaces | Nothing (additive) | Medium |
+| 2 | Adapt existing C1/C3/C6 to new interface | #1 | Medium |
+| 3 | Expand discovery for multi-language | #1 | Low |
+| 4 | Config system (`.arsrc.yml`) | Nothing (parallel) | Medium |
+| 5 | Tree-sitter parser (Python + TS) | #1, #3 | High |
+| 6 | C2 analyzer (Semantic Explicitness) | #1, #2 | Medium |
+| 7 | C5 analyzer (git history) + go-git | #1 | Medium |
+| 8 | Scoring expansion (7 categories) | #1, #6, #7 | Medium |
+| 9 | C4 analyzer (structural + LLM) | #1, #8 | High |
+| 10 | C7 analyzer (headless agent) | #1, #8 | High |
+| 11 | HTML output | #8 | Medium |
+| 12 | Integration testing on real repos | All above | High |
+
+**Critical path:** #1 -> #2 -> #5 -> #8 -> #11
+**Parallel tracks after #1:** Config (#4), Git (#7), C2 (#6) can all proceed independently.
+
+## Anti-Patterns to Avoid
+
+### Anti-Pattern: Lowest Common Denominator Representation
+
+**Trap:** Defining `AnalysisTarget` with only fields available in all languages (functions, imports). Losing Go's type information.
+
+**Why it's wrong:** Go's `go/packages` provides type resolution, cross-package references, and dead export detection that Tree-sitter cannot. Forcing everything through a minimal interface would regress Go analysis quality.
+
+**Prevention:** Keep language-specific extensions (GoPackage, TreeSitterTree) on AnalysisTarget. Analyzers that need language-specific data type-assert into it.
+
+### Anti-Pattern: Re-implementing go/packages with Tree-sitter
+
+**Trap:** "Tree-sitter can parse Go too, so let's use one parser for everything."
+
+**Why it's wrong:** Tree-sitter for Go provides syntax-only AST. No type info, no import resolution, no cross-package analysis. Would lose C3 dead export detection, coupling analysis accuracy, and gocyclo integration.
+
+**Prevention:** Use the right tool for each language. go/packages for Go, Tree-sitter for Python/TS.
+
+### Anti-Pattern: Synchronous LLM Calls Blocking Pipeline
+
+**Trap:** Making C4/C7 part of the default analyzer set, causing every scan to wait 60+ seconds.
+
+**Why it's wrong:** Users expect `ars scan` to complete in <30s. LLM latency is 5-300 seconds. If on by default, every scan feels broken.
+
+**Prevention:** Tier 1/2/3 execution model. C4 LLM and C7 are opt-in flags. Default scan runs only Tier 1 (fast, local).
+
+### Anti-Pattern: Shelling Out to git Binary
+
+**Trap:** Using `exec.Command("git", "log", ...)` for C5 git analysis.
+
+**Why it's wrong:** Requires git binary installed, output parsing is fragile, platform-specific line endings, no structured data. go-git provides typed, structured commit data.
+
+**Prevention:** Use `go-git/go-git` v5 -- pure Go, no external dependency, structured API.
+
+## New Package Structure
+
+```
+ars/
+├── main.go
+├── cmd/
+│   ├── root.go
+│   └── scan.go                    [MODIFIED: config loading, new flags]
+├── internal/
+│   ├── config/
+│   │   └── config.go              [NEW: .arsrc.yml loader]
+│   ├── pipeline/
+│   │   ├── interfaces.go          [MODIFIED: AnalysisTarget-based interfaces]
+│   │   ├── pipeline.go            [MODIFIED: multi-parser, git stage, tier execution]
+│   │   └── progress.go
+│   ├── discovery/
+│   │   ├── walker.go              [MODIFIED: multi-language file discovery]
+│   │   └── classifier.go          [MODIFIED: classify .py, .ts, .tsx, .js]
+│   ├── parser/
+│   │   ├── parser.go              [MODIFIED: wraps go/packages into AnalysisTarget]
+│   │   └── treesitter.go          [NEW: Tree-sitter parser for Python/TS]
+│   ├── git/
+│   │   └── analyzer.go            [NEW: go-git history parsing]
+│   ├── analyzer/
+│   │   ├── helpers.go
+│   │   ├── c1_codehealth.go       [MODIFIED: accepts AnalysisTarget]
+│   │   ├── c2_semantics.go        [NEW]
+│   │   ├── c3_architecture.go     [MODIFIED: accepts AnalysisTarget]
+│   │   ├── c4_documentation.go    [NEW: structural + LLM]
+│   │   ├── c5_temporal.go         [NEW: git-based]
+│   │   ├── c6_testing.go          [MODIFIED: accepts AnalysisTarget]
+│   │   └── c7_agent.go            [NEW: headless Claude Code]
+│   ├── scoring/
+│   │   ├── config.go              [MODIFIED: 7 categories]
+│   │   └── scorer.go              [MODIFIED: registry pattern]
+│   ├── recommend/
+│   │   └── recommend.go           [MODIFIED: handle 7 categories]
+│   └── output/
+│       ├── terminal.go            [MODIFIED: 7 categories]
+│       ├── json.go                [MODIFIED: 7 categories]
+│       ├── html.go                [NEW: template-based HTML]
+│       └── templates/             [NEW: embedded HTML templates]
+│           ├── report.html
+│           ├── header.html
+│           ├── category.html
+│           └── styles.css
+├── pkg/types/
+│   ├── types.go                   [MODIFIED: AnalysisTarget, Language enum, new metric types]
+│   └── scoring.go
+└── testdata/
+    ├── valid-go-project/
+    ├── valid-python-project/      [NEW]
+    ├── valid-ts-project/          [NEW]
+    └── polyglot-project/          [NEW]
+```
 
 ## Sources
 
-- [golangci-lint Architecture](https://golangci-lint.run/docs/contributing/architecture/) -- Official architecture docs showing Init -> Load -> Run -> Postprocess -> Print pipeline (HIGH confidence)
-- [golang.org/x/tools/go/analysis package](https://pkg.go.dev/golang.org/x/tools/go/analysis) -- Official Go analysis framework defining Analyzer type pattern (HIGH confidence)
-- [gocyclo](https://github.com/fzipp/gocyclo) -- Reference implementation for cyclomatic complexity via AST walking (HIGH confidence)
-- [go-complexity-analysis](https://github.com/shoooooman/go-complexity-analysis) -- Halstead + cyclomatic + maintainability index calculation (HIGH confidence)
-- [Cloudflare: Building the simplest Go static analysis tool](https://blog.cloudflare.com/building-the-simplest-go-static-analysis-tool/) -- Tutorial on go/parser + ast.Inspect pattern (MEDIUM confidence)
-- [PVS-Studio: How to create your own Go static analyzer](https://pvs-studio.com/en/blog/posts/go/1329/) -- Dec 2025, covers go/ast, go/analysis, SSA patterns (MEDIUM confidence)
-- [ByteSizeGo: Structuring Go CLI Applications](https://www.bytesizego.com/blog/structure-go-cli-app) -- Go project layout patterns (MEDIUM confidence)
-- [Go Concurrency Patterns: Worker Pool](https://gobyexample.com/worker-pools) -- Standard bounded concurrency (HIGH confidence)
+- [smacker/go-tree-sitter](https://github.com/smacker/go-tree-sitter) -- Go bindings with bundled grammars for Python, TypeScript (HIGH confidence)
+- [tree-sitter/go-tree-sitter](https://github.com/tree-sitter/go-tree-sitter) -- Official modular Go bindings (HIGH confidence)
+- [go-git/go-git](https://github.com/go-git/go-git) -- Pure Go git implementation for commit history analysis (HIGH confidence)
+- [Claude Code headless mode docs](https://code.claude.com/docs/en/headless) -- CLI programmatic usage with `-p` flag (HIGH confidence)
+- [Symflower Tree-sitter benchmarks](https://symflower.com/en/company/blog/2023/parsing-code-with-tree-sitter/) -- 36x parsing speedup (MEDIUM confidence, 2023 data)
+- [GoReporter HTML reports](https://github.com/360EntSecGroup-Skylar/goreporter) -- Reference for html/template-based static analysis reports (MEDIUM confidence)
+- [go-echarts standalone snippets](https://blog.cubieserver.de/2020/how-to-render-standalone-html-snippets-with-go-echarts/) -- Custom renderer for embedding charts (MEDIUM confidence)
+- [html/template package](https://pkg.go.dev/html/template) -- Standard library template engine (HIGH confidence)
+- [go-echarts](https://github.com/go-echarts/go-echarts) -- Evaluated but NOT recommended (see rationale above)
 
 ---
-*Architecture research for: Go CLI static analysis tool (ARS)*
-*Researched: 2026-01-31*
+*Architecture research for: ARS v2 multi-language expansion*
+*Researched: 2026-02-01*

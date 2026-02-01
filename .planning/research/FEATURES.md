@@ -1,229 +1,358 @@
-# Feature Research
+# Feature Research: v2 Analysis Categories (C2, C4, C5, C7)
 
-**Domain:** CLI static analysis tool (Go codebase scoring for AI agent readiness)
-**Researched:** 2026-01-31
-**Confidence:** HIGH (well-established domain with many reference implementations)
+**Domain:** Agent-readiness code analysis -- expansion from 3 to 7 analysis categories
+**Researched:** 2026-02-01
+**Confidence:** HIGH for C2/C5 (well-established tools exist), MEDIUM for C4 (metrics are contested), MEDIUM for C7 (emerging paradigm, fast-moving)
 
-## Feature Landscape
+---
 
-### Table Stakes (Users Expect These)
+## Category C2: Semantic Explicitness
 
-Features users assume exist. Missing these = product feels incomplete or unusable.
+**What it measures:** How well the code communicates intent through types, naming, constants, and null safety -- directly predicting whether an AI agent can correctly infer semantics without guessing.
 
-| Feature | Why Expected | Complexity | Notes |
-|---------|--------------|------------|-------|
-| Directory path as input | Every CLI analysis tool accepts a target path; `ars scan <dir>` is the minimum | LOW | Support `.` for current directory. Must validate path exists and contains Go files. |
-| Auto-detection of Go projects | Users should not need to tell the tool what language they are scanning. golangci-lint, staticcheck, and goreportcard all auto-detect. | LOW | Look for `go.mod` and `*.go` files. Warn clearly if directory is not a Go project. |
-| Non-zero exit codes for CI | CI pipelines need machine-readable pass/fail. golangci-lint exits non-zero on findings; Veracode and Salesforce Code Analyzer use `--severity-threshold` flags. This is the standard pattern. | LOW | Exit 0 = success, 1 = error, 2 = below threshold (when `--threshold` specified). Matches PROJECT.md spec. |
-| Per-category score breakdown | SonarQube, Code Climate, and goreportcard all show per-dimension scores (maintainability, reliability, etc.). A single opaque number is not actionable. | MEDIUM | Show C1, C3, C6 individual scores alongside composite. Each category needs metric-level detail. |
-| Composite score with clear methodology | Users need to understand WHY they got a 6/10. SonarQube documents its SQALE methodology; Code Climate explains its GPA calculation. Opaque scores destroy trust. | MEDIUM | Document the weighting (C1: 25%, C3: 20%, C6: 15%) and how each metric maps to the score. Print weights in verbose mode. |
-| Human-readable terminal output | golangci-lint defaults to colored text with source lines. Every successful CLI tool has good default terminal output. | MEDIUM | File locations, metric values, and the composite score. Use color for tier ratings (green=Agent-Ready, red=Agent-Hostile). Degrade gracefully when piped (no color). |
-| Actionable recommendations | SonarQube shows "fix this because X." Users expect to know what to improve, not just what's wrong. Without this, the score is just a number. | MEDIUM | Top 5 ranked by impact. Each recommendation should say: what to fix, where (file/function), why it matters, and estimated impact on score. |
-| Reasonable performance on real codebases | golangci-lint runs in seconds on large codebases via parallelism and caching. A tool that takes 30 minutes on a medium repo is dead on arrival. | MEDIUM | Target: <30s for a typical Go project (50k LOC), <5min for very large projects (10k+ files per PROJECT.md constraint). |
-| `--help` and `--version` flags | Universal CLI convention. Every tool has these. Missing them signals amateur-hour. | LOW | Use Go's `cobra` or `flag` package. Include usage examples in help text. |
-| Error messages that point to root cause | When scanning fails (no Go files, parse errors, permission issues), the error must tell the user what went wrong and what to do about it. | LOW | "No go.mod found in /path. Are you pointing at a Go project?" not "error: nil pointer dereference". |
+**Research basis:** CrossCodeEval (NeurIPS 2023) demonstrates that cross-file context with typed code significantly improves code completion accuracy. Meta's 2025 Python Typing Survey shows 73% of Python developers use type hints in production, but only 41% run type checkers in CI -- meaning type coverage is an actionable gap.
 
-### Differentiators (Competitive Advantage)
+### Table Stakes
 
-Features that set ARS apart. These are not expected in a generic linter but are the unique value of an agent-readiness scoring tool.
+| Feature | Why Expected | Complexity | Language Notes |
+|---------|--------------|------------|----------------|
+| **Type coverage percentage** | The single most important semantic explicitness metric. Measures what fraction of identifiers/parameters/returns have explicit type annotations. Production tools exist for all three languages. | MEDIUM | **Go:** Fully typed by design -- measure `interface{}` / `any` usage instead (lower = better). **Python:** Use AST to count typed vs untyped function signatures, parameters, and return types (mirrors `typecoverage` PyPI package). **TypeScript:** Count `any` types vs total identifiers (mirrors `type-coverage` npm package). |
+| **Magic number density** | Numeric literals without named constants make code opaque to agents. `go-mnd` (Go), `@typescript-eslint/no-magic-numbers`, and SonarQube all flag these. Users expect this from any "explicitness" analysis. | LOW | Exclude 0, 1, -1 by default. Count magic numbers per 1000 LOC. All three languages have established detection patterns -- AST walk for numeric literals not in const/enum declarations. |
+| **Naming quality score** | Short/ambiguous identifier names (single-char variables outside loops, abbreviated names) reduce agent comprehension. This is what separates "semantic" analysis from pure type checking. | MEDIUM | **Go:** Check against Go naming conventions (no stuttering like `pkg.PkgName`, short receivers, descriptive exported names). **Python:** Check against PEP 8 naming (snake_case functions, PascalCase classes). **TypeScript:** Check against camelCase conventions. All languages: flag single-char non-loop variables, measure avg identifier length. |
+| **Null/nil safety patterns** | Unchecked nil dereferences are the #1 runtime panic in Go. TypeScript's `strictNullChecks` eliminates an entire class of bugs. Agents operating on code with poor null safety produce more errors. | MEDIUM | **Go:** Ratio of pointer returns with nil checks vs without. Check for `if err != nil` patterns after fallible calls. **Python:** Ratio of `Optional[T]` annotations vs bare `None` returns. **TypeScript:** Check `strictNullChecks` in tsconfig.json, count `!` non-null assertions (lower = better). |
+
+### Differentiators
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| Agent-readiness framing (tier rating) | No existing tool scores codebases for AI agent readiness. golangci-lint finds bugs; SonarQube measures maintainability. ARS answers "will an AI agent succeed here?" -- a novel and timely question. | LOW | Tier labels (Agent-Ready / Agent-Assisted / Agent-Limited / Agent-Hostile) are the single most memorable output. This is the headline feature. |
-| Research-backed scoring model | ARS scoring is grounded in published research (Borg et al., SWE-bench, RepoGraph). Competitors use arbitrary thresholds. Research backing creates credibility with engineering leaders. | MEDIUM | Cite the research in docs and verbose output. "Test coverage is weighted at 15% because SWE-bench shows 47% correlation with agent task completion." |
-| Improvement recommendations ranked by agent impact | Generic linters say "reduce complexity." ARS should say "reducing complexity in pkg/parser will have the highest impact on agent success because agents struggle with functions over 50 LOC." | MEDIUM | Requires mapping metric deltas to score impact. Frame recommendations in terms of agent workflows, not abstract quality. |
-| Circular dependency detection | Most linters check syntax/style. Circular dependencies are an architectural issue that specifically hinders agent navigation (RepoGraph finding). golangci-lint does not check this natively. | MEDIUM | Build import graph, detect cycles using DFS. Report the cycle path. This is a C3 metric that directly predicts agent confusion. |
-| Dead code detection | Unused functions/types increase cognitive load for agents navigating codebases. `deadcode` exists as a standalone tool but framing it as agent-readiness is novel. | MEDIUM | Use `golang.org/x/tools` packages or build a reachability analysis from exported entry points. |
-| Threshold flag for CI gating | `ars scan --threshold 7 .` exits non-zero if score < 7. Turns the tool into a CI quality gate specifically for agent readiness. Salesforce Code Analyzer and Veracode use the same pattern. | LOW | Simple: compare composite score to threshold, set exit code accordingly. Very high value-to-effort ratio. |
-| Score trend tracking (future) | Compare current score to previous run. "Your agent-readiness improved from 5.2 to 6.8." No competitor does this for agent readiness. | HIGH | Requires persisting historical scores (local file or CI artifact). Defer to post-MVP but design score output to be machine-parseable from day 1. |
+| **Agent-specific type coverage framing** | No existing tool measures type coverage through the lens of "will an agent understand this?" SonarQube measures maintainability; `type-coverage` measures TypeScript any-percentage. ARS frames it as: "agents are 23% more accurate on typed code" (CrossCodeEval). This reframing is the unique value. | LOW | Same underlying metric, different presentation and scoring context. |
+| **Semantic density score** | Composite metric combining type coverage + naming quality + constant usage. One number that answers "how explicit is this code?" No production tool offers this composite. | LOW | Weighted combination of sub-metrics. The composite itself is the differentiator, not the individual metrics. |
+| **Cross-file type propagation analysis** | Measure whether types "survive" across module boundaries. A function returning `interface{}` forces callers to do type assertions -- agent-hostile. Tracking type information loss at API boundaries is novel. | HIGH | Requires cross-package type flow analysis. Go's `go/types` package supports this. Python/TypeScript need type checker integration. Defer to post-MVP within C2 unless effort is manageable. |
 
-### Anti-Features (Commonly Requested, Often Problematic)
+### Anti-Features
 
-Features that seem good but create problems. Deliberately NOT building these.
+| Anti-Feature | Why Avoid | What to Do Instead |
+|--------------|-----------|-------------------|
+| **Running mypy/pyright/tsc as a subprocess** | Adds massive external dependencies, unpredictable runtime, and version compatibility nightmares. Users may not have these tools installed. ARS should be self-contained. | Parse AST to count type annotations structurally. You do not need a full type checker -- you need to know whether annotations EXIST, not whether they are CORRECT. Correctness is the type checker's job. |
+| **Style enforcement (gofmt compliance, etc.)** | ARS is not a linter. Style compliance is golangci-lint's domain. Duplicating it dilutes the agent-readiness focus. | Measure semantic properties (types, naming patterns, constants) not stylistic ones (whitespace, brace placement). |
+| **Per-identifier naming suggestions** | "Rename `x` to `counter`" is noisy and subjective. Generates hundreds of findings that overwhelm users and drown the signal. | Report aggregate naming quality scores (avg identifier length, single-char variable ratio). Flag only the worst offenders in recommendations. |
+| **Enforcing 100% type coverage** | Unrealistic for most codebases. Generates false urgency. Even TypeScript's `type-coverage` tool acknowledges catch blocks and callbacks make 100% impractical. | Use breakpoint scoring (0-10 scale) where 80% type coverage scores high. Diminishing returns above ~90%. |
 
-| Feature | Why Requested | Why Problematic | Alternative |
-|---------|---------------|-----------------|-------------|
-| Auto-fix / code mutation | "If you know what's wrong, just fix it." Tempting for complexity or style issues. | Automated fixes without human review are dangerous. They can break semantics, introduce bugs, and undermine trust. SonarQube and golangci-lint explicitly separate analysis from mutation. ARS is a diagnostic tool, not a surgeon. | Provide specific, actionable recommendations with file/line references. Let humans (or their AI agents) decide how to fix. |
-| HTML report in v1 | "I want to share results with my manager." Visual reports feel polished. | HTML generation adds complexity (templating, CSS, asset management), testing burden, and maintenance cost. It's a presentation layer concern that should not delay core analysis accuracy. | Ship terminal text first. Add `--format json` in v1.x so users can build their own dashboards. HTML in Phase 2. |
-| Multi-language support in v1 | "We have Python and TypeScript too." Natural request for polyglot teams. | Each language needs its own parser, AST, complexity calculator, and test detection. Doing one language well is hard; doing three poorly is useless. golangci-lint is Go-only and is the most popular Go tool precisely because of that focus. | Ship Go-only. Validate the scoring model works. Add languages only after proving the methodology on one language. |
-| Granular per-file scoring | "Show me the score for every file." Feels comprehensive. | Per-file scores are noisy, overwhelming, and often misleading (a 10-line utility file with no tests is fine; a 2000-line file with no tests is not, but per-file scoring treats them the same). Cognitive overload kills adoption. | Score at the project and package level. Call out specific files only in recommendations ("the worst offenders"). |
-| Plugin/extension system | "Let users add their own analyzers." Extensibility sounds great. | Plugin systems are architectural commitments that constrain your core design. They require stable APIs, documentation, versioning, and support. golangci-lint has one, and it's their biggest maintenance burden. | Keep the analyzer interface clean internally (for your own development velocity) but do not expose it publicly in v1. |
-| Real-time watch mode | "Re-run analysis on file save." IDE-like experience. | Static analysis of an entire codebase is not a sub-second operation. Watch mode creates expectations of instant feedback that analysis tools cannot meet. It also adds filesystem watching complexity. | Focus on fast single-run performance. Let users integrate with their editor's save hooks if they want re-runs. |
-| Comparing against external benchmarks | "How does my repo compare to Kubernetes?" Benchmarking sounds valuable. | Requires maintaining a database of scores for public repos. Different repos have different valid architectures. Comparisons without context are misleading. | Provide tier labels (Agent-Ready, etc.) as the benchmark. "You are Agent-Limited" is more actionable than "You are worse than Kubernetes." |
-| LLM-based evaluation in v1 | "Use GPT to assess code quality." Cutting-edge appeal. | Adds API costs, latency, non-determinism, and a runtime dependency on external services. Makes the tool unusable offline and in air-gapped environments. Scoring should be deterministic and free. | Pure static analysis first. LLM evaluation (C7) is explicitly out of scope per PROJECT.md. Revisit when the static scoring model is validated. |
+### Complexity Notes
 
-## Feature Dependencies
+- **Type coverage (Go):** LOW -- Go is statically typed; the metric is `any`/`interface{}` usage count. AST walk is straightforward.
+- **Type coverage (Python):** MEDIUM -- Walk AST for `def` nodes, check for type annotations on args and return. `ast` module handles this natively. No need for mypy.
+- **Type coverage (TypeScript):** MEDIUM -- Requires TypeScript AST parsing (Tree-sitter). Count `any` keyword usage vs total type positions.
+- **Magic numbers:** LOW across all languages -- simple AST pattern matching.
+- **Naming quality:** MEDIUM -- need heuristics for "good" names which are inherently subjective. Keep it simple: length, case convention adherence, single-char ratio.
+- **Null safety:** MEDIUM for Go (pattern matching nil checks), LOW for TypeScript (check tsconfig), MEDIUM for Python (check Optional annotations).
+
+### Dependencies on v1
+
+- Requires multi-language AST parsing infrastructure (Tree-sitter for Python/TypeScript, existing `go/ast` for Go)
+- Scoring config needs new C2 category with weight allocation
+- Recommendation engine needs new C2 improvement suggestions
+
+---
+
+## Category C4: Documentation Quality
+
+**What it measures:** Whether the codebase has sufficient documentation for an agent to understand intent, API contracts, and architectural decisions -- from README presence to inline comment quality.
+
+**Research basis:** SWE-bench research shows documentation quality correlates with agent task success, with well-documented repositories showing significantly higher resolution rates. SWE-bench Pro analysis confirms "codebase complexity, problem type, or documentation quality significantly impact an agent's ability to succeed."
+
+### Table Stakes
+
+| Feature | Why Expected | Complexity | Language Notes |
+|---------|--------------|------------|----------------|
+| **README presence and completeness** | A project without a README is immediately hostile to agents and humans alike. Check for existence, minimum length, and key sections (description, installation, usage). | LOW | Language-agnostic. Check for README.md (or README, README.rst). Score presence of sections: description, install/setup, usage/examples, API reference, contributing. |
+| **Exported symbol documentation rate** | Percentage of public APIs (exported functions, types, classes) that have doc comments. Go enforces this culturally; Python has docstrings; TypeScript has JSDoc. | MEDIUM | **Go:** Check for comment above exported identifiers (standard `go/ast` comment mapping). **Python:** Check for docstrings on public functions/classes (first statement is string literal). **TypeScript:** Check for JSDoc comments on exported members. |
+| **Comment-to-code ratio** | Basic density metric: what percentage of lines are comments? Too low means no documentation; too high can mean commented-out code (a different problem). | LOW | Language-agnostic LOC counting. Exclude blank lines. Sweet spot is roughly 10-25% for most codebases. Score both extremes low (under 5% and over 40%). |
+| **API documentation presence** | For libraries/packages: do exported types have documented parameters, return values, and error conditions? Agents rely heavily on API docs for cross-file calls. | MEDIUM | **Go:** Check godoc format (param descriptions in prose). **Python:** Check docstring format (Google, NumPy, or Sphinx style) for Args/Returns/Raises sections. **TypeScript:** Check JSDoc `@param`, `@returns`, `@throws` tags. |
+
+### Differentiators
+
+| Feature | Value Proposition | Complexity | Notes |
+|---------|-------------------|------------|-------|
+| **Documentation content quality (LLM-evaluated)** | Beyond presence: is the documentation actually USEFUL? An LLM judge can assess whether a docstring explains WHAT a function does vs just restating the signature. No production tool does this at scale. "31% higher agent success with good docs" is the pitch. | HIGH | **Cost implications:** Requires LLM API calls per documented symbol. At $3/MTok input, a 50k LOC repo with ~500 documented symbols costs ~$0.50-$2.00. Must be opt-in (`--deep-docs` flag or similar). Cache results aggressively. |
+| **Stale documentation detection** | Doc comments that contradict the code signature (wrong param names, missing params, outdated descriptions). Stale docs are worse than no docs because they mislead agents. | MEDIUM | Compare parameter names in doc comments with actual function signature. Check for `@deprecated` without removal timeline. Detect TODO/FIXME in docs. No LLM needed -- purely structural. |
+| **Architecture documentation scoring** | Presence and quality of ARCHITECTURE.md, design docs, ADRs. These high-level docs are the most valuable for agent context but rarely measured by tools. | LOW | File presence check + basic content analysis (word count, section headings). Simple but novel -- no production tool scores this. |
+
+### Anti-Features
+
+| Anti-Feature | Why Avoid | What to Do Instead |
+|--------------|-----------|-------------------|
+| **Readability scoring (Flesch-Kincaid, Gunning Fog)** | These metrics are designed for prose, not code documentation. Technical docs SHOULD use domain terminology. Penalizing "hard" words in API docs is counterproductive. A doc that says "serializes the struct to protobuf wire format" is better than "changes the thing to bytes" even though Flesch-Kincaid would prefer the latter. | Score documentation PRESENCE and STRUCTURE (does it have params? returns? examples?) not linguistic complexity. If using LLM evaluation for content quality, let the LLM judge usefulness, not grade level. |
+| **Spell checking** | False positives on technical terms, library names, and domain jargon would be overwhelming. Maintaining a domain-specific dictionary is a maintenance burden. | Leave spell checking to dedicated tools (aspell, cspell). Focus on structural and semantic documentation quality. |
+| **Auto-generating documentation** | "If docs are missing, just generate them" is tempting but produces generic, low-value docs that satisfy the metric without adding real value. ARS is a diagnostic tool, not a generator. | Score the current state honestly. Recommend where docs are needed. Let humans or their agents write the actual docs. |
+| **Scoring inline implementation comments** | Comments explaining HOW code works are subjective and often indicate the code is too complex (the real fix is simplification). Measuring inline comment quality is a rabbit hole. | Focus on API-level documentation (what a function does, its contract) not implementation comments. The C1 complexity score already catches "code that needs explaining." |
+
+### Complexity Notes
+
+- **README analysis:** LOW -- file existence + regex for section headings.
+- **Doc comment rate:** MEDIUM -- requires AST traversal with comment association. Go's `go/ast` has `CommentMap`; Python's `ast` has docstring detection; TypeScript needs Tree-sitter comment handling.
+- **Comment ratio:** LOW -- line counting with comment detection.
+- **LLM content quality:** HIGH -- requires LLM integration, prompt engineering, cost management, caching, and opt-in UX. This is the single most complex sub-feature across all four categories. Must be clearly separated as opt-in.
+- **Stale doc detection:** MEDIUM -- requires matching doc content against actual code signatures.
+
+### Dependencies on v1
+
+- Multi-language parsing infrastructure (same as C2)
+- LLM integration infrastructure needed for content quality (shared with C7)
+- Scoring config extension
+- New recommendation templates for documentation improvements
+
+---
+
+## Category C5: Temporal Dynamics
+
+**What it measures:** How the codebase evolves over time -- code churn patterns, change coupling, author fragmentation, and hotspots. Based on CodeScene's behavioral code analysis methodology and Adam Tornhill's "Your Code as a Crime Scene."
+
+**Research basis:** CodeScene research demonstrates a strong correlation between hotspots (high-churn + low-health code), maintenance costs, and software defects. Change frequency follows a power law -- most development activity is in a small fraction of the codebase. Code churn is the single most important metric for predicting quality issues (per CodeScene's published findings).
+
+### Table Stakes
+
+| Feature | Why Expected | Complexity | Language Notes |
+|---------|--------------|------------|----------------|
+| **Code churn rate** | Commits per file over a time window (default: 6 months). High-churn files that also score low on C1/C3 are the highest-priority refactoring targets. CodeScene's core metric. | MEDIUM | Language-agnostic (git log analysis). Parse `git log --numstat` for additions/deletions per file. Calculate relative churn (changes / file size) to normalize across file sizes. Requires `.git` directory -- fail with clear error if missing. |
+| **Hotspot detection** | Files with both high churn AND low code health (from C1). This is CodeScene's signature analysis: prioritize technical debt by actual development activity, not just static quality. | MEDIUM | Combine C5 churn data with C1 scores per file. Rank by churn * (10 - health_score). Top hotspots are the highest-impact improvement targets. |
+| **Author fragmentation** | Number of distinct authors per file. Files touched by many authors with no clear owner tend to accumulate inconsistencies. CodeScene calls this "diffusion of responsibility." | LOW | `git log --format='%aN' -- <file> | sort -u | wc -l` equivalent. Calculate author count per file and identify files with no primary owner (no author has >50% of commits). |
+| **Temporal coupling** | Files that change together in the same commits, indicating hidden dependencies. CodeScene's temporal coupling analysis reveals architectural coupling invisible in the code itself. | HIGH | Analyze commit history for co-change patterns. For each pair of files changed in the same commit, count co-occurrences. Filter by minimum thresholds (min 5 shared commits, min 30% coupling degree). This is computationally expensive for large repos -- requires thoughtful thresholds. |
+
+### Differentiators
+
+| Feature | Value Proposition | Complexity | Notes |
+|---------|-------------------|------------|-------|
+| **Agent-impact hotspot ranking** | CodeScene ranks hotspots by maintenance cost. ARS ranks by agent-readiness impact: "this file is changed constantly AND is hard for agents to understand." Combining temporal data with agent-readiness scores is novel. | LOW | Composite of existing metrics. The framing and scoring integration is the value, not new data collection. |
+| **Churn-complexity trend** | Is the codebase getting better or worse over time? Track whether high-churn files are trending toward higher or lower complexity. Answers "are we making progress?" | HIGH | Requires analyzing git history at multiple time points. Computationally expensive. Consider: analyze last N commits in windows (e.g., monthly buckets) and report trend direction. Defer detailed trending to post-initial C5 delivery. |
+| **Bus factor per module** | How many authors would need to leave before knowledge of a module is lost? Files with bus factor = 1 are high risk. | LOW | Count primary contributors per directory/package. Bus factor = number of authors contributing >10% of changes. Simple calculation from git log data. |
+
+### Anti-Features
+
+| Anti-Feature | Why Avoid | What to Do Instead |
+|--------------|-----------|-------------------|
+| **Full git history analysis by default** | Analyzing the entire git history of a large repo (10+ years, 100k+ commits) is prohibitively slow. CodeScene takes minutes for large repos even with optimized algorithms. | Default to 6-month window. Allow `--history-window` flag. Most recent changes are most relevant for agent-readiness anyway. |
+| **Cross-repository temporal coupling** | CodeScene supports this for microservices, but it requires access to multiple repos and is an order of magnitude more complex. | Analyze single-repo only. Multi-repo analysis is a v3+ feature if ever. |
+| **Individual developer attribution/scoring** | "Developer X writes the worst code" is toxic and will get ARS banned from organizations. CodeScene carefully avoids this. | Report at file/module level only. "This module has high author fragmentation" not "Author X's changes have low quality." Never rank individuals. |
+| **Commit message quality analysis** | Tempting but subjective. "fix bug" vs "Fix race condition in connection pool by adding mutex" -- the latter is better, but scoring this reliably is hard and not directly agent-relevant. | Skip entirely. Commit messages affect git-blame-based understanding but are not a primary agent-readiness signal. Focus on code and doc quality. |
+
+### Complexity Notes
+
+- **Git integration:** MEDIUM -- `git log` parsing is well-understood but needs robust error handling (shallow clones, missing git, large repos).
+- **Churn calculation:** MEDIUM -- `git log --numstat` gives additions/deletions per file per commit. Aggregate over time window.
+- **Author fragmentation:** LOW -- simple aggregation from git log.
+- **Temporal coupling:** HIGH -- O(n^2) file-pair analysis on commits. Need smart thresholds and capping. CodeMaat (Adam Tornhill's tool) solves this with configurable min-revisions and max-changeset-size filters.
+- **Performance:** C5 is the only category that scales with repository history, not current code size. A repo with 50k LOC but 50k commits will take longer for C5 than a 500k LOC repo with 500 commits. The `--history-window` default is critical.
+
+### Dependencies on v1
+
+- No dependency on existing analyzers (git-based, not AST-based)
+- Needs C1 file-level scores for hotspot correlation
+- Requires `.git` directory -- must gracefully handle repos without git (skip C5 with warning)
+- New pipeline stage: git analysis runs independently of AST parsing (can parallelize)
+
+---
+
+## Category C7: Agent Evaluation
+
+**What it measures:** Direct LLM-based assessment of code's agent-friendliness -- using an AI judge to evaluate intent clarity, modification confidence, and overall coherence. The "ask an agent if it can work with this code" approach.
+
+**Research basis:** AlpacaEval framework demonstrates LLM-as-judge achieves ~90% agreement with human preferences. PRDBench (2025) applies agent-as-a-judge specifically to code evaluation. The paradigm is evolving from single-model judges to multi-agent debate systems, but single-judge with chain-of-thought is the proven starting point.
+
+### Table Stakes
+
+| Feature | Why Expected | Complexity | Language Notes |
+|---------|--------------|------------|----------------|
+| **Intent clarity score** | Can an agent understand WHAT this code does from reading it? LLM evaluates a sample of functions and rates clarity of purpose. This is the core C7 metric -- the most direct measure of agent-readiness. | HIGH | Language-agnostic (LLM reads code as text). Sample selection matters: evaluate the most important files (entry points, public APIs, hotspots from C5) not random files. |
+| **Modification confidence score** | Could an agent safely modify this code? LLM evaluates whether the code has clear boundaries, predictable side effects, and sufficient context for safe changes. | HIGH | Language-agnostic. Prompt engineering is critical: "Given this function, rate your confidence that you could modify it without breaking other parts of the system. Explain why." |
+| **Coherence score** | Does the codebase follow consistent patterns? LLM evaluates whether similar operations are done the same way, whether naming is consistent, whether architecture is predictable. | HIGH | Requires sampling from multiple files. Compare patterns across the codebase. This is the most expensive metric because it needs cross-file context. |
+| **Cost estimation and opt-in** | Users MUST know the cost before running C7. "This scan will make ~50 LLM calls, estimated cost: $1.50. Proceed? [y/N]" Without cost transparency, users will be surprised and angry. | MEDIUM | Calculate: (sampled files * prompts per file * avg tokens) * cost per token. Show estimate before execution. Always opt-in (`--agent-eval` flag), never default-on. |
+
+### Differentiators
+
+| Feature | Value Proposition | Complexity | Notes |
+|---------|-------------------|------------|-------|
+| **Headless Claude Code evaluation** | Instead of a generic LLM call, use Claude Code (the agentic coding tool) to actually attempt a small modification task on the codebase and measure success. This is a genuine "agent-in-the-loop" test, not just an opinion poll. Per PROJECT.md: "headless agent evaluation using Claude Code for genuine agent-in-the-loop assessment." | VERY HIGH | This is the most ambitious feature in all of v2. Requires: spawning headless Claude Code, defining synthetic tasks, measuring completion, handling failures gracefully. Start with simpler LLM-as-judge, add headless evaluation as an advanced option. |
+| **Structured evaluation rubric** | Rather than "rate this code 1-10," provide a detailed rubric with specific dimensions (naming, structure, documentation, error handling, testability). AlpacaEval research shows structured prompts with chain-of-thought improve reliability by 10-15%. | MEDIUM | Define rubric once, apply consistently. Chain-of-thought prompting: "First explain what this function does, then evaluate each dimension, then give a score." More tokens = more cost, but significantly more reliable. |
+| **Evaluation calibration against known codebases** | Run C7 on well-known repos (standard library, popular open source) to establish baselines. "Your code scores 6/10 on intent clarity; the Go standard library scores 8.5/10." Calibration creates trust. | MEDIUM | One-time effort to generate baselines. Store as reference data. Update periodically. |
+
+### Anti-Features
+
+| Anti-Feature | Why Avoid | What to Do Instead |
+|--------------|-----------|-------------------|
+| **Default-on LLM evaluation** | API costs per scan, non-deterministic results, network dependency, latency (adds minutes to scan). Making this default-on would make ARS unusable in CI, offline environments, and cost-sensitive teams. | Always opt-in. C7 is a separate flag (`--agent-eval`). All other categories (C1-C6) remain deterministic, free, and fast. |
+| **Evaluating every function** | A 50k LOC repo might have 2000+ functions. Evaluating each with an LLM is expensive ($10+) and slow (minutes). Diminishing returns after sampling the most important ones. | Smart sampling: evaluate entry points, public APIs, high-churn files (from C5), low-scoring files (from C1/C3). Target 20-50 functions for a representative score. |
+| **Multi-agent debate for scoring** | The research shows multi-agent-as-judge (MAJ-EVAL) improves quality, but it multiplies cost by the number of agents. Premature optimization of evaluation quality at this stage. | Single-judge with chain-of-thought first. It achieves ~90% human agreement (AlpacaEval). Multi-agent is a future refinement when the single-judge baseline is established. |
+| **Fine-tuning a custom judge model** | Training a specialized judge model would reduce per-call costs but requires training data, infrastructure, and ongoing maintenance. Massive upfront investment for marginal improvement. | Use frontier models (Claude Sonnet/Opus) as judges. The cost per scan is manageable ($1-5) and the quality is superior to any fine-tuned small model. |
+| **Replacing C1-C6 metrics with LLM evaluation** | "Just ask the LLM to score everything" eliminates the need for static analysis. But LLM scores are non-deterministic, expensive, and opaque. Reproducibility is destroyed. | C1-C6 are deterministic and free. C7 adds a complementary perspective. The static metrics are the foundation; the LLM evaluation is the capstone. |
+
+### Complexity Notes
+
+- **LLM integration:** HIGH -- needs API client, prompt templates, response parsing, error handling, rate limiting, cost tracking.
+- **Prompt engineering:** HIGH -- the quality of C7 scores depends entirely on prompt quality. Requires iteration and validation against human judgment.
+- **Cost management:** MEDIUM -- token counting, cost estimation, budget limits, caching of results.
+- **Sampling strategy:** MEDIUM -- selecting which files/functions to evaluate requires combining signals from C1, C3, C5.
+- **Reproducibility:** C7 scores will vary between runs due to LLM non-determinism. Must clearly communicate this to users. Consider: run 3 evaluations and report median to reduce variance.
+- **Headless Claude Code:** VERY HIGH -- spawning and controlling an agentic coding tool programmatically is uncharted territory for most tools. Start with LLM-as-judge API calls; headless agent evaluation is a stretch goal.
+
+### Dependencies on v1
+
+- Needs LLM API integration infrastructure (new dependency: Claude API client)
+- Sampling strategy benefits from C1 scores (evaluate low-scoring functions) and C5 hotspots
+- Scoring config needs C7 weight allocation (should be lower than deterministic categories given non-determinism)
+- Must NOT block overall scan -- C7 failure should degrade gracefully (score other categories normally)
+- Shared infrastructure with C4 content quality evaluation (LLM calls)
+
+---
+
+## Cross-Category Feature Dependencies
 
 ```
-[Go Project Detection]
+[Multi-language AST Parsing] (Tree-sitter for Python/TS, go/ast for Go)
     |
-    +--requires--> [AST Parsing / File Walking]
-    |                   |
-    |                   +--requires--> [C1: Code Health Metrics]
-    |                   |                   - cyclomatic complexity
-    |                   |                   - function length
-    |                   |                   - file size
-    |                   |                   - coupling (import analysis)
-    |                   |                   - duplication detection
-    |                   |
-    |                   +--requires--> [C3: Architectural Navigability]
-    |                   |                   - directory depth
-    |                   |                   - module fanout
-    |                   |                   - circular dependencies (import graph)
-    |                   |                   - import complexity
-    |                   |                   - dead code detection
-    |                   |
-    |                   +--requires--> [C6: Testing Infrastructure]
-    |                                       - test file detection (*_test.go)
-    |                                       - test-to-code ratio
-    |                                       - coverage (via `go test -cover`)
-    |                                       - assertion density
+    +--required by--> [C2: Semantic Explicitness] (type annotations, naming, magic numbers)
+    +--required by--> [C4: Documentation Quality] (doc comments, API docs)
+    +--NOT required by--> [C5: Temporal Dynamics] (git-based, no AST needed)
+    +--NOT required by--> [C7: Agent Evaluation] (LLM reads raw code text)
+
+[Git Integration] (git log parsing)
     |
-    +--all three categories feed into-->
+    +--required by--> [C5: Temporal Dynamics]
+    +--enhances--> [C7: Agent Evaluation] (churn data informs sampling)
+
+[LLM API Integration] (Claude API client)
     |
-[Composite Score Calculation] (weighted: C1 25%, C3 20%, C6 15%)
+    +--required by--> [C7: Agent Evaluation]
+    +--optional for--> [C4: Documentation Quality] (content quality is opt-in)
+
+[C1: Code Health scores] (existing v1)
     |
-    +--requires--> [Tier Rating] (maps score ranges to labels)
+    +--enhances--> [C5: Hotspot Detection] (churn * low-health = hotspot)
+    +--enhances--> [C7: Sampling Strategy] (evaluate low-health code first)
+
+[Scoring Config Extension]
     |
-    +--requires--> [Recommendations Engine]
-    |                   - identifies lowest-scoring metrics
-    |                   - maps to actionable improvements
-    |                   - ranks by score impact
-    |
-    +--requires--> [Terminal Output Renderer]
-    |                   - formatted text with color
-    |                   - respects --no-color / pipe detection
-    |
-    +--optional--> [Threshold Gate] (--threshold flag, exit code 2)
+    +--required by--> ALL new categories (C2, C4, C5, C7 need weights and breakpoints)
 ```
 
 ### Dependency Notes
 
-- **AST Parsing is the foundation:** All three analysis categories (C1, C3, C6) depend on Go source file parsing. Invest in a solid file walker and parser first. Use `go/parser` and `go/ast` from the standard library.
-- **C1, C3, C6 are independent of each other:** They can be developed and tested in parallel once the parser layer exists. This enables parallel development or incremental delivery.
-- **Composite score requires all categories:** Cannot produce a meaningful composite until at least the core metrics from each category are working. However, individual category scores can be shown earlier.
-- **Recommendations depend on score calculation:** The engine needs to know which metrics dragged the score down to generate useful recommendations. Build scoring first, recommendations second.
-- **Terminal output is the final layer:** Do not over-invest in output formatting until the underlying analysis is correct. Pretty output on wrong numbers is worse than ugly output on right numbers.
-- **Threshold gate is a thin wrapper:** Once composite score exists, threshold comparison is trivial. Low effort, high CI value.
+- **C2 and C4 share multi-language parsing:** Build the parsing infrastructure once (Tree-sitter integration for Python/TypeScript), then C2 and C4 both use it. This argues for delivering C2 and C4 in the same phase or sequential phases.
+- **C5 is independent:** Git-based analysis has zero dependency on AST parsing. C5 can be built in parallel with C2/C4 or in any order.
+- **C7 depends on everything else:** Optimal C7 sampling uses C1 health scores, C5 churn data, and C4 documentation gaps. Deliver C7 last.
+- **LLM infrastructure is shared:** C4 content quality and C7 agent evaluation both need LLM API calls. Build the integration once for both.
 
-## MVP Definition
+---
 
-### Launch With (v1)
+## Implementation Priority Recommendation
 
-Minimum viable product -- what's needed to validate the scoring model and be useful.
+### Phase 1: C2 (Semantic Explicitness) + C5 (Temporal Dynamics)
 
-- [x] `ars scan <directory>` command with Go project auto-detection
-- [x] C1: Code Health -- cyclomatic complexity (gocyclo-style), function length, file size. Skip coupling and duplication for MVP if they slow you down.
-- [x] C3: Architectural Navigability -- directory depth, import graph analysis, circular dependency detection. Dead code detection can be v1.x.
-- [x] C6: Testing Infrastructure -- test file detection, test-to-code ratio, coverage via `go test -cover`. Assertion density can be v1.x.
-- [x] Composite score (1-10) with tier rating label
-- [x] Top 5 improvement recommendations (even if simple: "reduce complexity in X")
-- [x] Terminal text output with color
-- [x] Exit codes (0/1/2) with `--threshold` flag
-- [x] `--help` and `--version`
+Rationale: C2 and C5 are the highest-value additions with established tooling patterns.
 
-### Add After Validation (v1.x)
+- C2 is pure static analysis (extends existing AST infrastructure)
+- C5 is git-based analysis (independent pipeline, parallelizable)
+- Together they fill the biggest gap: "what does the code mean?" (C2) and "how does it evolve?" (C5)
+- Both are deterministic, free, and fast -- maintaining ARS's core value proposition
 
-Features to add once core scoring is working and validated on real repos.
+### Phase 2: C4 (Documentation Quality)
 
-- [ ] JSON output (`--format json`) -- enables CI dashboards and custom tooling
-- [ ] Verbose mode (`-v`) showing per-metric scores and methodology
-- [ ] Coupling analysis (afferent/efferent coupling per package)
-- [ ] Code duplication detection (token-based or AST-based)
-- [ ] Dead code detection (unreachable exported functions)
-- [ ] Assertion density in tests
-- [ ] Test isolation scoring
-- [ ] `--quiet` mode (only score and tier, for scripting)
-- [ ] Config file (`.ars.yml`) for custom thresholds and weights
+Rationale: C4 static metrics (doc presence, comment ratio) are straightforward. LLM content quality evaluation shares infrastructure with C7 and should be built in the same phase or immediately before.
 
-### Future Consideration (v2+)
+- Static documentation metrics first (presence, rate, structure)
+- LLM-based content quality as opt-in enhancement
 
-Features to defer until product-market fit is established.
+### Phase 3: C7 (Agent Evaluation)
 
-- [ ] HTML report generation -- presentation layer, defer until analysis is solid
-- [ ] JSON/SARIF output for IDE integration
-- [ ] Multi-language support (Python, TypeScript) -- requires new parsers per language
-- [ ] C2 (Semantic Explicitness), C4 (Documentation), C5 (Temporal Dynamics) categories
-- [ ] C7 (LLM Judge) -- high cost, non-deterministic, needs careful design
-- [ ] Score trend tracking and historical comparison
-- [ ] GitHub Action for automated PR checks
-- [ ] Package-level score breakdown (score per Go package)
-- [ ] Incremental scanning / caching for large repos
-- [ ] Baseline / diff mode (only show changes since last run)
+Rationale: C7 is the most complex, most expensive, and most dependent on other categories. It should be last because:
 
-## Feature Prioritization Matrix
+- Needs LLM infrastructure (can share with C4 if C4's LLM features come first)
+- Benefits from C1/C5 scores for intelligent sampling
+- Is the riskiest feature (non-deterministic, costly, novel)
+- Is the most impressive feature -- save it for when the foundation is solid
 
-| Feature | User Value | Implementation Cost | Priority |
-|---------|------------|---------------------|----------|
-| Go project auto-detection | HIGH | LOW | P1 |
-| Cyclomatic complexity (C1) | HIGH | LOW | P1 |
-| Function length / file size (C1) | HIGH | LOW | P1 |
-| Import graph / circular deps (C3) | HIGH | MEDIUM | P1 |
-| Directory depth (C3) | MEDIUM | LOW | P1 |
-| Test detection and ratio (C6) | HIGH | LOW | P1 |
-| Coverage via `go test` (C6) | HIGH | MEDIUM | P1 |
-| Composite score + tier | HIGH | LOW | P1 |
-| Top 5 recommendations | HIGH | MEDIUM | P1 |
-| Terminal text output | HIGH | LOW | P1 |
-| Exit codes + threshold | HIGH | LOW | P1 |
-| JSON output | MEDIUM | LOW | P2 |
-| Verbose mode | MEDIUM | LOW | P2 |
-| Coupling analysis (C1) | MEDIUM | MEDIUM | P2 |
-| Duplication detection (C1) | MEDIUM | HIGH | P2 |
-| Dead code detection (C3) | MEDIUM | MEDIUM | P2 |
-| Config file | MEDIUM | MEDIUM | P2 |
-| HTML reports | LOW | HIGH | P3 |
-| Multi-language | LOW | HIGH | P3 |
-| LLM Judge (C7) | LOW | HIGH | P3 |
-| Score trend tracking | MEDIUM | HIGH | P3 |
+---
 
-**Priority key:**
-- P1: Must have for launch -- core analysis, scoring, and basic output
-- P2: Should have, add in v1.x -- enhanced analysis and output formats
-- P3: Nice to have, future consideration -- presentation and expansion
+## Scoring Weight Redistribution
 
-## Competitor Feature Analysis
+Current v1 weights (total 60% -- space reserved for new categories):
+- C1: 25%, C3: 20%, C6: 15%
 
-| Feature | golangci-lint | goreportcard | SonarQube (Go) | staticcheck | ARS (Our Approach) |
-|---------|---------------|--------------|-----------------|-------------|-------------------|
-| Cyclomatic complexity | Via gocyclo linter | Via gocyclo | Built-in | No | Core C1 metric |
-| Cognitive complexity | Via gocognit linter | No | Built-in | No | Consider for v1.x (better than cyclomatic for agent readiness) |
-| Circular deps | No | No | No (Java only) | No | Core C3 metric -- key differentiator |
-| Dead code | Via unused linter | No | Built-in | Via U1000 check | C3 metric |
-| Test coverage | No (linter only) | No | Built-in | No | Core C6 metric via `go test` |
-| Composite score | No (lint/no-lint) | Letter grade (A-F) | Multi-dimensional | No | 1-10 score with research-backed weights |
-| Agent-readiness framing | N/A | N/A | N/A | N/A | Core differentiator -- unique in market |
-| Recommendations | No (just findings) | No | Yes (generic) | No | Top 5 ranked by agent impact |
-| CI exit codes | Yes (on findings) | N/A (web only) | Yes (quality gate) | Yes (on findings) | Yes (threshold-based) |
-| Output formats | 10+ formats | Web/badge | Web dashboard | Text/JSON | Terminal text (v1), JSON (v1.x) |
-| Performance | Excellent (parallel) | N/A (web service) | Slow (heavy) | Good | Target: fast single-pass |
+Recommended v2 weights (total 100%):
 
-### Key Competitive Insight
+| Category | Weight | Rationale |
+|----------|--------|-----------|
+| C1: Code Health | 20% | Slightly reduced; still foundational |
+| C2: Semantic Explicitness | 15% | High agent-readiness impact (CrossCodeEval) |
+| C3: Architecture | 15% | Slightly reduced from 20% |
+| C4: Documentation | 12% | Important but partially subjective |
+| C5: Temporal Dynamics | 13% | Strong predictive power (CodeScene research) |
+| C6: Testing | 12% | Slightly reduced from 15% |
+| C7: Agent Evaluation | 13% | Direct measurement but non-deterministic |
 
-ARS does not compete with golangci-lint or staticcheck. Those tools find bugs and style violations. ARS answers a different question: "How ready is this codebase for AI agent workflows?" The competitive landscape is essentially empty for this specific question. The closest analogs are:
+Note: When C7 is not run (opt-out), redistribute its weight proportionally across C1-C6. The scoring engine already handles unavailable metrics -- extend this to handle unavailable categories.
 
-1. **goreportcard** -- produces a letter grade, but uses simple linter checks without architectural analysis or agent-readiness framing
-2. **SonarQube** -- comprehensive quality platform, but heavyweight, expensive, and not agent-readiness-focused
-3. **Code Climate** -- maintainability scoring, but SaaS-only and not Go-specialized
+---
 
-ARS's niche: lightweight, CLI-first, Go-focused, research-backed, agent-readiness-specific. This is defensible because the scoring model is the product, not the analysis engine.
+## Competitor Feature Analysis (v2 Categories)
+
+| Feature | SonarQube | CodeScene | CodeClimate | ARS (Our Approach) |
+|---------|-----------|-----------|-------------|-------------------|
+| Type coverage | No (test coverage only) | No | No | Core C2 metric -- framed as agent-readiness |
+| Magic numbers | Yes (rule-based) | No | No | C2 metric, scored not just flagged |
+| Naming quality | Partial (conventions) | No | No | C2 metric with language-specific heuristics |
+| Doc comment rate | Yes (rule-based) | No | No | C4 metric with quality assessment |
+| Doc content quality | No | No | No | C4 differentiator via LLM evaluation |
+| Code churn | No | Core feature | No | C5 metric, integrated with health scores |
+| Temporal coupling | No | Core feature | No | C5 metric (simplified vs CodeScene) |
+| Author fragmentation | No | Yes | No | C5 metric |
+| Hotspot detection | No | Core feature | No | C5 metric combined with C1 health |
+| LLM code evaluation | No | No | No | C7 -- entirely novel |
+| Agent-readiness framing | No | No | No | Core differentiator across all categories |
+
+### Key Competitive Insight for v2
+
+With v2, ARS becomes the only tool that combines:
+1. Static code quality analysis (like SonarQube)
+2. Behavioral/temporal analysis (like CodeScene)
+3. LLM-based evaluation (novel -- no competitor)
+4. All framed through agent-readiness scoring (unique perspective)
+
+No existing tool offers this combination. SonarQube is closest on static analysis but lacks temporal and LLM dimensions. CodeScene is closest on temporal analysis but lacks type coverage and LLM evaluation. Neither frames their analysis through agent-readiness.
+
+---
 
 ## Sources
 
-- [golangci-lint GitHub](https://github.com/golangci/golangci-lint) -- de facto Go linter, v2.8.0 (Jan 2026), 100+ linters [HIGH confidence]
-- [golangci-lint docs: output formats](https://golangci-lint.run/docs/configuration/file/) -- SARIF, JSON, text, HTML, etc. [HIGH confidence]
-- [goreportcard](https://goreportcard.com/) -- Go code quality scoring using gofmt, go vet, golint, gocyclo [HIGH confidence]
-- [goreportcard GitHub](https://github.com/gojp/goreportcard) -- open source, Apache v2 [HIGH confidence]
-- [staticcheck](https://staticcheck.dev/) -- deep Go static analysis, 150+ checks [HIGH confidence]
-- [gocyclo](https://github.com/fzipp/gocyclo) -- cyclomatic complexity for Go [HIGH confidence]
-- [gocognit](https://github.com/uudashr/gocognit) -- cognitive complexity for Go, based on SonarSource whitepaper [HIGH confidence]
-- [SonarQube metrics docs](https://docs.sonarsource.com/sonarqube-server/user-guide/code-metrics/metrics-definition) -- SQALE methodology, quality gates [HIGH confidence]
-- [Go `analysis` framework](https://pkg.go.dev/golang.org/x/tools/go/analysis) -- standard interface for Go analyzers [HIGH confidence]
-- [JetBrains Go Ecosystem 2025](https://blog.jetbrains.com/go/2025/11/10/go-language-trends-ecosystem-2025/) -- golangci-lint is de facto standard [MEDIUM confidence]
-- [Anthropic Agentic Coding Trends 2026](https://resources.anthropic.com/hubfs/2026%20Agentic%20Coding%20Trends%20Report.pdf) -- AI agents amplify existing code quality [MEDIUM confidence]
-- [Code Quality in 2026](https://www.getpanto.ai/blog/code-quality) -- agent readiness depends on codebase maturity [MEDIUM confidence]
-- [Salesforce Code Analyzer CI docs](https://developer.salesforce.com/docs/platform/salesforce-code-analyzer/guide/ci-cd.html) -- severity threshold / exit code pattern [MEDIUM confidence]
+### C2: Semantic Explicitness
+- [CrossCodeEval - NeurIPS 2023](https://crosscodeeval.github.io/) -- cross-file code completion benchmark demonstrating type context importance [HIGH confidence]
+- [Meta Python Typing Survey 2025](https://engineering.fb.com/2025/12/22/developer-tools/python-typing-survey-2025-code-quality-flexibility-typing-adoption/) -- 73% adoption, 41% CI enforcement [HIGH confidence]
+- [typecoverage PyPI](https://pypi.org/project/typecoverage/) -- Python type annotation coverage tool [HIGH confidence]
+- [type-coverage npm](https://github.com/plantain-00/type-coverage) -- TypeScript type coverage, v2.29.7 [HIGH confidence]
+- [go-mnd](https://github.com/tommy-muehle/go-mnd) -- Go magic number detector, integrated in golangci-lint [HIGH confidence]
+- [@typescript-eslint/no-magic-numbers](https://typescript-eslint.io/rules/no-magic-numbers/) -- TypeScript magic number linting [HIGH confidence]
+- [Go nillability proposal](https://github.com/golang/go/issues/49202) -- Go's nil safety gap [MEDIUM confidence]
+
+### C4: Documentation Quality
+- [SWE-bench Pro](https://scale.com/leaderboard/swe_bench_pro_public) -- documentation quality as factor in agent success [MEDIUM confidence]
+- [Penify.dev README Analysis](https://blogs.penify.dev/docs/analyze-readme-readability.html) -- readability metrics for README files [MEDIUM confidence]
+- [SonarQube metrics](https://docs.sonarsource.com/sonarqube-server/user-guide/code-metrics/metrics-definition) -- comment density and documentation rules [HIGH confidence]
+
+### C5: Temporal Dynamics
+- [CodeScene Hotspots](https://codescene.io/docs/guides/technical/hotspots.html) -- hotspot methodology and research backing [HIGH confidence]
+- [CodeScene Hotspot Metrics](https://docs.enterprise.codescene.io/versions/1.7.0/configuration/hotspot-metrics.html) -- churn calculation methods [HIGH confidence]
+- [Code Maat](https://github.com/adamtornhill/code-maat) -- open-source temporal coupling analysis tool [HIGH confidence]
+- [CodeScene Architectural Analysis](https://docs.enterprise.codescene.io/versions/3.5.6/guides/architectural/architectural-analyses.html) -- temporal coupling at architecture level [HIGH confidence]
+- [Swimm Code Churn Guide](https://swimm.io/learn/developer-experience/how-to-measure-code-churn-why-it-matters-and-4-ways-to-reduce-it) -- churn measurement methodology [MEDIUM confidence]
+
+### C7: Agent Evaluation
+- [LLM-as-a-Judge Guide (Langfuse)](https://langfuse.com/docs/evaluation/evaluation-methods/llm-as-a-judge) -- framework for LLM evaluation [MEDIUM confidence]
+- [Agent-as-a-Judge Survey](https://arxiv.org/html/2508.02994v1) -- evolution of LLM judge paradigms [MEDIUM confidence]
+- [LLM-as-Judge Best Practices (Monte Carlo)](https://www.montecarlodata.com/blog-llm-as-judge/) -- bias mitigation, chain-of-thought [MEDIUM confidence]
+- [PRDBench](https://arxiv.org/html/2510.24358v1) -- agent-driven code evaluation benchmark [MEDIUM confidence]
+- [Multi-Agent-as-Judge](https://arxiv.org/abs/2507.21028) -- multi-dimensional LLM evaluation [LOW confidence -- emerging research]
+- [LLM-as-a-Judge 2026 Guide](https://labelyourdata.com/articles/llm-as-a-judge) -- comprehensive overview of patterns [MEDIUM confidence]
 
 ---
-*Feature research for: CLI static analysis tool (Agent Readiness Score)*
-*Researched: 2026-01-31*
+*Feature research for: ARS v2 Analysis Categories (C2, C4, C5, C7)*
+*Researched: 2026-02-01*

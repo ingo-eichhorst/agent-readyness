@@ -153,18 +153,18 @@ func TestDiscoverTypeScriptProject(t *testing.T) {
 	// src/index.test.ts should be ClassTest
 	assertFile(t, fileMap, filepath.Join("src", "index.test.ts"), types.ClassTest, "")
 
-	// Verify counts
-	if result.SourceCount != 1 {
-		t.Errorf("SourceCount = %d, want 1", result.SourceCount)
+	// Verify counts (index.ts + utils.ts = 2 source, index.test.ts + app.test.ts = 2 test)
+	if result.SourceCount != 2 {
+		t.Errorf("SourceCount = %d, want 2", result.SourceCount)
 	}
-	if result.TestCount != 1 {
-		t.Errorf("TestCount = %d, want 1", result.TestCount)
+	if result.TestCount != 2 {
+		t.Errorf("TestCount = %d, want 2", result.TestCount)
 	}
-	if result.TotalFiles != 2 {
-		t.Errorf("TotalFiles = %d, want 2", result.TotalFiles)
+	if result.TotalFiles != 4 {
+		t.Errorf("TotalFiles = %d, want 4", result.TotalFiles)
 	}
-	if result.PerLanguage[types.LangTypeScript] != 1 {
-		t.Errorf("PerLanguage[TypeScript] = %d, want 1", result.PerLanguage[types.LangTypeScript])
+	if result.PerLanguage[types.LangTypeScript] != 2 {
+		t.Errorf("PerLanguage[TypeScript] = %d, want 2", result.PerLanguage[types.LangTypeScript])
 	}
 }
 

@@ -104,7 +104,50 @@ func (a *C6Analyzer) Analyze(targets []*types.AnalysisTarget) (*types.AnalysisRe
 			pyUpdateAssertionDensity(metrics)
 
 		case types.LangTypeScript:
-			// Placeholder for Plan 02
+			if a.tsParser == nil {
+				continue
+			}
+			parsed, err := a.tsParser.ParseTargetFiles(target)
+			if err != nil {
+				continue
+			}
+			defer parser.CloseAll(parsed)
+
+			testFuncs, testFileCount, srcFileCount := tsDetectTests(parsed)
+			metrics.TestFileCount += testFileCount
+			metrics.SourceFileCount += srcFileCount
+			metrics.TestFunctions = append(metrics.TestFunctions, testFuncs...)
+
+			// Test-to-code ratio for TypeScript
+			tsTestLOC, tsSrcLOC := tsCountLOC(parsed)
+			if tsSrcLOC > 0 {
+				if metrics.TestToCodeRatio > 0 {
+					tsRatio := float64(tsTestLOC) / float64(tsSrcLOC)
+					metrics.TestToCodeRatio = (metrics.TestToCodeRatio + tsRatio) / 2
+				} else {
+					metrics.TestToCodeRatio = float64(tsTestLOC) / float64(tsSrcLOC)
+				}
+			}
+
+			// Isolation
+			isolation := tsAnalyzeIsolation(parsed, testFuncs)
+			if metrics.TestIsolation > 0 {
+				metrics.TestIsolation = (metrics.TestIsolation + isolation) / 2
+			} else {
+				metrics.TestIsolation = isolation
+			}
+
+			// Coverage: reuse existing parseCoverage with target.RootDir
+			if target.RootDir != "" && metrics.CoveragePercent <= 0 {
+				pct, src, err := a.parseCoverage(target.RootDir)
+				if err == nil {
+					metrics.CoveragePercent = pct
+					metrics.CoverageSource = src
+				}
+			}
+
+			// Update assertion density
+			tsUpdateAssertionDensity(metrics)
 		}
 	}
 

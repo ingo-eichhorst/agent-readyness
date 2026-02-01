@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-01)
 ## Current Position
 
 Phase: 6 of 10 (Multi-Language Foundation + C2 Semantic Explicitness)
-Plan: 2 of 4 in current phase
+Plan: 3 of 4 in current phase
 Status: In progress
-Last activity: 2026-02-01 — Completed 06-02-PLAN.md
+Last activity: 2026-02-01 — Completed 06-03-PLAN.md
 
-Progress: [###########|........] 62% (18/29 plans)
+Progress: [############|.......] 66% (19/29 plans)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 18
+- Total plans completed: 19
 - Average duration: 5 min
-- Total execution time: 93 min
+- Total execution time: 102 min
 
 **By Phase:**
 
@@ -32,10 +32,10 @@ Progress: [###########|........] 62% (18/29 plans)
 | 03-scoring-model | 3 | 10 min | 3 min |
 | 04-recommendations-and-output | 3 | 14 min | 5 min |
 | 05-hardening | 2 | 5 min | 3 min |
-| 06-multi-language-foundation | 2 | 11 min | 6 min |
+| 06-multi-language-foundation | 3 | 20 min | 7 min |
 
 **Recent Trend:**
-- Last 5 plans: 04-03 (8 min), 05-01 (2 min), 05-02 (3 min), 06-01 (4 min), 06-02 (7 min)
+- Last 5 plans: 05-01 (2 min), 05-02 (3 min), 06-01 (4 min), 06-02 (7 min), 06-03 (9 min)
 - Trend: Consistent fast execution
 
 *Updated after each plan completion*
@@ -56,6 +56,8 @@ Recent decisions affecting current work:
 - GoAwareAnalyzer bridge pattern: Go analyzers use SetGoPackages, new analyzers use AnalysisTarget directly
 - Separate .ts and .tsx Tree-sitter parsers (different grammars for TypeScript vs TSX)
 - Extension-based language routing in walker via langExtensions map
+- Map-based ScoringConfig with Categories map[string]CategoryConfig (extensible for C4/C5/C7)
+- Extractor pattern for scoring (metricExtractors map decouples scoring from extraction)
 
 ### Pending Todos
 
@@ -69,5 +71,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-01
-Stopped at: Completed 06-02-PLAN.md
+Stopped at: Completed 06-03-PLAN.md
 Resume file: None

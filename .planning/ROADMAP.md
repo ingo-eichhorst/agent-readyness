@@ -61,8 +61,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 07-01-PLAN.md -- Python C1/C3/C6 analyzers + dispatcher refactoring + pipeline wiring
-- [ ] 07-02-PLAN.md -- TypeScript C1/C3/C6 analyzers + end-to-end verification
+- [x] 07-01-PLAN.md -- Python C1/C3/C6 analyzers + dispatcher refactoring + pipeline wiring
+- [x] 07-02-PLAN.md -- TypeScript C1/C3/C6 analyzers + end-to-end verification
 
 ### Phase 8: C5 Temporal Dynamics
 **Goal**: Users can see git-based temporal analysis revealing code churn hotspots, ownership patterns, and change coupling that affect agent effectiveness
@@ -120,7 +120,7 @@ Phases execute in numeric order: 6 -> 7 -> 8 -> 9 -> 10
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 6. Multi-Language + C2 | v2 | 4/4 | Complete | 2026-02-01 |
-| 7. Python + TS (C1/C3/C6) | v2 | 0/2 | Not started | - |
+| 7. Python + TS (C1/C3/C6) | v2 | 2/2 | Complete | 2026-02-01 |
 | 8. C5 Temporal | v2 | 0/2 | Not started | - |
 | 9. C4 Docs + HTML | v2 | 0/3 | Not started | - |
 | 10. C7 Agent Eval | v2 | 0/2 | Not started | - |

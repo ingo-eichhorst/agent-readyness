@@ -83,27 +83,27 @@ Requirements for v2 milestone: Complete Analysis Framework (multi-language + all
 
 ### Python-Specific Analysis
 
-- [ ] **PY-01**: C1 cyclomatic complexity for Python (via Tree-sitter)
-- [ ] **PY-02**: C1 function length for Python
-- [ ] **PY-03**: C1 file size for Python
-- [ ] **PY-04**: C1 duplication detection for Python (token-based hashing)
-- [ ] **PY-05**: C3 import graph analysis for Python
-- [ ] **PY-06**: C3 dead code detection for Python (unreferenced definitions)
-- [ ] **PY-07**: C3 directory depth for Python
-- [ ] **PY-08**: C6 test detection (pytest, unittest frameworks)
-- [ ] **PY-09**: C6 coverage parsing (coverage.py XML output)
+- [x] **PY-01**: C1 cyclomatic complexity for Python (via Tree-sitter)
+- [x] **PY-02**: C1 function length for Python
+- [x] **PY-03**: C1 file size for Python
+- [x] **PY-04**: C1 duplication detection for Python (token-based hashing)
+- [x] **PY-05**: C3 import graph analysis for Python
+- [x] **PY-06**: C3 dead code detection for Python (unreferenced definitions)
+- [x] **PY-07**: C3 directory depth for Python
+- [x] **PY-08**: C6 test detection (pytest, unittest frameworks)
+- [x] **PY-09**: C6 coverage parsing (coverage.py XML output)
 
 ### TypeScript-Specific Analysis
 
-- [ ] **TS-01**: C1 cyclomatic complexity for TypeScript
-- [ ] **TS-02**: C1 function length for TypeScript
-- [ ] **TS-03**: C1 file size for TypeScript
-- [ ] **TS-04**: C1 duplication detection for TypeScript
-- [ ] **TS-05**: C3 import graph analysis for TypeScript
-- [ ] **TS-06**: C3 dead code detection for TypeScript
-- [ ] **TS-07**: C3 directory depth for TypeScript
-- [ ] **TS-08**: C6 test detection (Jest, Mocha, Vitest frameworks)
-- [ ] **TS-09**: C6 coverage parsing (Istanbul/NYC lcov output)
+- [x] **TS-01**: C1 cyclomatic complexity for TypeScript
+- [x] **TS-02**: C1 function length for TypeScript
+- [x] **TS-03**: C1 file size for TypeScript
+- [x] **TS-04**: C1 duplication detection for TypeScript
+- [x] **TS-05**: C3 import graph analysis for TypeScript
+- [x] **TS-06**: C3 dead code detection for TypeScript
+- [x] **TS-07**: C3 directory depth for TypeScript
+- [x] **TS-08**: C6 test detection (Jest, Mocha, Vitest frameworks)
+- [x] **TS-09**: C6 coverage parsing (Istanbul/NYC lcov output)
 
 ### Scoring & Configuration
 

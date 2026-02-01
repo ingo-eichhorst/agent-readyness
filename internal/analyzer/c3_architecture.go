@@ -101,7 +101,59 @@ func (a *C3Analyzer) Analyze(targets []*arstypes.AnalysisTarget) (*arstypes.Anal
 			metrics.DeadExports = append(metrics.DeadExports, pyDead...)
 
 		case arstypes.LangTypeScript:
-			// Placeholder for Plan 02
+			if a.tsParser == nil {
+				continue
+			}
+			parsed, err := a.tsParser.ParseTargetFiles(target)
+			if err != nil {
+				continue
+			}
+			defer parser.CloseAll(parsed)
+
+			srcFiles := tsFilterSourceFiles(parsed)
+
+			tsGraph := tsBuildImportGraph(parsed)
+			tsDead := tsDetectDeadCode(parsed)
+			tsMaxDepth, tsAvgDepth := tsAnalyzeDirectoryDepth(parsed, target.RootDir)
+
+			// Merge TypeScript results into metrics
+			if tsMaxDepth > metrics.MaxDirectoryDepth {
+				metrics.MaxDirectoryDepth = tsMaxDepth
+			}
+			if tsAvgDepth > metrics.AvgDirectoryDepth {
+				metrics.AvgDirectoryDepth = tsAvgDepth
+			}
+
+			// Import graph metrics
+			tsCycles := detectCircularDeps(tsGraph)
+			metrics.CircularDeps = append(metrics.CircularDeps, tsCycles...)
+
+			// Module fanout from TypeScript import graph
+			if len(srcFiles) > 0 {
+				totalFanout := 0
+				maxFanout := 0
+				maxEntity := ""
+				for file, deps := range tsGraph.Forward {
+					fanout := len(deps)
+					totalFanout += fanout
+					if fanout > maxFanout {
+						maxFanout = fanout
+						maxEntity = file
+					}
+				}
+				if len(tsGraph.Forward) > 0 {
+					tsFanout := arstypes.MetricSummary{
+						Avg:       float64(totalFanout) / float64(len(tsGraph.Forward)),
+						Max:       maxFanout,
+						MaxEntity: maxEntity,
+					}
+					if tsFanout.Max > metrics.ModuleFanout.Max {
+						metrics.ModuleFanout = tsFanout
+					}
+				}
+			}
+
+			metrics.DeadExports = append(metrics.DeadExports, tsDead...)
 		}
 	}
 

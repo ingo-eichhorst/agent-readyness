@@ -101,7 +101,28 @@ func (a *C1Analyzer) Analyze(targets []*types.AnalysisTarget) (*types.AnalysisRe
 			}
 
 		case types.LangTypeScript:
-			// Placeholder for Plan 02
+			if a.tsParser == nil {
+				continue
+			}
+			parsed, err := a.tsParser.ParseTargetFiles(target)
+			if err != nil {
+				continue
+			}
+			defer parser.CloseAll(parsed)
+
+			srcFiles := tsFilterSourceFiles(parsed)
+			tsFunctions := tsAnalyzeFunctions(srcFiles)
+			allFunctions = append(allFunctions, tsFunctions...)
+
+			tsFileSize := tsAnalyzeFileSizes(srcFiles)
+			allFileSizes = append(allFileSizes, tsFileSize)
+
+			tsDups, tsRate := tsAnalyzeDuplication(srcFiles)
+			allDuplicates = append(allDuplicates, tsDups...)
+			if tsRate > 0 {
+				totalDupRate += tsRate
+				dupRateCount++
+			}
 		}
 	}
 

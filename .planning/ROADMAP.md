@@ -24,7 +24,7 @@ Phases 1-5 delivered Go-only CLI with C1 (Code Health), C3 (Architecture), C6 (T
 - Decimal phases (e.g., 7.1): Urgent insertions if needed (marked with INSERTED)
 
 - [x] **Phase 6: Multi-Language Foundation + C2 Semantic Explicitness** - Generalize abstractions for Go/Python/TypeScript, add Tree-sitter parsing, implement C2 across all languages, build config system
-- [ ] **Phase 7: Python + TypeScript Analysis (C1/C3/C6)** - Port existing code health, architecture, and testing analyzers to Python and TypeScript via Tree-sitter
+- [x] **Phase 7: Python + TypeScript Analysis (C1/C3/C6)** - Port existing code health, architecture, and testing analyzers to Python and TypeScript via Tree-sitter
 - [ ] **Phase 8: C5 Temporal Dynamics** - Git-based temporal analysis with native git CLI for churn, hotspots, author fragmentation, and temporal coupling
 - [ ] **Phase 9: C4 Documentation Quality + HTML Reports** - Documentation analysis with LLM content evaluation, plus polished HTML report generation
 - [ ] **Phase 10: C7 Agent Evaluation** - Headless Claude Code integration for genuine agent-in-the-loop readiness assessment
@@ -73,11 +73,11 @@ Plans:
   2. User sees temporal coupling detection identifying files that change together more than 70% of the time
   3. User gets a clear error message when scanning a directory without a .git directory (C5 unavailable, not a crash)
   4. C5 analysis completes within the 30-second performance budget even on repos with 12+ months of history
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 08-01: Git CLI integration + C5 temporal analyzers
-- [ ] 08-02: Temporal coupling detection + performance optimization
+- [ ] 08-01-PLAN.md -- C5 analyzer + git log parsing + metrics + scoring + pipeline wiring
+- [ ] 08-02-PLAN.md -- Unit tests + end-to-end verification
 
 ### Phase 9: C4 Documentation Quality + HTML Reports
 **Goal**: Users get documentation quality analysis with optional LLM-based content evaluation, and can generate polished, self-contained HTML reports with visual score presentation and research citations

@@ -50,6 +50,8 @@ type ScanResult struct {
 	GeneratedCount int              // Number of generated files
 	VendorCount    int              // Number of vendor-excluded files
 	GitignoreCount int              // Number of gitignore-excluded files
+	SkippedCount   int              // Files/dirs skipped due to errors (permission denied, broken paths, etc.)
+	SymlinkCount   int              // Symlinks detected and skipped
 	Files          []DiscoveredFile // All discovered files
 }
 

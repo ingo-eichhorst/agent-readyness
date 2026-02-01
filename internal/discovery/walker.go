@@ -55,7 +55,19 @@ func (w *Walker) Discover(rootDir string) (*types.ScanResult, error) {
 
 	err = filepath.WalkDir(rootDir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
-			return err
+			fmt.Fprintf(os.Stderr, "warning: skipping %s: %v\n", path, err)
+			result.SkippedCount++
+			if d != nil && d.IsDir() {
+				return fs.SkipDir
+			}
+			return nil
+		}
+
+		// Symlink detection: skip symlinks before any other checks
+		if d.Type()&fs.ModeSymlink != 0 {
+			fmt.Fprintf(os.Stderr, "warning: skipping symlink %s\n", path)
+			result.SymlinkCount++
+			return nil
 		}
 
 		name := d.Name()
@@ -81,7 +93,9 @@ func (w *Walker) Discover(rootDir string) (*types.ScanResult, error) {
 
 		relPath, err := filepath.Rel(rootDir, path)
 		if err != nil {
-			return fmt.Errorf("failed to compute relative path: %w", err)
+			fmt.Fprintf(os.Stderr, "warning: skipping %s: failed to compute relative path: %v\n", path, err)
+			result.SkippedCount++
+			return nil
 		}
 
 		file := types.DiscoveredFile{
@@ -112,7 +126,9 @@ func (w *Walker) Discover(rootDir string) (*types.ScanResult, error) {
 		// Check if generated
 		generated, err := IsGeneratedFile(path)
 		if err != nil {
-			return fmt.Errorf("failed to check generated status of %s: %w", relPath, err)
+			fmt.Fprintf(os.Stderr, "warning: skipping %s: failed to check generated status: %v\n", relPath, err)
+			result.SkippedCount++
+			return nil
 		}
 		if generated {
 			file.Class = types.ClassGenerated

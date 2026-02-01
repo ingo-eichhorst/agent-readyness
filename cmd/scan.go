@@ -7,6 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/ingo/agent-readyness/internal/config"
 	"github.com/ingo/agent-readyness/internal/pipeline"
 	"github.com/ingo/agent-readyness/internal/scoring"
 )
@@ -19,7 +20,12 @@ var (
 
 var scanCmd = &cobra.Command{
 	Use:   "scan <directory>",
-	Short: "Scan a Go project for agent readiness",
+	Short: "Scan a project for agent readiness",
+	Long: `Scan a project directory for agent readiness.
+
+Supported languages: Go, Python, TypeScript
+Languages are auto-detected from project files (go.mod, pyproject.toml, tsconfig.json, etc.)
+No --lang flag needed.`,
 	Args:  cobra.ExactArgs(1),
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -28,13 +34,27 @@ var scanCmd = &cobra.Command{
 			return fmt.Errorf("cannot resolve path: %s", err)
 		}
 
-		if err := validateGoProject(dir); err != nil {
+		if err := validateProject(dir); err != nil {
 			return err
 		}
 
-		cfg, err := scoring.LoadConfig(configPath)
+		// Load scoring config
+		cfg, err := scoring.LoadConfig("")
 		if err != nil {
 			return fmt.Errorf("load scoring config: %w", err)
+		}
+
+		// Load project config (.arsrc.yml) and apply overrides
+		projectCfg, err := config.LoadProjectConfig(dir, configPath)
+		if err != nil {
+			return fmt.Errorf("load project config: %w", err)
+		}
+		if projectCfg != nil {
+			projectCfg.ApplyToScoringConfig(cfg)
+			// Apply threshold from project config if not set via CLI
+			if threshold == 0 && projectCfg.Scoring.Threshold > 0 {
+				threshold = projectCfg.Scoring.Threshold
+			}
 		}
 
 		spinner := pipeline.NewSpinner(os.Stderr)
@@ -55,14 +75,14 @@ var scanCmd = &cobra.Command{
 }
 
 func init() {
-	scanCmd.Flags().StringVar(&configPath, "config", "", "path to scoring config YAML file")
+	scanCmd.Flags().StringVar(&configPath, "config", "", "path to .arsrc.yml project config file")
 	scanCmd.Flags().Float64Var(&threshold, "threshold", 0, "minimum composite score (exit code 2 if below)")
 	scanCmd.Flags().BoolVar(&jsonOutput, "json", false, "output results as JSON")
 	rootCmd.AddCommand(scanCmd)
 }
 
-// validateGoProject checks that dir exists, is a directory, and contains a Go project.
-func validateGoProject(dir string) error {
+// validateProject checks that dir exists, is a directory, and contains recognized source files.
+func validateProject(dir string) error {
 	info, err := os.Stat(dir)
 	if os.IsNotExist(err) {
 		return fmt.Errorf("directory not found: %s", dir)
@@ -74,21 +94,36 @@ func validateGoProject(dir string) error {
 		return fmt.Errorf("not a directory: %s", dir)
 	}
 
-	// Check for go.mod
-	if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
-		return nil
+	// Check for any recognized project indicator
+	indicators := []string{
+		"go.mod",            // Go
+		"pyproject.toml",    // Python
+		"setup.py",          // Python
+		"requirements.txt",  // Python
+		"tsconfig.json",     // TypeScript
+		"package.json",      // JavaScript/TypeScript
 	}
 
-	// Fallback: check for any .go file
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return fmt.Errorf("cannot read directory: %s", err)
-	}
-	for _, entry := range entries {
-		if !entry.IsDir() && filepath.Ext(entry.Name()) == ".go" {
+	for _, f := range indicators {
+		if _, err := os.Stat(filepath.Join(dir, f)); err == nil {
 			return nil
 		}
 	}
 
-	return fmt.Errorf("not a Go project: %s\nNo go.mod file or .go source files found. Please specify a directory containing a Go project.", dir)
+	// Fallback: check for any recognized source file
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return fmt.Errorf("cannot read directory: %s", err)
+	}
+	recognizedExts := map[string]bool{".go": true, ".py": true, ".ts": true, ".tsx": true}
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			ext := filepath.Ext(entry.Name())
+			if recognizedExts[ext] {
+				return nil
+			}
+		}
+	}
+
+	return fmt.Errorf("no recognized project found in: %s\nSupported: Go (go.mod), Python (pyproject.toml), TypeScript (tsconfig.json)\nEnsure the directory contains source files (.go, .py, .ts)", dir)
 }

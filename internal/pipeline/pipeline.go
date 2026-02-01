@@ -3,6 +3,7 @@ package pipeline
 import (
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 	"sort"
 	"sync"
@@ -32,8 +33,9 @@ type Pipeline struct {
 	onProgress ProgressFunc
 }
 
-// New creates a Pipeline with GoPackagesParser, all three analyzers, and a scorer.
+// New creates a Pipeline with GoPackagesParser, all analyzers, and a scorer.
 // If cfg is nil, DefaultConfig is used. If onProgress is nil, a no-op is used.
+// The pipeline auto-creates a Tree-sitter parser for Python/TypeScript analysis.
 func New(w io.Writer, verbose bool, cfg *scoring.ScoringConfig, threshold float64, jsonOutput bool, onProgress ProgressFunc) *Pipeline {
 	if cfg == nil {
 		cfg = scoring.DefaultConfig()
@@ -41,6 +43,19 @@ func New(w io.Writer, verbose bool, cfg *scoring.ScoringConfig, threshold float6
 	if onProgress == nil {
 		onProgress = func(string, string) {}
 	}
+
+	// Create Tree-sitter parser for Python/TypeScript.
+	// If CGO is not enabled or Tree-sitter fails, we continue without it.
+	var tsParser *parser.TreeSitterParser
+	var tsParserErr error
+	tsParser, tsParserErr = parser.NewTreeSitterParser()
+	if tsParserErr != nil {
+		// Tree-sitter not available; Python/TypeScript analysis will be skipped
+		tsParser = nil
+	}
+
+	c2Analyzer := analyzer.NewC2Analyzer(tsParser)
+
 	return &Pipeline{
 		verbose:    verbose,
 		writer:     w,
@@ -50,6 +65,7 @@ func New(w io.Writer, verbose bool, cfg *scoring.ScoringConfig, threshold float6
 		parser:     &parser.GoPackagesParser{},
 		analyzers: []Analyzer{
 			&analyzer.C1Analyzer{},
+			c2Analyzer,
 			&analyzer.C3Analyzer{},
 			&analyzer.C6Analyzer{},
 		},
@@ -67,20 +83,55 @@ func (p *Pipeline) Run(dir string) error {
 		return err
 	}
 
-	// Stage 2: Parse packages (loads ASTs, type info, imports via go/packages)
-	p.onProgress("parse", "Parsing packages...")
-	pkgs, err := p.parser.Parse(dir)
-	if err != nil {
-		return err
+	// Detect project languages
+	langs := discovery.DetectProjectLanguages(dir)
+	if len(langs) == 0 {
+		return fmt.Errorf("no recognized source files found in %s\nSupported languages: Go, Python, TypeScript", dir)
 	}
 
-	// Stage 2.5: Build language-agnostic AnalysisTargets from parsed Go packages
-	targets := buildGoTargets(dir, pkgs)
+	// Determine which languages have source files
+	hasGo := false
+	for _, l := range langs {
+		if l == types.LangGo {
+			hasGo = true
+			break
+		}
+	}
+
+	// Stage 2: Parse Go packages (if Go is present)
+	var pkgs []*parser.ParsedPackage
+	if hasGo {
+		p.onProgress("parse", "Parsing Go packages...")
+		pkgs, err = p.parser.Parse(dir)
+		if err != nil {
+			// Go parsing failed; log warning but continue for other languages
+			fmt.Fprintf(p.writer, "Warning: Go parsing error: %v\n", err)
+		}
+	}
+
+	// Stage 2.5: Build AnalysisTargets for all languages
+	var targets []*types.AnalysisTarget
+
+	// Go targets from parsed packages
+	if len(pkgs) > 0 {
+		goTargets := buildGoTargets(dir, pkgs)
+		targets = append(targets, goTargets...)
+	}
+
+	// Python and TypeScript targets from discovered files
+	nonGoTargets := buildNonGoTargets(dir, result)
+	targets = append(targets, nonGoTargets...)
+
+	if len(targets) == 0 {
+		return fmt.Errorf("no analyzable source files found in %s", dir)
+	}
 
 	// Stage 2.6: Inject Go packages into GoAwareAnalyzers
-	for _, a := range p.analyzers {
-		if ga, ok := a.(GoAwareAnalyzer); ok {
-			ga.SetGoPackages(pkgs)
+	if len(pkgs) > 0 {
+		for _, a := range p.analyzers {
+			if ga, ok := a.(GoAwareAnalyzer); ok {
+				ga.SetGoPackages(pkgs)
+			}
 		}
 	}
 
@@ -107,7 +158,7 @@ func (p *Pipeline) Run(dir string) error {
 	}
 	_ = g.Wait()
 
-	// Sort by category name for deterministic output (C1, C3, C6)
+	// Sort by category name for deterministic output (C1, C2, C3, C6)
 	sort.Slice(analysisResults, func(i, j int) bool {
 		return analysisResults[i].Category < analysisResults[j].Category
 	})
@@ -204,4 +255,60 @@ func buildGoTargets(rootDir string, pkgs []*parser.ParsedPackage) []*types.Analy
 			Files:    files,
 		},
 	}
+}
+
+// buildNonGoTargets creates AnalysisTargets for Python and TypeScript from discovered files.
+func buildNonGoTargets(rootDir string, scanResult *types.ScanResult) []*types.AnalysisTarget {
+	// Group files by language
+	langFiles := make(map[types.Language][]types.SourceFile)
+
+	for _, df := range scanResult.Files {
+		if df.Language == types.LangGo {
+			continue // Go targets built separately from go/packages
+		}
+		if df.Class == types.ClassExcluded || df.Class == types.ClassGenerated {
+			continue
+		}
+
+		sf := types.SourceFile{
+			Path:     df.Path,
+			RelPath:  df.RelPath,
+			Language: df.Language,
+			Class:    df.Class,
+		}
+
+		// Read file content for Tree-sitter (needed during analysis)
+		content, err := os.ReadFile(df.Path)
+		if err == nil {
+			sf.Content = content
+			sf.Lines = countFileLines(content)
+		}
+
+		langFiles[df.Language] = append(langFiles[df.Language], sf)
+	}
+
+	var targets []*types.AnalysisTarget
+	for lang, files := range langFiles {
+		targets = append(targets, &types.AnalysisTarget{
+			Language: lang,
+			RootDir:  rootDir,
+			Files:    files,
+		})
+	}
+
+	return targets
+}
+
+// countFileLines counts the number of lines in content.
+func countFileLines(content []byte) int {
+	if len(content) == 0 {
+		return 0
+	}
+	count := 1
+	for _, b := range content {
+		if b == '\n' {
+			count++
+		}
+	}
+	return count
 }

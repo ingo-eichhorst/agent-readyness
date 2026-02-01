@@ -23,11 +23,19 @@ func RenderSummary(w io.Writer, result *types.ScanResult, analysisResults []*typ
 	fmt.Fprintln(w, "────────────────────────────────────────")
 
 	// Total count
-	fmt.Fprintf(w, "Go files discovered: %d\n", result.TotalFiles)
+	fmt.Fprintf(w, "Files discovered: %d\n", result.TotalFiles)
 
 	// Source and test counts (always shown)
 	green.Fprintf(w, "  Source files:        %d\n", result.SourceCount)
 	yellow.Fprintf(w, "  Test files:          %d\n", result.TestCount)
+
+	// Per-language file counts (if multi-language)
+	if len(result.PerLanguage) > 1 || (len(result.PerLanguage) == 1 && result.PerLanguage[types.LangGo] == 0) {
+		fmt.Fprintln(w, "  Per-language source files:")
+		for lang, count := range result.PerLanguage {
+			fmt.Fprintf(w, "    %-12s %d\n", string(lang)+":", count)
+		}
+	}
 
 	// Excluded categories (only shown if non-zero)
 	if result.GeneratedCount > 0 {
@@ -59,6 +67,8 @@ func RenderSummary(w io.Writer, result *types.ScanResult, analysisResults []*typ
 		switch ar.Category {
 		case "C1":
 			renderC1(w, ar, verbose)
+		case "C2":
+			renderC2(w, ar, verbose)
 		case "C3":
 			renderC3(w, ar, verbose)
 		case "C6":
@@ -185,6 +195,58 @@ func renderC1(w io.Writer, ar *types.AnalysisResult, verbose bool) {
 	}
 }
 
+func renderC2(w io.Writer, ar *types.AnalysisResult, verbose bool) {
+	bold := color.New(color.Bold)
+
+	raw, ok := ar.Metrics["c2"]
+	if !ok {
+		return
+	}
+	m, ok := raw.(*types.C2Metrics)
+	if !ok || m.Aggregate == nil {
+		return
+	}
+
+	agg := m.Aggregate
+
+	fmt.Fprintln(w)
+	bold.Fprintln(w, "C2: Semantic Explicitness")
+	fmt.Fprintln(w, "────────────────────────────────────────")
+
+	tc := colorForFloatInverse(agg.TypeAnnotationCoverage, 50, 80)
+	tc.Fprintf(w, "  Type annotation:     %.1f%%\n", agg.TypeAnnotationCoverage)
+
+	nc := colorForFloatInverse(agg.NamingConsistency, 70, 90)
+	nc.Fprintf(w, "  Naming consistency:  %.1f%%\n", agg.NamingConsistency)
+
+	mr := colorForFloat(agg.MagicNumberRatio, 5, 15)
+	mr.Fprintf(w, "  Magic numbers:       %.1f per kLOC\n", agg.MagicNumberRatio)
+
+	if agg.TypeStrictness >= 1 {
+		color.New(color.FgGreen).Fprintf(w, "  Type strictness:     on\n")
+	} else {
+		color.New(color.FgYellow).Fprintf(w, "  Type strictness:     off\n")
+	}
+
+	ns := colorForFloatInverse(agg.NullSafety, 30, 60)
+	ns.Fprintf(w, "  Null safety:         %.0f%%\n", agg.NullSafety)
+
+	// Verbose: per-language C2 breakdown
+	if verbose && len(m.PerLanguage) > 0 {
+		fmt.Fprintln(w)
+		bold.Fprintln(w, "  Per-language C2 breakdown:")
+		for lang, lm := range m.PerLanguage {
+			strict := "off"
+			if lm.TypeStrictness >= 1 {
+				strict = "on"
+			}
+			fmt.Fprintf(w, "    %-12s type=%.0f%%  naming=%.0f%%  magic=%.1f/kLOC  strict=%s  null=%.0f%%  LOC=%d\n",
+				string(lang)+":", lm.TypeAnnotationCoverage, lm.NamingConsistency,
+				lm.MagicNumberRatio, strict, lm.NullSafety, lm.LOC)
+		}
+	}
+}
+
 func renderC3(w io.Writer, ar *types.AnalysisResult, verbose bool) {
 	bold := color.New(color.Bold)
 
@@ -285,6 +347,7 @@ func renderC6(w io.Writer, ar *types.AnalysisResult, verbose bool) {
 // categoryDisplayNames maps category identifiers to human-readable labels.
 var categoryDisplayNames = map[string]string{
 	"C1": "Code Health",
+	"C2": "Semantic Explicitness",
 	"C3": "Architecture",
 	"C6": "Testing",
 }
@@ -306,7 +369,12 @@ var metricDisplayNames = map[string]string{
 	"coverage_percent":      "Coverage",
 	"test_isolation":        "Test isolation",
 	"assertion_density_avg": "Assertion density",
-	"test_file_ratio":       "Test file ratio",
+	"test_file_ratio":           "Test file ratio",
+	"type_annotation_coverage":  "Type annotations",
+	"naming_consistency":        "Naming consistency",
+	"magic_number_ratio":        "Magic numbers",
+	"type_strictness":           "Type strictness",
+	"null_safety":               "Null safety",
 }
 
 // RenderScores prints a formatted scoring section showing per-category scores,

@@ -33,8 +33,8 @@ func TestPipelineRun(t *testing.T) {
 	if !strings.Contains(out, "Test files:") {
 		t.Error("output missing 'Test files:' label")
 	}
-	if !strings.Contains(out, "Go files discovered:") {
-		t.Error("output missing 'Go files discovered:' label")
+	if !strings.Contains(out, "Files discovered:") {
+		t.Error("output missing 'Files discovered:' label")
 	}
 
 	// Should contain metric category headers

@@ -91,7 +91,7 @@ func TestRenderSummary(t *testing.T) {
 
 	checks := []string{
 		"ARS Scan: /test/project",
-		"Go files discovered: 5",
+		"Files discovered: 5",
 		"Source files:",
 		"Test files:",
 		"Generated (excluded):",

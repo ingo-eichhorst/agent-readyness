@@ -29,3 +29,8 @@ def test_get_greeting():
 def test_get_greeting_with_age():
     user = User(name="Bob", email="bob@example.com", age=25)
     assert get_greeting(user) == "Hello, Bob (age 25)!"
+
+
+def test_create_user_empty_name():
+    with pytest.raises(ValueError, match="name is required"):
+        create_user("", "alice@example.com")

@@ -20,7 +20,13 @@ import (
 // test isolation, and assertion density.
 // It also implements GoAwareAnalyzer for Go-specific analysis via SetGoPackages.
 type C6Analyzer struct {
-	pkgs []*parser.ParsedPackage
+	pkgs     []*parser.ParsedPackage
+	tsParser *parser.TreeSitterParser
+}
+
+// NewC6Analyzer creates a C6Analyzer with Tree-sitter parser for multi-language analysis.
+func NewC6Analyzer(tsParser *parser.TreeSitterParser) *C6Analyzer {
+	return &C6Analyzer{tsParser: tsParser}
 }
 
 // Name returns the analyzer display name.
@@ -34,9 +40,92 @@ func (a *C6Analyzer) SetGoPackages(pkgs []*parser.ParsedPackage) {
 }
 
 // Analyze runs all 5 C6 sub-metrics over the parsed packages.
-func (a *C6Analyzer) Analyze(_ []*types.AnalysisTarget) (*types.AnalysisResult, error) {
+func (a *C6Analyzer) Analyze(targets []*types.AnalysisTarget) (*types.AnalysisResult, error) {
+	metrics := &types.C6Metrics{}
+
+	// Go analysis (existing logic)
+	if a.pkgs != nil {
+		goMetrics, err := a.analyzeGoC6()
+		if err != nil {
+			return nil, err
+		}
+		metrics = goMetrics
+	}
+
+	// Python/TypeScript analysis via targets
+	for _, target := range targets {
+		switch target.Language {
+		case types.LangPython:
+			if a.tsParser == nil {
+				continue
+			}
+			parsed, err := a.tsParser.ParseTargetFiles(target)
+			if err != nil {
+				continue
+			}
+			defer parser.CloseAll(parsed)
+
+			testFuncs, testFileCount, srcFileCount := pyDetectTests(parsed)
+			metrics.TestFileCount += testFileCount
+			metrics.SourceFileCount += srcFileCount
+			metrics.TestFunctions = append(metrics.TestFunctions, testFuncs...)
+
+			// Test-to-code ratio for Python
+			pyTestLOC, pySrcLOC := pyCountLOC(parsed)
+			if pySrcLOC > 0 {
+				// If Go ratio already set, blend; otherwise set directly
+				if metrics.TestToCodeRatio > 0 {
+					// Average of Go and Python ratios (simple approach)
+					pyRatio := float64(pyTestLOC) / float64(pySrcLOC)
+					metrics.TestToCodeRatio = (metrics.TestToCodeRatio + pyRatio) / 2
+				} else {
+					metrics.TestToCodeRatio = float64(pyTestLOC) / float64(pySrcLOC)
+				}
+			}
+
+			// Isolation
+			isolation := pyAnalyzeIsolation(parsed, testFuncs)
+			if metrics.TestIsolation > 0 {
+				metrics.TestIsolation = (metrics.TestIsolation + isolation) / 2
+			} else {
+				metrics.TestIsolation = isolation
+			}
+
+			// Coverage: reuse existing parseCoverage with target.RootDir
+			if target.RootDir != "" && metrics.CoveragePercent <= 0 {
+				pct, src, err := a.parseCoverage(target.RootDir)
+				if err == nil {
+					metrics.CoveragePercent = pct
+					metrics.CoverageSource = src
+				}
+			}
+
+			// Update assertion density
+			pyUpdateAssertionDensity(metrics)
+
+		case types.LangTypeScript:
+			// Placeholder for Plan 02
+		}
+	}
+
+	// Ensure defaults if nothing was analyzed
+	if metrics.CoverageSource == "" {
+		metrics.CoveragePercent = -1
+		metrics.CoverageSource = "none"
+	}
+
+	return &types.AnalysisResult{
+		Name:     "C6: Testing",
+		Category: "C6",
+		Metrics: map[string]interface{}{
+			"c6": metrics,
+		},
+	}, nil
+}
+
+// analyzeGoC6 runs Go-specific C6 analysis.
+func (a *C6Analyzer) analyzeGoC6() (*types.C6Metrics, error) {
 	pkgs := a.pkgs
-	// Separate test packages from source packages
 	var srcPkgs, testPkgs []*parser.ParsedPackage
 	for _, pkg := range pkgs {
 		if pkg.ForTest != "" {
@@ -48,15 +137,10 @@ func (a *C6Analyzer) Analyze(_ []*types.AnalysisTarget) (*types.AnalysisResult, 
 
 	metrics := &types.C6Metrics{}
 
-	// C6-01: Test Detection
 	metrics.TestFileCount = countFiles(testPkgs)
 	metrics.SourceFileCount = countFiles(srcPkgs)
-
-	// C6-02: Test-to-Code Ratio
 	metrics.TestToCodeRatio = calculateTestRatio(srcPkgs, testPkgs)
 
-	// C6-03: Coverage Parsing
-	// Derive rootDir from first package's files
 	rootDir := deriveRootDir(pkgs)
 	if rootDir != "" {
 		pct, src, err := a.parseCoverage(rootDir)
@@ -70,19 +154,10 @@ func (a *C6Analyzer) Analyze(_ []*types.AnalysisTarget) (*types.AnalysisResult, 
 		metrics.CoverageSource = "none"
 	}
 
-	// C6-04: Test Isolation
 	metrics.TestIsolation = analyzeIsolation(testPkgs, metrics)
-
-	// C6-05: Assertion Density
 	analyzeAssertions(testPkgs, metrics)
 
-	return &types.AnalysisResult{
-		Name:     "C6: Testing",
-		Category: "C6",
-		Metrics: map[string]interface{}{
-			"c6": metrics,
-		},
-	}, nil
+	return metrics, nil
 }
 
 // countFiles counts the total number of .go files across packages.

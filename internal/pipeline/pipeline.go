@@ -64,10 +64,10 @@ func New(w io.Writer, verbose bool, cfg *scoring.ScoringConfig, threshold float6
 		onProgress: onProgress,
 		parser:     &parser.GoPackagesParser{},
 		analyzers: []Analyzer{
-			&analyzer.C1Analyzer{},
+			analyzer.NewC1Analyzer(tsParser),
 			c2Analyzer,
-			&analyzer.C3Analyzer{},
-			&analyzer.C6Analyzer{},
+			analyzer.NewC3Analyzer(tsParser),
+			analyzer.NewC6Analyzer(tsParser),
 		},
 		scorer: &scoring.Scorer{Config: cfg},
 	}

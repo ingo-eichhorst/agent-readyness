@@ -111,18 +111,18 @@ func TestDiscoverPythonProject(t *testing.T) {
 	// test_app.py should be ClassTest
 	assertFile(t, fileMap, "test_app.py", types.ClassTest, "")
 
-	// Verify counts
-	if result.SourceCount != 1 {
-		t.Errorf("SourceCount = %d, want 1", result.SourceCount)
+	// Verify counts (app.py + utils.py = 2 source, test_app.py = 1 test)
+	if result.SourceCount != 2 {
+		t.Errorf("SourceCount = %d, want 2", result.SourceCount)
 	}
 	if result.TestCount != 1 {
 		t.Errorf("TestCount = %d, want 1", result.TestCount)
 	}
-	if result.TotalFiles != 2 {
-		t.Errorf("TotalFiles = %d, want 2", result.TotalFiles)
+	if result.TotalFiles != 3 {
+		t.Errorf("TotalFiles = %d, want 3", result.TotalFiles)
 	}
-	if result.PerLanguage[types.LangPython] != 1 {
-		t.Errorf("PerLanguage[Python] = %d, want 1", result.PerLanguage[types.LangPython])
+	if result.PerLanguage[types.LangPython] != 2 {
+		t.Errorf("PerLanguage[Python] = %d, want 2", result.PerLanguage[types.LangPython])
 	}
 }
 

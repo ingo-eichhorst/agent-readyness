@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	tree_sitter "github.com/tree-sitter/go-tree-sitter"
 	tree_sitter_python "github.com/tree-sitter/tree-sitter-python/bindings/go"
@@ -29,7 +30,10 @@ type ParsedTreeSitterFile struct {
 }
 
 // TreeSitterParser holds pooled Tree-sitter parsers for Python, TypeScript, and TSX.
+// Tree-sitter parsers are NOT thread-safe, so all parse operations are serialized
+// via a mutex. Trees returned from parsing are safe to use concurrently after parsing.
 type TreeSitterParser struct {
+	mu           sync.Mutex
 	pythonParser *tree_sitter.Parser
 	tsParser     *tree_sitter.Parser
 	tsxParser    *tree_sitter.Parser
@@ -85,7 +89,11 @@ func (p *TreeSitterParser) Close() {
 // ParseFile parses source content for the given language and file extension.
 // The ext parameter is used to distinguish .ts from .tsx for TypeScript.
 // Returns a Tree that the caller must close.
+// This method is thread-safe; parsing is serialized internally.
 func (p *TreeSitterParser) ParseFile(lang types.Language, ext string, content []byte) (*tree_sitter.Tree, error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
 	var parser *tree_sitter.Parser
 
 	switch lang {

@@ -1,0 +1,10 @@
+{
+  "name": "valid-ts-project",
+  "version": "1.0.0",
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "@types/jest": "^29.0.0",
+    "jest": "^29.0.0",
+    "ts-jest": "^29.0.0"
+  }
+}

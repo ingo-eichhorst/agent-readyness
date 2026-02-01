@@ -1,6 +1,7 @@
 package discovery
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/fs"
 	"os"
@@ -17,9 +18,23 @@ var skipDirs = map[string]bool{
 	".git":         true,
 	"node_modules": true,
 	"testdata":     true,
+	"__pycache__":  true,
+	"dist":         true,
+	"build":        true,
+	".venv":        true,
+	"venv":         true,
+	"env":          true,
 }
 
-// Walker discovers and classifies Go files in a directory tree.
+// langExtensions maps file extensions to languages.
+var langExtensions = map[string]types.Language{
+	".go":  types.LangGo,
+	".py":  types.LangPython,
+	".ts":  types.LangTypeScript,
+	".tsx": types.LangTypeScript,
+}
+
+// Walker discovers and classifies source files in a directory tree.
 type Walker struct{}
 
 // NewWalker creates a new Walker instance.
@@ -27,8 +42,8 @@ func NewWalker() *Walker {
 	return &Walker{}
 }
 
-// Discover walks rootDir recursively, discovers all .go files, classifies them,
-// and returns a ScanResult with file lists and counts.
+// Discover walks rootDir recursively, discovers all source files (.go, .py, .ts, .tsx),
+// classifies them, and returns a ScanResult with file lists and counts.
 func (w *Walker) Discover(rootDir string) (*types.ScanResult, error) {
 	// Validate rootDir exists and is a directory
 	info, err := os.Stat(rootDir)
@@ -50,7 +65,8 @@ func (w *Walker) Discover(rootDir string) (*types.ScanResult, error) {
 	}
 
 	result := &types.ScanResult{
-		RootDir: rootDir,
+		RootDir:     rootDir,
+		PerLanguage: make(map[types.Language]int),
 	}
 
 	err = filepath.WalkDir(rootDir, func(path string, d fs.DirEntry, err error) error {
@@ -86,8 +102,10 @@ func (w *Walker) Discover(rootDir string) (*types.ScanResult, error) {
 			return nil
 		}
 
-		// Only process .go files
-		if !strings.HasSuffix(name, ".go") {
+		// Determine language from extension
+		ext := filepath.Ext(name)
+		lang, supported := langExtensions[ext]
+		if !supported {
 			return nil
 		}
 
@@ -99,11 +117,12 @@ func (w *Walker) Discover(rootDir string) (*types.ScanResult, error) {
 		}
 
 		file := types.DiscoveredFile{
-			Path:    path,
-			RelPath: relPath,
+			Path:     path,
+			RelPath:  relPath,
+			Language: lang,
 		}
 
-		// Check if in vendor directory
+		// Check if in vendor directory (Go-specific)
 		if isVendorPath(relPath) {
 			file.Class = types.ClassExcluded
 			file.ExcludeReason = "vendor"
@@ -123,29 +142,40 @@ func (w *Walker) Discover(rootDir string) (*types.ScanResult, error) {
 			return nil
 		}
 
-		// Check if generated
-		generated, err := IsGeneratedFile(path)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "warning: skipping %s: failed to check generated status: %v\n", relPath, err)
-			result.SkippedCount++
-			return nil
-		}
-		if generated {
-			file.Class = types.ClassGenerated
-			result.Files = append(result.Files, file)
-			result.GeneratedCount++
-			result.TotalFiles++
-			return nil
+		// Check if generated (Go only)
+		if lang == types.LangGo {
+			generated, err := IsGeneratedFile(path)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "warning: skipping %s: failed to check generated status: %v\n", relPath, err)
+				result.SkippedCount++
+				return nil
+			}
+			if generated {
+				file.Class = types.ClassGenerated
+				result.Files = append(result.Files, file)
+				result.GeneratedCount++
+				result.TotalFiles++
+				return nil
+			}
 		}
 
-		// Classify by filename
-		file.Class = ClassifyGoFile(name)
+		// Classify by filename based on language
+		switch lang {
+		case types.LangGo:
+			file.Class = ClassifyGoFile(name)
+		case types.LangPython:
+			file.Class = ClassifyPythonFile(name)
+		case types.LangTypeScript:
+			file.Class = ClassifyTypeScriptFile(name)
+		}
+
 		result.Files = append(result.Files, file)
 		result.TotalFiles++
 
 		switch file.Class {
 		case types.ClassSource:
 			result.SourceCount++
+			result.PerLanguage[lang]++
 		case types.ClassTest:
 			result.TestCount++
 		}
@@ -160,6 +190,50 @@ func (w *Walker) Discover(rootDir string) (*types.ScanResult, error) {
 	return result, nil
 }
 
+// DetectProjectLanguages checks the project root for language indicators and
+// returns all languages detected.
+func DetectProjectLanguages(rootDir string) []types.Language {
+	var langs []types.Language
+
+	// Go: go.mod or .go files
+	if fileExists(filepath.Join(rootDir, "go.mod")) || hasFileWithExt(rootDir, ".go") {
+		langs = append(langs, types.LangGo)
+	}
+
+	// Python: pyproject.toml, setup.py, setup.cfg, requirements.txt, or .py files
+	pyIndicators := []string{"pyproject.toml", "setup.py", "setup.cfg", "requirements.txt"}
+	pyDetected := false
+	for _, f := range pyIndicators {
+		if fileExists(filepath.Join(rootDir, f)) {
+			pyDetected = true
+			break
+		}
+	}
+	if !pyDetected {
+		pyDetected = hasFileWithExt(rootDir, ".py")
+	}
+	if pyDetected {
+		langs = append(langs, types.LangPython)
+	}
+
+	// TypeScript: tsconfig.json, .ts files, or package.json with typescript dep
+	tsDetected := false
+	if fileExists(filepath.Join(rootDir, "tsconfig.json")) {
+		tsDetected = true
+	}
+	if !tsDetected {
+		tsDetected = hasFileWithExt(rootDir, ".ts")
+	}
+	if !tsDetected {
+		tsDetected = packageJSONHasTypeScript(filepath.Join(rootDir, "package.json"))
+	}
+	if tsDetected {
+		langs = append(langs, types.LangTypeScript)
+	}
+
+	return langs
+}
+
 // isVendorPath checks if a relative path is inside a vendor directory.
 func isVendorPath(relPath string) bool {
 	parts := strings.Split(filepath.ToSlash(relPath), "/")
@@ -167,6 +241,48 @@ func isVendorPath(relPath string) bool {
 		if part == "vendor" {
 			return true
 		}
+	}
+	return false
+}
+
+// fileExists returns true if path exists and is a regular file.
+func fileExists(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && !info.IsDir()
+}
+
+// hasFileWithExt checks if any file with the given extension exists directly in dir.
+func hasFileWithExt(dir string, ext string) bool {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return false
+	}
+	for _, e := range entries {
+		if !e.IsDir() && filepath.Ext(e.Name()) == ext {
+			return true
+		}
+	}
+	return false
+}
+
+// packageJSONHasTypeScript checks if package.json has typescript in deps.
+func packageJSONHasTypeScript(path string) bool {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return false
+	}
+	var pkg struct {
+		Dependencies    map[string]string `json:"dependencies"`
+		DevDependencies map[string]string `json:"devDependencies"`
+	}
+	if err := json.Unmarshal(data, &pkg); err != nil {
+		return false
+	}
+	if _, ok := pkg.Dependencies["typescript"]; ok {
+		return true
+	}
+	if _, ok := pkg.DevDependencies["typescript"]; ok {
+		return true
 	}
 	return false
 }

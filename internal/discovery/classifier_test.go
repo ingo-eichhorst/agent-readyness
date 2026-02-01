@@ -32,6 +32,58 @@ func TestClassifyGoFile(t *testing.T) {
 	}
 }
 
+func TestClassifyPythonFile(t *testing.T) {
+	tests := []struct {
+		name     string
+		filename string
+		want     types.FileClass
+	}{
+		{"regular source app.py", "app.py", types.ClassSource},
+		{"regular source utils.py", "utils.py", types.ClassSource},
+		{"test prefix test_app.py", "test_app.py", types.ClassTest},
+		{"test suffix app_test.py", "app_test.py", types.ClassTest},
+		{"test prefix test_utils.py", "test_utils.py", types.ClassTest},
+		{"conftest is source", "conftest.py", types.ClassSource},
+		{"underscore prefix", "_private.py", types.ClassExcluded},
+		{"dot prefix", ".hidden.py", types.ClassExcluded},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ClassifyPythonFile(tt.filename)
+			if got != tt.want {
+				t.Errorf("ClassifyPythonFile(%q) = %v, want %v", tt.filename, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestClassifyTypeScriptFile(t *testing.T) {
+	tests := []struct {
+		name     string
+		filename string
+		want     types.FileClass
+	}{
+		{"regular source index.ts", "index.ts", types.ClassSource},
+		{"regular source app.tsx", "app.tsx", types.ClassSource},
+		{"test file index.test.ts", "index.test.ts", types.ClassTest},
+		{"spec file index.spec.ts", "index.spec.ts", types.ClassTest},
+		{"test tsx file App.test.tsx", "App.test.tsx", types.ClassTest},
+		{"spec tsx file App.spec.tsx", "App.spec.tsx", types.ClassTest},
+		{"underscore prefix", "_internal.ts", types.ClassExcluded},
+		{"dot prefix", ".config.ts", types.ClassExcluded},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ClassifyTypeScriptFile(tt.filename)
+			if got != tt.want {
+				t.Errorf("ClassifyTypeScriptFile(%q) = %v, want %v", tt.filename, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestIsGeneratedFile(t *testing.T) {
 	// Create temp files for testing
 	tmpDir := t.TempDir()

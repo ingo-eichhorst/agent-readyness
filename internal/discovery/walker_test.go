@@ -40,10 +40,6 @@ func TestDiscoverValidProject(t *testing.T) {
 	assertFile(t, fileMap, "util_linux.go", types.ClassSource, "")
 
 	// vendor/dep/dep.go should be ClassExcluded with reason "vendor"
-	// Actually vendor dir is skipped entirely, so vendor files should NOT appear
-	// The plan says vendor dirs are skipped via SkipDir, so they won't be in results.
-	// But the plan also says "vendor/dep/dep.go is ClassExcluded with ExcludeReason vendor"
-	// Let's check: the plan wants it in results as excluded.
 	assertFile(t, fileMap, filepath.Join("vendor", "dep", "dep.go"), types.ClassExcluded, "vendor")
 
 	// ignored_by_gitignore.go should be ClassExcluded with reason "gitignore"
@@ -57,9 +53,6 @@ func TestDiscoverValidProject(t *testing.T) {
 	}
 
 	// Verify counts
-	// Expected: main.go (source), util_linux.go (source), main_test.go (test),
-	//           doc_generated.go (generated), vendor/dep/dep.go (excluded/vendor),
-	//           ignored_by_gitignore.go (excluded/gitignore)
 	if result.SourceCount != 2 {
 		t.Errorf("SourceCount = %d, want 2", result.SourceCount)
 	}
@@ -77,6 +70,189 @@ func TestDiscoverValidProject(t *testing.T) {
 	}
 	if result.TotalFiles != 6 {
 		t.Errorf("TotalFiles = %d, want 6", result.TotalFiles)
+	}
+
+	// Verify all Go files have Language set
+	for _, f := range result.Files {
+		if f.Language != types.LangGo {
+			t.Errorf("file %q: Language = %q, want %q", f.RelPath, f.Language, types.LangGo)
+		}
+	}
+
+	// Verify PerLanguage counts
+	if result.PerLanguage[types.LangGo] != 2 {
+		t.Errorf("PerLanguage[Go] = %d, want 2", result.PerLanguage[types.LangGo])
+	}
+}
+
+func TestDiscoverPythonProject(t *testing.T) {
+	root, err := filepath.Abs("../../testdata/valid-python-project")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	w := NewWalker()
+	result, err := w.Discover(root)
+	if err != nil {
+		t.Fatalf("Discover(%q) returned error: %v", root, err)
+	}
+
+	fileMap := make(map[string]types.DiscoveredFile)
+	for _, f := range result.Files {
+		fileMap[f.RelPath] = f
+	}
+
+	// app.py should be ClassSource
+	assertFile(t, fileMap, "app.py", types.ClassSource, "")
+	if fileMap["app.py"].Language != types.LangPython {
+		t.Errorf("app.py Language = %q, want %q", fileMap["app.py"].Language, types.LangPython)
+	}
+
+	// test_app.py should be ClassTest
+	assertFile(t, fileMap, "test_app.py", types.ClassTest, "")
+
+	// Verify counts
+	if result.SourceCount != 1 {
+		t.Errorf("SourceCount = %d, want 1", result.SourceCount)
+	}
+	if result.TestCount != 1 {
+		t.Errorf("TestCount = %d, want 1", result.TestCount)
+	}
+	if result.TotalFiles != 2 {
+		t.Errorf("TotalFiles = %d, want 2", result.TotalFiles)
+	}
+	if result.PerLanguage[types.LangPython] != 1 {
+		t.Errorf("PerLanguage[Python] = %d, want 1", result.PerLanguage[types.LangPython])
+	}
+}
+
+func TestDiscoverTypeScriptProject(t *testing.T) {
+	root, err := filepath.Abs("../../testdata/valid-ts-project")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	w := NewWalker()
+	result, err := w.Discover(root)
+	if err != nil {
+		t.Fatalf("Discover(%q) returned error: %v", root, err)
+	}
+
+	fileMap := make(map[string]types.DiscoveredFile)
+	for _, f := range result.Files {
+		fileMap[f.RelPath] = f
+	}
+
+	// src/index.ts should be ClassSource
+	assertFile(t, fileMap, filepath.Join("src", "index.ts"), types.ClassSource, "")
+	f := fileMap[filepath.Join("src", "index.ts")]
+	if f.Language != types.LangTypeScript {
+		t.Errorf("index.ts Language = %q, want %q", f.Language, types.LangTypeScript)
+	}
+
+	// src/index.test.ts should be ClassTest
+	assertFile(t, fileMap, filepath.Join("src", "index.test.ts"), types.ClassTest, "")
+
+	// Verify counts
+	if result.SourceCount != 1 {
+		t.Errorf("SourceCount = %d, want 1", result.SourceCount)
+	}
+	if result.TestCount != 1 {
+		t.Errorf("TestCount = %d, want 1", result.TestCount)
+	}
+	if result.TotalFiles != 2 {
+		t.Errorf("TotalFiles = %d, want 2", result.TotalFiles)
+	}
+	if result.PerLanguage[types.LangTypeScript] != 1 {
+		t.Errorf("PerLanguage[TypeScript] = %d, want 1", result.PerLanguage[types.LangTypeScript])
+	}
+}
+
+func TestDiscoverPolyglotProject(t *testing.T) {
+	root, err := filepath.Abs("../../testdata/polyglot-project")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	w := NewWalker()
+	result, err := w.Discover(root)
+	if err != nil {
+		t.Fatalf("Discover(%q) returned error: %v", root, err)
+	}
+
+	fileMap := make(map[string]types.DiscoveredFile)
+	for _, f := range result.Files {
+		fileMap[f.RelPath] = f
+	}
+
+	// All three languages should be discovered
+	assertFile(t, fileMap, "main.go", types.ClassSource, "")
+	assertFile(t, fileMap, "util.py", types.ClassSource, "")
+	assertFile(t, fileMap, "helper.ts", types.ClassSource, "")
+
+	if fileMap["main.go"].Language != types.LangGo {
+		t.Errorf("main.go Language = %q, want %q", fileMap["main.go"].Language, types.LangGo)
+	}
+	if fileMap["util.py"].Language != types.LangPython {
+		t.Errorf("util.py Language = %q, want %q", fileMap["util.py"].Language, types.LangPython)
+	}
+	if fileMap["helper.ts"].Language != types.LangTypeScript {
+		t.Errorf("helper.ts Language = %q, want %q", fileMap["helper.ts"].Language, types.LangTypeScript)
+	}
+
+	// 3 source files total
+	if result.SourceCount != 3 {
+		t.Errorf("SourceCount = %d, want 3", result.SourceCount)
+	}
+	if result.TotalFiles != 3 {
+		t.Errorf("TotalFiles = %d, want 3", result.TotalFiles)
+	}
+
+	// PerLanguage should have 1 for each
+	if result.PerLanguage[types.LangGo] != 1 {
+		t.Errorf("PerLanguage[Go] = %d, want 1", result.PerLanguage[types.LangGo])
+	}
+	if result.PerLanguage[types.LangPython] != 1 {
+		t.Errorf("PerLanguage[Python] = %d, want 1", result.PerLanguage[types.LangPython])
+	}
+	if result.PerLanguage[types.LangTypeScript] != 1 {
+		t.Errorf("PerLanguage[TypeScript] = %d, want 1", result.PerLanguage[types.LangTypeScript])
+	}
+}
+
+func TestDetectProjectLanguages(t *testing.T) {
+	// Test Go project
+	goRoot, _ := filepath.Abs("../../testdata/valid-go-project")
+	goLangs := DetectProjectLanguages(goRoot)
+	if !containsLang(goLangs, types.LangGo) {
+		t.Errorf("Go project: expected LangGo in %v", goLangs)
+	}
+
+	// Test Python project
+	pyRoot, _ := filepath.Abs("../../testdata/valid-python-project")
+	pyLangs := DetectProjectLanguages(pyRoot)
+	if !containsLang(pyLangs, types.LangPython) {
+		t.Errorf("Python project: expected LangPython in %v", pyLangs)
+	}
+
+	// Test TypeScript project
+	tsRoot, _ := filepath.Abs("../../testdata/valid-ts-project")
+	tsLangs := DetectProjectLanguages(tsRoot)
+	if !containsLang(tsLangs, types.LangTypeScript) {
+		t.Errorf("TypeScript project: expected LangTypeScript in %v", tsLangs)
+	}
+
+	// Test polyglot project
+	polyRoot, _ := filepath.Abs("../../testdata/polyglot-project")
+	polyLangs := DetectProjectLanguages(polyRoot)
+	if !containsLang(polyLangs, types.LangGo) {
+		t.Errorf("Polyglot project: expected LangGo in %v", polyLangs)
+	}
+	if !containsLang(polyLangs, types.LangPython) {
+		t.Errorf("Polyglot project: expected LangPython in %v", polyLangs)
+	}
+	if !containsLang(polyLangs, types.LangTypeScript) {
+		t.Errorf("Polyglot project: expected LangTypeScript in %v", polyLangs)
 	}
 }
 
@@ -303,6 +479,15 @@ func TestWalkerContinuesOnBadGeneratedCheck(t *testing.T) {
 	if !found {
 		t.Error("readable.go not found in results")
 	}
+}
+
+func containsLang(langs []types.Language, target types.Language) bool {
+	for _, l := range langs {
+		if l == target {
+			return true
+		}
+	}
+	return false
 }
 
 func assertFile(t *testing.T, fileMap map[string]types.DiscoveredFile, relPath string, wantClass types.FileClass, wantReason string) {

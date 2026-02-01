@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-01)
 
 **Core value:** Accurate, evidence-based scoring that predicts agent success and identifies specific improvements teams should make before adopting AI coding agents.
-**Current focus:** Phase 6 - Multi-Language Foundation + C2 Semantic Explicitness
+**Current focus:** Phase 6 complete - Multi-Language Foundation + C2 Semantic Explicitness
 
 ## Current Position
 
 Phase: 6 of 10 (Multi-Language Foundation + C2 Semantic Explicitness)
-Plan: 3 of 4 in current phase
-Status: In progress
-Last activity: 2026-02-01 — Completed 06-03-PLAN.md
+Plan: 4 of 4 in current phase
+Status: Phase complete
+Last activity: 2026-02-01 -- Completed 06-04-PLAN.md
 
-Progress: [############|.......] 66% (19/29 plans)
+Progress: [##############|.....] 69% (20/29 plans)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 19
-- Average duration: 5 min
-- Total execution time: 102 min
+- Total plans completed: 20
+- Average duration: 6 min
+- Total execution time: 111 min
 
 **By Phase:**
 
@@ -32,11 +32,11 @@ Progress: [############|.......] 66% (19/29 plans)
 | 03-scoring-model | 3 | 10 min | 3 min |
 | 04-recommendations-and-output | 3 | 14 min | 5 min |
 | 05-hardening | 2 | 5 min | 3 min |
-| 06-multi-language-foundation | 3 | 20 min | 7 min |
+| 06-multi-language-foundation | 4 | 29 min | 7 min |
 
 **Recent Trend:**
-- Last 5 plans: 05-01 (2 min), 05-02 (3 min), 06-01 (4 min), 06-02 (7 min), 06-03 (9 min)
-- Trend: Consistent fast execution
+- Last 5 plans: 05-02 (3 min), 06-01 (4 min), 06-02 (7 min), 06-03 (9 min), 06-04 (9 min)
+- Trend: Consistent execution, slightly longer for complex multi-language plans
 
 *Updated after each plan completion*
 
@@ -58,6 +58,10 @@ Recent decisions affecting current work:
 - Extension-based language routing in walker via langExtensions map
 - Map-based ScoringConfig with Categories map[string]CategoryConfig (extensible for C4/C5/C7)
 - Extractor pattern for scoring (metricExtractors map decouples scoring from extraction)
+- C2 Python analyzer uses Tree-sitter node walking (not queries) for type annotation counting
+- TypeScript any types penalized in coverage score; null safety = strictNullChecks + optional chaining
+- .arsrc.yml project config with version 1, category weight overrides
+- Pipeline auto-creates Tree-sitter parser; degrades gracefully if CGO unavailable
 
 ### Pending Todos
 
@@ -71,5 +75,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-01
-Stopped at: Completed 06-03-PLAN.md
+Stopped at: Completed 06-04-PLAN.md (Phase 6 complete)
 Resume file: None

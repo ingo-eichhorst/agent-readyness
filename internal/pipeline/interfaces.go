@@ -6,25 +6,25 @@ import (
 )
 
 // Parser loads and parses Go packages from a module directory.
-// Phase 1 used StubParser; Phase 2 uses GoPackagesParser.
+// Kept for Go parser compatibility; will be deprecated when multi-parser replaces it.
 type Parser interface {
 	Parse(rootDir string) ([]*parser.ParsedPackage, error)
 }
 
-// Analyzer runs a specific analysis pass over parsed packages.
-// Phase 1 used StubAnalyzer; Phase 2 plugs in real implementations.
+// Analyzer runs a specific analysis pass over analysis targets.
+// Targets are language-agnostic; analyzers that need Go-specific data
+// should also implement GoAwareAnalyzer.
 type Analyzer interface {
 	Name() string
-	Analyze(pkgs []*parser.ParsedPackage) (*types.AnalysisResult, error)
+	Analyze(targets []*types.AnalysisTarget) (*types.AnalysisResult, error)
 }
 
-// StubParser is a no-op parser that returns an empty package slice.
-// Used as fallback when no real parser is configured.
-type StubParser struct{}
-
-// Parse returns an empty ParsedPackage slice without loading anything.
-func (s *StubParser) Parse(rootDir string) ([]*parser.ParsedPackage, error) {
-	return []*parser.ParsedPackage{}, nil
+// GoAwareAnalyzer is an Analyzer that also needs access to Go-specific
+// parsed packages (ASTs, type info). The pipeline calls SetGoPackages
+// before Analyze for any analyzer implementing this interface.
+type GoAwareAnalyzer interface {
+	Analyzer
+	SetGoPackages(pkgs []*parser.ParsedPackage)
 }
 
 // StubAnalyzer is a no-op analyzer that returns an empty result.
@@ -37,7 +37,7 @@ func (s *StubAnalyzer) Name() string {
 }
 
 // Analyze returns an empty AnalysisResult.
-func (s *StubAnalyzer) Analyze(pkgs []*parser.ParsedPackage) (*types.AnalysisResult, error) {
+func (s *StubAnalyzer) Analyze(_ []*types.AnalysisTarget) (*types.AnalysisResult, error) {
 	return &types.AnalysisResult{
 		Name:    "stub",
 		Metrics: make(map[string]interface{}),

@@ -1,5 +1,32 @@
 package types
 
+// Language identifies the programming language of source files.
+type Language string
+
+const (
+	LangGo         Language = "go"
+	LangPython     Language = "python"
+	LangTypeScript Language = "typescript"
+)
+
+// AnalysisTarget is the language-agnostic unit of analysis.
+// Each target represents one language found in the project.
+type AnalysisTarget struct {
+	Language Language
+	RootDir  string       // Project root directory
+	Files    []SourceFile // Source files for this language
+}
+
+// SourceFile represents a single source file for analysis.
+type SourceFile struct {
+	Path     string
+	RelPath  string
+	Language Language
+	Lines    int
+	Content  []byte    // Raw source content (needed for Tree-sitter)
+	Class    FileClass // source, test, generated, excluded
+}
+
 // FileClass categorizes discovered files in a Go project.
 type FileClass int
 

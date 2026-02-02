@@ -65,9 +65,21 @@ func TestDefaultConfig_Structure(t *testing.T) {
 		t.Errorf("C6 name = %q, want %q", c6.Name, "Testing")
 	}
 
-	// Should have 4 categories
-	if got := len(cfg.Categories); got != 4 {
-		t.Errorf("categories count = %d, want 4", got)
+	// C5 should have 5 metrics
+	c5 := cfg.Categories["C5"]
+	if got := len(c5.Metrics); got != 5 {
+		t.Errorf("C5 metrics count = %d, want 5", got)
+	}
+	if c5.Weight != 0.10 {
+		t.Errorf("C5 weight = %v, want 0.10", c5.Weight)
+	}
+	if c5.Name != "Temporal Dynamics" {
+		t.Errorf("C5 name = %q, want %q", c5.Name, "Temporal Dynamics")
+	}
+
+	// Should have 5 categories
+	if got := len(cfg.Categories); got != 5 {
+		t.Errorf("categories count = %d, want 5", got)
 	}
 
 	// Tiers should have 4 entries
@@ -201,6 +213,26 @@ func TestDefaultConfig_MetricNames(t *testing.T) {
 	for name, found := range c6Names {
 		if !found {
 			t.Errorf("missing C6 metric %q", name)
+		}
+	}
+
+	c5Names := map[string]bool{
+		"churn_rate":            false,
+		"temporal_coupling_pct": false,
+		"author_fragmentation":  false,
+		"commit_stability":      false,
+		"hotspot_concentration": false,
+	}
+	c5 := cfg.Categories["C5"]
+	for _, m := range c5.Metrics {
+		if _, ok := c5Names[m.Name]; !ok {
+			t.Errorf("unexpected C5 metric %q", m.Name)
+		}
+		c5Names[m.Name] = true
+	}
+	for name, found := range c5Names {
+		if !found {
+			t.Errorf("missing C5 metric %q", name)
 		}
 	}
 }

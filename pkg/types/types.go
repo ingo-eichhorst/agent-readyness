@@ -190,3 +190,33 @@ type TestFunctionMetric struct {
 	AssertionCount int
 	HasExternalDep bool
 }
+
+// C5Metrics holds Temporal & Operational Dynamics metric results.
+type C5Metrics struct {
+	Available            bool
+	ChurnRate            float64       // avg lines changed per commit (90-day window)
+	TemporalCouplingPct  float64       // % of file pairs with >70% co-change rate
+	AuthorFragmentation  float64       // avg distinct authors per file (90-day window)
+	CommitStability      float64       // median days between changes per file
+	HotspotConcentration float64       // % of total changes in top 10% of files
+	TopHotspots          []FileChurn   // top churning files (up to 10)
+	CoupledPairs         []CoupledPair // detected temporal couplings
+	TotalCommits         int
+	TimeWindowDays       int
+}
+
+// FileChurn holds churn data for a single file.
+type FileChurn struct {
+	Path         string
+	TotalChanges int
+	CommitCount  int
+	AuthorCount  int
+}
+
+// CoupledPair holds a pair of files with temporal coupling.
+type CoupledPair struct {
+	FileA         string
+	FileB         string
+	Coupling      float64 // 0-100 percentage
+	SharedCommits int
+}

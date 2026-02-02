@@ -18,6 +18,7 @@ var metricExtractors = map[string]MetricExtractor{
 	"C1": extractC1,
 	"C2": extractC2,
 	"C3": extractC3,
+	"C5": extractC5,
 	"C6": extractC6,
 }
 
@@ -266,6 +267,37 @@ func extractC6(ar *types.AnalysisResult) (map[string]float64, map[string]bool) {
 	}
 
 	return rawValues, unavailable
+}
+
+// extractC5 extracts C5 (Temporal Dynamics) metrics from an AnalysisResult.
+func extractC5(ar *types.AnalysisResult) (map[string]float64, map[string]bool) {
+	raw, ok := ar.Metrics["c5"]
+	if !ok {
+		return nil, nil
+	}
+	m, ok := raw.(*types.C5Metrics)
+	if !ok {
+		return nil, nil
+	}
+
+	if !m.Available {
+		unavailable := map[string]bool{
+			"churn_rate":            true,
+			"temporal_coupling_pct": true,
+			"author_fragmentation":  true,
+			"commit_stability":      true,
+			"hotspot_concentration": true,
+		}
+		return map[string]float64{}, unavailable
+	}
+
+	return map[string]float64{
+		"churn_rate":            m.ChurnRate,
+		"temporal_coupling_pct": m.TemporalCouplingPct,
+		"author_fragmentation":  m.AuthorFragmentation,
+		"commit_stability":      m.CommitStability,
+		"hotspot_concentration": m.HotspotConcentration,
+	}, nil
 }
 
 // scoreMetrics is a generic scoring helper for any category.

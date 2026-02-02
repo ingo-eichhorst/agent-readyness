@@ -247,7 +247,68 @@ func DefaultConfig() *ScoringConfig {
 					},
 				},
 			},
-			"C6": {
+			"C5": {
+			Name:   "Temporal Dynamics",
+			Weight: 0.10,
+			Metrics: []MetricThresholds{
+				{
+					Name:   "churn_rate",
+					Weight: 0.20,
+					Breakpoints: []Breakpoint{
+						{Value: 50, Score: 10},
+						{Value: 100, Score: 8},
+						{Value: 300, Score: 6},
+						{Value: 600, Score: 3},
+						{Value: 1000, Score: 1},
+					},
+				},
+				{
+					Name:   "temporal_coupling_pct",
+					Weight: 0.25,
+					Breakpoints: []Breakpoint{
+						{Value: 0, Score: 10},
+						{Value: 5, Score: 8},
+						{Value: 15, Score: 6},
+						{Value: 25, Score: 3},
+						{Value: 30, Score: 1},
+					},
+				},
+				{
+					Name:   "author_fragmentation",
+					Weight: 0.20,
+					Breakpoints: []Breakpoint{
+						{Value: 1, Score: 10},
+						{Value: 2, Score: 8},
+						{Value: 4, Score: 6},
+						{Value: 6, Score: 3},
+						{Value: 8, Score: 1},
+					},
+				},
+				{
+					Name:   "commit_stability",
+					Weight: 0.15,
+					Breakpoints: []Breakpoint{
+						{Value: 0.5, Score: 1},
+						{Value: 1, Score: 3},
+						{Value: 3, Score: 6},
+						{Value: 7, Score: 8},
+						{Value: 14, Score: 10},
+					},
+				},
+				{
+					Name:   "hotspot_concentration",
+					Weight: 0.20,
+					Breakpoints: []Breakpoint{
+						{Value: 20, Score: 10},
+						{Value: 30, Score: 8},
+						{Value: 50, Score: 6},
+						{Value: 70, Score: 3},
+						{Value: 80, Score: 1},
+					},
+				},
+			},
+		},
+		"C6": {
 				Name:   "Testing",
 				Weight: 0.15,
 				Metrics: []MetricThresholds{

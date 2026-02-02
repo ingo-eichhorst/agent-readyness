@@ -41,6 +41,11 @@ var agentImpact = map[string]string{
 	"test_isolation":        "Non-isolated tests create flaky failures that block agent workflows",
 	"assertion_density_avg": "Low assertion density means tests may pass despite broken behavior",
 	"test_file_ratio":       "Few test files means agents lack verification for most code paths",
+	"churn_rate":            "High code churn indicates unstable areas where agent changes are more likely to conflict",
+	"temporal_coupling_pct": "Tightly coupled files force agents to understand and modify multiple files simultaneously",
+	"author_fragmentation":  "Many authors per file means inconsistent patterns that confuse agent understanding",
+	"commit_stability":      "Frequently changing files increase the chance of agent merge conflicts",
+	"hotspot_concentration": "Concentrated changes mean agents repeatedly work in the same complex areas",
 }
 
 // actionTemplates maps metric names to concrete improvement actions.
@@ -61,6 +66,11 @@ var actionTemplates = map[string]string{
 	"test_isolation":        "Improve test isolation from %.0f%% to %.0f%%",
 	"assertion_density_avg": "Add meaningful assertions (current avg: %.1f per test)",
 	"test_file_ratio":       "Add test files to cover more source files (current ratio: %.2f)",
+	"churn_rate":            "Stabilize high-churn files (avg %.0f lines/commit) by breaking up large changes",
+	"temporal_coupling_pct": "Decouple files that change together (%.1f%% coupling) by extracting shared interfaces",
+	"author_fragmentation":  "Improve code ownership (avg %.1f authors/file) by assigning clear module owners",
+	"commit_stability":      "Stabilize frequently changing files (median %.1f days between changes)",
+	"hotspot_concentration": "Distribute changes more evenly (top 10%% of files contain %.0f%% of changes)",
 }
 
 // hardMetrics are metrics that get a +1 effort level bump because they are
@@ -319,6 +329,11 @@ var displayNames = map[string]string{
 	"test_isolation":        "test isolation",
 	"assertion_density_avg": "average assertion density",
 	"test_file_ratio":       "test file ratio",
+	"churn_rate":            "code churn rate",
+	"temporal_coupling_pct": "temporal coupling",
+	"author_fragmentation":  "author fragmentation",
+	"commit_stability":      "commit stability",
+	"hotspot_concentration": "hotspot concentration",
 }
 
 // buildSummary creates an agent-readiness framed summary for a recommendation.
@@ -361,6 +376,10 @@ func buildAction(metricName string, currentValue, targetValue float64) string {
 	case "assertion_density_avg":
 		return fmt.Sprintf(tmpl, currentValue)
 	case "test_file_ratio":
+		return fmt.Sprintf(tmpl, currentValue)
+	case "churn_rate", "hotspot_concentration":
+		return fmt.Sprintf(tmpl, currentValue)
+	case "temporal_coupling_pct", "author_fragmentation", "commit_stability":
 		return fmt.Sprintf(tmpl, currentValue)
 	default:
 		return fmt.Sprintf(tmpl, currentValue, targetValue)

@@ -28,10 +28,10 @@ ARS v0.0.3 simplifies LLM integration by unifying on Claude Code CLI (removing A
   1. Running `ars scan --badge` outputs a shields.io markdown URL to stdout
   2. Badge color reflects the tier (red for Agent-Hostile, orange for Agent-Limited, yellow for Agent-Assisted, green for Agent-Ready)
   3. Badge displays both tier name and numeric score (e.g., "Agent-Ready 8.2/10")
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 13-01: Badge URL generation and CLI flag
+- [ ] 13-01-PLAN.md — Badge URL generation, CLI flag, and output integration
 
 ### Phase 14: HTML Enhancements
 **Goal**: HTML reports provide educational context with expandable research-backed metric descriptions
@@ -101,7 +101,7 @@ Phases 13-17 execute in order. Phases 13, 14, 15, 17 are independent and could p
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 13. Badge Generation | 0/1 | Not started | - |
+| 13. Badge Generation | 0/1 | Planned | - |
 | 14. HTML Enhancements | 0/1 | Not started | - |
 | 15. Claude Code Integration | 0/2 | Not started | - |
 | 16. Analyzer Reorganization | 0/2 | Not started | - |

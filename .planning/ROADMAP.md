@@ -25,7 +25,7 @@ Phases 1-5 delivered Go-only CLI with C1 (Code Health), C3 (Architecture), C6 (T
 
 - [x] **Phase 6: Multi-Language Foundation + C2 Semantic Explicitness** - Generalize abstractions for Go/Python/TypeScript, add Tree-sitter parsing, implement C2 across all languages, build config system
 - [x] **Phase 7: Python + TypeScript Analysis (C1/C3/C6)** - Port existing code health, architecture, and testing analyzers to Python and TypeScript via Tree-sitter
-- [ ] **Phase 8: C5 Temporal Dynamics** - Git-based temporal analysis with native git CLI for churn, hotspots, author fragmentation, and temporal coupling
+- [x] **Phase 8: C5 Temporal Dynamics** - Git-based temporal analysis with native git CLI for churn, hotspots, author fragmentation, and temporal coupling
 - [ ] **Phase 9: C4 Documentation Quality + HTML Reports** - Documentation analysis with LLM content evaluation, plus polished HTML report generation
 - [ ] **Phase 10: C7 Agent Evaluation** - Headless Claude Code integration for genuine agent-in-the-loop readiness assessment
 
@@ -76,8 +76,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 08-01-PLAN.md -- C5 analyzer + git log parsing + metrics + scoring + pipeline wiring
-- [ ] 08-02-PLAN.md -- Unit tests + end-to-end verification
+- [x] 08-01-PLAN.md -- C5 analyzer + git log parsing + metrics + scoring + pipeline wiring
+- [x] 08-02-PLAN.md -- Unit tests + end-to-end verification
 
 ### Phase 9: C4 Documentation Quality + HTML Reports
 **Goal**: Users get documentation quality analysis with optional LLM-based content evaluation, and can generate polished, self-contained HTML reports with visual score presentation and research citations
@@ -89,12 +89,12 @@ Plans:
   3. User can run `ars scan --output-html` and get a self-contained HTML file with radar chart, metric breakdowns, research citations, and recommendations
   4. HTML report renders correctly offline with no external CSS/JS dependencies and is protected against XSS from code content
   5. User can run `ars scan --baseline previous.json --output-html` and see a trend comparison chart showing score changes over time
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 09-01: C4 static documentation metrics
-- [ ] 09-02: LLM client abstraction + C4 content quality evaluation
-- [ ] 09-03: HTML report generation (templates, charts, research citations)
+- [ ] 09-01-PLAN.md -- C4 static documentation metrics (README, comments, API docs, CHANGELOG, examples)
+- [ ] 09-02-PLAN.md -- LLM client abstraction + C4 content quality evaluation (--enable-c4-llm)
+- [ ] 09-03-PLAN.md -- HTML report generation (templates, charts, research citations, --output-html)
 
 ### Phase 10: C7 Agent Evaluation
 **Goal**: Users can opt in to a genuine agent-in-the-loop assessment where headless Claude Code attempts standardized tasks against their codebase, producing the most novel and differentiated ARS metric
@@ -122,5 +122,5 @@ Phases execute in numeric order: 6 -> 7 -> 8 -> 9 -> 10
 | 6. Multi-Language + C2 | v2 | 4/4 | Complete | 2026-02-01 |
 | 7. Python + TS (C1/C3/C6) | v2 | 2/2 | Complete | 2026-02-01 |
 | 8. C5 Temporal | v2 | 2/2 | Complete | 2026-02-02 |
-| 9. C4 Docs + HTML | v2 | 0/3 | Not started | - |
+| 9. C4 Docs + HTML | v2 | 0/3 | Ready for execution | - |
 | 10. C7 Agent Eval | v2 | 0/2 | Not started | - |

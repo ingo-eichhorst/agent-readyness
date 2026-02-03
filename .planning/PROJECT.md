@@ -42,7 +42,17 @@ Accurate, evidence-based scoring that predicts agent success and identifies spec
 
 ### Active
 
-**Current Focus:** Planning next milestone (v0.0.3 or v3.0)
+**Current Milestone: v0.0.3 — Simplification & Polish**
+
+**Goal:** Simplify LLM integration by unifying on Claude Code CLI, add badge generation for visibility, improve HTML report with research-backed expandable descriptions, and reorganize codebase structure.
+
+**Target features (22 requirements across 6 GitHub issues):**
+- LLM Integration (#6): Remove Anthropic SDK, use Claude Code CLI for all LLM analysis
+- Badge Generation (#5): `--badge` flag generates shields.io markdown URL
+- HTML Report (#7): Expandable metric descriptions with research citations
+- README (#4): Add status badges (Go Reference, Report Card, License, Release)
+- Codebase Organization (#3): Reorganize analyzer/ into category subdirectories
+- Testing (#2): Always run tests with coverage flag
 
 ### Out of Scope
 
@@ -114,4 +124,4 @@ Internal tooling to identify which repositories need investment before agent ado
 | Git worktree isolation (v0.0.2) | Safe agent execution without modifying user's working tree | ✓ Good - C7 runs in isolated workspace |
 
 ---
-*Last updated: 2026-02-03 after v0.0.2 milestone completion*
+*Last updated: 2026-02-03 after v0.0.3 milestone initialization*

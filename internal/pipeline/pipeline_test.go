@@ -165,10 +165,11 @@ func TestPipelineScoringStage(t *testing.T) {
 		}
 	}
 
-	// Each category score should be in valid range (1-10)
+	// Each category score should be in valid range [0,10]
+	// (0 indicates disabled/unavailable category)
 	for _, cat := range p.scored.Categories {
-		if cat.Score < 1 || cat.Score > 10 {
-			t.Errorf("category %q score %v out of range [1,10]", cat.Name, cat.Score)
+		if cat.Score < 0 || cat.Score > 10 {
+			t.Errorf("category %q score %v out of range [0,10]", cat.Name, cat.Score)
 		}
 	}
 }

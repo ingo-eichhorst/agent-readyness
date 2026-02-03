@@ -264,17 +264,17 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CLI-03 | Phase 9 | Pending |
 | CLI-05 | Phase 9 | Pending |
 | CLI-06 | Phase 9 | Pending |
-| C7-01 | Phase 10 | Pending |
-| C7-02 | Phase 10 | Pending |
-| C7-03 | Phase 10 | Pending |
-| C7-04 | Phase 10 | Pending |
-| C7-05 | Phase 10 | Pending |
-| C7-06 | Phase 10 | Pending |
-| C7-07 | Phase 10 | Pending |
-| C7-08 | Phase 10 | Pending |
-| C7-09 | Phase 10 | Pending |
-| C7-10 | Phase 10 | Pending |
-| CLI-02 | Phase 10 | Pending |
+| C7-01 | Phase 10 | Complete |
+| C7-02 | Phase 10 | Complete |
+| C7-03 | Phase 10 | Complete |
+| C7-04 | Phase 10 | Complete |
+| C7-05 | Phase 10 | Complete |
+| C7-06 | Phase 10 | Complete |
+| C7-07 | Phase 10 | Complete |
+| C7-08 | Phase 10 | Complete |
+| C7-09 | Phase 10 | Complete |
+| C7-10 | Phase 10 | Complete |
+| CLI-02 | Phase 10 | Complete |
 
 **Coverage:**
 - v2 requirements: 95 total

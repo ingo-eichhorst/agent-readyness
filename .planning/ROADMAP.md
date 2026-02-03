@@ -27,7 +27,7 @@ Phases 1-5 delivered Go-only CLI with C1 (Code Health), C3 (Architecture), C6 (T
 - [x] **Phase 7: Python + TypeScript Analysis (C1/C3/C6)** - Port existing code health, architecture, and testing analyzers to Python and TypeScript via Tree-sitter
 - [x] **Phase 8: C5 Temporal Dynamics** - Git-based temporal analysis with native git CLI for churn, hotspots, author fragmentation, and temporal coupling
 - [x] **Phase 9: C4 Documentation Quality + HTML Reports** - Documentation analysis with LLM content evaluation, plus polished HTML report generation
-- [ ] **Phase 10: C7 Agent Evaluation** - Headless Claude Code integration for genuine agent-in-the-loop readiness assessment
+- [x] **Phase 10: C7 Agent Evaluation** - Headless Claude Code integration for genuine agent-in-the-loop readiness assessment
 
 ## Phase Details
 
@@ -108,8 +108,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 10-01-PLAN.md -- Agent executor infrastructure + task definitions + workspace isolation
-- [ ] 10-02-PLAN.md -- C7 scoring, CLI integration, pipeline wiring
+- [x] 10-01-PLAN.md -- Agent executor infrastructure + task definitions + workspace isolation
+- [x] 10-02-PLAN.md -- C7 scoring, CLI integration, pipeline wiring
 
 ## Progress
 
@@ -123,4 +123,4 @@ Phases execute in numeric order: 6 -> 7 -> 8 -> 9 -> 10
 | 7. Python + TS (C1/C3/C6) | v2 | 2/2 | Complete | 2026-02-01 |
 | 8. C5 Temporal | v2 | 2/2 | Complete | 2026-02-02 |
 | 9. C4 Docs + HTML | v2 | 3/3 | Complete | 2026-02-03 |
-| 10. C7 Agent Eval | v2 | 0/2 | Not started | - |
+| 10. C7 Agent Eval | v2 | 2/2 | Complete | 2026-02-03 |

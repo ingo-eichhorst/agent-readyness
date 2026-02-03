@@ -11,18 +11,18 @@ See: .planning/PROJECT.md (updated 2026-02-03)
 
 Milestone: v0.0.3 Simplification & Polish
 Phase: 15 of 17 (claude-code-integration)
-Plan: 1 of 3
-Status: Plan 15-01 complete
-Last activity: 2026-02-03 — Completed 15-01-PLAN.md
+Plan: 2 of 3
+Status: Plan 15-02 complete
+Last activity: 2026-02-03 — Completed 15-02-PLAN.md
 
 Progress: [====================............] 3/5 phases (Phases 13-15 in progress)
 
 ## Performance Metrics
 
 **Velocity (from v0.0.2):**
-- Total plans completed: 34
+- Total plans completed: 35
 - Average duration: 6 min
-- Total execution time: 197 min
+- Total execution time: 206 min
 
 *Updated after each plan completion*
 
@@ -41,6 +41,8 @@ All decisions are logged in PROJECT.md Key Decisions table.
 - HTML5 details/summary for metric descriptions (auto-expand below threshold 6.0)
 - 60-second timeout per CLI evaluation (15-01)
 - Single retry with 2-second backoff for CLI evaluation (15-01)
+- Auto-enable LLM when CLI detected, opt-out with --no-llm (15-02)
+- Remove cost estimates and confirmation prompts for CLI-based evaluation (15-02)
 
 ### Pending Todos
 
@@ -55,7 +57,7 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-03
-Stopped at: Completed 15-01-PLAN.md
+Stopped at: Completed 15-02-PLAN.md
 Resume file: None
 
-**Next steps:** Execute 15-02-PLAN.md (Delete LLM package and migrate C7)
+**Next steps:** Execute 15-03-PLAN.md (Testing and validation)

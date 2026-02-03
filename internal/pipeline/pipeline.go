@@ -15,7 +15,6 @@ import (
 	"github.com/ingo/agent-readyness/internal/agent"
 	"github.com/ingo/agent-readyness/internal/analyzer"
 	"github.com/ingo/agent-readyness/internal/discovery"
-	"github.com/ingo/agent-readyness/internal/llm"
 	"github.com/ingo/agent-readyness/internal/output"
 	"github.com/ingo/agent-readyness/internal/parser"
 	"github.com/ingo/agent-readyness/internal/recommend"
@@ -36,15 +35,17 @@ type Pipeline struct {
 	threshold    float64
 	jsonOutput   bool
 	onProgress   ProgressFunc
-	llmClient    *llm.Client // optional LLM client for C4 analysis
-	htmlOutput   string      // optional path for HTML report output
-	baselinePath string      // optional path to previous JSON for trend comparison
-	badgeOutput  bool        // generate shields.io badge markdown
+	evaluator    *agent.Evaluator // CLI-based evaluator for LLM analysis
+	cliStatus    agent.CLIStatus  // cached CLI availability status
+	htmlOutput   string           // optional path for HTML report output
+	baselinePath string           // optional path to previous JSON for trend comparison
+	badgeOutput  bool             // generate shields.io badge markdown
 }
 
 // New creates a Pipeline with GoPackagesParser, all analyzers, and a scorer.
 // If cfg is nil, DefaultConfig is used. If onProgress is nil, a no-op is used.
 // The pipeline auto-creates a Tree-sitter parser for Python/TypeScript analysis.
+// CLI availability is detected at startup; if available, LLM features are auto-enabled.
 func New(w io.Writer, verbose bool, cfg *scoring.ScoringConfig, threshold float64, jsonOutput bool, onProgress ProgressFunc) *Pipeline {
 	if cfg == nil {
 		cfg = scoring.DefaultConfig()
@@ -64,7 +65,16 @@ func New(w io.Writer, verbose bool, cfg *scoring.ScoringConfig, threshold float6
 	}
 
 	c2Analyzer := analyzer.NewC2Analyzer(tsParser)
+	c4Analyzer := analyzer.NewC4Analyzer(tsParser)
 	c7Analyzer := analyzer.NewC7Analyzer()
+
+	// Detect CLI availability and auto-enable LLM features
+	cliStatus := agent.GetCLIStatus()
+	var evaluator *agent.Evaluator
+	if cliStatus.Available {
+		evaluator = agent.NewEvaluator(60 * time.Second)
+		c4Analyzer.SetEvaluator(evaluator)
+	}
 
 	return &Pipeline{
 		verbose:    verbose,
@@ -77,34 +87,39 @@ func New(w io.Writer, verbose bool, cfg *scoring.ScoringConfig, threshold float6
 			analyzer.NewC1Analyzer(tsParser),
 			c2Analyzer,
 			analyzer.NewC3Analyzer(tsParser),
-			analyzer.NewC4Analyzer(tsParser),
+			c4Analyzer,
 			analyzer.NewC5Analyzer(), // No tsParser needed - git-based analysis
 			analyzer.NewC6Analyzer(tsParser),
 			c7Analyzer, // C7 runs but returns Available:false unless enabled
 		},
 		c7Analyzer: c7Analyzer,
 		scorer:     &scoring.Scorer{Config: cfg},
+		evaluator:  evaluator,
+		cliStatus:  cliStatus,
 	}
 }
 
-// SetLLMClient enables LLM-based analysis for C4 metrics.
-// Note: C4 now uses CLI-based evaluation via agent.Evaluator.
-func (p *Pipeline) SetLLMClient(client *llm.Client) {
-	p.llmClient = client
-	// Find and configure C4 analyzer with CLI-based evaluator
+// DisableLLM disables LLM features even when CLI is available.
+// This is called when --no-llm flag is set.
+func (p *Pipeline) DisableLLM() {
+	p.evaluator = nil
+	// Find and disable C4 analyzer's LLM evaluation
 	for _, a := range p.analyzers {
 		if c4, ok := a.(*analyzer.C4Analyzer); ok {
-			// Use CLI evaluator for C4 (60-second timeout per evaluation)
-			eval := agent.NewEvaluator(60 * time.Second)
-			c4.SetEvaluator(eval)
+			c4.SetEvaluator(nil)
 		}
 	}
 }
 
-// SetC7Enabled enables C7 agent evaluation with the given LLM client (for scoring).
-func (p *Pipeline) SetC7Enabled(client *llm.Client) {
-	if p.c7Analyzer != nil {
-		p.c7Analyzer.Enable(client)
+// GetCLIStatus returns the cached CLI availability status.
+func (p *Pipeline) GetCLIStatus() agent.CLIStatus {
+	return p.cliStatus
+}
+
+// SetC7Enabled enables C7 agent evaluation using the CLI-based evaluator.
+func (p *Pipeline) SetC7Enabled() {
+	if p.c7Analyzer != nil && p.evaluator != nil {
+		p.c7Analyzer.Enable(p.evaluator)
 	}
 }
 

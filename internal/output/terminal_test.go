@@ -99,6 +99,24 @@ func newTestAnalysisResults() []*types.AnalysisResult {
 				},
 			},
 		},
+		{
+			Name:     "C4: Documentation Quality",
+			Category: "C4",
+			Metrics: map[string]interface{}{
+				"c4": &types.C4Metrics{
+					Available:           true,
+					ReadmePresent:       true,
+					ReadmeWordCount:     450,
+					CommentDensity:      12.5,
+					APIDocCoverage:      65.0,
+					ChangelogPresent:    true,
+					ExamplesPresent:     true,
+					ContributingPresent: false,
+					DiagramsPresent:     false,
+					LLMEnabled:          false,
+				},
+			},
+		},
 	}
 }
 
@@ -233,6 +251,25 @@ func TestRenderSummaryWithMetrics(t *testing.T) {
 		}
 	}
 
+	// C4 metrics should appear
+	c4Checks := []string{
+		"C4: Documentation Quality",
+		"README:",
+		"Comment density:",
+		"API doc coverage:",
+		"CHANGELOG:",
+		"Examples:",
+		"CONTRIBUTING:",
+		"Diagrams:",
+		"LLM Analysis:",
+		"n/a",
+	}
+	for _, check := range c4Checks {
+		if !strings.Contains(out, check) {
+			t.Errorf("output missing C4 metric %q\nGot:\n%s", check, out)
+		}
+	}
+
 	// Non-verbose: should NOT show top functions or dead export details
 	if strings.Contains(out, "Top complex functions:") {
 		t.Error("non-verbose output should not contain 'Top complex functions:'")
@@ -361,5 +398,82 @@ func TestRenderC7Unavailable(t *testing.T) {
 	// Should NOT contain metric values when unavailable
 	if strings.Contains(out, "Intent clarity:") {
 		t.Error("unavailable C7 should not show metric details")
+	}
+}
+
+func TestRenderC4WithLLM(t *testing.T) {
+	var buf bytes.Buffer
+	ar := &types.AnalysisResult{
+		Name:     "C4: Documentation Quality",
+		Category: "C4",
+		Metrics: map[string]interface{}{
+			"c4": &types.C4Metrics{
+				Available:           true,
+				ReadmePresent:       true,
+				ReadmeWordCount:     500,
+				CommentDensity:      15.0,
+				APIDocCoverage:      70.0,
+				ChangelogPresent:    true,
+				ExamplesPresent:     true,
+				ContributingPresent: true,
+				DiagramsPresent:     true,
+				LLMEnabled:          true,
+				ReadmeClarity:       8,
+				ExampleQuality:      7,
+				Completeness:        6,
+				CrossRefCoherence:   7,
+				LLMCostUSD:          0.0015,
+				LLMTokensUsed:       5000,
+			},
+		},
+	}
+	RenderSummary(&buf, newTestResult(), []*types.AnalysisResult{ar}, false)
+	out := buf.String()
+
+	// LLM metrics should show actual values
+	llmChecks := []string{
+		"README clarity:",
+		"8/10",
+		"Example quality:",
+		"7/10",
+		"Completeness:",
+		"6/10",
+		"Cross-ref coherence:",
+		"LLM cost:",
+	}
+	for _, check := range llmChecks {
+		if !strings.Contains(out, check) {
+			t.Errorf("output missing LLM metric %q\nGot:\n%s", check, out)
+		}
+	}
+
+	// Should NOT contain n/a when LLM enabled
+	if strings.Contains(out, "n/a (--enable-c4-llm)") {
+		t.Error("LLM-enabled C4 should not show n/a")
+	}
+}
+
+func TestRenderC4Unavailable(t *testing.T) {
+	var buf bytes.Buffer
+	ar := &types.AnalysisResult{
+		Name:     "C4: Documentation Quality",
+		Category: "C4",
+		Metrics: map[string]interface{}{
+			"c4": &types.C4Metrics{
+				Available: false,
+			},
+		},
+	}
+	RenderSummary(&buf, newTestResult(), []*types.AnalysisResult{ar}, false)
+	out := buf.String()
+
+	if !strings.Contains(out, "C4: Documentation Quality") {
+		t.Error("output should contain C4 header")
+	}
+	if !strings.Contains(out, "Not available") {
+		t.Error("output should indicate C4 not available")
+	}
+	if strings.Contains(out, "README:") {
+		t.Error("unavailable C4 should not show metric details")
 	}
 }

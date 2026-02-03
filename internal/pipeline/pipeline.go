@@ -67,6 +67,7 @@ func New(w io.Writer, verbose bool, cfg *scoring.ScoringConfig, threshold float6
 			analyzer.NewC1Analyzer(tsParser),
 			c2Analyzer,
 			analyzer.NewC3Analyzer(tsParser),
+			analyzer.NewC4Analyzer(tsParser),
 			analyzer.NewC5Analyzer(), // No tsParser needed - git-based analysis
 			analyzer.NewC6Analyzer(tsParser),
 		},
@@ -159,7 +160,7 @@ func (p *Pipeline) Run(dir string) error {
 	}
 	_ = g.Wait()
 
-	// Sort by category name for deterministic output (C1, C2, C3, C5, C6)
+	// Sort by category name for deterministic output (C1, C2, C3, C4, C5, C6)
 	sort.Slice(analysisResults, func(i, j int) bool {
 		return analysisResults[i].Category < analysisResults[j].Category
 	})

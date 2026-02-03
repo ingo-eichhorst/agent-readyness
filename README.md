@@ -1,5 +1,7 @@
 # Agent Readiness Score (ARS)
 
+[![ARS](https://img.shields.io/badge/ARS-Agent--Assisted%206.6%2F10-yellow)](https://github.com/ingo-eichhorst/agent-readyness)
+
 **Measure how ready your codebase is for AI agents.**
 
 ---

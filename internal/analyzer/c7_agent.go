@@ -6,13 +6,12 @@ import (
 	"time"
 
 	"github.com/ingo/agent-readyness/internal/agent"
-	"github.com/ingo/agent-readyness/internal/llm"
 	"github.com/ingo/agent-readyness/pkg/types"
 )
 
 // C7Analyzer implements the pipeline.Analyzer interface for C7: Agent Evaluation.
 type C7Analyzer struct {
-	llmClient *llm.Client
+	evaluator *agent.Evaluator
 	enabled   bool // only runs if explicitly enabled
 }
 
@@ -21,9 +20,9 @@ func NewC7Analyzer() *C7Analyzer {
 	return &C7Analyzer{enabled: false}
 }
 
-// Enable activates C7 analysis with the given LLM client.
-func (a *C7Analyzer) Enable(client *llm.Client) {
-	a.llmClient = client
+// Enable activates C7 analysis with the given CLI evaluator.
+func (a *C7Analyzer) Enable(evaluator *agent.Evaluator) {
+	a.evaluator = evaluator
 	a.enabled = true
 }
 
@@ -65,7 +64,7 @@ func (a *C7Analyzer) Analyze(targets []*types.AnalysisTarget) (*types.AnalysisRe
 
 	// Execute tasks
 	executor := agent.NewExecutor(workDir)
-	scorer := agent.NewScorer(a.llmClient)
+	scorer := agent.NewScorer(a.evaluator)
 	tasks := agent.AllTasks()
 
 	metrics := &types.C7Metrics{

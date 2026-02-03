@@ -1,4 +1,4 @@
-package llm
+package agent
 
 // Evaluation prompts for C4 content quality assessment.
 // Each prompt instructs the model to return JSON: {"score": N, "reason": "..."}

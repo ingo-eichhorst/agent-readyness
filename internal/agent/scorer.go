@@ -3,18 +3,16 @@ package agent
 import (
 	"context"
 	"fmt"
-
-	"github.com/ingo/agent-readyness/internal/llm"
 )
 
-// Scorer evaluates agent task responses using LLM-as-a-judge.
+// Scorer evaluates agent task responses using LLM-as-a-judge via CLI.
 type Scorer struct {
-	llmClient *llm.Client
+	evaluator *Evaluator
 }
 
-// NewScorer creates a scorer with the given LLM client.
-func NewScorer(client *llm.Client) *Scorer {
-	return &Scorer{llmClient: client}
+// NewScorer creates a scorer with the given CLI evaluator.
+func NewScorer(evaluator *Evaluator) *Scorer {
+	return &Scorer{evaluator: evaluator}
 }
 
 // ScoreResult holds the scoring output for a task response.
@@ -29,7 +27,7 @@ func (s *Scorer) Score(ctx context.Context, task Task, response string) (ScoreRe
 	rubric := getRubric(task.ID)
 	content := fmt.Sprintf("Task: %s\n\nAgent Response:\n%s", task.Prompt, response)
 
-	eval, err := s.llmClient.EvaluateContent(ctx, rubric, content)
+	eval, err := s.evaluator.EvaluateWithRetry(ctx, rubric, content)
 	if err != nil {
 		return ScoreResult{}, err
 	}
@@ -37,7 +35,7 @@ func (s *Scorer) Score(ctx context.Context, task Task, response string) (ScoreRe
 	// Scale from 1-10 to 0-100
 	return ScoreResult{
 		Score:     eval.Score * 10,
-		Reasoning: eval.Reasoning,
+		Reasoning: eval.Reason, // EvaluationResult uses Reason, not Reasoning
 	}, nil
 }
 

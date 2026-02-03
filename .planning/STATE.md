@@ -5,43 +5,24 @@
 See: .planning/PROJECT.md (updated 2026-02-03)
 
 **Core value:** Accurate, evidence-based scoring that predicts agent success and identifies specific improvements teams should make before adopting AI coding agents.
-**Current focus:** Planning next milestone (v0.0.3 or v3.0)
+**Current focus:** v0.0.3 — Simplification & Polish
 
 ## Current Position
 
-Milestone: v0.0.2 Complete Analysis Framework
-Status: ✅ SHIPPED (2026-02-03)
-Last activity: 2026-02-03 -- Milestone v0.0.2 archived
+Milestone: v0.0.3 Simplification & Polish
+Phase: 15 of 17 (claude-code-integration)
+Plan: 2 of 2
+Status: Phase 15 complete
+Last activity: 2026-02-04 — Phase 15 verified
 
-Progress: 31 plans completed (v1: 16 plans, v0.0.2: 15 plans)
+Progress: [========================........] 3/5 phases (Phases 13-15 complete)
 
 ## Performance Metrics
 
-**Velocity:**
-- Total plans completed: 31
+**Velocity (from v0.0.2):**
+- Total plans completed: 35
 - Average duration: 6 min
-- Total execution time: 180 min
-
-**By Phase:**
-
-| Phase | Plans | Total | Avg/Plan |
-|-------|-------|-------|----------|
-| 01-foundation | 3 | 9 min | 3 min |
-| 02-core-analysis | 5 | 44 min | 9 min |
-| 03-scoring-model | 3 | 10 min | 3 min |
-| 04-recommendations-and-output | 3 | 14 min | 5 min |
-| 05-hardening | 2 | 5 min | 3 min |
-| 06-multi-language-foundation | 4 | 29 min | 7 min |
-| 07-python-typescript-c1-c3-c6 | 2 | 19 min | 10 min |
-| 08-c5-temporal-dynamics | 2 | 8 min | 4 min |
-| 09-c4-documentation-quality | 3 | 28 min | 9 min |
-| 10-c7-agent-evaluation | 2 | 10 min | 5 min |
-| 11-terminal-output-integration | 1 | 1 min | 1 min |
-| 12-c4-static-metrics-visibility | 1 | 3 min | 3 min |
-
-**Recent Trend:**
-- Last 5 plans: 10-01 (3 min), 10-02 (7 min), 11-01 (1 min), 12-01 (3 min)
-- Trend: All phases complete
+- Total execution time: 206 min
 
 *Updated after each plan completion*
 
@@ -50,7 +31,18 @@ Progress: 31 plans completed (v1: 16 plans, v0.0.2: 15 plans)
 ### Decisions
 
 All decisions are logged in PROJECT.md Key Decisions table.
-For next milestone planning, review PROJECT.md and MILESTONES.md.
+
+**v0.0.3 decisions:**
+- Full migration to Claude CLI (remove Anthropic SDK entirely, accept higher C4 costs for simplicity)
+- shields.io URL output for badges (no local SVG generation in v0.0.3)
+- CSS-only expandable HTML sections (minimal JS for bulk toggle only)
+- Proceed with analyzer reorganization into subdirectories
+- Badge URL uses double-dash escape for hyphens (shields.io convention)
+- HTML5 details/summary for metric descriptions (auto-expand below threshold 6.0)
+- 60-second timeout per CLI evaluation (15-01)
+- Single retry with 2-second backoff for CLI evaluation (15-01)
+- Auto-enable LLM when CLI detected, opt-out with --no-llm (15-02)
+- Remove cost estimates and confirmation prompts for CLI-based evaluation (15-02)
 
 ### Pending Todos
 
@@ -58,12 +50,14 @@ None.
 
 ### Blockers/Concerns
 
-None - v0.0.2 shipped successfully.
+**Research flags:**
+- CLI JSON schema instability — need version checking
+- Subprocess orphaning risk — use process groups
 
 ## Session Continuity
 
-Last session: 2026-02-03
-Stopped at: Milestone v0.0.2 complete and archived
+Last session: 2026-02-04
+Stopped at: Phase 15 verified
 Resume file: None
 
-**Next steps:** Run `/gsd:new-milestone` to start planning next milestone (v0.0.3 or v3.0)
+**Next steps:** Plan Phase 16 (Analyzer Reorganization)

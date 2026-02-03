@@ -10,6 +10,7 @@ import (
 
 	"github.com/ingo/agent-readyness/internal/recommend"
 	"github.com/ingo/agent-readyness/pkg/types"
+	"github.com/ingo/agent-readyness/pkg/version"
 )
 
 //go:embed templates/report.html templates/styles.css
@@ -35,6 +36,8 @@ type HTMLReportData struct {
 	Recommendations []HTMLRecommendation
 	Citations       []Citation
 	InlineCSS       template.CSS // Safe: from our template
+	BadgeMarkdown   string       // Badge markdown for copy section
+	BadgeURL        string       // Badge URL for preview
 }
 
 // HTMLCategory represents a category for HTML display.
@@ -49,14 +52,18 @@ type HTMLCategory struct {
 
 // HTMLSubScore represents a metric sub-score for HTML display.
 type HTMLSubScore struct {
-	MetricName     string
-	DisplayName    string
-	RawValue       float64
-	FormattedValue string
-	Score          float64
-	ScoreClass     string
-	WeightPct      float64 // Weight as percentage (0-100)
-	Available      bool
+	Key                 string        // Unique key like "complexity_avg"
+	MetricName          string
+	DisplayName         string
+	RawValue            float64
+	FormattedValue      string
+	Score               float64
+	ScoreClass          string
+	WeightPct           float64 // Weight as percentage (0-100)
+	Available           bool
+	BriefDescription    string        // Always visible, 1-2 sentences
+	DetailedDescription template.HTML // Expandable content with sections
+	ShouldExpand        bool          // true if score below threshold
 }
 
 // HTMLRecommendation represents a recommendation for HTML display.
@@ -104,21 +111,26 @@ func (g *HTMLGenerator) GenerateReport(w io.Writer, scored *types.ScoredResult, 
 		}
 	}
 
+	// Generate badge info
+	badge := GenerateBadge(scored)
+
 	// Build template data
 	data := HTMLReportData{
-		ProjectName:   scored.ProjectName,
-		Composite:     scored.Composite,
-		Tier:          scored.Tier,
-		TierClass:     tierToClass(scored.Tier),
-		GeneratedAt:   time.Now().Format("2006-01-02 15:04:05"),
-		Version:       "2.0.0",
-		RadarChartSVG: template.HTML(radarSVG), // Safe: we generated it
-		TrendChartSVG: template.HTML(trendSVG), // Safe: we generated it
-		HasTrend:      baseline != nil && trendSVG != "",
-		Categories:    buildHTMLCategories(scored.Categories),
+		ProjectName:     scored.ProjectName,
+		Composite:       scored.Composite,
+		Tier:            scored.Tier,
+		TierClass:       tierToClass(scored.Tier),
+		GeneratedAt:     time.Now().Format("2006-01-02 15:04:05"),
+		Version:         version.Version,
+		RadarChartSVG:   template.HTML(radarSVG), // Safe: we generated it
+		TrendChartSVG:   template.HTML(trendSVG), // Safe: we generated it
+		HasTrend:        baseline != nil && trendSVG != "",
+		Categories:      buildHTMLCategories(scored.Categories),
 		Recommendations: buildHTMLRecommendations(recs),
-		Citations:     researchCitations,
-		InlineCSS:     template.CSS(string(cssBytes)), // Safe: from our template
+		Citations:       researchCitations,
+		InlineCSS:       template.CSS(string(cssBytes)), // Safe: from our template
+		BadgeMarkdown:   badge.Markdown,
+		BadgeURL:        badge.URL,
 	}
 
 	return g.tmpl.Execute(w, data)
@@ -173,15 +185,20 @@ func buildHTMLSubScores(subScores []types.SubScore) []HTMLSubScore {
 	result := make([]HTMLSubScore, 0, len(subScores))
 
 	for _, ss := range subScores {
+		desc := getMetricDescription(ss.MetricName)
 		hss := HTMLSubScore{
-			MetricName:     ss.MetricName,
-			DisplayName:    metricDisplayName(ss.MetricName),
-			RawValue:       ss.RawValue,
-			FormattedValue: formatMetricValue(ss.MetricName, ss.RawValue, ss.Available),
-			Score:          ss.Score,
-			ScoreClass:     scoreToClass(ss.Score),
-			WeightPct:      ss.Weight * 100,
-			Available:      ss.Available,
+			Key:                 ss.MetricName,
+			MetricName:          ss.MetricName,
+			DisplayName:         metricDisplayName(ss.MetricName),
+			RawValue:            ss.RawValue,
+			FormattedValue:      formatMetricValue(ss.MetricName, ss.RawValue, ss.Available),
+			Score:               ss.Score,
+			ScoreClass:          scoreToClass(ss.Score),
+			WeightPct:           ss.Weight * 100,
+			Available:           ss.Available,
+			BriefDescription:    desc.Brief,
+			DetailedDescription: desc.Detailed,
+			ShouldExpand:        ss.Score < desc.Threshold,
 		}
 		result = append(result, hss)
 	}

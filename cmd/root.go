@@ -7,18 +7,16 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/ingo/agent-readyness/pkg/types"
+	"github.com/ingo/agent-readyness/pkg/version"
 )
 
-var (
-	version = "dev"
-	verbose bool
-)
+var verbose bool
 
 var rootCmd = &cobra.Command{
 	Use:     "ars",
 	Short:   "Agent Readiness Score - analyze Go codebases for AI agent compatibility",
 	Long:    "ARS analyzes Go codebases and produces a composite score measuring how well\nthe repository supports AI agent workflows. It evaluates code health,\narchitectural navigability, and testing infrastructure.",
-	Version: version,
+	Version: version.Version,
 }
 
 func init() {

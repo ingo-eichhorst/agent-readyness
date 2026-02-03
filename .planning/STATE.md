@@ -10,19 +10,19 @@ See: .planning/PROJECT.md (updated 2026-02-03)
 ## Current Position
 
 Milestone: v0.0.3 Simplification & Polish
-Phase: 13 of 17 (badge-generation)
+Phase: 14 of 17 (html-enhancements)
 Plan: 1 of 1
-Status: Phase 13 complete
-Last activity: 2026-02-03 — Completed 13-01-PLAN.md
+Status: Phase 14 complete
+Last activity: 2026-02-03 — Completed 14-01-PLAN.md
 
-Progress: [================................] 1/5 phases (Phase 13 complete)
+Progress: [=================...............] 2/5 phases (Phases 13-14 complete)
 
 ## Performance Metrics
 
 **Velocity (from v0.0.2):**
-- Total plans completed: 32
+- Total plans completed: 33
 - Average duration: 6 min
-- Total execution time: 186 min
+- Total execution time: 192 min
 
 *Updated after each plan completion*
 
@@ -35,9 +35,10 @@ All decisions are logged in PROJECT.md Key Decisions table.
 **v0.0.3 decisions:**
 - Full migration to Claude CLI (remove Anthropic SDK entirely, accept higher C4 costs for simplicity)
 - shields.io URL output for badges (no local SVG generation in v0.0.3)
-- CSS-only expandable HTML sections (no JavaScript)
+- CSS-only expandable HTML sections (minimal JS for bulk toggle only)
 - Proceed with analyzer reorganization into subdirectories
 - Badge URL uses double-dash escape for hyphens (shields.io convention)
+- HTML5 details/summary for metric descriptions (auto-expand below threshold 6.0)
 
 ### Pending Todos
 
@@ -52,7 +53,7 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-03
-Stopped at: Completed 13-01-PLAN.md
+Stopped at: Completed 14-01-PLAN.md
 Resume file: None
 
-**Next steps:** Execute remaining v0.0.3 phases (14-17)
+**Next steps:** Execute remaining v0.0.3 phases (15-17)

@@ -42,10 +42,10 @@ Plans:
   2. Each metric has an expandable section with detailed explanation and research citations
   3. Expandable sections work without JavaScript (CSS-only details/summary)
   4. Categories scoring below 6.0 have their detail sections expanded by default
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 14-01: HTML template updates with collapsible sections
+- [ ] 14-01-PLAN.md — Metric descriptions data, HTML struct updates, template with details/summary
 
 ### Phase 15: Claude Code Integration
 **Goal**: All LLM features use Claude Code CLI, eliminating Anthropic SDK dependency
@@ -102,7 +102,7 @@ Phases 13-17 execute in order. Phases 13, 14, 15, 17 are independent and could p
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 13. Badge Generation | 1/1 | Complete | 2026-02-03 |
-| 14. HTML Enhancements | 0/1 | Not started | - |
+| 14. HTML Enhancements | 0/1 | Planned | - |
 | 15. Claude Code Integration | 0/2 | Not started | - |
 | 16. Analyzer Reorganization | 0/2 | Not started | - |
 | 17. README & Testing | 0/1 | Not started | - |

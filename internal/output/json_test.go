@@ -77,7 +77,7 @@ func newTestRecommendations() []recommend.Recommendation {
 func TestJSONOutputValid(t *testing.T) {
 	scored := newTestScoredResult()
 	recs := newTestRecommendations()
-	report := BuildJSONReport(scored, recs, false)
+	report := BuildJSONReport(scored, recs, false, false)
 
 	var buf bytes.Buffer
 	err := RenderJSON(&buf, report)
@@ -93,7 +93,7 @@ func TestJSONOutputValid(t *testing.T) {
 func TestJSONNoANSI(t *testing.T) {
 	scored := newTestScoredResult()
 	recs := newTestRecommendations()
-	report := BuildJSONReport(scored, recs, true)
+	report := BuildJSONReport(scored, recs, true, false)
 
 	var buf bytes.Buffer
 	err := RenderJSON(&buf, report)
@@ -109,7 +109,7 @@ func TestJSONNoANSI(t *testing.T) {
 
 func TestJSONVersion(t *testing.T) {
 	scored := newTestScoredResult()
-	report := BuildJSONReport(scored, nil, false)
+	report := BuildJSONReport(scored, nil, false, false)
 
 	var buf bytes.Buffer
 	if err := RenderJSON(&buf, report); err != nil {
@@ -128,7 +128,7 @@ func TestJSONVersion(t *testing.T) {
 
 func TestJSONVerboseIncludesMetrics(t *testing.T) {
 	scored := newTestScoredResult()
-	report := BuildJSONReport(scored, nil, true)
+	report := BuildJSONReport(scored, nil, true, false)
 
 	var buf bytes.Buffer
 	if err := RenderJSON(&buf, report); err != nil {
@@ -160,7 +160,7 @@ func TestJSONVerboseIncludesMetrics(t *testing.T) {
 
 func TestJSONNonVerboseOmitsMetrics(t *testing.T) {
 	scored := newTestScoredResult()
-	report := BuildJSONReport(scored, nil, false)
+	report := BuildJSONReport(scored, nil, false, false)
 
 	var buf bytes.Buffer
 	if err := RenderJSON(&buf, report); err != nil {
@@ -177,7 +177,7 @@ func TestJSONNonVerboseOmitsMetrics(t *testing.T) {
 func TestJSONIncludesRecommendations(t *testing.T) {
 	scored := newTestScoredResult()
 	recs := newTestRecommendations()
-	report := BuildJSONReport(scored, recs, false)
+	report := BuildJSONReport(scored, recs, false, false)
 
 	var buf bytes.Buffer
 	if err := RenderJSON(&buf, report); err != nil {
@@ -210,7 +210,7 @@ func TestJSONIncludesRecommendations(t *testing.T) {
 
 func TestJSONCompositeAndTier(t *testing.T) {
 	scored := newTestScoredResult()
-	report := BuildJSONReport(scored, nil, false)
+	report := BuildJSONReport(scored, nil, false, false)
 
 	var buf bytes.Buffer
 	if err := RenderJSON(&buf, report); err != nil {
@@ -232,7 +232,7 @@ func TestJSONCompositeAndTier(t *testing.T) {
 
 func TestJSONEmptyRecommendations(t *testing.T) {
 	scored := newTestScoredResult()
-	report := BuildJSONReport(scored, nil, false)
+	report := BuildJSONReport(scored, nil, false, false)
 
 	var buf bytes.Buffer
 	if err := RenderJSON(&buf, report); err != nil {
@@ -247,5 +247,60 @@ func TestJSONEmptyRecommendations(t *testing.T) {
 	// Nil recommendations should marshal as null, which unmarshals as nil
 	if parsed.Recommendations != nil {
 		t.Errorf("recommendations should be nil for empty input, got %v", parsed.Recommendations)
+	}
+}
+
+func TestJSONIncludesBadge(t *testing.T) {
+	scored := newTestScoredResult()
+	report := BuildJSONReport(scored, nil, false, true)
+
+	var buf bytes.Buffer
+	if err := RenderJSON(&buf, report); err != nil {
+		t.Fatalf("RenderJSON error: %v", err)
+	}
+
+	var parsed JSONReport
+	if err := json.Unmarshal(buf.Bytes(), &parsed); err != nil {
+		t.Fatalf("unmarshal error: %v", err)
+	}
+
+	// Badge should be present
+	if parsed.BadgeURL == "" {
+		t.Error("badge_url should be present when includeBadge is true")
+	}
+	if parsed.BadgeMarkdown == "" {
+		t.Error("badge_markdown should be present when includeBadge is true")
+	}
+
+	// Check badge URL format
+	if !strings.Contains(parsed.BadgeURL, "img.shields.io/badge/ARS-") {
+		t.Errorf("badge_url should contain shields.io URL, got %q", parsed.BadgeURL)
+	}
+	if !strings.Contains(parsed.BadgeURL, "yellow") {
+		t.Errorf("badge_url should contain color 'yellow' for Agent-Assisted tier, got %q", parsed.BadgeURL)
+	}
+
+	// Check markdown format
+	if !strings.HasPrefix(parsed.BadgeMarkdown, "[![ARS](") {
+		t.Errorf("badge_markdown should start with markdown image syntax, got %q", parsed.BadgeMarkdown)
+	}
+}
+
+func TestJSONOmitsBadgeByDefault(t *testing.T) {
+	scored := newTestScoredResult()
+	report := BuildJSONReport(scored, nil, false, false)
+
+	var buf bytes.Buffer
+	if err := RenderJSON(&buf, report); err != nil {
+		t.Fatalf("RenderJSON error: %v", err)
+	}
+
+	out := buf.String()
+	// With omitempty, badge fields should not appear
+	if strings.Contains(out, `"badge_url"`) {
+		t.Error("badge_url should be omitted when includeBadge is false")
+	}
+	if strings.Contains(out, `"badge_markdown"`) {
+		t.Error("badge_markdown should be omitted when includeBadge is false")
 	}
 }

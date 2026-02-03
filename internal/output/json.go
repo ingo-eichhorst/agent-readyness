@@ -15,6 +15,8 @@ type JSONReport struct {
 	Tier            string               `json:"tier"`
 	Categories      []JSONCategory       `json:"categories"`
 	Recommendations []JSONRecommendation `json:"recommendations"`
+	BadgeURL        string               `json:"badge_url,omitempty"`
+	BadgeMarkdown   string               `json:"badge_markdown,omitempty"`
 }
 
 // JSONCategory represents a scoring category in JSON output.
@@ -50,7 +52,8 @@ type JSONRecommendation struct {
 
 // BuildJSONReport converts a ScoredResult and recommendations into a JSONReport.
 // When verbose is true, per-metric sub-scores are included in each category.
-func BuildJSONReport(scored *types.ScoredResult, recs []recommend.Recommendation, verbose bool) *JSONReport {
+// When includeBadge is true, badge URL and markdown are included.
+func BuildJSONReport(scored *types.ScoredResult, recs []recommend.Recommendation, verbose bool, includeBadge bool) *JSONReport {
 	report := &JSONReport{
 		Version:        "1",
 		CompositeScore: scored.Composite,
@@ -92,6 +95,13 @@ func BuildJSONReport(scored *types.ScoredResult, recs []recommend.Recommendation
 			Summary:          rec.Summary,
 			Action:           rec.Action,
 		})
+	}
+
+	// Add badge information if requested
+	if includeBadge && scored != nil {
+		badge := GenerateBadge(scored)
+		report.BadgeURL = badge.URL
+		report.BadgeMarkdown = badge.Markdown
 	}
 
 	return report

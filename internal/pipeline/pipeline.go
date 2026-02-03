@@ -37,6 +37,7 @@ type Pipeline struct {
 	llmClient    *llm.Client // optional LLM client for C4 analysis
 	htmlOutput   string      // optional path for HTML report output
 	baselinePath string      // optional path to previous JSON for trend comparison
+	badgeOutput  bool        // generate shields.io badge markdown
 }
 
 // New creates a Pipeline with GoPackagesParser, all analyzers, and a scorer.
@@ -108,6 +109,11 @@ func (p *Pipeline) SetC7Enabled(client *llm.Client) {
 func (p *Pipeline) SetHTMLOutput(htmlPath, baselinePath string) {
 	p.htmlOutput = htmlPath
 	p.baselinePath = baselinePath
+}
+
+// SetBadgeOutput enables shields.io badge markdown generation in output.
+func (p *Pipeline) SetBadgeOutput(enabled bool) {
+	p.badgeOutput = enabled
 }
 
 // Run executes the full pipeline on the given directory.
@@ -223,7 +229,7 @@ func (p *Pipeline) Run(dir string) error {
 	if p.jsonOutput {
 		// JSON mode: build report and render as JSON
 		if p.scored != nil {
-			report := output.BuildJSONReport(p.scored, recs, p.verbose)
+			report := output.BuildJSONReport(p.scored, recs, p.verbose, p.badgeOutput)
 			if err := output.RenderJSON(p.writer, report); err != nil {
 				return fmt.Errorf("render JSON: %w", err)
 			}
@@ -236,6 +242,10 @@ func (p *Pipeline) Run(dir string) error {
 		}
 		if len(recs) > 0 {
 			output.RenderRecommendations(p.writer, recs)
+		}
+		// Render badge if requested
+		if p.badgeOutput && p.scored != nil {
+			output.RenderBadge(p.writer, p.scored)
 		}
 	}
 

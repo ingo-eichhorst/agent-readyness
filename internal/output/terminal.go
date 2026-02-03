@@ -767,3 +767,18 @@ func joinCycle(cycle []string) string {
 	result += " -> " + cycle[0]
 	return result
 }
+
+// RenderBadge prints the shields.io badge markdown to w.
+func RenderBadge(w io.Writer, scored *types.ScoredResult) {
+	if scored == nil {
+		return
+	}
+
+	bold := color.New(color.Bold)
+	badge := GenerateBadge(scored)
+
+	fmt.Fprintln(w)
+	bold.Fprintln(w, "Badge")
+	fmt.Fprintln(w, "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500")
+	fmt.Fprintln(w, badge.Markdown)
+}

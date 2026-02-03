@@ -59,14 +59,14 @@ Requirements for v2 milestone: Complete Analysis Framework (multi-language + all
 
 ### C5: Temporal & Operational Dynamics
 
-- [ ] **C5-01**: Parse git log with native git CLI (not go-git)
-- [ ] **C5-02**: Calculate code churn rate (lines changed per commit, 90-day window)
-- [ ] **C5-03**: Detect temporal coupling (files co-changed >70% of time)
-- [ ] **C5-04**: Calculate author fragmentation (avg authors per file, 90-day window)
-- [ ] **C5-05**: Calculate commit stability (median time between changes)
-- [ ] **C5-06**: Calculate hotspot concentration (% changes in top 10% of files)
-- [ ] **C5-07**: Fail gracefully if .git directory missing (clear error, not silent skip)
-- [ ] **C5-08**: Performance optimization (default to 6-month history window)
+- [x] **C5-01**: Parse git log with native git CLI (not go-git)
+- [x] **C5-02**: Calculate code churn rate (lines changed per commit, 90-day window)
+- [x] **C5-03**: Detect temporal coupling (files co-changed >70% of time)
+- [x] **C5-04**: Calculate author fragmentation (avg authors per file, 90-day window)
+- [x] **C5-05**: Calculate commit stability (median time between changes)
+- [x] **C5-06**: Calculate hotspot concentration (% changes in top 10% of files)
+- [x] **C5-07**: Fail gracefully if .git directory missing (clear error, not silent skip)
+- [x] **C5-08**: Performance optimization (default to 6-month history window)
 
 ### C7: Agent Evaluation (LLM-as-Judge)
 
@@ -228,14 +228,14 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TS-07 | Phase 7 | Pending |
 | TS-08 | Phase 7 | Pending |
 | TS-09 | Phase 7 | Pending |
-| C5-01 | Phase 8 | Pending |
-| C5-02 | Phase 8 | Pending |
-| C5-03 | Phase 8 | Pending |
-| C5-04 | Phase 8 | Pending |
-| C5-05 | Phase 8 | Pending |
-| C5-06 | Phase 8 | Pending |
-| C5-07 | Phase 8 | Pending |
-| C5-08 | Phase 8 | Pending |
+| C5-01 | Phase 8 | Complete |
+| C5-02 | Phase 8 | Complete |
+| C5-03 | Phase 8 | Complete |
+| C5-04 | Phase 8 | Complete |
+| C5-05 | Phase 8 | Complete |
+| C5-06 | Phase 8 | Complete |
+| C5-07 | Phase 8 | Complete |
+| C5-08 | Phase 8 | Complete |
 | C4-01 | Phase 9 | Pending |
 | C4-02 | Phase 9 | Pending |
 | C4-03 | Phase 9 | Pending |

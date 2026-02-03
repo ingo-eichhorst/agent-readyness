@@ -261,7 +261,7 @@ func categoryScore(subScores []types.SubScore) float64 {
 		totalWeight += ss.Weight
 	}
 	if totalWeight == 0 {
-		return 5.0
+		return 0.0
 	}
 	return weightedSum / totalWeight
 }

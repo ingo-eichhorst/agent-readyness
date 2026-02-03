@@ -361,7 +361,7 @@ Example output:
 - ⚡ **CI Integration**: `--threshold 6.0` for gating
 - ⚡ **Mixed Repos**: Handle multi-language repositories
 
-### Could Have (GA)
+### Phase 3
 
 - 🔮 **C7 LLM Judge**: Agent-specific evaluation (use Agent headless: Claude Code or Codex-CLI or OpenCode)
 - 🔮 **Incremental Scanning**: Cache results, only re-analyze changed files

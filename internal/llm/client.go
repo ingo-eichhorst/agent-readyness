@@ -13,7 +13,7 @@ import (
 
 // Client wraps the Anthropic SDK for content evaluation.
 type Client struct {
-	client anthropic.Client
+	client *anthropic.Client
 	model  anthropic.Model
 }
 
@@ -25,8 +25,8 @@ func NewClient(apiKey string) (*Client, error) {
 	}
 	c := anthropic.NewClient(option.WithAPIKey(apiKey))
 	return &Client{
-		client: c,
-		model:  anthropic.ModelClaude3_5HaikuLatest, // Cost-effective for evaluation
+		client: &c,
+		model:  anthropic.ModelClaudeHaiku4_5, // Cost-effective for evaluation
 	}, nil
 }
 

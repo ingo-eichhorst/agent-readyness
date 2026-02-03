@@ -57,11 +57,11 @@ Plans:
   3. LLM analysis runs automatically when Claude CLI is available (no `--enable-c4-llm` flag)
   4. No `ANTHROPIC_API_KEY` environment variable required
   5. Anthropic SDK removed from go.mod
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 15-01: Extend agent executor for C4 evaluation
-- [ ] 15-02: Remove Anthropic SDK and flag cleanup
+- [ ] 15-01-PLAN.md — CLI detection, evaluator infrastructure, C4 refactor to use CLI
+- [ ] 15-02-PLAN.md — Pipeline auto-detection, flag cleanup, SDK removal
 
 ### Phase 16: Analyzer Reorganization
 **Goal**: Analyzer code organized into category subdirectories for improved navigability

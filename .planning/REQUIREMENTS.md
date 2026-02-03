@@ -9,11 +9,11 @@ Requirements for v0.0.3 milestone. Each maps to roadmap phases.
 
 ### LLM Integration (Issue #6)
 
-- [ ] **LLM-01**: Remove `--enable-c4-llm` flag — LLM analysis always active when Claude CLI available
-- [ ] **LLM-02**: C4 documentation quality uses Claude Code CLI (`claude -p`) instead of Anthropic SDK
-- [ ] **LLM-03**: C7 agent evaluation continues using Claude Code CLI (already implemented)
-- [ ] **LLM-04**: Remove Anthropic SDK dependency from go.mod
-- [ ] **LLM-05**: Remove `ANTHROPIC_API_KEY` requirement — Claude CLI handles auth
+- [x] **LLM-01**: Remove `--enable-c4-llm` flag — LLM analysis always active when Claude CLI available
+- [x] **LLM-02**: C4 documentation quality uses Claude Code CLI (`claude -p`) instead of Anthropic SDK
+- [x] **LLM-03**: C7 agent evaluation continues using Claude Code CLI (already implemented)
+- [x] **LLM-04**: Remove Anthropic SDK dependency from go.mod
+- [x] **LLM-05**: Remove `ANTHROPIC_API_KEY` requirement — Claude CLI handles auth
 
 ### Badge Generation (Issue #5)
 
@@ -78,11 +78,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| LLM-01 | Phase 15 | Pending |
-| LLM-02 | Phase 15 | Pending |
-| LLM-03 | Phase 15 | Pending |
-| LLM-04 | Phase 15 | Pending |
-| LLM-05 | Phase 15 | Pending |
+| LLM-01 | Phase 15 | Complete |
+| LLM-02 | Phase 15 | Complete |
+| LLM-03 | Phase 15 | Complete |
+| LLM-04 | Phase 15 | Complete |
+| LLM-05 | Phase 15 | Complete |
 | BADGE-01 | Phase 13 | Complete |
 | BADGE-02 | Phase 13 | Complete |
 | BADGE-03 | Phase 13 | Complete |

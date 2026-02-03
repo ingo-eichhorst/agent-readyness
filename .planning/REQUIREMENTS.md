@@ -78,34 +78,34 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| LLM-01 | TBD | Pending |
-| LLM-02 | TBD | Pending |
-| LLM-03 | TBD | Pending |
-| LLM-04 | TBD | Pending |
-| LLM-05 | TBD | Pending |
-| BADGE-01 | TBD | Pending |
-| BADGE-02 | TBD | Pending |
-| BADGE-03 | TBD | Pending |
-| HTML-01 | TBD | Pending |
-| HTML-02 | TBD | Pending |
-| HTML-03 | TBD | Pending |
-| HTML-04 | TBD | Pending |
-| README-01 | TBD | Pending |
-| README-02 | TBD | Pending |
-| README-03 | TBD | Pending |
-| README-04 | TBD | Pending |
-| REORG-01 | TBD | Pending |
-| REORG-02 | TBD | Pending |
-| REORG-03 | TBD | Pending |
-| REORG-04 | TBD | Pending |
-| TEST-01 | TBD | Pending |
-| TEST-02 | TBD | Pending |
+| LLM-01 | Phase 15 | Pending |
+| LLM-02 | Phase 15 | Pending |
+| LLM-03 | Phase 15 | Pending |
+| LLM-04 | Phase 15 | Pending |
+| LLM-05 | Phase 15 | Pending |
+| BADGE-01 | Phase 13 | Pending |
+| BADGE-02 | Phase 13 | Pending |
+| BADGE-03 | Phase 13 | Pending |
+| HTML-01 | Phase 14 | Pending |
+| HTML-02 | Phase 14 | Pending |
+| HTML-03 | Phase 14 | Pending |
+| HTML-04 | Phase 14 | Pending |
+| README-01 | Phase 17 | Pending |
+| README-02 | Phase 17 | Pending |
+| README-03 | Phase 17 | Pending |
+| README-04 | Phase 17 | Pending |
+| REORG-01 | Phase 16 | Pending |
+| REORG-02 | Phase 16 | Pending |
+| REORG-03 | Phase 16 | Pending |
+| REORG-04 | Phase 16 | Pending |
+| TEST-01 | Phase 17 | Pending |
+| TEST-02 | Phase 17 | Pending |
 
 **Coverage:**
 - v0.0.3 requirements: 22 total
-- Mapped to phases: 0
-- Unmapped: 22 (pending roadmap creation)
+- Mapped to phases: 22
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-03*
-*Last updated: 2026-02-03 after initial definition*
+*Last updated: 2026-02-03 after roadmap creation*

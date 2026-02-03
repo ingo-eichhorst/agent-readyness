@@ -65,6 +65,18 @@ func TestDefaultConfig_Structure(t *testing.T) {
 		t.Errorf("C6 name = %q, want %q", c6.Name, "Testing")
 	}
 
+	// C4 should have 7 metrics
+	c4 := cfg.Categories["C4"]
+	if got := len(c4.Metrics); got != 7 {
+		t.Errorf("C4 metrics count = %d, want 7", got)
+	}
+	if c4.Weight != 0.15 {
+		t.Errorf("C4 weight = %v, want 0.15", c4.Weight)
+	}
+	if c4.Name != "Documentation Quality" {
+		t.Errorf("C4 name = %q, want %q", c4.Name, "Documentation Quality")
+	}
+
 	// C5 should have 5 metrics
 	c5 := cfg.Categories["C5"]
 	if got := len(c5.Metrics); got != 5 {
@@ -77,9 +89,9 @@ func TestDefaultConfig_Structure(t *testing.T) {
 		t.Errorf("C5 name = %q, want %q", c5.Name, "Temporal Dynamics")
 	}
 
-	// Should have 5 categories
-	if got := len(cfg.Categories); got != 5 {
-		t.Errorf("categories count = %d, want 5", got)
+	// Should have 6 categories
+	if got := len(cfg.Categories); got != 6 {
+		t.Errorf("categories count = %d, want 6", got)
 	}
 
 	// Tiers should have 4 entries
@@ -213,6 +225,28 @@ func TestDefaultConfig_MetricNames(t *testing.T) {
 	for name, found := range c6Names {
 		if !found {
 			t.Errorf("missing C6 metric %q", name)
+		}
+	}
+
+	c4Names := map[string]bool{
+		"readme_word_count":    false,
+		"comment_density":      false,
+		"api_doc_coverage":     false,
+		"changelog_present":    false,
+		"examples_present":     false,
+		"contributing_present": false,
+		"diagrams_present":     false,
+	}
+	c4 := cfg.Categories["C4"]
+	for _, m := range c4.Metrics {
+		if _, ok := c4Names[m.Name]; !ok {
+			t.Errorf("unexpected C4 metric %q", m.Name)
+		}
+		c4Names[m.Name] = true
+	}
+	for name, found := range c4Names {
+		if !found {
+			t.Errorf("missing C4 metric %q", name)
 		}
 	}
 

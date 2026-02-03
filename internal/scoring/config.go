@@ -247,6 +247,77 @@ func DefaultConfig() *ScoringConfig {
 					},
 				},
 			},
+			"C4": {
+				Name:   "Documentation Quality",
+				Weight: 0.15,
+				Metrics: []MetricThresholds{
+					{
+						Name:   "readme_word_count",
+						Weight: 0.15,
+						Breakpoints: []Breakpoint{
+							{Value: 0, Score: 1},
+							{Value: 100, Score: 3},
+							{Value: 300, Score: 6},
+							{Value: 500, Score: 8},
+							{Value: 1000, Score: 10},
+						},
+					},
+					{
+						Name:   "comment_density",
+						Weight: 0.20,
+						Breakpoints: []Breakpoint{
+							{Value: 0, Score: 1},
+							{Value: 5, Score: 3},
+							{Value: 10, Score: 6},
+							{Value: 15, Score: 8},
+							{Value: 25, Score: 10},
+						},
+					},
+					{
+						Name:   "api_doc_coverage",
+						Weight: 0.25,
+						Breakpoints: []Breakpoint{
+							{Value: 0, Score: 1},
+							{Value: 30, Score: 3},
+							{Value: 50, Score: 6},
+							{Value: 80, Score: 8},
+							{Value: 100, Score: 10},
+						},
+					},
+					{
+						Name:   "changelog_present",
+						Weight: 0.10,
+						Breakpoints: []Breakpoint{
+							{Value: 0, Score: 3},
+							{Value: 1, Score: 10},
+						},
+					},
+					{
+						Name:   "examples_present",
+						Weight: 0.15,
+						Breakpoints: []Breakpoint{
+							{Value: 0, Score: 3},
+							{Value: 1, Score: 10},
+						},
+					},
+					{
+						Name:   "contributing_present",
+						Weight: 0.10,
+						Breakpoints: []Breakpoint{
+							{Value: 0, Score: 3},
+							{Value: 1, Score: 10},
+						},
+					},
+					{
+						Name:   "diagrams_present",
+						Weight: 0.05,
+						Breakpoints: []Breakpoint{
+							{Value: 0, Score: 5},
+							{Value: 1, Score: 10},
+						},
+					},
+				},
+			},
 			"C5": {
 			Name:   "Temporal Dynamics",
 			Weight: 0.10,

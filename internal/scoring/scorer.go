@@ -18,6 +18,7 @@ var metricExtractors = map[string]MetricExtractor{
 	"C1": extractC1,
 	"C2": extractC2,
 	"C3": extractC3,
+	"C4": extractC4,
 	"C5": extractC5,
 	"C6": extractC6,
 }
@@ -232,6 +233,46 @@ func extractC3(ar *types.AnalysisResult) (map[string]float64, map[string]bool) {
 		"circular_deps":        float64(len(m.CircularDeps)),
 		"import_complexity_avg": m.ImportComplexity.Avg,
 		"dead_exports":          float64(len(m.DeadExports)),
+	}, nil
+}
+
+// extractC4 extracts C4 (Documentation Quality) metrics from an AnalysisResult.
+func extractC4(ar *types.AnalysisResult) (map[string]float64, map[string]bool) {
+	raw, ok := ar.Metrics["c4"]
+	if !ok {
+		return nil, nil
+	}
+	m, ok := raw.(*types.C4Metrics)
+	if !ok {
+		return nil, nil
+	}
+
+	// Convert boolean presence to 0/1 for scoring
+	changelogVal := 0.0
+	if m.ChangelogPresent {
+		changelogVal = 1.0
+	}
+	examplesVal := 0.0
+	if m.ExamplesPresent {
+		examplesVal = 1.0
+	}
+	contributingVal := 0.0
+	if m.ContributingPresent {
+		contributingVal = 1.0
+	}
+	diagramsVal := 0.0
+	if m.DiagramsPresent {
+		diagramsVal = 1.0
+	}
+
+	return map[string]float64{
+		"readme_word_count":     float64(m.ReadmeWordCount),
+		"comment_density":       m.CommentDensity,
+		"api_doc_coverage":      m.APIDocCoverage,
+		"changelog_present":     changelogVal,
+		"examples_present":      examplesVal,
+		"contributing_present":  contributingVal,
+		"diagrams_present":      diagramsVal,
 	}, nil
 }
 

@@ -71,6 +71,8 @@ func RenderSummary(w io.Writer, result *types.ScanResult, analysisResults []*typ
 			renderC2(w, ar, verbose)
 		case "C3":
 			renderC3(w, ar, verbose)
+		case "C4":
+			renderC4(w, ar, verbose)
 		case "C5":
 			renderC5(w, ar, verbose)
 		case "C6":
@@ -359,6 +361,78 @@ func renderC5(w io.Writer, ar *types.AnalysisResult, verbose bool) {
 	}
 }
 
+func renderC4(w io.Writer, ar *types.AnalysisResult, verbose bool) {
+	bold := color.New(color.Bold)
+	green := color.New(color.FgGreen)
+	red := color.New(color.FgRed)
+
+	raw, ok := ar.Metrics["c4"]
+	if !ok {
+		return
+	}
+	m, ok := raw.(*types.C4Metrics)
+	if !ok {
+		return
+	}
+
+	fmt.Fprintln(w)
+	bold.Fprintln(w, "C4: Documentation Quality")
+	fmt.Fprintln(w, "────────────────────────────────────────")
+
+	// README
+	if m.ReadmePresent {
+		green.Fprintf(w, "  README:              present (%d words)\n", m.ReadmeWordCount)
+	} else {
+		red.Fprintln(w, "  README:              absent")
+	}
+
+	// Comment density
+	cd := colorForFloatInverse(m.CommentDensity, 5, 15)
+	cd.Fprintf(w, "  Comment density:     %.1f%%\n", m.CommentDensity)
+
+	// API doc coverage
+	ad := colorForFloatInverse(m.APIDocCoverage, 30, 60)
+	ad.Fprintf(w, "  API doc coverage:    %.1f%%\n", m.APIDocCoverage)
+
+	// CHANGELOG
+	if m.ChangelogPresent {
+		green.Fprintln(w, "  CHANGELOG:           present")
+	} else {
+		red.Fprintln(w, "  CHANGELOG:           absent")
+	}
+
+	// Examples
+	if m.ExamplesPresent {
+		green.Fprintln(w, "  Examples:            present")
+	} else {
+		red.Fprintln(w, "  Examples:            absent")
+	}
+
+	// CONTRIBUTING
+	if m.ContributingPresent {
+		green.Fprintln(w, "  CONTRIBUTING:        present")
+	} else {
+		red.Fprintln(w, "  CONTRIBUTING:        absent")
+	}
+
+	// Diagrams
+	if m.DiagramsPresent {
+		green.Fprintln(w, "  Diagrams:            present")
+	} else {
+		color.New(color.FgYellow).Fprintln(w, "  Diagrams:            absent")
+	}
+
+	// Verbose: show counts
+	if verbose {
+		fmt.Fprintln(w)
+		bold.Fprintln(w, "  Detailed metrics:")
+		fmt.Fprintf(w, "    Total source lines:  %d\n", m.TotalSourceLines)
+		fmt.Fprintf(w, "    Comment lines:       %d\n", m.CommentLines)
+		fmt.Fprintf(w, "    Public APIs:         %d\n", m.PublicAPIs)
+		fmt.Fprintf(w, "    Documented APIs:     %d\n", m.DocumentedAPIs)
+	}
+}
+
 func renderC6(w io.Writer, ar *types.AnalysisResult, verbose bool) {
 	bold := color.New(color.Bold)
 
@@ -410,6 +484,7 @@ var categoryDisplayNames = map[string]string{
 	"C1": "Code Health",
 	"C2": "Semantic Explicitness",
 	"C3": "Architecture",
+	"C4": "Documentation Quality",
 	"C5": "Temporal Dynamics",
 	"C6": "Testing",
 }
@@ -442,6 +517,14 @@ var metricDisplayNames = map[string]string{
 	"author_fragmentation":      "Author fragmentation",
 	"commit_stability":          "Commit stability",
 	"hotspot_concentration":     "Hotspot concentration",
+	// C4 metrics
+	"readme_word_count":     "README word count",
+	"comment_density":       "Comment density",
+	"api_doc_coverage":      "API doc coverage",
+	"changelog_present":     "CHANGELOG",
+	"examples_present":      "Examples",
+	"contributing_present":  "CONTRIBUTING",
+	"diagrams_present":      "Diagrams",
 }
 
 // RenderScores prints a formatted scoring section showing per-category scores,

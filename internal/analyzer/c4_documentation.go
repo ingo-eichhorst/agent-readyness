@@ -17,7 +17,7 @@ import (
 
 	tree_sitter "github.com/tree-sitter/go-tree-sitter"
 
-	"github.com/ingo/agent-readyness/internal/llm"
+	"github.com/ingo/agent-readyness/internal/agent"
 	tsp "github.com/ingo/agent-readyness/internal/parser"
 	"github.com/ingo/agent-readyness/pkg/types"
 )
@@ -26,18 +26,18 @@ import (
 // It analyzes README presence, comment density, API doc coverage, and other documentation artifacts.
 type C4Analyzer struct {
 	tsParser  *tsp.TreeSitterParser
-	llmClient *llm.Client // nil if LLM not enabled
+	evaluator *agent.Evaluator // nil if LLM not enabled
 }
 
 // NewC4Analyzer creates a C4Analyzer. Tree-sitter parser is needed for Python/TS analysis.
-// llmClient can be nil for static-only analysis.
+// evaluator can be nil for static-only analysis.
 func NewC4Analyzer(tsParser *tsp.TreeSitterParser) *C4Analyzer {
-	return &C4Analyzer{tsParser: tsParser, llmClient: nil}
+	return &C4Analyzer{tsParser: tsParser, evaluator: nil}
 }
 
-// SetLLMClient enables LLM-based content quality evaluation.
-func (a *C4Analyzer) SetLLMClient(client *llm.Client) {
-	a.llmClient = client
+// SetEvaluator enables CLI-based content quality evaluation.
+func (a *C4Analyzer) SetEvaluator(eval *agent.Evaluator) {
+	a.evaluator = eval
 }
 
 // Name returns the analyzer display name.
@@ -118,7 +118,7 @@ func (a *C4Analyzer) Analyze(targets []*types.AnalysisTarget) (*types.AnalysisRe
 	}
 
 	// LLM-based content quality evaluation (if enabled)
-	if a.llmClient != nil {
+	if a.evaluator != nil {
 		a.runLLMAnalysis(rootDir, metrics)
 	}
 
@@ -132,7 +132,7 @@ func (a *C4Analyzer) Analyze(targets []*types.AnalysisTarget) (*types.AnalysisRe
 	}, nil
 }
 
-// runLLMAnalysis performs LLM-based content quality evaluation.
+// runLLMAnalysis performs LLM-based content quality evaluation using CLI.
 func (a *C4Analyzer) runLLMAnalysis(rootDir string, metrics *types.C4Metrics) {
 	metrics.LLMEnabled = true
 
@@ -145,7 +145,7 @@ func (a *C4Analyzer) runLLMAnalysis(rootDir string, metrics *types.C4Metrics) {
 	if metrics.ReadmePresent {
 		readmeContent := readReadmeContent(rootDir)
 		if readmeContent != "" {
-			eval, err := a.llmClient.EvaluateContent(ctx, llm.ReadmeClarityPrompt, readmeContent)
+			eval, err := a.evaluator.EvaluateWithRetry(ctx, agent.ReadmeClarityPrompt, readmeContent)
 			if err == nil {
 				metrics.ReadmeClarity = eval.Score
 				totalTokens += estimateTokens(readmeContent)
@@ -156,7 +156,7 @@ func (a *C4Analyzer) runLLMAnalysis(rootDir string, metrics *types.C4Metrics) {
 	// 2. Example quality evaluation (from README examples or examples directory)
 	exampleContent := collectExampleContent(rootDir)
 	if exampleContent != "" {
-		eval, err := a.llmClient.EvaluateContent(ctx, llm.ExampleQualityPrompt, exampleContent)
+		eval, err := a.evaluator.EvaluateWithRetry(ctx, agent.ExampleQualityPrompt, exampleContent)
 		if err == nil {
 			metrics.ExampleQuality = eval.Score
 			totalTokens += estimateTokens(exampleContent)
@@ -166,7 +166,7 @@ func (a *C4Analyzer) runLLMAnalysis(rootDir string, metrics *types.C4Metrics) {
 	// 3. Completeness evaluation (overall documentation)
 	docsContent := collectDocsSummary(rootDir, metrics)
 	if docsContent != "" {
-		eval, err := a.llmClient.EvaluateContent(ctx, llm.CompletenessPrompt, docsContent)
+		eval, err := a.evaluator.EvaluateWithRetry(ctx, agent.CompletenessPrompt, docsContent)
 		if err == nil {
 			metrics.Completeness = eval.Score
 			totalTokens += estimateTokens(docsContent)
@@ -177,7 +177,7 @@ func (a *C4Analyzer) runLLMAnalysis(rootDir string, metrics *types.C4Metrics) {
 	if metrics.ReadmePresent {
 		readmeContent := readReadmeContent(rootDir)
 		if readmeContent != "" {
-			eval, err := a.llmClient.EvaluateContent(ctx, llm.CrossRefCoherencePrompt, readmeContent)
+			eval, err := a.evaluator.EvaluateWithRetry(ctx, agent.CrossRefCoherencePrompt, readmeContent)
 			if err == nil {
 				metrics.CrossRefCoherence = eval.Score
 				totalTokens += estimateTokens(readmeContent)
@@ -185,11 +185,11 @@ func (a *C4Analyzer) runLLMAnalysis(rootDir string, metrics *types.C4Metrics) {
 		}
 	}
 
-	// Calculate approximate cost (Haiku pricing)
-	// Input: $0.25/MTok, Output: ~$1.25/MTok
-	// Simplified: ~$0.0003 per 1000 tokens average
+	// Calculate approximate cost (CLI uses Sonnet pricing, higher than Haiku)
+	// Sonnet pricing: ~$3/MTok input, ~$15/MTok output
+	// Simplified: ~$0.005 per 1000 tokens blended
 	metrics.LLMTokensUsed = totalTokens
-	metrics.LLMCostUSD = float64(totalTokens) / 1_000_000 * 0.50 // Blended rate
+	metrics.LLMCostUSD = float64(totalTokens) / 1_000_000 * 5.0 // CLI/Sonnet blended rate
 	metrics.LLMFilesSampled = countSampledFiles(rootDir)
 }
 

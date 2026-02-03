@@ -8,9 +8,11 @@ import (
 	"path/filepath"
 	"sort"
 	"sync"
+	"time"
 
 	"golang.org/x/sync/errgroup"
 
+	"github.com/ingo/agent-readyness/internal/agent"
 	"github.com/ingo/agent-readyness/internal/analyzer"
 	"github.com/ingo/agent-readyness/internal/discovery"
 	"github.com/ingo/agent-readyness/internal/llm"
@@ -86,12 +88,15 @@ func New(w io.Writer, verbose bool, cfg *scoring.ScoringConfig, threshold float6
 }
 
 // SetLLMClient enables LLM-based analysis for C4 metrics.
+// Note: C4 now uses CLI-based evaluation via agent.Evaluator.
 func (p *Pipeline) SetLLMClient(client *llm.Client) {
 	p.llmClient = client
-	// Find and configure C4 analyzer
+	// Find and configure C4 analyzer with CLI-based evaluator
 	for _, a := range p.analyzers {
 		if c4, ok := a.(*analyzer.C4Analyzer); ok {
-			c4.SetLLMClient(client)
+			// Use CLI evaluator for C4 (60-second timeout per evaluation)
+			eval := agent.NewEvaluator(60 * time.Second)
+			c4.SetEvaluator(eval)
 		}
 	}
 }

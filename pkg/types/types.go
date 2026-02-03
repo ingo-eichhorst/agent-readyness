@@ -237,4 +237,14 @@ type C4Metrics struct {
 	CommentLines     int
 	PublicAPIs       int
 	DocumentedAPIs   int
+
+	// LLM-based metrics (only populated if --enable-c4-llm is used)
+	LLMEnabled        bool    // true if LLM analysis was performed
+	ReadmeClarity     int     // 1-10 scale
+	ExampleQuality    int     // 1-10 scale
+	Completeness      int     // 1-10 scale
+	CrossRefCoherence int     // 1-10 scale
+	LLMCostUSD        float64 // Actual cost incurred
+	LLMTokensUsed     int     // Total tokens used
+	LLMFilesSampled   int     // Number of files sampled for LLM analysis
 }

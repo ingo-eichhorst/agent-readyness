@@ -1,21 +1,25 @@
 package cmd
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/spf13/cobra"
 
 	"github.com/ingo/agent-readyness/internal/config"
+	"github.com/ingo/agent-readyness/internal/llm"
 	"github.com/ingo/agent-readyness/internal/pipeline"
 	"github.com/ingo/agent-readyness/internal/scoring"
 )
 
 var (
-	configPath string
-	threshold  float64
-	jsonOutput bool
+	configPath  string
+	threshold   float64
+	jsonOutput  bool
+	enableC4LLM bool
 )
 
 var scanCmd = &cobra.Command{
@@ -57,6 +61,41 @@ No --lang flag needed.`,
 			}
 		}
 
+		// Handle LLM-based C4 analysis if enabled
+		var llmClient *llm.Client
+		if enableC4LLM {
+			apiKey := os.Getenv("ANTHROPIC_API_KEY")
+			if apiKey == "" {
+				return fmt.Errorf("--enable-c4-llm requires ANTHROPIC_API_KEY environment variable\nGet your API key from: https://console.anthropic.com/")
+			}
+
+			// Show cost estimate and get user confirmation
+			// Estimate based on typical project size
+			estimate := llm.EstimateCost(500, 5) // ~500 word README, ~5 files sampled
+			fmt.Fprintf(cmd.OutOrStdout(), "\nLLM Analysis Cost Estimate\n")
+			fmt.Fprintf(cmd.OutOrStdout(), "==========================\n")
+			fmt.Fprintf(cmd.OutOrStdout(), "Files to analyze: ~%d (README + examples)\n", estimate.FilesCount)
+			fmt.Fprintf(cmd.OutOrStdout(), "Estimated cost: %s\n\n", estimate.FormatCost())
+			fmt.Fprintf(cmd.OutOrStdout(), "This will send documentation content to Anthropic's API.\n")
+			fmt.Fprintf(cmd.OutOrStdout(), "Continue? (yes/no): ")
+
+			reader := bufio.NewReader(os.Stdin)
+			response, _ := reader.ReadString('\n')
+			response = strings.TrimSpace(strings.ToLower(response))
+
+			if response != "yes" && response != "y" {
+				fmt.Fprintf(cmd.OutOrStdout(), "LLM analysis cancelled. Running static analysis only.\n\n")
+				enableC4LLM = false
+			} else {
+				var err error
+				llmClient, err = llm.NewClient(apiKey)
+				if err != nil {
+					return fmt.Errorf("failed to create LLM client: %w", err)
+				}
+				fmt.Fprintf(cmd.OutOrStdout(), "\n")
+			}
+		}
+
 		spinner := pipeline.NewSpinner(os.Stderr)
 		onProgress := func(stage, detail string) {
 			spinner.Update(detail)
@@ -64,6 +103,9 @@ No --lang flag needed.`,
 		spinner.Start("Scanning...")
 
 		p := pipeline.New(cmd.OutOrStdout(), verbose, cfg, threshold, jsonOutput, onProgress)
+		if llmClient != nil {
+			p.SetLLMClient(llmClient)
+		}
 		err = p.Run(dir)
 		if err != nil {
 			spinner.Stop("") // clear spinner before error
@@ -78,6 +120,7 @@ func init() {
 	scanCmd.Flags().StringVar(&configPath, "config", "", "path to .arsrc.yml project config file")
 	scanCmd.Flags().Float64Var(&threshold, "threshold", 0, "minimum composite score (exit code 2 if below)")
 	scanCmd.Flags().BoolVar(&jsonOutput, "json", false, "output results as JSON")
+	scanCmd.Flags().BoolVar(&enableC4LLM, "enable-c4-llm", false, "enable LLM-based C4 content quality evaluation (requires ANTHROPIC_API_KEY)")
 	rootCmd.AddCommand(scanCmd)
 }
 

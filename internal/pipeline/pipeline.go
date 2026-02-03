@@ -12,6 +12,7 @@ import (
 
 	"github.com/ingo/agent-readyness/internal/analyzer"
 	"github.com/ingo/agent-readyness/internal/discovery"
+	"github.com/ingo/agent-readyness/internal/llm"
 	"github.com/ingo/agent-readyness/internal/output"
 	"github.com/ingo/agent-readyness/internal/parser"
 	"github.com/ingo/agent-readyness/internal/recommend"
@@ -31,6 +32,7 @@ type Pipeline struct {
 	threshold  float64
 	jsonOutput bool
 	onProgress ProgressFunc
+	llmClient  *llm.Client // optional LLM client for C4 analysis
 }
 
 // New creates a Pipeline with GoPackagesParser, all analyzers, and a scorer.
@@ -72,6 +74,17 @@ func New(w io.Writer, verbose bool, cfg *scoring.ScoringConfig, threshold float6
 			analyzer.NewC6Analyzer(tsParser),
 		},
 		scorer: &scoring.Scorer{Config: cfg},
+	}
+}
+
+// SetLLMClient enables LLM-based analysis for C4 metrics.
+func (p *Pipeline) SetLLMClient(client *llm.Client) {
+	p.llmClient = client
+	// Find and configure C4 analyzer
+	for _, a := range p.analyzers {
+		if c4, ok := a.(*analyzer.C4Analyzer); ok {
+			c4.SetLLMClient(client)
+		}
 	}
 }
 

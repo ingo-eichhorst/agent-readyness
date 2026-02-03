@@ -71,6 +71,8 @@ func RenderSummary(w io.Writer, result *types.ScanResult, analysisResults []*typ
 			renderC2(w, ar, verbose)
 		case "C3":
 			renderC3(w, ar, verbose)
+		case "C5":
+			renderC5(w, ar, verbose)
 		case "C6":
 			renderC6(w, ar, verbose)
 		}
@@ -298,6 +300,65 @@ func renderC3(w io.Writer, ar *types.AnalysisResult, verbose bool) {
 	}
 }
 
+func renderC5(w io.Writer, ar *types.AnalysisResult, verbose bool) {
+	bold := color.New(color.Bold)
+
+	raw, ok := ar.Metrics["c5"]
+	if !ok {
+		return
+	}
+	m, ok := raw.(*types.C5Metrics)
+	if !ok {
+		return
+	}
+
+	fmt.Fprintln(w)
+	bold.Fprintln(w, "C5: Temporal Dynamics")
+	fmt.Fprintln(w, "────────────────────────────────────────")
+
+	if !m.Available {
+		fmt.Fprintln(w, "  Not available (no .git directory)")
+		return
+	}
+
+	fmt.Fprintf(w, "  Total commits:       %d (%d-day window)\n", m.TotalCommits, m.TimeWindowDays)
+
+	cr := colorForFloat(m.ChurnRate, 100, 300)
+	cr.Fprintf(w, "  Churn rate:          %.1f lines/commit\n", m.ChurnRate)
+
+	tc := colorForFloat(m.TemporalCouplingPct, 10, 30)
+	tc.Fprintf(w, "  Temporal coupling:   %.1f%%\n", m.TemporalCouplingPct)
+
+	af := colorForFloat(m.AuthorFragmentation, 2, 4)
+	af.Fprintf(w, "  Author fragmentation: %.2f avg authors/file\n", m.AuthorFragmentation)
+
+	cs := colorForFloatInverse(m.CommitStability, 3, 7)
+	cs.Fprintf(w, "  Commit stability:    %.1f days median\n", m.CommitStability)
+
+	hc := colorForFloat(m.HotspotConcentration, 50, 75)
+	hc.Fprintf(w, "  Hotspot concentration: %.1f%%\n", m.HotspotConcentration)
+
+	// Verbose: show top hotspots and coupled pairs
+	if verbose && len(m.TopHotspots) > 0 {
+		fmt.Fprintln(w)
+		bold.Fprintln(w, "  Top hotspots:")
+		for _, h := range m.TopHotspots {
+			fmt.Fprintf(w, "    %s  changes=%d commits=%d authors=%d\n", h.Path, h.TotalChanges, h.CommitCount, h.AuthorCount)
+		}
+	}
+	if verbose && len(m.CoupledPairs) > 0 {
+		fmt.Fprintln(w)
+		bold.Fprintln(w, "  Coupled pairs (>70%% co-change):")
+		limit := 10
+		if len(m.CoupledPairs) < limit {
+			limit = len(m.CoupledPairs)
+		}
+		for _, cp := range m.CoupledPairs[:limit] {
+			fmt.Fprintf(w, "    %s <-> %s  %.0f%% (%d shared commits)\n", cp.FileA, cp.FileB, cp.Coupling, cp.SharedCommits)
+		}
+	}
+}
+
 func renderC6(w io.Writer, ar *types.AnalysisResult, verbose bool) {
 	bold := color.New(color.Bold)
 
@@ -349,6 +410,7 @@ var categoryDisplayNames = map[string]string{
 	"C1": "Code Health",
 	"C2": "Semantic Explicitness",
 	"C3": "Architecture",
+	"C5": "Temporal Dynamics",
 	"C6": "Testing",
 }
 
@@ -375,6 +437,11 @@ var metricDisplayNames = map[string]string{
 	"magic_number_ratio":        "Magic numbers",
 	"type_strictness":           "Type strictness",
 	"null_safety":               "Null safety",
+	"churn_rate":                "Churn rate",
+	"temporal_coupling_pct":     "Temporal coupling",
+	"author_fragmentation":      "Author fragmentation",
+	"commit_stability":          "Commit stability",
+	"hotspot_concentration":     "Hotspot concentration",
 }
 
 // RenderScores prints a formatted scoring section showing per-category scores,

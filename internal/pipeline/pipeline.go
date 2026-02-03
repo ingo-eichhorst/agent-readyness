@@ -185,6 +185,8 @@ func (p *Pipeline) Run(dir string) error {
 	if err != nil {
 		fmt.Fprintf(p.writer, "Warning: scoring error: %v\n", err)
 	} else {
+		// Set project name from directory basename
+		scored.ProjectName = filepath.Base(dir)
 		p.scored = scored
 	}
 

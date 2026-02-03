@@ -2,9 +2,10 @@ package types
 
 // ScoredResult holds the complete scoring output for a project.
 type ScoredResult struct {
-	Categories []CategoryScore // Per-category scores (C1, C3, C6)
-	Composite  float64         // Weighted composite score (1-10)
-	Tier       string          // Tier classification (e.g., "Agent-Ready")
+	ProjectName string          // Name of the scanned project (basename of root dir)
+	Categories  []CategoryScore // Per-category scores (C1, C3, C6)
+	Composite   float64         // Weighted composite score (1-10)
+	Tier        string          // Tier classification (e.g., "Agent-Ready")
 }
 
 // CategoryScore holds the score for one category (e.g., C1 Code Health).

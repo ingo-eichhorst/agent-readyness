@@ -7,8 +7,10 @@ import (
 
 // generateRadarChart creates an SVG radar chart for category scores.
 // Returns the SVG string and any error.
+// Requires at least 3 categories for radar chart (go-charts library requirement).
 func generateRadarChart(categories []types.CategoryScore) (string, error) {
-	if len(categories) == 0 {
+	if len(categories) < 3 {
+		// go-charts requires at least 3 indicators for radar charts
 		return "", nil
 	}
 

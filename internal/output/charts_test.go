@@ -46,6 +46,21 @@ func TestGenerateRadarChart_Empty(t *testing.T) {
 	}
 }
 
+func TestGenerateRadarChart_TooFewCategories(t *testing.T) {
+	// Radar chart requires at least 3 indicators
+	categories := []types.CategoryScore{
+		{Name: "C1", Score: 7.5},
+		{Name: "C2", Score: 8.2},
+	}
+	svg, err := generateRadarChart(categories)
+	if err != nil {
+		t.Fatalf("generateRadarChart(2 categories) error = %v", err)
+	}
+	if svg != "" {
+		t.Error("generateRadarChart with <3 categories should return empty string")
+	}
+}
+
 func TestGenerateTrendChart(t *testing.T) {
 	current := &types.ScoredResult{
 		Categories: []types.CategoryScore{

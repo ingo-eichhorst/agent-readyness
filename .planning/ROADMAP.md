@@ -28,6 +28,8 @@ Phases 1-5 delivered Go-only CLI with C1 (Code Health), C3 (Architecture), C6 (T
 - [x] **Phase 8: C5 Temporal Dynamics** - Git-based temporal analysis with native git CLI for churn, hotspots, author fragmentation, and temporal coupling
 - [x] **Phase 9: C4 Documentation Quality + HTML Reports** - Documentation analysis with LLM content evaluation, plus polished HTML report generation
 - [x] **Phase 10: C7 Agent Evaluation** - Headless Claude Code integration for genuine agent-in-the-loop readiness assessment
+- [ ] **Phase 11: Terminal Output Integration** - Add C7 terminal rendering to complete E2E flow for agent evaluation display
+- [ ] **Phase 12: C4 Static Metrics Visibility** - Investigate and fix C4 static documentation metrics display without LLM flag dependency
 
 ## Phase Details
 
@@ -111,6 +113,28 @@ Plans:
 - [x] 10-01-PLAN.md -- Agent executor infrastructure + task definitions + workspace isolation
 - [x] 10-02-PLAN.md -- C7 scoring, CLI integration, pipeline wiring
 
+### Phase 11: Terminal Output Integration
+**Goal**: Users see C7 agent evaluation scores in terminal output, completing the E2E flow for --enable-c7 flag
+**Depends on**: Phase 10 (C7 analyzer and metrics exist)
+**Gap Closure**: Closes C7 terminal rendering integration gap from v2 audit
+**Success Criteria** (what must be TRUE):
+  1. User can run `ars scan --enable-c7` and see C7 category scores in terminal output
+  2. Terminal displays 4 C7 metrics: intent clarity, modification confidence, cross-file coherence, semantic completeness
+  3. Verbose mode shows per-task breakdown for C7 evaluation
+  4. E2E Flow 3 from audit passes: C7 scores visible without requiring --json flag
+**Plans**: TBD
+
+### Phase 12: C4 Static Metrics Visibility
+**Goal**: Users see C4 static documentation metrics in terminal output without requiring --enable-c4-llm flag
+**Depends on**: Phase 9 (C4 analyzer exists with static/LLM separation)
+**Gap Closure**: Closes C4 static metrics visibility gap from v2 audit
+**Success Criteria** (what must be TRUE):
+  1. User can run `ars scan` (no LLM flags) and see C4 category in terminal output
+  2. C4 displays static metrics: README presence, CHANGELOG presence, comment density, API doc coverage, examples presence, CONTRIBUTING presence
+  3. LLM-based metrics (clarity, quality, completeness) show as "N/A" or skipped when --enable-c4-llm not used
+  4. C4Analyzer.Analyze() returns Available:true when LLM client is nil (static metrics still work)
+**Plans**: TBD
+
 ## Progress
 
 **Execution Order:**
@@ -124,3 +148,5 @@ Phases execute in numeric order: 6 -> 7 -> 8 -> 9 -> 10
 | 8. C5 Temporal | v2 | 2/2 | Complete | 2026-02-02 |
 | 9. C4 Docs + HTML | v2 | 3/3 | Complete | 2026-02-03 |
 | 10. C7 Agent Eval | v2 | 2/2 | Complete | 2026-02-03 |
+| 11. Terminal Integration | v2 | 0/TBD | Pending | - |
+| 12. C4 Static Visibility | v2 | 0/TBD | Pending | - |

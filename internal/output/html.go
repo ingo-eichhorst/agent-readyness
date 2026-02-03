@@ -51,14 +51,17 @@ type HTMLCategory struct {
 
 // HTMLSubScore represents a metric sub-score for HTML display.
 type HTMLSubScore struct {
-	MetricName     string
-	DisplayName    string
-	RawValue       float64
-	FormattedValue string
-	Score          float64
-	ScoreClass     string
-	WeightPct      float64 // Weight as percentage (0-100)
-	Available      bool
+	MetricName          string
+	DisplayName         string
+	RawValue            float64
+	FormattedValue      string
+	Score               float64
+	ScoreClass          string
+	WeightPct           float64 // Weight as percentage (0-100)
+	Available           bool
+	BriefDescription    string        // Always visible, 1-2 sentences
+	DetailedDescription template.HTML // Expandable content with sections
+	ShouldExpand        bool          // true if score below threshold
 }
 
 // HTMLRecommendation represents a recommendation for HTML display.
@@ -180,15 +183,19 @@ func buildHTMLSubScores(subScores []types.SubScore) []HTMLSubScore {
 	result := make([]HTMLSubScore, 0, len(subScores))
 
 	for _, ss := range subScores {
+		desc := getMetricDescription(ss.MetricName)
 		hss := HTMLSubScore{
-			MetricName:     ss.MetricName,
-			DisplayName:    metricDisplayName(ss.MetricName),
-			RawValue:       ss.RawValue,
-			FormattedValue: formatMetricValue(ss.MetricName, ss.RawValue, ss.Available),
-			Score:          ss.Score,
-			ScoreClass:     scoreToClass(ss.Score),
-			WeightPct:      ss.Weight * 100,
-			Available:      ss.Available,
+			MetricName:          ss.MetricName,
+			DisplayName:         metricDisplayName(ss.MetricName),
+			RawValue:            ss.RawValue,
+			FormattedValue:      formatMetricValue(ss.MetricName, ss.RawValue, ss.Available),
+			Score:               ss.Score,
+			ScoreClass:          scoreToClass(ss.Score),
+			WeightPct:           ss.Weight * 100,
+			Available:           ss.Available,
+			BriefDescription:    desc.Brief,
+			DetailedDescription: desc.Detailed,
+			ShouldExpand:        ss.Score < desc.Threshold,
 		}
 		result = append(result, hss)
 	}

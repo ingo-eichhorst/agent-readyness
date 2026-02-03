@@ -12,7 +12,7 @@ ARS v0.0.3 simplifies LLM integration by unifying on Claude Code CLI (removing A
 
 ## Phases
 
-- [ ] **Phase 13: Badge Generation** - shields.io badge URL generation with CLI flag
+- [x] **Phase 13: Badge Generation** - shields.io badge URL generation with CLI flag
 - [ ] **Phase 14: HTML Enhancements** - Expandable metric descriptions with research citations
 - [ ] **Phase 15: Claude Code Integration** - Unified CLI for C4/C7, remove Anthropic SDK
 - [ ] **Phase 16: Analyzer Reorganization** - Category subdirectories with re-exports
@@ -31,7 +31,7 @@ ARS v0.0.3 simplifies LLM integration by unifying on Claude Code CLI (removing A
 **Plans**: 1 plan
 
 Plans:
-- [ ] 13-01-PLAN.md — Badge URL generation, CLI flag, and output integration
+- [x] 13-01-PLAN.md — Badge URL generation, CLI flag, and output integration
 
 ### Phase 14: HTML Enhancements
 **Goal**: HTML reports provide educational context with expandable research-backed metric descriptions
@@ -101,7 +101,7 @@ Phases 13-17 execute in order. Phases 13, 14, 15, 17 are independent and could p
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 13. Badge Generation | 0/1 | Planned | - |
+| 13. Badge Generation | 1/1 | Complete | 2026-02-03 |
 | 14. HTML Enhancements | 0/1 | Not started | - |
 | 15. Claude Code Integration | 0/2 | Not started | - |
 | 16. Analyzer Reorganization | 0/2 | Not started | - |

@@ -17,9 +17,9 @@ Requirements for v0.0.3 milestone. Each maps to roadmap phases.
 
 ### Badge Generation (Issue #5)
 
-- [ ] **BADGE-01**: `--badge` flag generates shields.io markdown URL to stdout
-- [ ] **BADGE-02**: Badge color reflects score (red <4, orange 4-6, yellow 6-8, green 8+)
-- [ ] **BADGE-03**: Badge shows tier name and score (e.g., "Agent-Ready 8.2/10")
+- [x] **BADGE-01**: `--badge` flag generates shields.io markdown URL to stdout
+- [x] **BADGE-02**: Badge color reflects score (red <4, orange 4-6, yellow 6-8, green 8+)
+- [x] **BADGE-03**: Badge shows tier name and score (e.g., "Agent-Ready 8.2/10")
 
 ### HTML Report (Issue #7)
 
@@ -83,9 +83,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | LLM-03 | Phase 15 | Pending |
 | LLM-04 | Phase 15 | Pending |
 | LLM-05 | Phase 15 | Pending |
-| BADGE-01 | Phase 13 | Pending |
-| BADGE-02 | Phase 13 | Pending |
-| BADGE-03 | Phase 13 | Pending |
+| BADGE-01 | Phase 13 | Complete |
+| BADGE-02 | Phase 13 | Complete |
+| BADGE-03 | Phase 13 | Complete |
 | HTML-01 | Phase 14 | Pending |
 | HTML-02 | Phase 14 | Pending |
 | HTML-03 | Phase 14 | Pending |

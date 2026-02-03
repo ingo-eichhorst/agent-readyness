@@ -243,27 +243,10 @@ func simulateComposite(scored *types.ScoredResult, cfg *scoring.ScoringConfig,
 			cats[ci].SubScores[si].RawValue = newRawValue
 		}
 		// Recompute category score
-		cats[ci].Score = categoryScore(cats[ci].SubScores)
+		cats[ci].Score = scoring.CategoryScore(cats[ci].SubScores)
 	}
 
 	return computeComposite(cats)
-}
-
-// categoryScore computes weighted average of available sub-scores.
-func categoryScore(subScores []types.SubScore) float64 {
-	totalWeight := 0.0
-	weightedSum := 0.0
-	for _, ss := range subScores {
-		if !ss.Available {
-			continue
-		}
-		weightedSum += ss.Score * ss.Weight
-		totalWeight += ss.Weight
-	}
-	if totalWeight == 0 {
-		return 0.0
-	}
-	return weightedSum / totalWeight
 }
 
 // computeComposite calculates the weighted composite from category scores.

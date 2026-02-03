@@ -207,17 +207,17 @@ func TestClassifyTier(t *testing.T) {
 	}
 }
 
-// --- categoryScore tests ---
+// --- CategoryScore tests ---
 
 func TestCategoryScore_AllAvailable(t *testing.T) {
 	subs := []types.SubScore{
 		{MetricName: "a", Score: 8, Weight: 0.5, Available: true},
 		{MetricName: "b", Score: 6, Weight: 0.5, Available: true},
 	}
-	got := categoryScore(subs)
+	got := CategoryScore(subs)
 	// (8*0.5 + 6*0.5) / 1.0 = 7.0
 	if math.Abs(got-7.0) > 0.01 {
-		t.Errorf("categoryScore = %v, want 7.0", got)
+		t.Errorf("CategoryScore = %v, want 7.0", got)
 	}
 }
 
@@ -226,17 +226,17 @@ func TestCategoryScore_SkipUnavailable(t *testing.T) {
 		{MetricName: "a", Score: 8, Weight: 0.5, Available: true},
 		{MetricName: "b", Score: 0, Weight: 0.5, Available: false},
 	}
-	got := categoryScore(subs)
+	got := CategoryScore(subs)
 	// Only 'a' contributes: 8*0.5 / 0.5 = 8.0
 	if math.Abs(got-8.0) > 0.01 {
-		t.Errorf("categoryScore = %v, want 8.0", got)
+		t.Errorf("CategoryScore = %v, want 8.0", got)
 	}
 }
 
 func TestCategoryScore_Empty(t *testing.T) {
-	got := categoryScore(nil)
+	got := CategoryScore(nil)
 	if got != 0.0 {
-		t.Errorf("categoryScore(nil) = %v, want 0.0", got)
+		t.Errorf("CategoryScore(nil) = %v, want 0.0", got)
 	}
 }
 
@@ -245,9 +245,9 @@ func TestCategoryScore_AllUnavailable(t *testing.T) {
 		{MetricName: "a", Score: 0, Weight: 0.5, Available: false},
 		{MetricName: "b", Score: 0, Weight: 0.5, Available: false},
 	}
-	got := categoryScore(subs)
+	got := CategoryScore(subs)
 	if got != 0.0 {
-		t.Errorf("categoryScore(all unavailable) = %v, want 0.0", got)
+		t.Errorf("CategoryScore(all unavailable) = %v, want 0.0", got)
 	}
 }
 

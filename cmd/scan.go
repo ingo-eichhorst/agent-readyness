@@ -20,7 +20,7 @@ var (
 	configPath   string
 	threshold    float64
 	jsonOutput   bool
-	enableC4LLM  bool
+	noLLM        bool   // Disable LLM features even when CLI available
 	enableC7     bool   // Enable C7 agent evaluation
 	outputHTML   string // Path to output HTML file
 	baselinePath string // Path to previous JSON for trend comparison
@@ -193,7 +193,7 @@ func init() {
 	scanCmd.Flags().StringVar(&configPath, "config", "", "path to .arsrc.yml project config file")
 	scanCmd.Flags().Float64Var(&threshold, "threshold", 0, "minimum composite score (exit code 2 if below)")
 	scanCmd.Flags().BoolVar(&jsonOutput, "json", false, "output results as JSON")
-	scanCmd.Flags().BoolVar(&enableC4LLM, "enable-c4-llm", false, "enable LLM-based C4 content quality evaluation (requires ANTHROPIC_API_KEY)")
+	scanCmd.Flags().BoolVar(&noLLM, "no-llm", false, "disable LLM features even when Claude CLI is available")
 	scanCmd.Flags().BoolVar(&enableC7, "enable-c7", false, "enable C7 agent evaluation using Claude Code CLI (requires claude CLI installed)")
 	scanCmd.Flags().StringVar(&outputHTML, "output-html", "", "generate self-contained HTML report at specified path")
 	scanCmd.Flags().StringVar(&baselinePath, "baseline", "", "path to previous JSON output for trend comparison")

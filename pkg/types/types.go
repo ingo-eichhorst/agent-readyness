@@ -223,6 +223,7 @@ type CoupledPair struct {
 
 // C4Metrics holds Documentation Quality metric results.
 type C4Metrics struct {
+	Available           bool
 	ReadmePresent       bool
 	ReadmeWordCount     int
 	CommentDensity      float64 // % lines with comments (0-100)

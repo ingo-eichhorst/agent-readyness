@@ -122,6 +122,9 @@ func (a *C4Analyzer) Analyze(targets []*types.AnalysisTarget) (*types.AnalysisRe
 		a.runLLMAnalysis(rootDir, metrics)
 	}
 
+	// Static metrics are always available (even without LLM)
+	metrics.Available = true
+
 	return &types.AnalysisResult{
 		Name:     "C4: Documentation Quality",
 		Category: "C4",

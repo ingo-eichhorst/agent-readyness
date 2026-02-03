@@ -77,6 +77,8 @@ func RenderSummary(w io.Writer, result *types.ScanResult, analysisResults []*typ
 			renderC5(w, ar, verbose)
 		case "C6":
 			renderC6(w, ar, verbose)
+		case "C7":
+			renderC7(w, ar, verbose)
 		}
 	}
 }
@@ -479,6 +481,71 @@ func renderC6(w io.Writer, ar *types.AnalysisResult, verbose bool) {
 	}
 }
 
+// c7ScoreColor returns a color based on C7 score (0-100, higher is better).
+func c7ScoreColor(score int) *color.Color {
+	if score >= 70 {
+		return color.New(color.FgGreen)
+	}
+	if score >= 40 {
+		return color.New(color.FgYellow)
+	}
+	return color.New(color.FgRed)
+}
+
+func renderC7(w io.Writer, ar *types.AnalysisResult, verbose bool) {
+	bold := color.New(color.Bold)
+
+	raw, ok := ar.Metrics["c7"]
+	if !ok {
+		return
+	}
+	m, ok := raw.(*types.C7Metrics)
+	if !ok {
+		return
+	}
+
+	fmt.Fprintln(w)
+	bold.Fprintln(w, "C7: Agent Evaluation")
+	fmt.Fprintln(w, "────────────────────────────────────────")
+
+	if !m.Available {
+		fmt.Fprintln(w, "  Not available (--enable-c7 not specified)")
+		return
+	}
+
+	// Core metrics (0-100, higher is better)
+	ic := c7ScoreColor(m.IntentClarity)
+	ic.Fprintf(w, "  Intent clarity:       %d/100\n", m.IntentClarity)
+
+	mc := c7ScoreColor(m.ModificationConfidence)
+	mc.Fprintf(w, "  Modification conf:    %d/100\n", m.ModificationConfidence)
+
+	cfc := c7ScoreColor(m.CrossFileCoherence)
+	cfc.Fprintf(w, "  Cross-file coherence: %d/100\n", m.CrossFileCoherence)
+
+	sc := c7ScoreColor(m.SemanticCompleteness)
+	sc.Fprintf(w, "  Semantic complete:    %d/100\n", m.SemanticCompleteness)
+
+	// Summary metrics
+	fmt.Fprintln(w, "  ─────────────────────────────────────")
+	os := c7ScoreColor(int(m.OverallScore))
+	os.Fprintf(w, "  Overall score:        %.1f/100\n", m.OverallScore)
+	fmt.Fprintf(w, "  Duration:             %.1fs\n", m.TotalDuration)
+	fmt.Fprintf(w, "  Estimated cost:       $%.4f\n", m.CostUSD)
+
+	// Verbose: per-task breakdown
+	if verbose && len(m.TaskResults) > 0 {
+		fmt.Fprintln(w)
+		bold.Fprintln(w, "  Per-task results:")
+		for _, tr := range m.TaskResults {
+			fmt.Fprintf(w, "    %s: score=%d status=%s (%.1fs)\n", tr.TaskName, tr.Score, tr.Status, tr.Duration)
+			if tr.Reasoning != "" {
+				fmt.Fprintf(w, "      Reasoning: %s\n", tr.Reasoning)
+			}
+		}
+	}
+}
+
 // categoryDisplayNames maps category identifiers to human-readable labels.
 var categoryDisplayNames = map[string]string{
 	"C1": "Code Health",
@@ -487,6 +554,7 @@ var categoryDisplayNames = map[string]string{
 	"C4": "Documentation Quality",
 	"C5": "Temporal Dynamics",
 	"C6": "Testing",
+	"C7": "Agent Evaluation",
 }
 
 // metricDisplayNames maps metric identifiers to human-readable labels.
@@ -525,6 +593,11 @@ var metricDisplayNames = map[string]string{
 	"examples_present":      "Examples",
 	"contributing_present":  "CONTRIBUTING",
 	"diagrams_present":      "Diagrams",
+	// C7 metrics
+	"intent_clarity":          "Intent clarity",
+	"modification_confidence": "Modification confidence",
+	"cross_file_coherence":    "Cross-file coherence",
+	"semantic_completeness":   "Semantic completeness",
 }
 
 // RenderScores prints a formatted scoring section showing per-category scores,

@@ -10,6 +10,7 @@ import (
 
 	"github.com/ingo/agent-readyness/internal/recommend"
 	"github.com/ingo/agent-readyness/pkg/types"
+	"github.com/ingo/agent-readyness/pkg/version"
 )
 
 //go:embed templates/report.html templates/styles.css
@@ -51,6 +52,7 @@ type HTMLCategory struct {
 
 // HTMLSubScore represents a metric sub-score for HTML display.
 type HTMLSubScore struct {
+	Key                 string        // Unique key like "complexity_avg"
 	MetricName          string
 	DisplayName         string
 	RawValue            float64
@@ -119,7 +121,7 @@ func (g *HTMLGenerator) GenerateReport(w io.Writer, scored *types.ScoredResult, 
 		Tier:            scored.Tier,
 		TierClass:       tierToClass(scored.Tier),
 		GeneratedAt:     time.Now().Format("2006-01-02 15:04:05"),
-		Version:         "2.0.0",
+		Version:         version.Version,
 		RadarChartSVG:   template.HTML(radarSVG), // Safe: we generated it
 		TrendChartSVG:   template.HTML(trendSVG), // Safe: we generated it
 		HasTrend:        baseline != nil && trendSVG != "",
@@ -185,6 +187,7 @@ func buildHTMLSubScores(subScores []types.SubScore) []HTMLSubScore {
 	for _, ss := range subScores {
 		desc := getMetricDescription(ss.MetricName)
 		hss := HTMLSubScore{
+			Key:                 ss.MetricName,
 			MetricName:          ss.MetricName,
 			DisplayName:         metricDisplayName(ss.MetricName),
 			RawValue:            ss.RawValue,

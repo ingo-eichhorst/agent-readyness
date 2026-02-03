@@ -28,7 +28,7 @@ Phases 1-5 delivered Go-only CLI with C1 (Code Health), C3 (Architecture), C6 (T
 - [x] **Phase 8: C5 Temporal Dynamics** - Git-based temporal analysis with native git CLI for churn, hotspots, author fragmentation, and temporal coupling
 - [x] **Phase 9: C4 Documentation Quality + HTML Reports** - Documentation analysis with LLM content evaluation, plus polished HTML report generation
 - [x] **Phase 10: C7 Agent Evaluation** - Headless Claude Code integration for genuine agent-in-the-loop readiness assessment
-- [ ] **Phase 11: Terminal Output Integration** - Add C7 terminal rendering to complete E2E flow for agent evaluation display
+- [x] **Phase 11: Terminal Output Integration** - Add C7 terminal rendering to complete E2E flow for agent evaluation display
 - [ ] **Phase 12: C4 Static Metrics Visibility** - Investigate and fix C4 static documentation metrics display without LLM flag dependency
 
 ## Phase Details
@@ -136,7 +136,10 @@ Plans:
   2. C4 displays static metrics: README presence, CHANGELOG presence, comment density, API doc coverage, examples presence, CONTRIBUTING presence
   3. LLM-based metrics (clarity, quality, completeness) show as "N/A" or skipped when --enable-c4-llm not used
   4. C4Analyzer.Analyze() returns Available:true when LLM client is nil (static metrics still work)
-**Plans**: TBD
+**Plans**: 1 plan
+
+Plans:
+- [ ] 12-01-PLAN.md -- C4 Available field, terminal LLM metrics N/A display, tests
 
 ## Progress
 
@@ -151,4 +154,4 @@ Phases execute in numeric order: 6 -> 7 -> 8 -> 9 -> 10 -> 11 -> 12
 | 9. C4 Docs + HTML | v2 | 3/3 | Complete | 2026-02-03 |
 | 10. C7 Agent Eval | v2 | 2/2 | Complete | 2026-02-03 |
 | 11. Terminal Integration | v2 | 1/1 | Complete | 2026-02-03 |
-| 12. C4 Static Visibility | v2 | 0/TBD | Pending | - |
+| 12. C4 Static Visibility | v2 | 0/1 | Pending | - |

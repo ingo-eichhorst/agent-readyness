@@ -23,10 +23,10 @@ Requirements for v0.0.3 milestone. Each maps to roadmap phases.
 
 ### HTML Report (Issue #7)
 
-- [ ] **HTML-01**: Each metric has brief description (1-2 sentences) always visible
-- [ ] **HTML-02**: Each metric has expandable detailed description with research citations
-- [ ] **HTML-03**: Expandable sections use CSS-only `<details>/<summary>` (no JavaScript)
-- [ ] **HTML-04**: Categories scoring <6.0 start expanded by default
+- [x] **HTML-01**: Each metric has brief description (1-2 sentences) always visible
+- [x] **HTML-02**: Each metric has expandable detailed description with research citations
+- [x] **HTML-03**: Expandable sections use CSS-only `<details>/<summary>` (no JavaScript)
+- [x] **HTML-04**: Categories scoring <6.0 start expanded by default
 
 ### README (Issue #4)
 
@@ -86,10 +86,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | BADGE-01 | Phase 13 | Complete |
 | BADGE-02 | Phase 13 | Complete |
 | BADGE-03 | Phase 13 | Complete |
-| HTML-01 | Phase 14 | Pending |
-| HTML-02 | Phase 14 | Pending |
-| HTML-03 | Phase 14 | Pending |
-| HTML-04 | Phase 14 | Pending |
+| HTML-01 | Phase 14 | Complete |
+| HTML-02 | Phase 14 | Complete |
+| HTML-03 | Phase 14 | Complete |
+| HTML-04 | Phase 14 | Complete |
 | README-01 | Phase 17 | Pending |
 | README-02 | Phase 17 | Pending |
 | README-03 | Phase 17 | Pending |

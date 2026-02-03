@@ -248,3 +248,27 @@ type C4Metrics struct {
 	LLMTokensUsed     int     // Total tokens used
 	LLMFilesSampled   int     // Number of files sampled for LLM analysis
 }
+
+// C7Metrics holds Agent Evaluation metric results.
+type C7Metrics struct {
+	Available              bool            // false if claude CLI not found or user declined
+	IntentClarity          int             // 0-100 score
+	ModificationConfidence int             // 0-100 score
+	CrossFileCoherence     int             // 0-100 score
+	SemanticCompleteness   int             // 0-100 score
+	OverallScore           float64         // average of 4 task scores (0-100)
+	TaskResults            []C7TaskResult  // detailed per-task results
+	TotalDuration          float64         // seconds
+	TokensUsed             int             // estimated total tokens
+	CostUSD                float64         // estimated cost
+}
+
+// C7TaskResult holds results for a single C7 evaluation task.
+type C7TaskResult struct {
+	TaskID    string  // e.g., "intent_clarity"
+	TaskName  string  // e.g., "Intent Clarity"
+	Score     int     // 0-100
+	Status    string  // completed, timeout, error
+	Duration  float64 // seconds
+	Reasoning string  // scoring rationale from LLM judge
+}

@@ -117,6 +117,17 @@ func colorForFloatInverse(val, redBelow, yellowBelow float64) *color.Color {
 	return color.New(color.FgGreen)
 }
 
+// colorForIntInverse returns a color where higher is better (for 1-10 scale metrics).
+func colorForIntInverse(val, redBelow, yellowBelow int) *color.Color {
+	if val < redBelow {
+		return color.New(color.FgRed)
+	}
+	if val < yellowBelow {
+		return color.New(color.FgYellow)
+	}
+	return color.New(color.FgGreen)
+}
+
 func renderC1(w io.Writer, ar *types.AnalysisResult, verbose bool) {
 	bold := color.New(color.Bold)
 
@@ -381,6 +392,11 @@ func renderC4(w io.Writer, ar *types.AnalysisResult, verbose bool) {
 	bold.Fprintln(w, "C4: Documentation Quality")
 	fmt.Fprintln(w, "────────────────────────────────────────")
 
+	if !m.Available {
+		fmt.Fprintln(w, "  Not available")
+		return
+	}
+
 	// README
 	if m.ReadmePresent {
 		green.Fprintf(w, "  README:              present (%d words)\n", m.ReadmeWordCount)
@@ -422,6 +438,26 @@ func renderC4(w io.Writer, ar *types.AnalysisResult, verbose bool) {
 		green.Fprintln(w, "  Diagrams:            present")
 	} else {
 		color.New(color.FgYellow).Fprintln(w, "  Diagrams:            absent")
+	}
+
+	// LLM-based metrics (if enabled)
+	fmt.Fprintln(w)
+	bold.Fprintln(w, "  LLM Analysis:")
+	if m.LLMEnabled {
+		rc := colorForIntInverse(m.ReadmeClarity, 4, 7)
+		rc.Fprintf(w, "    README clarity:      %d/10\n", m.ReadmeClarity)
+		eq := colorForIntInverse(m.ExampleQuality, 4, 7)
+		eq.Fprintf(w, "    Example quality:     %d/10\n", m.ExampleQuality)
+		cp := colorForIntInverse(m.Completeness, 4, 7)
+		cp.Fprintf(w, "    Completeness:        %d/10\n", m.Completeness)
+		cr := colorForIntInverse(m.CrossRefCoherence, 4, 7)
+		cr.Fprintf(w, "    Cross-ref coherence: %d/10\n", m.CrossRefCoherence)
+		fmt.Fprintf(w, "    LLM cost:            $%.4f (%d tokens)\n", m.LLMCostUSD, m.LLMTokensUsed)
+	} else {
+		color.New(color.FgHiBlack).Fprintln(w, "    README clarity:      n/a (--enable-c4-llm)")
+		color.New(color.FgHiBlack).Fprintln(w, "    Example quality:     n/a")
+		color.New(color.FgHiBlack).Fprintln(w, "    Completeness:        n/a")
+		color.New(color.FgHiBlack).Fprintln(w, "    Cross-ref coherence: n/a")
 	}
 
 	// Verbose: show counts

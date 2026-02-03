@@ -110,3 +110,34 @@ func padLeft(s string, n int, pad byte) string {
 	copy(result[n-len(s):], s)
 	return string(result)
 }
+
+// EstimateC7Cost calculates expected cost for C7 agent evaluation.
+// Uses Sonnet pricing since Claude CLI uses Sonnet by default.
+// 4 tasks, ~10k tokens each for agent execution, ~500 tokens for scoring.
+func EstimateC7Cost() CostEstimate {
+	// Agent execution: 4 tasks * 10k tokens = 40k tokens
+	// Scoring: 4 tasks * 500 tokens = 2k tokens
+	// Total: ~42k tokens
+	agentTokens := 40000
+	scoringTokens := 2000
+	totalTokens := agentTokens + scoringTokens
+
+	// Sonnet pricing: $3/MTok input, $15/MTok output
+	// Assume 70% input, 30% output for agent; 80% input, 20% output for scoring
+	inputTokens := int(float64(agentTokens)*0.7) + int(float64(scoringTokens)*0.8)
+	outputTokens := totalTokens - inputTokens
+
+	inputCost := float64(inputTokens) / 1_000_000 * 3.0
+	outputCost := float64(outputTokens) / 1_000_000 * 15.0
+
+	minCost := inputCost + outputCost
+	maxCost := minCost * 2.0 // Higher variance for agent tasks
+
+	return CostEstimate{
+		InputTokens:  inputTokens,
+		OutputTokens: outputTokens,
+		MinCost:      minCost,
+		MaxCost:      maxCost,
+		FilesCount:   4, // 4 tasks
+	}
+}

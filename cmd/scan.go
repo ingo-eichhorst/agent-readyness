@@ -9,6 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/ingo/agent-readyness/internal/agent"
 	"github.com/ingo/agent-readyness/internal/config"
 	"github.com/ingo/agent-readyness/internal/llm"
 	"github.com/ingo/agent-readyness/internal/pipeline"
@@ -20,6 +21,7 @@ var (
 	threshold    float64
 	jsonOutput   bool
 	enableC4LLM  bool
+	enableC7     bool   // Enable C7 agent evaluation
 	outputHTML   string // Path to output HTML file
 	baselinePath string // Path to previous JSON for trend comparison
 )
@@ -98,6 +100,52 @@ No --lang flag needed.`,
 			}
 		}
 
+		// Handle C7 agent evaluation if enabled
+		if enableC7 {
+			// Check Claude CLI availability first
+			if err := agent.CheckClaudeCLI(); err != nil {
+				return fmt.Errorf("--enable-c7 requires Claude Code CLI to be installed\n%s", err)
+			}
+
+			// LLM client needed for scoring (uses ANTHROPIC_API_KEY)
+			apiKey := os.Getenv("ANTHROPIC_API_KEY")
+			if apiKey == "" {
+				return fmt.Errorf("--enable-c7 requires ANTHROPIC_API_KEY environment variable for scoring\nGet your API key from: https://console.anthropic.com/")
+			}
+
+			// Show cost estimate and get confirmation
+			estimate := llm.EstimateC7Cost()
+			fmt.Fprintf(cmd.OutOrStdout(), "\nC7 Agent Evaluation Cost Estimate\n")
+			fmt.Fprintf(cmd.OutOrStdout(), "==================================\n")
+			fmt.Fprintf(cmd.OutOrStdout(), "Tasks to run: 4 (intent clarity, modification confidence, cross-file coherence, semantic completeness)\n")
+			fmt.Fprintf(cmd.OutOrStdout(), "Estimated cost: %s\n", estimate.FormatCost())
+			fmt.Fprintf(cmd.OutOrStdout(), "Estimated duration: 5-20 minutes (depends on codebase size)\n\n")
+			fmt.Fprintf(cmd.OutOrStdout(), "This will:\n")
+			fmt.Fprintf(cmd.OutOrStdout(), "  1. Run Claude Code headless against your codebase\n")
+			fmt.Fprintf(cmd.OutOrStdout(), "  2. Send agent responses to Anthropic API for scoring\n")
+			fmt.Fprintf(cmd.OutOrStdout(), "  3. Use your ANTHROPIC_API_KEY for both operations\n\n")
+			fmt.Fprintf(cmd.OutOrStdout(), "Continue? (yes/no): ")
+
+			reader := bufio.NewReader(os.Stdin)
+			response, _ := reader.ReadString('\n')
+			response = strings.TrimSpace(strings.ToLower(response))
+
+			if response != "yes" && response != "y" {
+				fmt.Fprintf(cmd.OutOrStdout(), "C7 evaluation cancelled. Running other analyzers only.\n\n")
+				enableC7 = false
+			} else {
+				// Create LLM client for scoring if not already created
+				if llmClient == nil {
+					var err error
+					llmClient, err = llm.NewClient(apiKey)
+					if err != nil {
+						return fmt.Errorf("failed to create LLM client: %w", err)
+					}
+				}
+				fmt.Fprintf(cmd.OutOrStdout(), "\n")
+			}
+		}
+
 		spinner := pipeline.NewSpinner(os.Stderr)
 		onProgress := func(stage, detail string) {
 			spinner.Update(detail)
@@ -107,6 +155,11 @@ No --lang flag needed.`,
 		p := pipeline.New(cmd.OutOrStdout(), verbose, cfg, threshold, jsonOutput, onProgress)
 		if llmClient != nil {
 			p.SetLLMClient(llmClient)
+		}
+
+		// Enable C7 if requested and user confirmed
+		if enableC7 && llmClient != nil {
+			p.SetC7Enabled(llmClient)
 		}
 
 		// Configure HTML output if requested
@@ -135,6 +188,7 @@ func init() {
 	scanCmd.Flags().Float64Var(&threshold, "threshold", 0, "minimum composite score (exit code 2 if below)")
 	scanCmd.Flags().BoolVar(&jsonOutput, "json", false, "output results as JSON")
 	scanCmd.Flags().BoolVar(&enableC4LLM, "enable-c4-llm", false, "enable LLM-based C4 content quality evaluation (requires ANTHROPIC_API_KEY)")
+	scanCmd.Flags().BoolVar(&enableC7, "enable-c7", false, "enable C7 agent evaluation using Claude Code CLI (requires claude CLI installed)")
 	scanCmd.Flags().StringVar(&outputHTML, "output-html", "", "generate self-contained HTML report at specified path")
 	scanCmd.Flags().StringVar(&baselinePath, "baseline", "", "path to previous JSON output for trend comparison")
 	rootCmd.AddCommand(scanCmd)

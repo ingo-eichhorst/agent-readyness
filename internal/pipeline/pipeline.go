@@ -27,6 +27,7 @@ type Pipeline struct {
 	writer       io.Writer
 	parser       Parser
 	analyzers    []Analyzer
+	c7Analyzer   *analyzer.C7Analyzer // separate for explicit enable control
 	scorer       *scoring.Scorer
 	results      []*types.AnalysisResult
 	scored       *types.ScoredResult
@@ -60,6 +61,7 @@ func New(w io.Writer, verbose bool, cfg *scoring.ScoringConfig, threshold float6
 	}
 
 	c2Analyzer := analyzer.NewC2Analyzer(tsParser)
+	c7Analyzer := analyzer.NewC7Analyzer()
 
 	return &Pipeline{
 		verbose:    verbose,
@@ -75,8 +77,10 @@ func New(w io.Writer, verbose bool, cfg *scoring.ScoringConfig, threshold float6
 			analyzer.NewC4Analyzer(tsParser),
 			analyzer.NewC5Analyzer(), // No tsParser needed - git-based analysis
 			analyzer.NewC6Analyzer(tsParser),
+			c7Analyzer, // C7 runs but returns Available:false unless enabled
 		},
-		scorer: &scoring.Scorer{Config: cfg},
+		c7Analyzer: c7Analyzer,
+		scorer:     &scoring.Scorer{Config: cfg},
 	}
 }
 
@@ -88,6 +92,13 @@ func (p *Pipeline) SetLLMClient(client *llm.Client) {
 		if c4, ok := a.(*analyzer.C4Analyzer); ok {
 			c4.SetLLMClient(client)
 		}
+	}
+}
+
+// SetC7Enabled enables C7 agent evaluation with the given LLM client (for scoring).
+func (p *Pipeline) SetC7Enabled(client *llm.Client) {
+	if p.c7Analyzer != nil {
+		p.c7Analyzer.Enable(client)
 	}
 }
 

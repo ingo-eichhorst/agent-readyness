@@ -440,6 +440,23 @@ func DefaultConfig() *ScoringConfig {
 					},
 				},
 			},
+			"C7": {
+				Name:   "Agent Evaluation",
+				Weight: 0.10,
+				Metrics: []MetricThresholds{
+					{
+						Name:   "overall_score",
+						Weight: 1.0,
+						Breakpoints: []Breakpoint{
+							{Value: 0, Score: 1},
+							{Value: 30, Score: 3},
+							{Value: 50, Score: 5},
+							{Value: 70, Score: 7},
+							{Value: 90, Score: 10},
+						},
+					},
+				},
+			},
 		},
 		Tiers: []TierConfig{
 			{Name: "Agent-Ready", MinScore: 8.0},

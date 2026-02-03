@@ -89,9 +89,9 @@ func TestDefaultConfig_Structure(t *testing.T) {
 		t.Errorf("C5 name = %q, want %q", c5.Name, "Temporal Dynamics")
 	}
 
-	// Should have 6 categories
-	if got := len(cfg.Categories); got != 6 {
-		t.Errorf("categories count = %d, want 6", got)
+	// Should have 7 categories (C1-C7)
+	if got := len(cfg.Categories); got != 7 {
+		t.Errorf("categories count = %d, want 7", got)
 	}
 
 	// Tiers should have 4 entries

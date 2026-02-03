@@ -21,6 +21,7 @@ var metricExtractors = map[string]MetricExtractor{
 	"C4": extractC4,
 	"C5": extractC5,
 	"C6": extractC6,
+	"C7": extractC7,
 }
 
 // RegisterExtractor registers a metric extractor for a category.
@@ -338,6 +339,29 @@ func extractC5(ar *types.AnalysisResult) (map[string]float64, map[string]bool) {
 		"author_fragmentation":  m.AuthorFragmentation,
 		"commit_stability":      m.CommitStability,
 		"hotspot_concentration": m.HotspotConcentration,
+	}, nil
+}
+
+// extractC7 extracts C7 (Agent Evaluation) metrics from an AnalysisResult.
+func extractC7(ar *types.AnalysisResult) (map[string]float64, map[string]bool) {
+	raw, ok := ar.Metrics["c7"]
+	if !ok {
+		return nil, nil
+	}
+	m, ok := raw.(*types.C7Metrics)
+	if !ok {
+		return nil, nil
+	}
+
+	if !m.Available {
+		unavailable := map[string]bool{
+			"overall_score": true,
+		}
+		return map[string]float64{}, unavailable
+	}
+
+	return map[string]float64{
+		"overall_score": m.OverallScore,
 	}, nil
 }
 

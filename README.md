@@ -41,4 +41,50 @@ This repository provides:
 2. **Actionable improvement patterns** — concrete refactoring strategies with before/after examples
 3. **Measurement tools** — scripts to calculate ARS for your codebase
 
-*[Installation and usage sections coming soon]*
+## Installation
+
+```bash
+go install github.com/ingo-eichhorst/agent-readyness@latest
+```
+
+Or build from source:
+
+```bash
+git clone https://github.com/ingo-eichhorst/agent-readyness.git
+cd agent-readyness
+go build -o ars .
+# or
+go run . scan .
+```
+
+## Usage
+
+```bash
+# Scan current directory
+ars scan .
+
+# Scan with JSON output
+ars scan . --json
+
+# Generate HTML report
+ars scan . --output-html report.html
+
+# Set minimum score threshold (exits with code 2 if below)
+ars scan . --threshold 6.0
+
+# Compare against baseline
+ars scan . --baseline previous.json
+
+# Enable LLM-based documentation analysis (requires ANTHROPIC_API_KEY)
+ars scan . --enable-c4-llm
+
+# Enable agent evaluation (requires claude CLI)
+ars scan . --enable-c7
+```
+
+**Supported languages:** Go, Python, TypeScript (auto-detected)
+
+## Test
+
+go test ./... -coverprofile=coverage.out
+

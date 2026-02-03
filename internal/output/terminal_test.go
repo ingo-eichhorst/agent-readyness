@@ -79,6 +79,26 @@ func newTestAnalysisResults() []*types.AnalysisResult {
 				},
 			},
 		},
+		{
+			Name:     "C7: Agent Evaluation",
+			Category: "C7",
+			Metrics: map[string]interface{}{
+				"c7": &types.C7Metrics{
+					Available:              true,
+					IntentClarity:          75,
+					ModificationConfidence: 68,
+					CrossFileCoherence:     82,
+					SemanticCompleteness:   71,
+					OverallScore:           74.0,
+					TotalDuration:          45.5,
+					CostUSD:                0.0125,
+					TaskResults: []types.C7TaskResult{
+						{TaskID: "intent_clarity", TaskName: "Intent Clarity", Score: 75, Status: "completed", Duration: 12.3, Reasoning: "Clear function signatures"},
+						{TaskID: "modification_confidence", TaskName: "Modification Confidence", Score: 68, Status: "completed", Duration: 11.2, Reasoning: "Good test coverage"},
+					},
+				},
+			},
+		},
 	}
 }
 
@@ -196,6 +216,23 @@ func TestRenderSummaryWithMetrics(t *testing.T) {
 		}
 	}
 
+	// C7 metrics should appear
+	c7Checks := []string{
+		"C7: Agent Evaluation",
+		"Intent clarity:",
+		"Modification conf:",
+		"Cross-file coherence:",
+		"Semantic complete:",
+		"Overall score:",
+		"Duration:",
+		"Estimated cost:",
+	}
+	for _, check := range c7Checks {
+		if !strings.Contains(out, check) {
+			t.Errorf("output missing C7 metric %q\nGot:\n%s", check, out)
+		}
+	}
+
 	// Non-verbose: should NOT show top functions or dead export details
 	if strings.Contains(out, "Top complex functions:") {
 		t.Error("non-verbose output should not contain 'Top complex functions:'")
@@ -222,6 +259,12 @@ func TestRenderSummaryWithMetricsVerbose(t *testing.T) {
 		"main.handleRequest",
 		"util.Unused",
 		"main.TestHandle",
+		// C7 verbose: per-task results
+		"Per-task results:",
+		"Intent Clarity:",
+		"score=75",
+		"completed",
+		"Clear function signatures",
 	}
 	for _, check := range verboseChecks {
 		if !strings.Contains(out, check) {
@@ -292,5 +335,31 @@ func TestRenderRecommendationsEmpty(t *testing.T) {
 	}
 	if !strings.Contains(out, "excellent") {
 		t.Errorf("empty recommendations should contain 'excellent'\nGot:\n%s", out)
+	}
+}
+
+func TestRenderC7Unavailable(t *testing.T) {
+	var buf bytes.Buffer
+	ar := &types.AnalysisResult{
+		Name:     "C7: Agent Evaluation",
+		Category: "C7",
+		Metrics: map[string]interface{}{
+			"c7": &types.C7Metrics{
+				Available: false,
+			},
+		},
+	}
+	RenderSummary(&buf, newTestResult(), []*types.AnalysisResult{ar}, false)
+	out := buf.String()
+
+	if !strings.Contains(out, "C7: Agent Evaluation") {
+		t.Error("output should contain C7 header")
+	}
+	if !strings.Contains(out, "Not available") {
+		t.Error("output should indicate C7 not available")
+	}
+	// Should NOT contain metric values when unavailable
+	if strings.Contains(out, "Intent clarity:") {
+		t.Error("unavailable C7 should not show metric details")
 	}
 }

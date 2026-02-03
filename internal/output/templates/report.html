@@ -37,6 +37,10 @@
     {{end}}
 
     <section class="categories">
+        <div class="expand-controls">
+            <button onclick="document.querySelectorAll('details.metric-details').forEach(d => d.open = true)">Expand All</button>
+            <button onclick="document.querySelectorAll('details.metric-details').forEach(d => d.open = false)">Collapse All</button>
+        </div>
         {{range .Categories}}
         <div class="category">
             <h2>{{.DisplayName}} <span class="cat-score score-{{.ScoreClass}}">{{printf "%.1f" .Score}}/10</span></h2>
@@ -47,7 +51,20 @@
                 <tbody>
                     {{range .SubScores}}
                     <tr>
-                        <td>{{.DisplayName}}</td>
+                        <td class="metric-cell">
+                            <details class="metric-details"{{if .ShouldExpand}} open{{end}}>
+                                <summary>
+                                    <span class="metric-name">{{.DisplayName}}</span>
+                                    <span class="chevron"></span>
+                                </summary>
+                                {{if .BriefDescription}}
+                                <div class="metric-brief">{{.BriefDescription}}</div>
+                                {{end}}
+                                {{if .DetailedDescription}}
+                                <div class="metric-detailed">{{.DetailedDescription}}</div>
+                                {{end}}
+                            </details>
+                        </td>
                         <td>{{.FormattedValue}}</td>
                         <td class="score-cell score-{{.ScoreClass}}">{{printf "%.1f" .Score}}</td>
                         <td>{{printf "%.0f" .WeightPct}}%</td>

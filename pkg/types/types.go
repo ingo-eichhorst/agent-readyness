@@ -220,3 +220,21 @@ type CoupledPair struct {
 	Coupling      float64 // 0-100 percentage
 	SharedCommits int
 }
+
+// C4Metrics holds Documentation Quality metric results.
+type C4Metrics struct {
+	ReadmePresent       bool
+	ReadmeWordCount     int
+	CommentDensity      float64 // % lines with comments (0-100)
+	APIDocCoverage      float64 // % public APIs with docstrings (0-100)
+	ChangelogPresent    bool
+	ChangelogDaysOld    int // -1 if not present
+	DiagramsPresent     bool
+	ExamplesPresent     bool
+	ContributingPresent bool
+	// Counts for verbose output
+	TotalSourceLines int
+	CommentLines     int
+	PublicAPIs       int
+	DocumentedAPIs   int
+}

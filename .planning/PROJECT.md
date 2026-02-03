@@ -12,6 +12,7 @@ Accurate, evidence-based scoring that predicts agent success and identifies spec
 
 ### Validated
 
+**v1 requirements:**
 - ✓ CLI accepts directory path and scans Go codebase — v1
 - ✓ Auto-detects Go projects (go.mod, .go files) — v1
 - ✓ C1: Code Health analysis (cyclomatic complexity, function length, file size, coupling, duplication) — v1
@@ -28,20 +29,20 @@ Accurate, evidence-based scoring that predicts agent success and identifies spec
 - ✓ Performance <30s for 50k LOC repos — v1
 - ✓ Progress indicators for long-running scans — v1
 
+**v0.0.2 requirements (95 total):**
+- ✓ Multi-language support (Go, Python, TypeScript) with Tree-sitter parsing — v0.0.2
+- ✓ C2: Semantic Explicitness analysis (type coverage, naming consistency, magic numbers, null safety) for all 3 languages — v0.0.2
+- ✓ C4: Documentation Quality analysis (static metrics + optional LLM content evaluation) — v0.0.2
+- ✓ C5: Temporal Dynamics analysis (git-based churn, hotspots, temporal coupling, author fragmentation) — v0.0.2
+- ✓ C7: Agent Evaluation (headless Claude Code with LLM-as-judge scoring) — v0.0.2
+- ✓ HTML report generation with radar charts, research citations, and baseline comparison — v0.0.2
+- ✓ .arsrc.yml configuration system for custom weights and thresholds — v0.0.2
+- ✓ Cost-transparent opt-in LLM features (--enable-c4-llm, --enable-c7 flags) — v0.0.2
+- ✓ Complete 7-category framework (C1-C7) with updated composite scoring — v0.0.2
+
 ### Active
 
-**Current Milestone: v2 Complete Analysis Framework**
-
-**Goal:** Transform ARS from a Go-specific structural analyzer into a comprehensive, multi-language agent-readiness assessment tool with all seven research-backed analysis categories.
-
-**Target features:**
-- Complete all 7 analysis categories (C1-C7) for comprehensive agent-readiness evaluation
-- Multi-language support: Go, Python, TypeScript analyzers with language-specific metrics
-- Headless agent evaluation (C7) using Claude Code for genuine agent-in-the-loop assessment
-- HTML reports with research citations, metric explanations, and visual score presentation
-- Configurable scoring via .arsrc.yml for custom weights and thresholds
-- Deep documentation quality analysis (C4) with content evaluation, not just presence checks
-- Git-based temporal analysis (C5) for code churn, hotspots, and ownership patterns
+**Current Focus:** Planning next milestone (v0.0.3 or v3.0)
 
 ### Out of Scope
 
@@ -57,12 +58,13 @@ Accurate, evidence-based scoring that predicts agent success and identifies spec
 
 ## Context
 
-**Current State (v1 shipped 2026-02-01):**
-- 7,508 LOC Go
-- Tech stack: Go 1.24, cobra CLI, go/packages parser, gocyclo
-- 81 tests passing, 85%+ coverage
-- Validated on this codebase (scores 8.1/10 Agent-Ready)
-- 5 phases, 16 plans completed
+**Current State (v0.0.2 shipped 2026-02-03):**
+- 21,122 LOC Go
+- Tech stack: Go 1.24, cobra CLI, Tree-sitter (Python/TypeScript), Anthropic SDK (LLM features), go-charts (HTML reports)
+- 100+ tests passing across 11 packages, 85%+ coverage
+- Validated on multi-language codebases (Go, Python, TypeScript)
+- 12 phases total (v1: 5 phases, v0.0.2: 7 phases), 31 plans completed
+- All 7 analysis categories operational (C1-C7)
 
 **Research Foundation:**
 - Borg et al. (2026): Code Health metrics predict maintainability
@@ -97,13 +99,19 @@ Internal tooling to identify which repositories need investment before agent ado
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Start with Go only | Get one language right, validate scoring model before expanding | ✓ Good - Focused execution, clean architecture |
-| Use weighted composite score | Research shows different metrics have different predictive power | ✓ Good - Meaningful scores that predict agent readiness |
-| Focus on C1, C3, C6 first | Structural quality and testing are highest-impact, measurable categories | ✓ Good - Complete analysis foundation |
-| KISS over frameworks | Fast iteration, easier to maintain, lower barrier to contribution | ✓ Good - 7,508 LOC with full functionality |
-| Test on real repos | Synthetic tests won't reveal threshold accuracy issues | ✓ Good - Tool validated on this codebase itself |
-| Piecewise linear interpolation | Simple, predictable, configurable scoring | ✓ Good - Easy to tune and explain |
-| Parallel analyzer execution | Reduce wall-clock time for large codebases | ✓ Good - Performance meets <30s requirement |
+| Start with Go only (v1) | Get one language right, validate scoring model before expanding | ✓ Good - Focused execution, clean architecture |
+| Use weighted composite score (v1) | Research shows different metrics have different predictive power | ✓ Good - Meaningful scores that predict agent readiness |
+| Focus on C1, C3, C6 first (v1) | Structural quality and testing are highest-impact, measurable categories | ✓ Good - Complete analysis foundation |
+| KISS over frameworks (v1) | Fast iteration, easier to maintain, lower barrier to contribution | ✓ Good - Clean codebase even at 21k LOC |
+| Test on real repos (v1) | Synthetic tests won't reveal threshold accuracy issues | ✓ Good - Tool validated on this codebase itself |
+| Piecewise linear interpolation (v1) | Simple, predictable, configurable scoring | ✓ Good - Easy to tune and explain |
+| Parallel analyzer execution (v1) | Reduce wall-clock time for large codebases | ✓ Good - Performance meets <30s requirement |
+| Tree-sitter for Python/TypeScript (v0.0.2) | Language-agnostic parsing without runtime dependencies | ✓ Good - Multi-language without embedded interpreters (requires CGO) |
+| Native git CLI for C5 (v0.0.2) | 10-100x faster than go-git for log parsing | ✓ Good - Temporal analysis completes in seconds |
+| Anthropic SDK for LLM features (v0.0.2) | Single provider, Haiku for cost efficiency | ✓ Good - Cost-effective C4/C7 analysis |
+| Tiered execution model (v0.0.2) | Free/fast default, opt-in LLM features | ✓ Good - Zero cost for static analysis, user controls LLM spend |
+| LLM-as-judge for C7 (v0.0.2) | Genuine agent evaluation vs synthetic metrics | ✓ Good - Most novel and differentiated metric in the space |
+| Git worktree isolation (v0.0.2) | Safe agent execution without modifying user's working tree | ✓ Good - C7 runs in isolated workspace |
 
 ---
-*Last updated: 2026-02-01 after v2 milestone initialization*
+*Last updated: 2026-02-03 after v0.0.2 milestone completion*

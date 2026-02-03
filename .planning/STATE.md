@@ -2,19 +2,18 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-01)
+See: .planning/PROJECT.md (updated 2026-02-03)
 
 **Core value:** Accurate, evidence-based scoring that predicts agent success and identifies specific improvements teams should make before adopting AI coding agents.
-**Current focus:** v2 Complete Analysis Framework - All phases complete
+**Current focus:** Planning next milestone (v0.0.3 or v3.0)
 
 ## Current Position
 
-Phase: 12 of 12 (C4 Static Metrics Visibility)
-Plan: 1 of 1 in current phase
-Status: Phase complete
-Last activity: 2026-02-03 -- Completed 12-01-PLAN.md (C4 Static Metrics Visibility)
+Milestone: v0.0.2 Complete Analysis Framework
+Status: ✅ SHIPPED (2026-02-03)
+Last activity: 2026-02-03 -- Milestone v0.0.2 archived
 
-Progress: [###############################] 100% (31/31 plans)
+Progress: 31 plans completed (v1: 16 plans, v0.0.2: 15 plans)
 
 ## Performance Metrics
 
@@ -50,55 +49,8 @@ Progress: [###############################] 100% (31/31 plans)
 
 ### Decisions
 
-Decisions are logged in PROJECT.md Key Decisions table.
-Recent decisions affecting current work:
-
-- v2 scope: Multi-language (Go/Python/TypeScript) + C2/C4/C5/C7 categories
-- Tree-sitter for Python/TS parsing (not language runtimes), requires CGO_ENABLED=1
-- Native git CLI for C5 (not go-git, 10-100x faster)
-- Anthropic SDK for C4/C7 LLM features (single provider, Haiku for cost)
-- Tiered execution: free/fast default (C1-C3/C5-C6), LLM features opt-in (C4-LLM/C7)
-- Dual-parser: keep go/packages for Go, Tree-sitter for Python/TypeScript
-- GoAwareAnalyzer bridge pattern: Go analyzers use SetGoPackages, new analyzers use AnalysisTarget directly
-- Separate .ts and .tsx Tree-sitter parsers (different grammars for TypeScript vs TSX)
-- Extension-based language routing in walker via langExtensions map
-- Map-based ScoringConfig with Categories map[string]CategoryConfig (extensible for C4/C5/C7)
-- Extractor pattern for scoring (metricExtractors map decouples scoring from extraction)
-- C2 Python analyzer uses Tree-sitter node walking (not queries) for type annotation counting
-- TypeScript any types penalized in coverage score; null safety = strictNullChecks + optional chaining
-- .arsrc.yml project config with version 1, category weight overrides
-- Pipeline auto-creates Tree-sitter parser; degrades gracefully if CGO unavailable
-- Language dispatch via switch/case in each analyzer's Analyze method (C1/C3/C6 match C2 pattern)
-- Thread-safe TreeSitterParser: sync.Mutex added to ParseFile for concurrent analyzer safety
-- NewCxAnalyzer(tsParser) constructor pattern for all analyzers
-- tsNormalizePath strips /index suffix for TypeScript module resolution matching
-- Test detection via call_expression name matching (describe/it/test) for Jest/Vitest/Mocha
-- Assertion counting uses expect() as anchor, not chain methods
-- C5Analyzer is repo-level (uses RootDir, not per-file targets); no Tree-sitter dependency
-- C5 uses 6-month git log window; 90-day sub-window for churn/author metrics
-- Skip commits >50 files for coupling; min 5 commits per file for qualification
-- C5 tests use real repo (not fixtures) for integration confidence
-- C4Analyzer is repo-level like C5 (uses RootDir for file existence checks)
-- C4 boolean metrics (changelog, examples, etc) converted to 0/1 for scoring
-- TypeScript JSDoc detection uses simpler regex approach vs full Tree-sitter
-- LLM client uses Anthropic SDK with claude-3-5-haiku for cost-effective evaluation
-- Prompt caching with cache_control ephemeral for system prompts (rubrics)
-- Max 100 file sampling for LLM cost control in large repos
-- User confirmation required before LLM analysis (cost transparency)
-- go-charts/v2 for radar chart SVG generation (no external JS dependencies)
-- HTML templates embedded via embed.FS for self-contained binary
-- Radar chart requires min 3 categories (go-charts library constraint)
-- Baseline trend comparison via previous JSON output parsing
-- C7 tasks use Read-only tools (Read,Glob,Grep) - no writes to codebase
-- C7 executor uses cmd.Cancel (SIGINT) + cmd.WaitDelay for graceful subprocess timeout
-- Git worktree for C7 workspace isolation; fallback to read-only mode for non-git repos
-- C7Analyzer disabled by default, requires Enable(client) call via --enable-c7 flag
-- LLM-as-a-judge pattern for C7 scoring with task-specific rubrics
-- Score scaling: 1-10 LLM scores multiplied by 10 for 0-100 consistency
-- C7 terminal output: c7ScoreColor uses 70/40 thresholds for 0-100 scores (green/yellow/red)
-- C4 static metrics always available (Available: true unconditionally) - LLM is optional enhancement
-- LLM metrics use dim gray for n/a display - visual cue for opt-in features
-- colorForIntInverse uses 4/7 thresholds for 1-10 scale LLM metrics
+All decisions are logged in PROJECT.md Key Decisions table.
+For next milestone planning, review PROJECT.md and MILESTONES.md.
 
 ### Pending Todos
 
@@ -106,10 +58,12 @@ None.
 
 ### Blockers/Concerns
 
-- CGO requirement: v2 needs CGO_ENABLED=1 for Tree-sitter (v1 was pure Go)
+None - v0.0.2 shipped successfully.
 
 ## Session Continuity
 
-Last session: 2026-02-03T17:28:18Z
-Stopped at: Completed 12-01-PLAN.md (C4 Static Metrics Visibility)
+Last session: 2026-02-03
+Stopped at: Milestone v0.0.2 complete and archived
 Resume file: None
+
+**Next steps:** Run `/gsd:new-milestone` to start planning next milestone (v0.0.3 or v3.0)

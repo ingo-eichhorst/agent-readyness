@@ -16,10 +16,12 @@ import (
 )
 
 var (
-	configPath  string
-	threshold   float64
-	jsonOutput  bool
-	enableC4LLM bool
+	configPath   string
+	threshold    float64
+	jsonOutput   bool
+	enableC4LLM  bool
+	outputHTML   string // Path to output HTML file
+	baselinePath string // Path to previous JSON for trend comparison
 )
 
 var scanCmd = &cobra.Command{
@@ -106,12 +108,24 @@ No --lang flag needed.`,
 		if llmClient != nil {
 			p.SetLLMClient(llmClient)
 		}
+
+		// Configure HTML output if requested
+		if outputHTML != "" {
+			p.SetHTMLOutput(outputHTML, baselinePath)
+		}
+
 		err = p.Run(dir)
 		if err != nil {
 			spinner.Stop("") // clear spinner before error
 			return err
 		}
 		spinner.Stop("Done.")
+
+		// Show HTML output path if generated
+		if outputHTML != "" {
+			fmt.Fprintf(cmd.OutOrStdout(), "\nHTML report generated: %s\n", outputHTML)
+		}
+
 		return nil
 	},
 }
@@ -121,6 +135,8 @@ func init() {
 	scanCmd.Flags().Float64Var(&threshold, "threshold", 0, "minimum composite score (exit code 2 if below)")
 	scanCmd.Flags().BoolVar(&jsonOutput, "json", false, "output results as JSON")
 	scanCmd.Flags().BoolVar(&enableC4LLM, "enable-c4-llm", false, "enable LLM-based C4 content quality evaluation (requires ANTHROPIC_API_KEY)")
+	scanCmd.Flags().StringVar(&outputHTML, "output-html", "", "generate self-contained HTML report at specified path")
+	scanCmd.Flags().StringVar(&baselinePath, "baseline", "", "path to previous JSON output for trend comparison")
 	rootCmd.AddCommand(scanCmd)
 }
 

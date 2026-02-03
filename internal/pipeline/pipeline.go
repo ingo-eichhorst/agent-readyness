@@ -1,6 +1,7 @@
 package pipeline
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -22,17 +23,19 @@ import (
 
 // Pipeline orchestrates the scan workflow: discover -> parse -> analyze -> score -> output.
 type Pipeline struct {
-	verbose    bool
-	writer     io.Writer
-	parser     Parser
-	analyzers  []Analyzer
-	scorer     *scoring.Scorer
-	results    []*types.AnalysisResult
-	scored     *types.ScoredResult
-	threshold  float64
-	jsonOutput bool
-	onProgress ProgressFunc
-	llmClient  *llm.Client // optional LLM client for C4 analysis
+	verbose      bool
+	writer       io.Writer
+	parser       Parser
+	analyzers    []Analyzer
+	scorer       *scoring.Scorer
+	results      []*types.AnalysisResult
+	scored       *types.ScoredResult
+	threshold    float64
+	jsonOutput   bool
+	onProgress   ProgressFunc
+	llmClient    *llm.Client // optional LLM client for C4 analysis
+	htmlOutput   string      // optional path for HTML report output
+	baselinePath string      // optional path to previous JSON for trend comparison
 }
 
 // New creates a Pipeline with GoPackagesParser, all analyzers, and a scorer.
@@ -86,6 +89,14 @@ func (p *Pipeline) SetLLMClient(client *llm.Client) {
 			c4.SetLLMClient(client)
 		}
 	}
+}
+
+// SetHTMLOutput configures HTML report generation.
+// If htmlPath is non-empty, an HTML report will be generated at that path.
+// If baselinePath is non-empty, the report will include trend comparison.
+func (p *Pipeline) SetHTMLOutput(htmlPath, baselinePath string) {
+	p.htmlOutput = htmlPath
+	p.baselinePath = baselinePath
 }
 
 // Run executes the full pipeline on the given directory.
@@ -217,6 +228,13 @@ func (p *Pipeline) Run(dir string) error {
 		}
 	}
 
+	// Stage 4.5: Generate HTML report if requested
+	if p.htmlOutput != "" && p.scored != nil {
+		if err := p.generateHTMLReport(recs); err != nil {
+			return fmt.Errorf("generate HTML report: %w", err)
+		}
+	}
+
 	// Stage 5: Threshold check (AFTER rendering so output is always displayed)
 	if p.threshold > 0 && p.scored != nil && p.scored.Composite < p.threshold {
 		return &types.ExitError{
@@ -226,6 +244,70 @@ func (p *Pipeline) Run(dir string) error {
 	}
 
 	return nil
+}
+
+// generateHTMLReport creates an HTML report file at the configured path.
+func (p *Pipeline) generateHTMLReport(recs []recommend.Recommendation) error {
+	// Load baseline if provided
+	var baseline *types.ScoredResult
+	if p.baselinePath != "" {
+		var err error
+		baseline, err = loadBaseline(p.baselinePath)
+		if err != nil {
+			// Warn but continue without baseline
+			fmt.Fprintf(p.writer, "Warning: could not load baseline: %v\n", err)
+		}
+	}
+
+	// Create HTML generator
+	gen, err := output.NewHTMLGenerator()
+	if err != nil {
+		return fmt.Errorf("create HTML generator: %w", err)
+	}
+
+	// Create output file
+	f, err := os.Create(p.htmlOutput)
+	if err != nil {
+		return fmt.Errorf("create output file: %w", err)
+	}
+	defer f.Close()
+
+	// Generate report
+	if err := gen.GenerateReport(f, p.scored, recs, baseline); err != nil {
+		return fmt.Errorf("generate report: %w", err)
+	}
+
+	return nil
+}
+
+// loadBaseline reads a previous JSON output file for trend comparison.
+func loadBaseline(path string) (*types.ScoredResult, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	// Parse the JSON report format
+	var report output.JSONReport
+	if err := json.Unmarshal(data, &report); err != nil {
+		return nil, fmt.Errorf("parse JSON: %w", err)
+	}
+
+	// Convert JSONReport to ScoredResult
+	result := &types.ScoredResult{
+		Composite: report.CompositeScore,
+		Tier:      report.Tier,
+	}
+
+	for _, cat := range report.Categories {
+		result.Categories = append(result.Categories, types.CategoryScore{
+			Name:   cat.Name,
+			Score:  cat.Score,
+			Weight: cat.Weight,
+		})
+	}
+
+	return result, nil
 }
 
 // buildGoTargets creates an []*types.AnalysisTarget from parsed Go packages.

@@ -35,6 +35,8 @@ type HTMLReportData struct {
 	Recommendations []HTMLRecommendation
 	Citations       []Citation
 	InlineCSS       template.CSS // Safe: from our template
+	BadgeMarkdown   string       // Badge markdown for copy section
+	BadgeURL        string       // Badge URL for preview
 }
 
 // HTMLCategory represents a category for HTML display.
@@ -104,21 +106,26 @@ func (g *HTMLGenerator) GenerateReport(w io.Writer, scored *types.ScoredResult, 
 		}
 	}
 
+	// Generate badge info
+	badge := GenerateBadge(scored)
+
 	// Build template data
 	data := HTMLReportData{
-		ProjectName:   scored.ProjectName,
-		Composite:     scored.Composite,
-		Tier:          scored.Tier,
-		TierClass:     tierToClass(scored.Tier),
-		GeneratedAt:   time.Now().Format("2006-01-02 15:04:05"),
-		Version:       "2.0.0",
-		RadarChartSVG: template.HTML(radarSVG), // Safe: we generated it
-		TrendChartSVG: template.HTML(trendSVG), // Safe: we generated it
-		HasTrend:      baseline != nil && trendSVG != "",
-		Categories:    buildHTMLCategories(scored.Categories),
+		ProjectName:     scored.ProjectName,
+		Composite:       scored.Composite,
+		Tier:            scored.Tier,
+		TierClass:       tierToClass(scored.Tier),
+		GeneratedAt:     time.Now().Format("2006-01-02 15:04:05"),
+		Version:         "2.0.0",
+		RadarChartSVG:   template.HTML(radarSVG), // Safe: we generated it
+		TrendChartSVG:   template.HTML(trendSVG), // Safe: we generated it
+		HasTrend:        baseline != nil && trendSVG != "",
+		Categories:      buildHTMLCategories(scored.Categories),
 		Recommendations: buildHTMLRecommendations(recs),
-		Citations:     researchCitations,
-		InlineCSS:     template.CSS(string(cssBytes)), // Safe: from our template
+		Citations:       researchCitations,
+		InlineCSS:       template.CSS(string(cssBytes)), // Safe: from our template
+		BadgeMarkdown:   badge.Markdown,
+		BadgeURL:        badge.URL,
 	}
 
 	return g.tmpl.Execute(w, data)

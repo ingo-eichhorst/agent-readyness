@@ -67,6 +67,20 @@
     </section>
     {{end}}
 
+    {{if .BadgeURL}}
+    <section class="badge-section">
+        <h2>README Badge</h2>
+        <p>Add this badge to your README to show your project's agent readiness score:</p>
+        <div class="badge-preview">
+            <img src="{{.BadgeURL}}" alt="ARS Badge">
+        </div>
+        <div class="badge-code">
+            <code id="badge-markdown">{{.BadgeMarkdown}}</code>
+            <button onclick="navigator.clipboard.writeText(document.getElementById('badge-markdown').textContent)">Copy</button>
+        </div>
+    </section>
+    {{end}}
+
     <footer>
         <h2>Research Citations</h2>
         <p>ARS metrics are grounded in software engineering research:</p>

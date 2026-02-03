@@ -122,5 +122,5 @@ Phases execute in numeric order: 6 -> 7 -> 8 -> 9 -> 10
 | 6. Multi-Language + C2 | v2 | 4/4 | Complete | 2026-02-01 |
 | 7. Python + TS (C1/C3/C6) | v2 | 2/2 | Complete | 2026-02-01 |
 | 8. C5 Temporal | v2 | 2/2 | Complete | 2026-02-02 |
-| 9. C4 Docs + HTML | v2 | 0/3 | Ready for execution | - |
+| 9. C4 Docs + HTML | v2 | 3/3 | Complete | 2026-02-03 |
 | 10. C7 Agent Eval | v2 | 0/2 | Not started | - |

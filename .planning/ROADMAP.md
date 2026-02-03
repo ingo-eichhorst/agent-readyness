@@ -125,7 +125,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 11-01-PLAN.md -- C7 terminal rendering function + tests + display name mappings
+- [x] 11-01-PLAN.md -- C7 terminal rendering function + tests + display name mappings
 
 ### Phase 12: C4 Static Metrics Visibility
 **Goal**: Users see C4 static documentation metrics in terminal output without requiring --enable-c4-llm flag
@@ -150,5 +150,5 @@ Phases execute in numeric order: 6 -> 7 -> 8 -> 9 -> 10 -> 11 -> 12
 | 8. C5 Temporal | v2 | 2/2 | Complete | 2026-02-02 |
 | 9. C4 Docs + HTML | v2 | 3/3 | Complete | 2026-02-03 |
 | 10. C7 Agent Eval | v2 | 2/2 | Complete | 2026-02-03 |
-| 11. Terminal Integration | v2 | 0/1 | Planned | - |
+| 11. Terminal Integration | v2 | 1/1 | Complete | 2026-02-03 |
 | 12. C4 Static Visibility | v2 | 0/TBD | Pending | - |

@@ -56,10 +56,10 @@ Plans:
   2. C6 References section contains complete citations with verified, accessible URLs
   3. Citation density follows style guide (2-6 per metric, prioritizing seminal works)
   4. Every quantified claim in C6 metric descriptions has an explicit source attribution
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 19-01: [TBD during planning]
+- [ ] 19-01-PLAN.md — Add citations to all 5 C6 Testing metrics and verify URLs
 
 ### Phase 20: C2 Semantic Explicitness
 **Goal**: Add research-backed citations to all C2 Semantic Explicitness metrics
@@ -156,7 +156,7 @@ Phases 18-24 execute sequentially. Phase 18 must complete first (establishes pro
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 18. C1 Code Health | v0.0.4 | 2/2 | Complete | 2026-02-04 |
-| 19. C6 Testing | v0.0.4 | 0/TBD | Not started | - |
+| 19. C6 Testing | v0.0.4 | 0/1 | Not started | - |
 | 20. C2 Semantic Explicitness | v0.0.4 | 0/TBD | Not started | - |
 | 21. C3 Architecture | v0.0.4 | 0/TBD | Not started | - |
 | 22. C4 Documentation | v0.0.4 | 0/TBD | Not started | - |

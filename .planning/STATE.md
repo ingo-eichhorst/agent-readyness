@@ -5,22 +5,22 @@
 See: .planning/PROJECT.md (updated 2026-02-04)
 
 **Core value:** Accurate, evidence-based scoring that predicts agent success and identifies specific improvements teams should make before adopting AI coding agents.
-**Current focus:** Phase 21 - C3 Architecture citations
+**Current focus:** Phase 22 - C4 Documentation citations
 
 ## Current Position
 
-Phase: 20 of 24 (C2 Semantic Explicitness)
+Phase: 21 of 24 (C3 Architecture)
 Plan: 1 of 1 in current phase
-Status: Phase complete, verified
-Last activity: 2026-02-04 — Verified Phase 20 goal achievement (all must-haves satisfied)
+Status: Phase complete
+Last activity: 2026-02-04 — Completed 21-01-PLAN.md (C3 Architecture citations)
 
-Progress: [####################] 100% (v1-v0.0.3) | [#####.....] 43% (v0.0.4)
+Progress: [####################] 100% (v1-v0.0.3) | [######....] 57% (v0.0.4)
 
 ## Performance Metrics
 
 **Velocity (v1-v0.0.3):**
-- Total plans completed: 39
-- Phases completed: 20
+- Total plans completed: 40
+- Phases completed: 21
 - Total milestones shipped: 3
 
 **By Milestone:**
@@ -33,7 +33,7 @@ Progress: [####################] 100% (v1-v0.0.3) | [#####.....] 43% (v0.0.4)
 
 **v0.0.4 (Current):**
 - Phases: 7 (18-24)
-- Plans completed: 4
+- Plans completed: 5
 - Focus: Content expansion (citations), not code changes
 
 *Updated after each plan completion*
@@ -56,6 +56,7 @@ Recent decisions affecting current work:
 - [19-01]: Kudrjavets production assertions contextualized for test assertions
 - [20-01]: Pierce (2002) as primary type theory foundation for C2 metrics
 - [20-01]: Hoare "billion dollar mistake" labeled as practitioner opinion, not research
+- [21-01]: Martin (2003) labeled as influential practitioner perspective for ADP/SDP
 
 ### Pending Todos
 
@@ -69,5 +70,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-04
-Stopped at: Phase 20 verified and complete (all success criteria met)
-Resume file: None — Ready for Phase 21 (C3 Architecture)
+Stopped at: Completed 21-01-PLAN.md (C3 Architecture citations)
+Resume file: None — Ready for Phase 22 (C4 Documentation)

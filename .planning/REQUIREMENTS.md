@@ -22,15 +22,15 @@ Requirements for milestone v0.0.4 Metric Research. Each maps to roadmap phases.
 
 ### C2: Semantic Explicitness Metrics (Issue #48)
 
-- [ ] **C2-01**: Research foundational sources (pre-2021) for all 5 C2 metrics
-- [ ] **C2-02**: Research AI/agent era sources (2021+) for all 5 C2 metrics
-- [ ] **C2-03**: Add inline citations to type_annotation_coverage description
-- [ ] **C2-04**: Add inline citations to naming_consistency description
-- [ ] **C2-05**: Add inline citations to magic_number_ratio description
-- [ ] **C2-06**: Add inline citations to type_strictness description
-- [ ] **C2-07**: Add inline citations to null_safety description
-- [ ] **C2-08**: Add References section for all C2 metrics with verified URLs
-- [ ] **C2-09**: Verify all C2 citation URLs accessible
+- [x] **C2-01**: Research foundational sources (pre-2021) for all 5 C2 metrics
+- [x] **C2-02**: Research AI/agent era sources (2021+) for all 5 C2 metrics
+- [x] **C2-03**: Add inline citations to type_annotation_coverage description
+- [x] **C2-04**: Add inline citations to naming_consistency description
+- [x] **C2-05**: Add inline citations to magic_number_ratio description
+- [x] **C2-06**: Add inline citations to type_strictness description
+- [x] **C2-07**: Add inline citations to null_safety description
+- [x] **C2-08**: Add References section for all C2 metrics with verified URLs
+- [x] **C2-09**: Verify all C2 citation URLs accessible
 
 ### C3: Architecture Metrics (Issue #49)
 

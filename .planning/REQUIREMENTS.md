@@ -30,10 +30,10 @@ Requirements for v0.0.3 milestone. Each maps to roadmap phases.
 
 ### README (Issue #4)
 
-- [ ] **README-01**: Add Go Reference badge
-- [ ] **README-02**: Add Go Report Card badge
-- [ ] **README-03**: Add License badge
-- [ ] **README-04**: Add Release badge
+- [x] **README-01**: Add Go Reference badge
+- [x] **README-02**: Add Go Report Card badge
+- [x] **README-03**: Add License badge
+- [x] **README-04**: Add Release badge
 
 ### Codebase Organization (Issue #3)
 
@@ -44,8 +44,8 @@ Requirements for v0.0.3 milestone. Each maps to roadmap phases.
 
 ### Testing (Issue #2)
 
-- [ ] **TEST-01**: Test commands always include `-coverprofile` flag
-- [ ] **TEST-02**: Coverage data available for C6 analysis
+- [x] **TEST-01**: Test commands always include `-coverprofile` flag
+- [x] **TEST-02**: Coverage data available for C6 analysis
 
 ## Future Requirements
 
@@ -90,16 +90,16 @@ Which phases cover which requirements. Updated during roadmap creation.
 | HTML-02 | Phase 14 | Complete |
 | HTML-03 | Phase 14 | Complete |
 | HTML-04 | Phase 14 | Complete |
-| README-01 | Phase 17 | Pending |
-| README-02 | Phase 17 | Pending |
-| README-03 | Phase 17 | Pending |
-| README-04 | Phase 17 | Pending |
+| README-01 | Phase 17 | Complete |
+| README-02 | Phase 17 | Complete |
+| README-03 | Phase 17 | Complete |
+| README-04 | Phase 17 | Complete |
 | REORG-01 | Phase 16 | Complete |
 | REORG-02 | Phase 16 | Complete |
 | REORG-03 | Phase 16 | Complete |
 | REORG-04 | Phase 16 | Complete |
-| TEST-01 | Phase 17 | Pending |
-| TEST-02 | Phase 17 | Pending |
+| TEST-01 | Phase 17 | Complete |
+| TEST-02 | Phase 17 | Complete |
 
 **Coverage:**
 - v0.0.3 requirements: 22 total

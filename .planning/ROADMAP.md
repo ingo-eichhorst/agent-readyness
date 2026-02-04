@@ -16,7 +16,7 @@ ARS v0.0.3 simplifies LLM integration by unifying on Claude Code CLI (removing A
 - [x] **Phase 14: HTML Enhancements** - Expandable metric descriptions with research citations
 - [x] **Phase 15: Claude Code Integration** - Unified CLI for C4/C7, remove Anthropic SDK
 - [x] **Phase 16: Analyzer Reorganization** - Category subdirectories with re-exports
-- [ ] **Phase 17: README & Testing** - Status badges and coverage improvements
+- [x] **Phase 17: README & Testing** - Status badges and coverage improvements
 
 ## Phase Details
 
@@ -92,7 +92,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 17-01-PLAN.md — Add LICENSE, README badges, fix coverage filename
+- [x] 17-01-PLAN.md — Add LICENSE, README badges, fix coverage filename
 
 ## Progress
 
@@ -105,7 +105,7 @@ Phases 13-17 execute in order. Phases 13, 14, 15, 17 are independent and could p
 | 14. HTML Enhancements | 1/1 | Complete | 2026-02-03 |
 | 15. Claude Code Integration | 2/2 | Complete | 2026-02-04 |
 | 16. Analyzer Reorganization | 2/2 | Complete | 2026-02-04 |
-| 17. README & Testing | 0/1 | Not started | - |
+| 17. README & Testing | 1/1 | Complete | 2026-02-04 |
 
 ---
 *Roadmap created: 2026-02-03*

@@ -9,13 +9,13 @@ See: .planning/PROJECT.md (updated 2026-02-04)
 
 ## Current Position
 
-Milestone: v0.0.3 complete — ready to plan v0.0.4
-Phase: 17 of 17 complete
-Plan: N/A — between milestones
-Status: Ready to plan
-Last activity: 2026-02-04 — v0.0.3 milestone archived
+Milestone: v0.0.4 Metric Research
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-02-04 — Milestone v0.0.4 started
 
-Progress: [================================] v0.0.3 SHIPPED
+Progress: [                                ] 0%
 
 ## Performance Metrics
 

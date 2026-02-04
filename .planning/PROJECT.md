@@ -51,7 +51,15 @@ Accurate, evidence-based scoring that predicts agent success and identifies spec
 
 ### Active
 
-(No active milestone — ready to plan v0.0.4)
+**v0.0.4 Metric Research — Scientific foundations for all metric descriptions**
+
+- [ ] C1 Code Quality metrics: Add foundational + AI-era citations (#47)
+- [ ] C2 Semantic Explicitness metrics: Add foundational + AI-era citations (#48)
+- [ ] C3 Architecture metrics: Add foundational + AI-era citations (#49)
+- [ ] C4 Documentation metrics: Add foundational + AI-era citations (#50)
+- [ ] C5 Temporal metrics: Add foundational + AI-era citations (#51)
+- [ ] C6 Testing metrics: Add foundational + AI-era citations (#52)
+- [ ] C7 Agent Evaluation metrics: Add foundational + AI-era citations (#53)
 
 ### Out of Scope
 
@@ -128,4 +136,4 @@ Internal tooling to identify which repositories need investment before agent ado
 | HTML5 details/summary for expandables (v0.0.3) | CSS-only expand/collapse, progressive enhancement | ✓ Good - Works without JavaScript |
 
 ---
-*Last updated: 2026-02-04 after v0.0.3 milestone completion*
+*Last updated: 2026-02-04 after v0.0.4 milestone start*

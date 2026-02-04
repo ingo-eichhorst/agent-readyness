@@ -112,10 +112,10 @@ Plans:
   2. C5 References section contains complete citations with verified, accessible URLs
   3. Book references include ISBN as stable backup to URLs
   4. Every quantified claim in C5 metric descriptions has an explicit source attribution
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 23-01: [TBD during planning]
+- [ ] 23-01-PLAN.md — Add citations to all 5 C5 metrics and verify URLs
 
 ### Phase 24: C7 Agent Evaluation
 **Goal**: Add research-backed citations to C7 Agent Evaluation metrics, explicitly acknowledging the nascent state of AI agent code quality research
@@ -160,9 +160,9 @@ Phases 18-24 execute sequentially. Phase 18 must complete first (establishes pro
 | 20. C2 Semantic Explicitness | v0.0.4 | 1/1 | Complete | 2026-02-04 |
 | 21. C3 Architecture | v0.0.4 | 1/1 | Complete | 2026-02-04 |
 | 22. C4 Documentation | v0.0.4 | 1/1 | Complete | 2026-02-04 |
-| 23. C5 Temporal Dynamics | v0.0.4 | 0/TBD | Not started | - |
+| 23. C5 Temporal Dynamics | v0.0.4 | 0/1 | Planned | - |
 | 24. C7 Agent Evaluation | v0.0.4 | 0/TBD | Not started | - |
 
 ---
 *Roadmap created: 2026-02-04*
-*Last updated: 2026-02-04*
+*Last updated: 2026-02-05*

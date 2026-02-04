@@ -114,13 +114,78 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| (To be filled by roadmapper) | | |
+| QA-01 | Phase 18 | Pending |
+| QA-02 | Phase 18 | Pending |
+| QA-03 | Phase 18 | Pending |
+| QA-04 | Phase 18 | Pending |
+| C1-01 | Phase 18 | Pending |
+| C1-02 | Phase 18 | Pending |
+| C1-03 | Phase 18 | Pending |
+| C1-04 | Phase 18 | Pending |
+| C1-05 | Phase 18 | Pending |
+| C1-06 | Phase 18 | Pending |
+| C1-07 | Phase 18 | Pending |
+| C1-08 | Phase 18 | Pending |
+| C1-09 | Phase 18 | Pending |
+| C1-10 | Phase 18 | Pending |
+| C6-01 | Phase 19 | Pending |
+| C6-02 | Phase 19 | Pending |
+| C6-03 | Phase 19 | Pending |
+| C6-04 | Phase 19 | Pending |
+| C6-05 | Phase 19 | Pending |
+| C6-06 | Phase 19 | Pending |
+| C6-07 | Phase 19 | Pending |
+| C6-08 | Phase 19 | Pending |
+| C6-09 | Phase 19 | Pending |
+| C2-01 | Phase 20 | Pending |
+| C2-02 | Phase 20 | Pending |
+| C2-03 | Phase 20 | Pending |
+| C2-04 | Phase 20 | Pending |
+| C2-05 | Phase 20 | Pending |
+| C2-06 | Phase 20 | Pending |
+| C2-07 | Phase 20 | Pending |
+| C2-08 | Phase 20 | Pending |
+| C2-09 | Phase 20 | Pending |
+| C3-01 | Phase 21 | Pending |
+| C3-02 | Phase 21 | Pending |
+| C3-03 | Phase 21 | Pending |
+| C3-04 | Phase 21 | Pending |
+| C3-05 | Phase 21 | Pending |
+| C3-06 | Phase 21 | Pending |
+| C3-07 | Phase 21 | Pending |
+| C3-08 | Phase 21 | Pending |
+| C3-09 | Phase 21 | Pending |
+| C4-01 | Phase 22 | Pending |
+| C4-02 | Phase 22 | Pending |
+| C4-03 | Phase 22 | Pending |
+| C4-04 | Phase 22 | Pending |
+| C4-05 | Phase 22 | Pending |
+| C4-06 | Phase 22 | Pending |
+| C4-07 | Phase 22 | Pending |
+| C4-08 | Phase 22 | Pending |
+| C4-09 | Phase 22 | Pending |
+| C4-10 | Phase 22 | Pending |
+| C4-11 | Phase 22 | Pending |
+| C5-01 | Phase 23 | Pending |
+| C5-02 | Phase 23 | Pending |
+| C5-03 | Phase 23 | Pending |
+| C5-04 | Phase 23 | Pending |
+| C5-05 | Phase 23 | Pending |
+| C5-06 | Phase 23 | Pending |
+| C5-07 | Phase 23 | Pending |
+| C5-08 | Phase 23 | Pending |
+| C5-09 | Phase 23 | Pending |
+| C7-01 | Phase 24 | Pending |
+| C7-02 | Phase 24 | Pending |
+| C7-03 | Phase 24 | Pending |
+| C7-04 | Phase 24 | Pending |
+| C7-05 | Phase 24 | Pending |
 
 **Coverage:**
-- v0.0.4 requirements: 70 total
-- Mapped to phases: (pending)
-- Unmapped: (pending)
+- v0.0.4 requirements: 66 total
+- Mapped to phases: 66/66
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-04*
-*Last updated: 2026-02-04 after initial definition*
+*Last updated: 2026-02-04 after roadmap creation*

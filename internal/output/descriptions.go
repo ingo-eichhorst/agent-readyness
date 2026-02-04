@@ -522,7 +522,7 @@ var metricDescriptions = map[string]MetricDescription{
 	// C4: Documentation Quality Metrics
 	// ============================================================================
 	"readme_word_count": {
-		Brief:     "README length in words. Substantial READMEs help agents understand project purpose and setup.",
+		Brief:     "README length in words. README organization and maintenance correlate with project success <span class=\"citation\">(Prana et al., 2019)</span>.",
 		Threshold: 6.0,
 		Detailed: `<h4>Definition</h4>
 <p>The word count of the project's README file. Measures documentation completeness for the primary entry point that developers (and agents) encounter when exploring a project.</p>
@@ -531,7 +531,8 @@ var metricDescriptions = map[string]MetricDescription{
 <p>The README is the first documentation agents read when given a task. A comprehensive README helps agents understand project purpose, architecture, conventions, and how to contribute. Without this context, agents make incorrect assumptions about project structure and practices.</p>
 
 <h4>Research Evidence</h4>
-<p>Documentation quality directly impacts developer productivity <span class="citation">(Sadowski et al., 2015)</span>. Studies show that well-documented projects receive more contributions and have fewer repeated questions <span class="citation">(Robillard, 2009)</span>.</p>
+<p>An empirical study of 4,226 GitHub README files identified eight content categories that well-documented projects include: what the project does, how to install/use it, contribution guidelines, and examples <span class="citation">(Prana et al., 2019)</span>. This research provides an empirical foundation for README completeness assessment.</p>
+<p>Research on the correlation between README files and project popularity found that README organization and update frequency positively associate with GitHub stars—projects with well-maintained READMEs attract more users and contributors <span class="citation">(Wang et al., 2023)</span>. For AI agents, documentation quality is a component of overall code health that predicts agent reliability <span class="citation">(Borg et al., 2026)</span>.</p>
 
 <h4>Recommended Thresholds</h4>
 <ul>
@@ -551,7 +552,7 @@ var metricDescriptions = map[string]MetricDescription{
 	},
 
 	"comment_density": {
-		Brief:     "Percentage of lines that are comments. Balanced comments explain why, not what, helping agents understand intent.",
+		Brief:     "Percentage of lines that are comments. Comment quality matters more than quantity <span class=\"citation\">(Rani et al., 2022)</span>.",
 		Threshold: 5.0,
 		Detailed: `<h4>Definition</h4>
 <p>The percentage of source lines that are comments. Measures how much inline documentation exists to explain code purpose, assumptions, and non-obvious behavior.</p>
@@ -560,7 +561,9 @@ var metricDescriptions = map[string]MetricDescription{
 <p>Comments explain intent that cannot be derived from code alone. Agents use comments to understand why code exists, what edge cases it handles, and what assumptions it makes. Well-commented code helps agents generate appropriate modifications that preserve intent.</p>
 
 <h4>Research Evidence</h4>
-<p>Comments that explain "why" rather than "what" significantly aid code comprehension <span class="citation">(Sadowski et al., 2015)</span>. However, excessive comments can indicate code that is too complex and should be refactored <span class="citation">(Fowler et al., 1999)</span>.</p>
+<p>Knuth's foundational work on literate programming established that programs should be written primarily for humans to read, with code secondary <span class="citation">(Knuth, 1984)</span>. This philosophy underlies the value of meaningful comments.</p>
+<p>A systematic literature review of comment quality research identified 21 distinct quality attributes, with consistency between comments and code being the predominant factor <span class="citation">(Rani et al., 2022)</span>. Code-comment inconsistencies are common: a large-scale study analyzing 1.3 billion AST changes identified 13 types of inconsistencies between comments and the code they describe <span class="citation">(Wen et al., 2019)</span>.</p>
+<p>For AI agents, code health metrics including documentation quality predict agent reliability <span class="citation">(Borg et al., 2026)</span>. Comments that explain "why" rather than "what" are especially valuable for agent comprehension.</p>
 
 <h4>Recommended Thresholds</h4>
 <ul>
@@ -580,7 +583,7 @@ var metricDescriptions = map[string]MetricDescription{
 	},
 
 	"api_doc_coverage": {
-		Brief:     "Percentage of public APIs with documentation. Documented APIs help agents use and extend code correctly.",
+		Brief:     "Percentage of public APIs with documentation. Incomplete API documentation is a major obstacle to effective code reuse <span class=\"citation\">(Robillard, 2011)</span>.",
 		Threshold: 6.0,
 		Detailed: `<h4>Definition</h4>
 <p>The percentage of public functions, methods, classes, and types that have documentation comments (doc strings, JSDoc, GoDoc). Measures formal API documentation coverage.</p>
@@ -589,7 +592,9 @@ var metricDescriptions = map[string]MetricDescription{
 <p>API documentation is the contract between modules. Agents rely on doc comments to understand function purposes, parameter meanings, return values, and error conditions. Without API docs, agents must infer behavior from implementation, which is error-prone.</p>
 
 <h4>Research Evidence</h4>
-<p>API documentation is the primary resource developers consult when using code <span class="citation">(Robillard, 2009)</span>. Incomplete API documentation is a major obstacle to effective code reuse <span class="citation">(Sadowski et al., 2015)</span>.</p>
+<p>A multi-phased study of over 440 Microsoft developers found that documentation-related obstacles are among the most severe faced when learning new APIs <span class="citation">(Robillard, 2011)</span>. The study identified five critical factors for API documentation design, including documentation of intent and provision of examples.</p>
+<p>Systematic analysis of 323 developers and 179 API documentation units revealed that the three most severe documentation problems are ambiguity, incompleteness, and incorrectness <span class="citation">(Uddin & Robillard, 2015)</span>. Six of the ten studied problems were mentioned as "blockers" that forced developers to abandon an API entirely.</p>
+<p>Industrial case studies confirm that documentation quality varies significantly by task type—implementation tasks require different documentation than maintenance tasks <span class="citation">(Garousi et al., 2013)</span>. For AI agents, code health metrics including API documentation predict agent reliability <span class="citation">(Borg et al., 2026)</span>.</p>
 
 <h4>Recommended Thresholds</h4>
 <ul>
@@ -609,7 +614,7 @@ var metricDescriptions = map[string]MetricDescription{
 	},
 
 	"changelog_present": {
-		Brief:     "Whether a CHANGELOG exists. Changelogs help agents understand project evolution and version differences.",
+		Brief:     "Whether a CHANGELOG exists. Release note content varies by system but serves critical communication function <span class=\"citation\">(Abebe et al., 2016)</span>.",
 		Threshold: 5.0,
 		Detailed: `<h4>Definition</h4>
 <p>Binary metric indicating whether the project has a CHANGELOG file documenting version history, notable changes, and migration guides. Common formats include CHANGELOG.md, HISTORY.md, or NEWS.</p>
@@ -618,7 +623,9 @@ var metricDescriptions = map[string]MetricDescription{
 <p>Changelogs help agents understand how the project has evolved and what changes exist between versions. When agents work on upgrades or migrations, changelogs provide crucial context about breaking changes and deprecated features.</p>
 
 <h4>Research Evidence</h4>
-<p>Version history documentation is essential for project maintenance <span class="citation">(Sadowski et al., 2015)</span>. Keep-a-changelog.com establishes community standards for this documentation.</p>
+<p>An empirical study of software release notes identified six types of content: new features, fixed bugs, changes, known issues, technical details, and other information <span class="citation">(Abebe et al., 2016)</span>. The study found that content varies between systems and even between versions of the same system, but structured release documentation serves a critical communication function.</p>
+<p>Note: Changelog-specific research is sparse; release notes studies provide the closest proxy for understanding version history documentation value.</p>
+<p>For AI agents, comprehensive project documentation including version history is a component of code health that predicts agent reliability <span class="citation">(Borg et al., 2026)</span>.</p>
 
 <h4>Recommended Thresholds</h4>
 <ul>
@@ -636,7 +643,7 @@ var metricDescriptions = map[string]MetricDescription{
 	},
 
 	"examples_present": {
-		Brief:     "Whether example code exists. Examples demonstrate intended usage patterns for agents to follow.",
+		Brief:     "Whether example code exists. Examples are critical for API learning and reduce developer mistakes <span class=\"citation\">(Robillard, 2011)</span>.",
 		Threshold: 5.0,
 		Detailed: `<h4>Definition</h4>
 <p>Binary metric indicating whether the project includes example code in an examples/, demo/, or similar directory, or inline examples in documentation. Also counts example functions in tests (ExampleXxx in Go).</p>
@@ -645,7 +652,9 @@ var metricDescriptions = map[string]MetricDescription{
 <p>Examples are the most effective way to communicate intended usage. Agents can pattern-match against examples to generate code that follows project conventions. Without examples, agents may use APIs in unintended ways.</p>
 
 <h4>Research Evidence</h4>
-<p>Developers rely heavily on examples when learning APIs <span class="citation">(Robillard, 2009)</span>. Example-driven documentation significantly improves correct API usage <span class="citation">(Sadowski et al., 2015)</span>.</p>
+<p>Research on API learning obstacles found that examples are a critical factor for API learning—developers rely heavily on examples for initial understanding and problem-solving <span class="citation">(Robillard, 2011)</span>.</p>
+<p>A study of REST API documentation effectiveness found that examples reduce developer mistakes, improve task success rate, and increase developer satisfaction <span class="citation">(Sohan et al., 2017)</span>. Examples serve as a critical design factor that helps developers understand how to correctly use APIs <span class="citation">(Uddin & Robillard, 2015)</span>.</p>
+<p>For AI agents, well-documented code including examples improves agent reliability and reduces errors in generated code <span class="citation">(Borg et al., 2026)</span>.</p>
 
 <h4>Recommended Thresholds</h4>
 <ul>
@@ -663,7 +672,7 @@ var metricDescriptions = map[string]MetricDescription{
 	},
 
 	"contributing_present": {
-		Brief:     "Whether CONTRIBUTING guide exists. Contribution guidelines help agents follow project conventions.",
+		Brief:     "Whether CONTRIBUTING guide exists. Contribution guidelines are one of eight essential README categories <span class=\"citation\">(Prana et al., 2019)</span>.",
 		Threshold: 5.0,
 		Detailed: `<h4>Definition</h4>
 <p>Binary metric indicating whether the project has a CONTRIBUTING file explaining how to contribute: code style, testing requirements, pull request process, and development setup.</p>
@@ -672,7 +681,9 @@ var metricDescriptions = map[string]MetricDescription{
 <p>Contributing guidelines tell agents how to make changes that will be accepted. This includes code style, testing requirements, commit message formats, and review processes. Agents following these guidelines produce higher-quality contributions.</p>
 
 <h4>Research Evidence</h4>
-<p>Clear contribution guidelines significantly increase contribution quality and reduce rejected pull requests <span class="citation">(Sadowski et al., 2015)</span>.</p>
+<p>An empirical study of GitHub README files identified eight content categories found in well-documented projects, with contribution guidelines being one of these essential categories <span class="citation">(Prana et al., 2019)</span>. Projects that document how to contribute tend to receive higher-quality contributions.</p>
+<p>Note: Dedicated contributing file research is emerging; current research covers contribution guidelines within README files. The principle applies equally to standalone CONTRIBUTING.md files.</p>
+<p>For AI agents, clear contribution guidelines are part of comprehensive documentation that predicts agent reliability <span class="citation">(Borg et al., 2026)</span>.</p>
 
 <h4>Recommended Thresholds</h4>
 <ul>
@@ -690,7 +701,7 @@ var metricDescriptions = map[string]MetricDescription{
 	},
 
 	"diagrams_present": {
-		Brief:     "Whether architecture diagrams exist. Visual documentation helps agents understand system structure quickly.",
+		Brief:     "Whether architecture diagrams exist. Visual notation aids comprehension of object-oriented designs <span class=\"citation\">(Gamma et al., 1994)</span>.",
 		Threshold: 5.0,
 		Detailed: `<h4>Definition</h4>
 <p>Binary metric indicating whether the project includes architecture diagrams, flow charts, or other visual documentation. Detects common formats: .svg, .png, .mermaid in docs/, or diagram blocks in markdown.</p>
@@ -699,7 +710,9 @@ var metricDescriptions = map[string]MetricDescription{
 <p>Diagrams communicate system structure more effectively than text for certain relationships. While current agents primarily process text, diagram descriptions in alt-text or accompanying text help agents understand high-level architecture.</p>
 
 <h4>Research Evidence</h4>
-<p>Visual documentation aids comprehension of complex systems <span class="citation">(Gamma et al., 1994)</span>. Architecture diagrams are particularly valuable for understanding component relationships and data flow.</p>
+<p>The Design Patterns book established that visual notation—class diagrams, object diagrams, and interaction diagrams—aids comprehension of object-oriented designs and relationships <span class="citation">(Gamma et al., 1994)</span>. Diagrams make abstract patterns concrete and navigable.</p>
+<p>Note: Diagram effectiveness for AI agents is indirect since agents primarily process text. However, diagrams with descriptive alt-text and accompanying textual explanations contribute to overall documentation quality.</p>
+<p>For AI agents, comprehensive documentation including architectural visualization is a component of code health that predicts agent reliability <span class="citation">(Borg et al., 2026)</span>.</p>
 
 <h4>Recommended Thresholds</h4>
 <ul>

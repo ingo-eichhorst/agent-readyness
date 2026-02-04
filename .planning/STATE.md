@@ -10,19 +10,19 @@ See: .planning/PROJECT.md (updated 2026-02-03)
 ## Current Position
 
 Milestone: v0.0.3 Simplification & Polish
-Phase: 16 of 17 (analyzer-reorganization)
-Plan: 2 of 2
-Status: Phase 16 verified
-Last activity: 2026-02-04 — Phase 16 verified
+Phase: 17 of 17 (readme-testing)
+Plan: 1 of 2
+Status: In progress
+Last activity: 2026-02-04 — Completed 17-01-PLAN.md
 
-Progress: [============================....] 4/5 phases (Phases 13-16 complete)
+Progress: [=============================...] 4.5/5 phases (Phases 13-16 complete, 17 in progress)
 
 ## Performance Metrics
 
 **Velocity (from v0.0.2):**
-- Total plans completed: 38
+- Total plans completed: 39
 - Average duration: 6 min
-- Total execution time: 256 min
+- Total execution time: 259 min
 
 *Updated after each plan completion*
 
@@ -45,6 +45,7 @@ All decisions are logged in PROJECT.md Key Decisions table.
 - Remove cost estimates and confirmation prompts for CLI-based evaluation (15-02)
 - Build tag 'reorganized' for gradual analyzer migration (16-01)
 - Create shared/ subpackage to resolve import cycle (16-02)
+- Badge order: Go Reference, Go Report Card, License, Release (17-01)
 
 ### Pending Todos
 
@@ -59,7 +60,7 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-04
-Stopped at: Phase 16 verified
+Stopped at: Completed 17-01-PLAN.md
 Resume file: None
 
-**Next steps:** Plan Phase 17 (README & Testing)
+**Next steps:** Execute Phase 17 Plan 02 (self-scanning tests)

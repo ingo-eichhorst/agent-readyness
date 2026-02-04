@@ -360,7 +360,7 @@ var metricDescriptions = map[string]MetricDescription{
 	// C3: Architecture Metrics
 	// ============================================================================
 	"max_dir_depth": {
-		Brief:     "Deepest directory nesting level. Shallower hierarchies are easier to navigate and understand.",
+		Brief:     "Deepest directory nesting level. Clear module boundaries and shallow hierarchies improve comprehensibility <span class=\"citation\">(Parnas, 1972)</span>.",
 		Threshold: 6.0,
 		Detailed: `<h4>Definition</h4>
 <p>The maximum depth of directory nesting in the source tree, counting from the project root. Measures how deeply files are organized into subdirectories (e.g., src/api/v2/handlers/auth/utils.go = depth 6).</p>
@@ -369,7 +369,9 @@ var metricDescriptions = map[string]MetricDescription{
 <p>Deep directory hierarchies make it harder for agents to locate related code and understand project organization. Long import paths consume context space and are prone to errors. Shallower structures provide clearer boundaries and easier navigation.</p>
 
 <h4>Research Evidence</h4>
-<p>Research on module decomposition emphasizes clarity of organization <span class="citation">(Parnas, 1972)</span>. Flat hierarchies reduce cognitive load when navigating codebases.</p>
+<p>Parnas's foundational work on module decomposition established that well-structured systems with clear boundaries are fundamentally easier to understand and maintain <span class="citation">(Parnas, 1972)</span>. The principle of information hiding means each module should encapsulate design decisions, with directory structure reflecting logical module boundaries.</p>
+<p>Empirical studies using design structure matrices confirm that modular architectures with clear boundaries have measurable quality benefits. MacCormack et al. analyzed open-source and proprietary systems, finding that well-decomposed architectures enable independent component evolution <span class="citation">(MacCormack et al., 2006)</span>.</p>
+<p>For AI agents, structural clarity is essential: agents working with well-organized code experience significantly lower break rates. Code health metrics including organizational structure predict agent reliability <span class="citation">(Borg et al., 2026)</span>.</p>
 
 <h4>Recommended Thresholds</h4>
 <ul>
@@ -389,7 +391,7 @@ var metricDescriptions = map[string]MetricDescription{
 	},
 
 	"module_fanout_avg": {
-		Brief:     "Average imports per module. Fewer imports per module means more focused, understandable code.",
+		Brief:     "Average imports per module. High coupling is detrimental to modular design <span class=\"citation\">(Stevens et al., 1974)</span>.",
 		Threshold: 6.0,
 		Detailed: `<h4>Definition</h4>
 <p>The average number of imports per source file. Counts both internal and external dependencies, measuring how widely each module reaches into the rest of the codebase or ecosystem.</p>
@@ -398,7 +400,10 @@ var metricDescriptions = map[string]MetricDescription{
 <p>High fanout means agents must understand many dependencies to reason about a single file. Each import brings potential side effects and API contracts into scope. Lower fanout creates more self-contained modules that agents can modify with confidence.</p>
 
 <h4>Research Evidence</h4>
-<p>Module coupling research shows that high fanout increases maintenance cost and error rates <span class="citation">(Gamma et al., 1994)</span>. The Interface Segregation Principle suggests depending only on interfaces you actually use.</p>
+<p>Stevens, Myers, and Constantine's foundational work on structured design established that coupling and cohesion are primary determinants of software quality <span class="citation">(Stevens et al., 1974)</span>. Low coupling between modules—measured by import count—improves maintainability and reduces change propagation.</p>
+<p>Chidamber and Kemerer formalized this with the Coupling Between Objects (CBO) metric, demonstrating that excessive coupling is detrimental to modular design, prevents reuse, and increases testing complexity <span class="citation">(Chidamber & Kemerer, 1994)</span>.</p>
+<p>The Stable Dependencies Principle advises that modules should depend only on modules more stable than themselves <span class="citation">(Martin, 2003)</span>. Note: This is an influential practitioner perspective widely adopted in industry.</p>
+<p>For AI agents, highly-coupled code significantly increases break rates. Agents experience 36-44% higher failure rates when working with unhealthy (highly-coupled) code <span class="citation">(Borg et al., 2026)</span>.</p>
 
 <h4>Recommended Thresholds</h4>
 <ul>
@@ -418,7 +423,7 @@ var metricDescriptions = map[string]MetricDescription{
 	},
 
 	"circular_deps": {
-		Brief:     "Number of circular dependencies. Circular dependencies complicate reasoning and safe modifications.",
+		Brief:     "Number of circular dependencies. Acyclic dependency structures are easier to understand, test, and maintain <span class=\"citation\">(Lakos, 1996)</span>.",
 		Threshold: 7.0,
 		Detailed: `<h4>Definition</h4>
 <p>Counts the number of circular dependency chains where module A imports B which imports A (directly or transitively). Circular dependencies create ordering problems and make it impossible to understand modules in isolation.</p>
@@ -427,7 +432,11 @@ var metricDescriptions = map[string]MetricDescription{
 <p>Circular dependencies mean agents cannot understand one module without understanding all modules in the cycle. This creates reasoning complexity that scales with cycle size. Breaking cycles allows agents to analyze and modify modules independently.</p>
 
 <h4>Research Evidence</h4>
-<p>Circular dependencies violate the Acyclic Dependencies Principle <span class="citation">(Martin, 2003)</span>. They indicate architectural problems that impede testing, building, and understanding code <span class="citation">(Parnas, 1972)</span>.</p>
+<p>Parnas established that modular systems should have clear dependency direction—each module's design decisions should be hidden from others <span class="citation">(Parnas, 1972)</span>. Circular dependencies violate this principle by creating mutual knowledge requirements.</p>
+<p>The Acyclic Dependencies Principle states that the dependency graph of packages should have no cycles <span class="citation">(Martin, 2003)</span>. Note: This represents an influential practitioner perspective widely adopted in industry, though not derived from empirical research.</p>
+<p>Lakos demonstrated practical techniques for eliminating cyclic dependencies in large systems, showing that acyclic physical dependencies dramatically reduce link-time costs and improve testability <span class="citation">(Lakos, 1996)</span>.</p>
+<p>Empirical research on 31 open-source Java systems found that circular dependencies correlate with higher change frequency in affected classes <span class="citation">(Oyetoyan et al., 2015)</span>. This supports the principle that cycles create maintenance burden.</p>
+<p>For AI agents, architectural complexity directly impacts reliability: agents experience higher break rates when working with poorly-structured code <span class="citation">(Borg et al., 2026)</span>.</p>
 
 <h4>Recommended Thresholds</h4>
 <ul>
@@ -447,7 +456,7 @@ var metricDescriptions = map[string]MetricDescription{
 	},
 
 	"import_complexity_avg": {
-		Brief:     "Average complexity of import statements. Simpler imports are easier to understand and maintain.",
+		Brief:     "Average complexity of import statements. Dependency structure impacts maintainability <span class=\"citation\">(Sangal et al., 2005)</span>.",
 		Threshold: 6.0,
 		Detailed: `<h4>Definition</h4>
 <p>Measures the complexity of import patterns: deep submodule imports, aliased imports, re-exports, and barrel files. Higher scores indicate more complex import structures that are harder to trace and understand.</p>
@@ -456,7 +465,10 @@ var metricDescriptions = map[string]MetricDescription{
 <p>Complex import patterns obscure where code actually lives. Agents may struggle to locate the true source of an import, especially with re-exports and barrel files. Simpler imports create clearer dependency graphs that agents can navigate.</p>
 
 <h4>Research Evidence</h4>
-<p>Clear module boundaries improve code comprehension <span class="citation">(Parnas, 1972)</span>. Import complexity is a form of accidental complexity that increases maintenance burden without adding value.</p>
+<p>Parnas established that clear module boundaries with explicit interfaces improve comprehension and enable independent development <span class="citation">(Parnas, 1972)</span>. Complex import patterns violate this principle by obscuring true dependencies.</p>
+<p>Sangal et al. developed the Design Structure Matrix (DSM) approach for managing complex software dependencies, demonstrating that simpler, well-organized dependency structures enable clearer architectural reasoning <span class="citation">(Sangal et al., 2005)</span>.</p>
+<p>Recent empirical work on the M-score metric found that dependency density correlates with project maintainability—projects with simpler, sparser dependency graphs are easier to maintain <span class="citation">(Pisch et al., 2024)</span>.</p>
+<p>For AI agents, structural complexity impacts comprehension: agents working with well-organized code experience significantly lower break rates <span class="citation">(Borg et al., 2026)</span>.</p>
 
 <h4>Recommended Thresholds</h4>
 <ul>
@@ -476,7 +488,7 @@ var metricDescriptions = map[string]MetricDescription{
 	},
 
 	"dead_exports": {
-		Brief:     "Exported symbols not used elsewhere. Dead exports clutter APIs and confuse agents about intended interfaces.",
+		Brief:     "Exported symbols not used elsewhere. Dead Code is an established code smell that harms comprehensibility <span class=\"citation\">(Fowler et al., 1999)</span>.",
 		Threshold: 6.0,
 		Detailed: `<h4>Definition</h4>
 <p>Counts exported/public symbols (functions, types, constants) that are never imported or used outside their defining module. These create noise in the public API without providing value.</p>
@@ -485,7 +497,9 @@ var metricDescriptions = map[string]MetricDescription{
 <p>When agents explore a module's API, dead exports appear as valid options but lead to confusion when used. Agents may incorrectly incorporate unused functionality or spend context window space understanding code that serves no purpose.</p>
 
 <h4>Research Evidence</h4>
-<p>Clean APIs expose only necessary functionality <span class="citation">(Robillard, 2009)</span>. Dead code is a form of technical debt that increases cognitive load without benefit <span class="citation">(Fowler et al., 1999)</span>.</p>
+<p>Fowler identified Dead Code as a canonical code smell, noting that unused code increases cognitive load and should be removed <span class="citation">(Fowler et al., 1999)</span>. Dead exports are a specific form of dead code that pollutes the public API surface.</p>
+<p>Romano et al. conducted a multi-study investigation into dead code across multiple systems, finding that dead code harms comprehensibility and maintainability <span class="citation">(Romano et al., 2018)</span>. Note: This study covers dead code broadly; dead exports specifically have less direct research, but the comprehensibility impact applies equally.</p>
+<p>Clean, well-organized code improves AI agent reliability. Agents working with minimal cognitive noise—including clean API surfaces—experience lower break rates <span class="citation">(Borg et al., 2026)</span>.</p>
 
 <h4>Recommended Thresholds</h4>
 <ul>

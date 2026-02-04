@@ -48,19 +48,19 @@ The scan executes in stages orchestrated by `internal/pipeline/pipeline.go`:
 
 ### Category Analyzers
 
-Each category has its own analyzer in `internal/analyzer/`:
+Each category has its own package in `internal/analyzer/`:
 
-| Category | File | Measures |
-|----------|------|----------|
-| C1 | `c1_codehealth.go` | Complexity, function length, file size, coupling, duplication |
-| C2 | `c2_semantics.go` | Type annotations, naming consistency, magic numbers |
-| C3 | `c3_architecture.go` | Directory depth, module fanout, circular deps, dead exports |
-| C4 | `c4_documentation.go` | README, comments, API docs, examples (optional LLM analysis) |
-| C5 | `c5_temporal.go` | Git-based: churn rate, temporal coupling, hotspots |
-| C6 | `c6_testing.go` | Test ratio, coverage, isolation, assertions |
-| C7 | `c7_agent.go` | Live agent evaluation via Claude CLI (optional) |
+| Category | Package | Measures |
+|----------|---------|----------|
+| C1 | `c1_code_quality/` | Complexity, function length, file size, coupling, duplication |
+| C2 | `c2_semantics/` | Type annotations, naming consistency, magic numbers |
+| C3 | `c3_architecture/` | Directory depth, module fanout, circular deps, dead exports |
+| C4 | `c4_documentation/` | README, comments, API docs, examples (optional LLM analysis) |
+| C5 | `c5_temporal/` | Git-based: churn rate, temporal coupling, hotspots |
+| C6 | `c6_testing/` | Test ratio, coverage, isolation, assertions |
+| C7 | `c7_agent/` | Live agent evaluation via Claude CLI (optional) |
 
-Language-specific implementations follow the pattern `c{N}_{language}.go` (e.g., `c1_python.go`, `c2_typescript.go`).
+Language-specific implementations follow the pattern `{language}.go` within each package (e.g., `c1_code_quality/python.go`, `c2_semantics/typescript.go`).
 
 ### Key Types
 

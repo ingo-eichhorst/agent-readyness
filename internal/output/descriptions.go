@@ -56,7 +56,7 @@ var metricDescriptions = map[string]MetricDescription{
 	},
 
 	"func_length_avg": {
-		Brief:     "Average lines per function. Shorter functions (under 25 lines) are easier for agents to understand atomically.",
+		Brief:     "Average lines per function. Shorter functions (under 25 lines) are easier for agents to understand atomically <span class=\"citation\">(Chowdhury et al., 2022)</span>.",
 		Threshold: 6.0,
 		Detailed: `<h4>Definition</h4>
 <p>Measures the average number of lines of code per function across the codebase. Includes all executable statements, comments within functions, and blank lines within function bodies.</p>
@@ -65,7 +65,8 @@ var metricDescriptions = map[string]MetricDescription{
 <p>Agents process code within context windows with limited capacity. Long functions consume more context, leaving less room for related code, documentation, and reasoning. Shorter functions allow agents to see complete units of behavior, understand purpose quickly, and make targeted modifications.</p>
 
 <h4>Research Evidence</h4>
-<p>Studies consistently show that smaller functions have fewer defects and are easier to understand <span class="citation">(Fowler et al., 1999)</span>. The "Single Responsibility Principle" suggests functions should do one thing, naturally leading to shorter implementations.</p>
+<p>Fowler identified "Long Method" as a primary code smell, recommending functions be short enough to understand at a glance <span class="citation">(Fowler et al., 1999)</span>. Empirical research on Java methods found that functions under 24 SLOC have significantly lower maintenance burden and defect rates <span class="citation">(Chowdhury et al., 2022)</span>.</p>
+<p>Recent studies on AI agents confirm that function length directly impacts agent performance. Agents working with unhealthy code (including long functions) experience 36-44% higher break rates depending on model capability <span class="citation">(Borg et al., 2026)</span>.</p>
 
 <h4>Recommended Thresholds</h4>
 <ul>
@@ -85,7 +86,7 @@ var metricDescriptions = map[string]MetricDescription{
 	},
 
 	"file_size_avg": {
-		Brief:     "Average lines per file. Smaller files (under 300 lines) help agents navigate and understand module scope.",
+		Brief:     "Average lines per file. Smaller files (under 300 lines) help agents navigate and understand module scope <span class=\"citation\">(Parnas, 1972)</span>.",
 		Threshold: 6.0,
 		Detailed: `<h4>Definition</h4>
 <p>The average number of lines per source file in the codebase, including code, comments, and blank lines. Measures overall file organization and module granularity.</p>
@@ -94,7 +95,8 @@ var metricDescriptions = map[string]MetricDescription{
 <p>Large files often indicate poor separation of concerns, making it harder for agents to locate relevant code and understand module boundaries. When agents need to modify code in large files, they risk unintended side effects due to hidden dependencies between distant sections.</p>
 
 <h4>Research Evidence</h4>
-<p>Module decomposition research shows that smaller, focused modules improve maintainability <span class="citation">(Parnas, 1972)</span>. Design patterns literature emphasizes cohesion: code that changes together should live together, but in manageable units <span class="citation">(Gamma et al., 1994)</span>.</p>
+<p>Parnas's foundational work on information hiding established that well-decomposed modules with clear boundaries are essential for maintainability <span class="citation">(Parnas, 1972)</span>. Design patterns literature reinforces this principle, emphasizing cohesion: code that changes together should live together, but in manageable units <span class="citation">(Gamma et al., 1994)</span>.</p>
+<p>AI agent research confirms these principles apply to automated code modification. Agents experience significantly higher break rates (36-44%) when working with large, poorly-structured files compared to well-decomposed codebases <span class="citation">(Borg et al., 2026)</span>.</p>
 
 <h4>Recommended Thresholds</h4>
 <ul>
@@ -114,7 +116,7 @@ var metricDescriptions = map[string]MetricDescription{
 	},
 
 	"afferent_coupling_avg": {
-		Brief:     "Incoming dependencies per module. Lower coupling means modules can be modified more safely.",
+		Brief:     "Incoming dependencies per module (Ca). Lower coupling means modules can be modified more safely <span class=\"citation\">(Martin, 2003)</span>.",
 		Threshold: 6.0,
 		Detailed: `<h4>Definition</h4>
 <p>Afferent coupling (Ca) counts how many other modules depend on a given module. High afferent coupling means the module is heavily used throughout the codebase, making changes to it potentially far-reaching.</p>
@@ -123,7 +125,8 @@ var metricDescriptions = map[string]MetricDescription{
 <p>When agents modify highly-coupled modules, changes ripple to all dependents. Agents must understand and account for all usages, which may exceed context window capacity. Lower coupling allows agents to make confident, isolated changes.</p>
 
 <h4>Research Evidence</h4>
-<p>Coupling is a key indicator of maintainability <span class="citation">(Parnas, 1972)</span>. The principle of loose coupling, central to good design, enables independent module evolution <span class="citation">(Gamma et al., 1994)</span>.</p>
+<p>Parnas established that information hiding and module interfaces are fundamental to maintainability; modules with many incoming dependencies become change-resistant <span class="citation">(Parnas, 1972)</span>. Martin formalized the afferent coupling metric (Ca) as part of the Stable Dependencies Principle: modules with high Ca should be stable since changes affect many dependents <span class="citation">(Martin, 2003)</span>.</p>
+<p>Empirical research on AI agents shows that highly-coupled code significantly increases agent break rates. Claude experiences 36% more failures and Qwen 44% more failures when working with unhealthy (highly-coupled) code <span class="citation">(Borg et al., 2026)</span>.</p>
 
 <h4>Recommended Thresholds</h4>
 <ul>
@@ -143,7 +146,7 @@ var metricDescriptions = map[string]MetricDescription{
 	},
 
 	"efferent_coupling_avg": {
-		Brief:     "Outgoing dependencies per module. Modules depending on too many others become fragile.",
+		Brief:     "Outgoing dependencies per module (Ce). Modules depending on too many others become fragile <span class=\"citation\">(Martin, 2003)</span>.",
 		Threshold: 6.0,
 		Detailed: `<h4>Definition</h4>
 <p>Efferent coupling (Ce) counts how many other modules a given module depends on. High efferent coupling means the module relies on many external components, making it vulnerable to changes elsewhere.</p>
@@ -152,7 +155,8 @@ var metricDescriptions = map[string]MetricDescription{
 <p>Modules with high efferent coupling require agents to understand many dependencies before making changes. This increases cognitive load and the risk of missing interactions. Agents work best with self-contained modules having minimal external dependencies.</p>
 
 <h4>Research Evidence</h4>
-<p>The Stable Dependencies Principle suggests depending only on stable abstractions <span class="citation">(Martin, 2003)</span>. High efferent coupling often indicates a module is orchestrating too much, violating separation of concerns.</p>
+<p>Martin's Stable Dependencies Principle states that modules should depend only on modules more stable than themselves; high efferent coupling (Ce) indicates a module is vulnerable to ripple effects from its many dependencies <span class="citation">(Martin, 2003)</span>. This principle builds on foundational work showing that explicit, minimal interfaces are essential for maintainability <span class="citation">(Parnas, 1972)</span>.</p>
+<p>AI agent studies confirm these principles: agents working with highly-coupled code experience 36-44% higher break rates, as understanding dependency chains exceeds context window capacity <span class="citation">(Borg et al., 2026)</span>.</p>
 
 <h4>Recommended Thresholds</h4>
 <ul>
@@ -172,7 +176,7 @@ var metricDescriptions = map[string]MetricDescription{
 	},
 
 	"duplication_rate": {
-		Brief:     "Percentage of duplicated code. Less duplication means fewer places to update when agents make changes.",
+		Brief:     "Percentage of duplicated code. Less duplication means fewer places to update when agents make changes <span class=\"citation\">(Fowler et al., 1999)</span>.",
 		Threshold: 6.0,
 		Detailed: `<h4>Definition</h4>
 <p>The percentage of code that appears multiple times in the codebase, typically measured as duplicate sequences of 6+ lines or tokens. Includes exact duplicates and near-duplicates with minor variations.</p>
@@ -181,7 +185,8 @@ var metricDescriptions = map[string]MetricDescription{
 <p>When agents identify a bug or make an improvement, duplicated code requires the same change in multiple locations. Agents may miss some instances, leading to inconsistent behavior. Additionally, duplicates consume context window space without adding new information.</p>
 
 <h4>Research Evidence</h4>
-<p>Duplication is identified as a key code smell requiring refactoring <span class="citation">(Fowler et al., 1999)</span>. Studies show duplicated code has higher defect density and maintenance cost than unique code.</p>
+<p>Fowler identified "Duplicated Code" as a fundamental code smell, noting that identical or similar code sequences indicate missing abstractions and create maintenance burden <span class="citation">(Fowler et al., 1999)</span>. The DRY (Don't Repeat Yourself) principle follows directly: every piece of knowledge should have a single, unambiguous representation.</p>
+<p>AI agent research confirms that duplication significantly impacts automated code modification. When agents must propagate changes across duplicated code, break rates increase substantially—studies show 36-44% higher failure rates on unhealthy codebases <span class="citation">(Borg et al., 2026)</span>.</p>
 
 <h4>Recommended Thresholds</h4>
 <ul>

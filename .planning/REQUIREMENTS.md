@@ -34,29 +34,29 @@ Requirements for milestone v0.0.4 Metric Research. Each maps to roadmap phases.
 
 ### C3: Architecture Metrics (Issue #49)
 
-- [ ] **C3-01**: Research foundational sources (pre-2021) for all 5 C3 metrics
-- [ ] **C3-02**: Research AI/agent era sources (2021+) for all 5 C3 metrics
-- [ ] **C3-03**: Add inline citations to max_dir_depth description
-- [ ] **C3-04**: Add inline citations to module_fanout_avg description
-- [ ] **C3-05**: Add inline citations to circular_deps description
-- [ ] **C3-06**: Add inline citations to import_complexity_avg description
-- [ ] **C3-07**: Add inline citations to dead_exports description
-- [ ] **C3-08**: Add References section for all C3 metrics with verified URLs
-- [ ] **C3-09**: Verify all C3 citation URLs accessible
+- [x] **C3-01**: Research foundational sources (pre-2021) for all 5 C3 metrics
+- [x] **C3-02**: Research AI/agent era sources (2021+) for all 5 C3 metrics
+- [x] **C3-03**: Add inline citations to max_dir_depth description
+- [x] **C3-04**: Add inline citations to module_fanout_avg description
+- [x] **C3-05**: Add inline citations to circular_deps description
+- [x] **C3-06**: Add inline citations to import_complexity_avg description
+- [x] **C3-07**: Add inline citations to dead_exports description
+- [x] **C3-08**: Add References section for all C3 metrics with verified URLs
+- [x] **C3-09**: Verify all C3 citation URLs accessible
 
 ### C4: Documentation Metrics (Issue #50)
 
-- [ ] **C4-01**: Research foundational sources (pre-2021) for all 7 C4 metrics
-- [ ] **C4-02**: Research AI/agent era sources (2021+) for all 7 C4 metrics
-- [ ] **C4-03**: Add inline citations to readme_word_count description
-- [ ] **C4-04**: Add inline citations to comment_density description
-- [ ] **C4-05**: Add inline citations to api_doc_coverage description
-- [ ] **C4-06**: Add inline citations to changelog_present description
-- [ ] **C4-07**: Add inline citations to examples_present description
-- [ ] **C4-08**: Add inline citations to contributing_present description
-- [ ] **C4-09**: Add inline citations to diagrams_present description
-- [ ] **C4-10**: Add References section for all C4 metrics with verified URLs
-- [ ] **C4-11**: Verify all C4 citation URLs accessible
+- [x] **C4-01**: Research foundational sources (pre-2021) for all 7 C4 metrics
+- [x] **C4-02**: Research AI/agent era sources (2021+) for all 7 C4 metrics
+- [x] **C4-03**: Add inline citations to readme_word_count description
+- [x] **C4-04**: Add inline citations to comment_density description
+- [x] **C4-05**: Add inline citations to api_doc_coverage description
+- [x] **C4-06**: Add inline citations to changelog_present description
+- [x] **C4-07**: Add inline citations to examples_present description
+- [x] **C4-08**: Add inline citations to contributing_present description
+- [x] **C4-09**: Add inline citations to diagrams_present description
+- [x] **C4-10**: Add References section for all C4 metrics with verified URLs
+- [x] **C4-11**: Verify all C4 citation URLs accessible
 
 ### C5: Temporal Dynamics Metrics (Issue #51)
 
@@ -114,38 +114,38 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| QA-01 | Phase 18 | Pending |
-| QA-02 | Phase 18 | Pending |
-| QA-03 | Phase 18 | Pending |
-| QA-04 | Phase 18 | Pending |
-| C1-01 | Phase 18 | Pending |
-| C1-02 | Phase 18 | Pending |
-| C1-03 | Phase 18 | Pending |
-| C1-04 | Phase 18 | Pending |
-| C1-05 | Phase 18 | Pending |
-| C1-06 | Phase 18 | Pending |
-| C1-07 | Phase 18 | Pending |
-| C1-08 | Phase 18 | Pending |
-| C1-09 | Phase 18 | Pending |
-| C1-10 | Phase 18 | Pending |
-| C6-01 | Phase 19 | Pending |
-| C6-02 | Phase 19 | Pending |
-| C6-03 | Phase 19 | Pending |
-| C6-04 | Phase 19 | Pending |
-| C6-05 | Phase 19 | Pending |
-| C6-06 | Phase 19 | Pending |
-| C6-07 | Phase 19 | Pending |
-| C6-08 | Phase 19 | Pending |
-| C6-09 | Phase 19 | Pending |
-| C2-01 | Phase 20 | Pending |
-| C2-02 | Phase 20 | Pending |
-| C2-03 | Phase 20 | Pending |
-| C2-04 | Phase 20 | Pending |
-| C2-05 | Phase 20 | Pending |
-| C2-06 | Phase 20 | Pending |
-| C2-07 | Phase 20 | Pending |
-| C2-08 | Phase 20 | Pending |
-| C2-09 | Phase 20 | Pending |
+| QA-01 | Phase 18 | Complete |
+| QA-02 | Phase 18 | Complete |
+| QA-03 | Phase 18 | Complete |
+| QA-04 | Phase 18 | Complete |
+| C1-01 | Phase 18 | Complete |
+| C1-02 | Phase 18 | Complete |
+| C1-03 | Phase 18 | Complete |
+| C1-04 | Phase 18 | Complete |
+| C1-05 | Phase 18 | Complete |
+| C1-06 | Phase 18 | Complete |
+| C1-07 | Phase 18 | Complete |
+| C1-08 | Phase 18 | Complete |
+| C1-09 | Phase 18 | Complete |
+| C1-10 | Phase 18 | Complete |
+| C6-01 | Phase 19 | Complete |
+| C6-02 | Phase 19 | Complete |
+| C6-03 | Phase 19 | Complete |
+| C6-04 | Phase 19 | Complete |
+| C6-05 | Phase 19 | Complete |
+| C6-06 | Phase 19 | Complete |
+| C6-07 | Phase 19 | Complete |
+| C6-08 | Phase 19 | Complete |
+| C6-09 | Phase 19 | Complete |
+| C2-01 | Phase 20 | Complete |
+| C2-02 | Phase 20 | Complete |
+| C2-03 | Phase 20 | Complete |
+| C2-04 | Phase 20 | Complete |
+| C2-05 | Phase 20 | Complete |
+| C2-06 | Phase 20 | Complete |
+| C2-07 | Phase 20 | Complete |
+| C2-08 | Phase 20 | Complete |
+| C2-09 | Phase 20 | Complete |
 | C3-01 | Phase 21 | Complete |
 | C3-02 | Phase 21 | Complete |
 | C3-03 | Phase 21 | Complete |
@@ -155,17 +155,17 @@ Which phases cover which requirements. Updated during roadmap creation.
 | C3-07 | Phase 21 | Complete |
 | C3-08 | Phase 21 | Complete |
 | C3-09 | Phase 21 | Complete |
-| C4-01 | Phase 22 | Pending |
-| C4-02 | Phase 22 | Pending |
-| C4-03 | Phase 22 | Pending |
-| C4-04 | Phase 22 | Pending |
-| C4-05 | Phase 22 | Pending |
-| C4-06 | Phase 22 | Pending |
-| C4-07 | Phase 22 | Pending |
-| C4-08 | Phase 22 | Pending |
-| C4-09 | Phase 22 | Pending |
-| C4-10 | Phase 22 | Pending |
-| C4-11 | Phase 22 | Pending |
+| C4-01 | Phase 22 | Complete |
+| C4-02 | Phase 22 | Complete |
+| C4-03 | Phase 22 | Complete |
+| C4-04 | Phase 22 | Complete |
+| C4-05 | Phase 22 | Complete |
+| C4-06 | Phase 22 | Complete |
+| C4-07 | Phase 22 | Complete |
+| C4-08 | Phase 22 | Complete |
+| C4-09 | Phase 22 | Complete |
+| C4-10 | Phase 22 | Complete |
+| C4-11 | Phase 22 | Complete |
 | C5-01 | Phase 23 | Pending |
 | C5-02 | Phase 23 | Pending |
 | C5-03 | Phase 23 | Pending |

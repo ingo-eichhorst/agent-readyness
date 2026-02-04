@@ -5,17 +5,17 @@
 See: .planning/PROJECT.md (updated 2026-02-04)
 
 **Core value:** Accurate, evidence-based scoring that predicts agent success and identifies specific improvements teams should make before adopting AI coding agents.
-**Current focus:** Planning next milestone
+**Current focus:** Milestone v0.0.4 Metric Research
 
 ## Current Position
 
-Milestone: v0.0.4 Metric Research
-Phase: Not started (defining requirements)
+Milestone: v0.0.4 Metric Research — defining requirements
+Phase: Not started
 Plan: —
 Status: Defining requirements
-Last activity: 2026-02-04 — Milestone v0.0.4 started
+Last activity: 2026-02-04 — v0.0.4 milestone started
 
-Progress: [                                ] 0%
+Progress: [░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░] v0.0.4 DEFINING REQUIREMENTS
 
 ## Performance Metrics
 

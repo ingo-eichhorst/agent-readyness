@@ -60,15 +60,15 @@ Requirements for milestone v0.0.4 Metric Research. Each maps to roadmap phases.
 
 ### C5: Temporal Dynamics Metrics (Issue #51)
 
-- [ ] **C5-01**: Research foundational sources (pre-2021) for all 5 C5 metrics
-- [ ] **C5-02**: Research AI/agent era sources (2021+) for all 5 C5 metrics
-- [ ] **C5-03**: Add inline citations to churn_rate description
-- [ ] **C5-04**: Add inline citations to temporal_coupling_pct description
-- [ ] **C5-05**: Add inline citations to author_fragmentation description
-- [ ] **C5-06**: Add inline citations to commit_stability description
-- [ ] **C5-07**: Add inline citations to hotspot_concentration description
-- [ ] **C5-08**: Add References section for all C5 metrics with verified URLs
-- [ ] **C5-09**: Verify all C5 citation URLs accessible
+- [x] **C5-01**: Research foundational sources (pre-2021) for all 5 C5 metrics
+- [x] **C5-02**: Research AI/agent era sources (2021+) for all 5 C5 metrics
+- [x] **C5-03**: Add inline citations to churn_rate description
+- [x] **C5-04**: Add inline citations to temporal_coupling_pct description
+- [x] **C5-05**: Add inline citations to author_fragmentation description
+- [x] **C5-06**: Add inline citations to commit_stability description
+- [x] **C5-07**: Add inline citations to hotspot_concentration description
+- [x] **C5-08**: Add References section for all C5 metrics with verified URLs
+- [x] **C5-09**: Verify all C5 citation URLs accessible
 
 ### C6: Testing Metrics (Issue #52)
 
@@ -166,15 +166,15 @@ Which phases cover which requirements. Updated during roadmap creation.
 | C4-09 | Phase 22 | Complete |
 | C4-10 | Phase 22 | Complete |
 | C4-11 | Phase 22 | Complete |
-| C5-01 | Phase 23 | Pending |
-| C5-02 | Phase 23 | Pending |
-| C5-03 | Phase 23 | Pending |
-| C5-04 | Phase 23 | Pending |
-| C5-05 | Phase 23 | Pending |
-| C5-06 | Phase 23 | Pending |
-| C5-07 | Phase 23 | Pending |
-| C5-08 | Phase 23 | Pending |
-| C5-09 | Phase 23 | Pending |
+| C5-01 | Phase 23 | Complete |
+| C5-02 | Phase 23 | Complete |
+| C5-03 | Phase 23 | Complete |
+| C5-04 | Phase 23 | Complete |
+| C5-05 | Phase 23 | Complete |
+| C5-06 | Phase 23 | Complete |
+| C5-07 | Phase 23 | Complete |
+| C5-08 | Phase 23 | Complete |
+| C5-09 | Phase 23 | Complete |
 | C7-01 | Phase 24 | Pending |
 | C7-02 | Phase 24 | Pending |
 | C7-03 | Phase 24 | Pending |

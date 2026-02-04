@@ -41,10 +41,11 @@ This milestone establishes scientific foundations for all 33 ARS metric descript
   3. All 6 C1 metrics have inline citations (Author, Year) in their descriptions referencing foundational and AI-era sources
   4. C1 References section contains complete citations with verified, accessible URLs
   5. Every quantified claim in C1 metric descriptions has an explicit source attribution
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 18-01: [TBD during planning]
+- [ ] 18-01-PLAN.md — Establish citation quality protocols (style guide, URL verification, source quality checklist)
+- [ ] 18-02-PLAN.md — Add citations to all 6 C1 metrics and verify URLs
 
 ### Phase 19: C6 Testing
 **Goal**: Add research-backed citations to all C6 Testing metrics using established quality protocols
@@ -154,7 +155,7 @@ Phases 18-24 execute sequentially. Phase 18 must complete first (establishes pro
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 18. C1 Code Health | v0.0.4 | 0/TBD | Not started | - |
+| 18. C1 Code Health | v0.0.4 | 0/2 | Ready | - |
 | 19. C6 Testing | v0.0.4 | 0/TBD | Not started | - |
 | 20. C2 Semantic Explicitness | v0.0.4 | 0/TBD | Not started | - |
 | 21. C3 Architecture | v0.0.4 | 0/TBD | Not started | - |

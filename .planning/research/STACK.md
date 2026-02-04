@@ -533,3 +533,224 @@ go test ./...
 ---
 *Stack research for: ARS v0.0.3 -- Claude Code unification, badges, HTML collapsibles*
 *Researched: 2026-02-03*
+
+---
+
+# Stack Research: Academic Citations (v0.0.4 Milestone)
+
+**Domain:** Citation systems for software engineering documentation
+**Researched:** 2026-02-04
+**Confidence:** HIGH
+
+## Executive Summary
+
+This research investigates tools, formats, and approaches for adding academic citations to ARS's existing metric descriptions. The goal is credibility through research backing for engineering leaders, not academic paper density. Given the existing infrastructure (Go codebase, HTML reports with inline CSS, 33 metrics needing ~3-5 citations each), the recommendation is a **minimal, manual approach** that leverages existing patterns.
+
+## Recommended Stack
+
+### Core Approach: Manual (Author, Year) Format
+
+| Technology | Version | Purpose | Why Recommended |
+|------------|---------|---------|-----------------|
+| Manual inline citations | N/A | Inline `(Author, Year)` references | Already implemented in descriptions.go; no new dependencies needed |
+| Go struct `Citation` | N/A | Reference data storage | Already exists in citations.go; extend for metric-level granularity |
+| CSS `.citation` class | N/A | Visual styling of inline citations | Already exists in styles.css; ready for use |
+
+**Rationale:** The project already has all infrastructure needed. The `Citation` struct, CSS styling, and HTML template patterns are in place. Adding citations is a content task, not a technology task.
+
+### Citation Format: APA-Style (Author, Year)
+
+| Aspect | Recommendation | Why |
+|--------|----------------|-----|
+| Inline format | `(Author, Year)` or `(Author et al., Year)` | Industry standard for technical documentation; already used in descriptions.go |
+| Reference format | Author, Year. *Title*. URL | Matches existing citations.go pattern |
+| Multiple authors | `et al.` for 3+ authors | Standard practice, reduces clutter |
+
+**Example (already in codebase):**
+```html
+<span class="citation">(Borg et al., 2026)</span>
+```
+
+### URL Verification Tools
+
+| Tool | Purpose | When to Use |
+|------|---------|-------------|
+| Manual HTTP check | Verify URLs resolve | During citation addition (one-time) |
+| `curl -I [URL]` | Quick status code check | Command-line verification |
+| Browser verification | Confirm content matches citation | Final validation |
+
+**Rationale:** With ~100-150 total citations (33 metrics x 3-5 each), manual verification is faster than setting up automated tooling. Lychee or similar tools are overkill for a one-time batch verification.
+
+### URL Permanence Strategy
+
+| Source Type | URL Strategy | Why |
+|-------------|--------------|-----|
+| Academic papers | Prefer DOI links (`doi.org/...`) | DOIs are permanent; URLs change |
+| Books | Publisher page or ISBN lookup | More stable than retailer links |
+| Blog posts/docs | Archive.org backup + original | Protection against link rot |
+| Official docs | Use versioned URLs when available | `/docs/v1.0/` over `/docs/latest/` |
+
+**Example DOI format:**
+```
+https://doi.org/10.1145/361598.361623
+```
+
+## What NOT to Add
+
+| Avoid | Why | Alternative |
+|-------|-----|-------------|
+| BibTeX/CSL tooling | Over-engineering for 150 citations | Manual Go structs |
+| Zotero/Mendeley integration | Adds external dependency for one-time task | Manual entry |
+| Automated link checkers in CI | Overkill; links checked once during addition | Manual verification |
+| Footnote-based citations | Engineering audience expects inline | (Author, Year) format |
+| Hover tooltips for citations | Adds JavaScript complexity; minimal UX benefit | Static inline text |
+| Per-metric citation structs | Over-complicates data model | Inline in HTML content |
+
+**Key Principle:** The existing `descriptions.go` pattern embeds citation markup directly in the `Detailed` HTML field. This is appropriate for ~150 citations that change rarely.
+
+## Existing Infrastructure (No Changes Needed)
+
+### Citation Data Structure (citations.go)
+```go
+type Citation struct {
+    Category    string
+    Title       string
+    Authors     string
+    Year        int
+    URL         string
+    Description string
+}
+```
+
+### CSS Styling (styles.css)
+```css
+.citation {
+  color: var(--color-muted);
+  font-style: normal;
+}
+```
+
+### HTML Template Pattern (report.html)
+```html
+{{range .Citations}}
+<li><a href="{{.URL}}" target="_blank" rel="noopener">{{.Title}}</a>
+    ({{.Authors}}, {{.Year}}) - {{.Description}}</li>
+{{end}}
+```
+
+### Inline Citation Pattern (descriptions.go)
+```html
+<span class="citation">(McCabe, 1976)</span>
+```
+
+## Implementation Approach
+
+### Phase 1: Foundational Sources (Pre-2021)
+
+Sources like McCabe (1976), Fowler (1999), Parnas (1972) are well-established. Most URLs are stable institutional or publisher links.
+
+**Verification approach:**
+1. Check URL returns 200 status
+2. Confirm page content matches citation
+3. For academic papers, prefer DOI when available
+
+### Phase 2: AI/Agent Era Sources (2021+)
+
+Sources like Borg et al. (2026) are newer and may have less stable URLs.
+
+**Verification approach:**
+1. Check arXiv/DOI links (highly stable)
+2. For conference papers, use ACM/IEEE digital library DOIs
+3. For blog posts, consider archive.org snapshot
+
+### Reference Section Strategy
+
+Current pattern: Per-category references at category level.
+
+**Recommendation:** Keep this pattern. Each category section already has:
+```html
+{{if .Citations}}
+<div class="category-citations">
+    <h4>References</h4>
+    <ul>{{range .Citations}}...{{end}}</ul>
+</div>
+{{end}}
+```
+
+**Enhancement:** Inline citations in metric descriptions link conceptually to the category reference section. No hyperlink anchors needed for ~3-5 citations per metric.
+
+## Alternatives Considered
+
+| Recommended | Alternative | When to Use Alternative |
+|-------------|-------------|-------------------------|
+| Manual (Author, Year) | IEEE numeric [1] | Never for this project; numeric requires back-reference which is poor UX |
+| Inline in HTML | Separate citations per metric | If citations.go grows beyond 200 entries |
+| Manual URL check | Lychee CI integration | If project adds many links frequently |
+| DOI links | Direct publisher URLs | Only when DOI unavailable |
+
+## Version Compatibility
+
+| Component | Version | Notes |
+|-----------|---------|-------|
+| Go html/template | Go 1.21+ | Standard library, no compatibility concerns |
+| CSS `.citation` class | CSS3 | Universal browser support |
+| DOI resolver (doi.org) | N/A | International DOI Foundation, stable since 2000 |
+
+## Citation Count Estimate
+
+| Category | Metrics | Est. Citations/Metric | Total |
+|----------|---------|----------------------|-------|
+| C1: Code Health | 6 | 4 | 24 |
+| C2: Semantics | 5 | 3 | 15 |
+| C3: Architecture | 5 | 3 | 15 |
+| C4: Documentation | 7 | 3 | 21 |
+| C5: Temporal | 5 | 3 | 15 |
+| C6: Testing | 5 | 3 | 15 |
+| **Total** | **33** | **~3.2 avg** | **~105** |
+
+This is a manageable size for manual curation. No tooling investment justified.
+
+## Verification Protocol
+
+For each citation added:
+
+1. **URL Check:** `curl -I [URL]` returns 200 or 301/302 to valid destination
+2. **Content Check:** Page title/abstract matches citation
+3. **Author Check:** Listed authors match citation
+4. **Year Check:** Publication year correct
+5. **DOI Preference:** If academic paper, use `doi.org` URL when available
+
+## Citation Format Reference
+
+### Standard Inline Citation
+```html
+<span class="citation">(Author, Year)</span>
+```
+
+### Multiple Authors (3+)
+```html
+<span class="citation">(Author et al., Year)</span>
+```
+
+### Two Authors
+```html
+<span class="citation">(Author & Author, Year)</span>
+```
+
+### Multiple Citations
+```html
+<span class="citation">(Author, Year; Other, Year)</span>
+```
+
+## Sources
+
+- [Purdue OWL - DOIs vs URLs](https://owl.purdue.edu/owl/research_and_citation/conducting_research/internet_references/urls_vs_dois.html) - DOI permanence guidance (HIGH confidence)
+- [QuillBot - APA vs Chicago Author-Date](https://quillbot.com/blog/frequently-asked-questions/whats-the-difference-between-apa-and-chicago-author-date-citations/) - Citation format comparison (MEDIUM confidence)
+- [BibGuru - Citation Style for Computer Science](https://www.bibguru.com/blog/citation-style-for-computer-science/) - Engineering citation standards (MEDIUM confidence)
+- [Markdown Citations Guide](https://blog.markdowntools.com/posts/markdown-citations-and-references-guide) - Markdown citation patterns (MEDIUM confidence)
+- [Lychee Link Checker](https://github.com/lycheeverse/lychee) - Link verification tool (evaluated, not recommended for this scope)
+- [W3Schools CSS Tooltip](https://www.w3schools.com/css/css_tooltip.asp) - CSS tooltip patterns (evaluated, not recommended)
+
+---
+*Stack research for: Academic citation implementation in ARS HTML reports*
+*Researched: 2026-02-04*

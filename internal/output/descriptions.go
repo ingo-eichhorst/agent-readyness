@@ -17,31 +17,41 @@ var metricDescriptions = map[string]MetricDescription{
 	// C1: Code Health Metrics
 	// ============================================================================
 	"complexity_avg": {
-		Brief:     "Average cyclomatic complexity per function. Keep under 10 for optimal agent comprehension.",
+		Brief:     "Average cyclomatic complexity per function. High complexity increases AI agent break rates by 36-44%. Keep under 10.",
 		Threshold: 6.0,
 		Detailed: `<h4>Definition</h4>
 <p>Cyclomatic complexity counts the number of independent paths through a function's control flow graph. Each decision point (if, for, while, case, &&, ||) adds one to the count. A function with no branches has complexity 1.</p>
 
 <h4>Why It Matters for AI Agents</h4>
-<p>Agents must mentally simulate all possible execution paths when reasoning about code changes. High complexity forces agents to track exponentially more states, increasing the likelihood of incomplete analysis or missed edge cases. Studies show that code with complexity over 10 is significantly harder for both humans and AI to modify safely.</p>
+<p>Agents must mentally simulate all possible execution paths when reasoning about code changes. High complexity causes <strong>"state drift"</strong>—LLMs lose track of variable states and scope as they traverse deeply nested conditionals. The <strong>"Bumpy Road"</strong> pattern (multiple sequential nested conditionals) is the single most detrimental property for agent reliability.</p>
+<p>Attention mechanisms in LLMs scale O(n²) with sequence length, making long complex functions disproportionately harder to reason about. Weaker models are especially sensitive: the same code health issues that cause a 36% increase in break rates for Claude cause 44% more failures for less capable models.</p>
 
 <h4>Research Evidence</h4>
-<p>McCabe's foundational work established that complexity above 10 indicates high-risk code requiring additional testing <span class="citation">(McCabe, 1976)</span>. Fowler extended this, noting that high-complexity functions are primary refactoring targets due to their maintenance burden <span class="citation">(Fowler et al., 1999)</span>.</p>
+<p>Empirical research quantifies the impact of code complexity on AI agent performance <span class="citation">(Borg et al., 2026)</span>:</p>
+<table class="evidence-table">
+<tr><th>Model</th><th>Healthy Code</th><th>Unhealthy Code</th><th>Increase</th></tr>
+<tr><td>Claude</td><td>3.81%</td><td>5.19%</td><td>+36%</td></tr>
+<tr><td>Qwen</td><td>19.28%</td><td>27.84%</td><td>+44%</td></tr>
+<tr><td>GPT</td><td>35.87%</td><td>47.02%</td><td>+31%</td></tr>
+</table>
+<p>The study identifies a maximum nesting depth threshold of <strong>4 levels</strong>—the "pyramid of doom"—beyond which agent reliability drops sharply. McCabe's foundational work established complexity above 10 as high-risk <span class="citation">(McCabe, 1976)</span>, and Fowler identified high-complexity functions as primary refactoring targets <span class="citation">(Fowler et al., 1999)</span>.</p>
 
 <h4>Recommended Thresholds</h4>
 <ul>
 <li><strong>1-5:</strong> Simple, easy for agents to reason about</li>
 <li><strong>6-10:</strong> Moderate, agents can handle with care</li>
-<li><strong>11-20:</strong> Complex, agents may miss edge cases</li>
-<li><strong>21+:</strong> Very high risk, consider refactoring before agent use</li>
+<li><strong>11-20:</strong> Complex, expect 30-40% higher agent break rates</li>
+<li><strong>21+:</strong> Very high risk, refactor before agent use</li>
 </ul>
+<p><em>Note: Keep nesting depth ≤4 levels regardless of overall complexity score.</em></p>
 
 <h4>How to Improve</h4>
 <ul>
+<li>Replace nested conditionals with guard clauses (early returns)—this "resets the context window" for agents</li>
 <li>Extract conditional logic into well-named helper functions</li>
-<li>Replace nested conditionals with guard clauses (early returns)</li>
+<li>Add nesting depth linting (e.g., <code>max-depth</code> ESLint rule, <code>nestif</code> for Go)</li>
+<li>Prioritize "Bumpy Road" functions—those with multiple sequential nested blocks</li>
 <li>Use polymorphism or strategy pattern instead of switch statements</li>
-<li>Break long functions into smaller, focused units</li>
 </ul>`,
 	},
 

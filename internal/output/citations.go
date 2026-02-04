@@ -29,6 +29,14 @@ var researchCitations = []Citation{
 		Description: "Original cyclomatic complexity metric definition",
 	},
 	{
+		Category:    "C1",
+		Title:       "Code for Machines, Not Just Humans: Quantifying AI-Friendliness with Code Health Metrics",
+		Authors:     "Borg et al.",
+		Year:        2026,
+		URL:         "https://arxiv.org/abs/2601.02200",
+		Description: "Empirical study showing CodeHealth metrics predict AI agent break rates",
+	},
+	{
 		Category:    "C2",
 		Title:       "To Type or Not to Type",
 		Authors:     "Gao et al.",

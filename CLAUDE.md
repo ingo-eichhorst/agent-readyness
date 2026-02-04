@@ -21,7 +21,7 @@ go run . scan <directory>
 go test ./...
 
 # Run tests with coverage
-go test ./... -coverprofile=coverage.out
+go test ./... -coverprofile=cover.out
 
 # Run single package tests
 go test ./internal/analyzer/...

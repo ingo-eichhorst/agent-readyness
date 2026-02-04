@@ -1,5 +1,33 @@
 # Project Milestones: Agent Readiness Score (ARS)
 
+## v0.0.3 Simplification & Polish (Shipped: 2026-02-04)
+
+**Delivered:** Unified LLM integration on Claude Code CLI with badge generation, expandable HTML metric descriptions, and analyzer reorganization into category subdirectories
+
+**Phases completed:** 13-17 (7 plans total)
+
+**Key accomplishments:**
+
+- Unified all LLM features on Claude Code CLI, removing Anthropic SDK dependency and API key requirement
+- Added shields.io badge generation with `--badge` CLI flag for README visibility
+- Enhanced HTML reports with 33 research-backed expandable metric descriptions
+- Reorganized 31 analyzer files into 7 category subdirectories with shared utilities subpackage
+- Added MIT LICENSE and standard Go project badges (Go Reference, Report Card, License, Release)
+- Standardized test coverage filename (`cover.out`) for C6 self-analysis compatibility
+
+**Stats:**
+
+- 68 files modified (+2,900 lines / -1,142 lines)
+- 22,624 total lines of Go
+- 5 phases, 7 plans, ~25 tasks
+- 4 days from v0.0.2 to v0.0.3 (2026-01-31 → 2026-02-04)
+
+**Git range:** `feat(13-01)` (30ff492) → `feat(17-01)` (900e85e)
+
+**What's next:** Performance optimizations, caching for incremental scanning, CI/CD integrations (GitHub Action, pre-commit hooks)
+
+---
+
 ## v0.0.2 Complete Analysis Framework (Shipped: 2026-02-03)
 
 **Delivered:** Multi-language agent-readiness assessment tool with all seven research-backed analysis categories, HTML reports, and headless agent evaluation

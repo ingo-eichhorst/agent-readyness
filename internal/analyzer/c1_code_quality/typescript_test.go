@@ -1,4 +1,4 @@
-package analyzer
+package c1
 
 import (
 	"path/filepath"
@@ -15,7 +15,7 @@ func TestTsAnalyzeFunctions_Complexity(t *testing.T) {
 	}
 	defer tsParser.Close()
 
-	testDir, err := filepath.Abs("../../testdata/valid-ts-project")
+	testDir, err := filepath.Abs("../../../testdata/valid-ts-project")
 	if err != nil {
 		t.Fatalf("cannot resolve testdata path: %v", err)
 	}
@@ -107,7 +107,7 @@ func TestTsAnalyzeFunctions_LineCount(t *testing.T) {
 	}
 	defer tsParser.Close()
 
-	testDir, _ := filepath.Abs("../../testdata/valid-ts-project")
+	testDir, _ := filepath.Abs("../../../testdata/valid-ts-project")
 	target := &types.AnalysisTarget{
 		Language: types.LangTypeScript,
 		RootDir:  testDir,
@@ -156,7 +156,7 @@ func TestTsAnalyzeFileSizes(t *testing.T) {
 	}
 	defer tsParser.Close()
 
-	testDir, _ := filepath.Abs("../../testdata/valid-ts-project")
+	testDir, _ := filepath.Abs("../../../testdata/valid-ts-project")
 	target := &types.AnalysisTarget{
 		Language: types.LangTypeScript,
 		RootDir:  testDir,
@@ -204,7 +204,7 @@ func TestTsC1Integration(t *testing.T) {
 	}
 	defer tsParser.Close()
 
-	testDir, _ := filepath.Abs("../../testdata/valid-ts-project")
+	testDir, _ := filepath.Abs("../../../testdata/valid-ts-project")
 
 	analyzer := NewC1Analyzer(tsParser)
 	targets := []*types.AnalysisTarget{

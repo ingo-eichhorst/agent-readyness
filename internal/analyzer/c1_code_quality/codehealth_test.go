@@ -1,4 +1,4 @@
-package analyzer
+package c1
 
 import (
 	"path/filepath"
@@ -11,7 +11,7 @@ import (
 // testdataDir returns the absolute path to the project testdata directory.
 func testdataDir() string {
 	_, file, _, _ := runtime.Caller(0)
-	return filepath.Join(filepath.Dir(file), "..", "..", "testdata")
+	return filepath.Join(filepath.Dir(file), "..", "..", "..", "testdata")
 }
 
 // loadTestPackages loads Go packages from a testdata subdirectory.

@@ -1,4 +1,4 @@
-package analyzer
+package c1
 
 import (
 	"bytes"
@@ -12,6 +12,7 @@ import (
 
 	tree_sitter "github.com/tree-sitter/go-tree-sitter"
 
+	"github.com/ingo/agent-readyness/internal/analyzer"
 	"github.com/ingo/agent-readyness/internal/parser"
 	"github.com/ingo/agent-readyness/pkg/types"
 )
@@ -77,7 +78,7 @@ func tsWalkFunctions(node *tree_sitter.Node, content []byte, file string, classN
 		nameNode := node.ChildByFieldName("name")
 		clsName := ""
 		if nameNode != nil {
-			clsName = NodeText(nameNode, content)
+			clsName = analyzer.NodeText(nameNode, content)
 		}
 		body := node.ChildByFieldName("body")
 		if body != nil {
@@ -94,7 +95,7 @@ func tsWalkFunctions(node *tree_sitter.Node, content []byte, file string, classN
 		nameNode := node.ChildByFieldName("name")
 		name := ""
 		if nameNode != nil {
-			name = NodeText(nameNode, content)
+			name = analyzer.NodeText(nameNode, content)
 		}
 		if className != "" {
 			name = className + "." + name
@@ -118,7 +119,7 @@ func tsWalkFunctions(node *tree_sitter.Node, content []byte, file string, classN
 		nameNode := node.ChildByFieldName("name")
 		name := ""
 		if nameNode != nil {
-			name = NodeText(nameNode, content)
+			name = analyzer.NodeText(nameNode, content)
 		}
 		if className != "" {
 			name = className + "." + name
@@ -170,7 +171,7 @@ func tsArrowFunctionName(node *tree_sitter.Node, content []byte) string {
 	if parent != nil && parent.Kind() == "variable_declarator" {
 		nameNode := parent.ChildByFieldName("name")
 		if nameNode != nil {
-			return NodeText(nameNode, content)
+			return analyzer.NodeText(nameNode, content)
 		}
 	}
 	return "<anonymous>"
@@ -211,7 +212,7 @@ func tsComputeComplexity(funcNode *tree_sitter.Node, content []byte) int {
 			// switch_case with a test expression is a case; without is default
 			if n.ChildCount() > 0 {
 				firstChild := n.Child(0)
-				if firstChild != nil && NodeText(firstChild, content) != "default" {
+				if firstChild != nil && analyzer.NodeText(firstChild, content) != "default" {
 					complexity++
 				}
 			}
@@ -223,7 +224,7 @@ func tsComputeComplexity(funcNode *tree_sitter.Node, content []byte) int {
 			// Count && || ?? operators
 			opNode := n.ChildByFieldName("operator")
 			if opNode != nil {
-				op := NodeText(opNode, content)
+				op := analyzer.NodeText(opNode, content)
 				if op == "&&" || op == "||" || op == "??" {
 					complexity++
 				}

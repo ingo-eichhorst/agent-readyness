@@ -1,4 +1,4 @@
-package analyzer
+package c1
 
 import (
 	"bytes"
@@ -12,6 +12,7 @@ import (
 
 	tree_sitter "github.com/tree-sitter/go-tree-sitter"
 
+	"github.com/ingo/agent-readyness/internal/analyzer"
 	"github.com/ingo/agent-readyness/internal/parser"
 	"github.com/ingo/agent-readyness/pkg/types"
 )
@@ -43,7 +44,7 @@ func pyWalkFunctions(node *tree_sitter.Node, content []byte, file string, classN
 		nameNode := node.ChildByFieldName("name")
 		clsName := ""
 		if nameNode != nil {
-			clsName = NodeText(nameNode, content)
+			clsName = analyzer.NodeText(nameNode, content)
 		}
 		body := node.ChildByFieldName("body")
 		if body != nil {
@@ -75,7 +76,7 @@ func pyWalkFunctions(node *tree_sitter.Node, content []byte, file string, classN
 		nameNode := node.ChildByFieldName("name")
 		name := ""
 		if nameNode != nil {
-			name = NodeText(nameNode, content)
+			name = analyzer.NodeText(nameNode, content)
 		}
 
 		if className != "" {

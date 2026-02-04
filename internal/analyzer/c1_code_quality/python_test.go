@@ -1,4 +1,4 @@
-package analyzer
+package c1
 
 import (
 	"path/filepath"
@@ -15,7 +15,7 @@ func TestPyAnalyzeFunctions_Complexity(t *testing.T) {
 	}
 	defer tsParser.Close()
 
-	testDir, err := filepath.Abs("../../testdata/valid-python-project")
+	testDir, err := filepath.Abs("../../../testdata/valid-python-project")
 	if err != nil {
 		t.Fatalf("cannot resolve testdata path: %v", err)
 	}
@@ -93,7 +93,7 @@ func TestPyAnalyzeFunctions_LineCount(t *testing.T) {
 	}
 	defer tsParser.Close()
 
-	testDir, _ := filepath.Abs("../../testdata/valid-python-project")
+	testDir, _ := filepath.Abs("../../../testdata/valid-python-project")
 	target := &types.AnalysisTarget{
 		Language: types.LangPython,
 		RootDir:  testDir,
@@ -142,7 +142,7 @@ func TestPyAnalyzeFileSizes(t *testing.T) {
 	}
 	defer tsParser.Close()
 
-	testDir, _ := filepath.Abs("../../testdata/valid-python-project")
+	testDir, _ := filepath.Abs("../../../testdata/valid-python-project")
 	target := &types.AnalysisTarget{
 		Language: types.LangPython,
 		RootDir:  testDir,
@@ -190,7 +190,7 @@ func TestPyC1Integration(t *testing.T) {
 	}
 	defer tsParser.Close()
 
-	testDir, _ := filepath.Abs("../../testdata/valid-python-project")
+	testDir, _ := filepath.Abs("../../../testdata/valid-python-project")
 
 	analyzer := NewC1Analyzer(tsParser)
 	targets := []*types.AnalysisTarget{

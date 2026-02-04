@@ -89,10 +89,10 @@ Plans:
   4. README displays Release badge
   5. Test commands in documentation include `-coverprofile` flag
   6. Coverage data is available for C6 self-analysis
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 17-01: Add README badges and update test commands
+- [ ] 17-01-PLAN.md — Add LICENSE, README badges, fix coverage filename
 
 ## Progress
 

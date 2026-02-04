@@ -90,5 +90,5 @@ ars scan . --enable-c7
 
 ## Test
 
-go test ./... -coverprofile=coverage.out
+go test ./... -coverprofile=cover.out
 

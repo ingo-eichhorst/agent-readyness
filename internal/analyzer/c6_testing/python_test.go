@@ -1,12 +1,30 @@
-package analyzer
+package c6
 
 import (
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/ingo/agent-readyness/internal/parser"
 	"github.com/ingo/agent-readyness/pkg/types"
 )
+
+// testdataDir returns the absolute path to the project testdata directory.
+func testdataDir() string {
+	_, file, _, _ := runtime.Caller(0)
+	return filepath.Join(filepath.Dir(file), "..", "..", "..", "testdata")
+}
+
+// loadTestPackages loads Go packages from a testdata subdirectory.
+func loadTestPackages(t *testing.T, subdir string) []*parser.ParsedPackage {
+	t.Helper()
+	p := &parser.GoPackagesParser{}
+	pkgs, err := p.Parse(filepath.Join(testdataDir(), subdir))
+	if err != nil {
+		t.Fatalf("failed to parse %s: %v", subdir, err)
+	}
+	return pkgs
+}
 
 func TestPyDetectTests(t *testing.T) {
 	tsParser, err := parser.NewTreeSitterParser()
@@ -15,7 +33,7 @@ func TestPyDetectTests(t *testing.T) {
 	}
 	defer tsParser.Close()
 
-	testDir, _ := filepath.Abs("../../testdata/valid-python-project")
+	testDir, _ := filepath.Abs("../../../testdata/valid-python-project")
 
 	target := &types.AnalysisTarget{
 		Language: types.LangPython,
@@ -83,7 +101,7 @@ func TestPyCountAssertions(t *testing.T) {
 	}
 	defer tsParser.Close()
 
-	testDir, _ := filepath.Abs("../../testdata/valid-python-project")
+	testDir, _ := filepath.Abs("../../../testdata/valid-python-project")
 
 	target := &types.AnalysisTarget{
 		Language: types.LangPython,
@@ -133,7 +151,7 @@ func TestPyAnalyzeIsolation(t *testing.T) {
 	}
 	defer tsParser.Close()
 
-	testDir, _ := filepath.Abs("../../testdata/valid-python-project")
+	testDir, _ := filepath.Abs("../../../testdata/valid-python-project")
 
 	target := &types.AnalysisTarget{
 		Language: types.LangPython,
@@ -173,7 +191,7 @@ func TestPyC6Integration(t *testing.T) {
 	}
 	defer tsParser.Close()
 
-	testDir, _ := filepath.Abs("../../testdata/valid-python-project")
+	testDir, _ := filepath.Abs("../../../testdata/valid-python-project")
 
 	analyzer := NewC6Analyzer(tsParser)
 	targets := []*types.AnalysisTarget{

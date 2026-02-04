@@ -1,4 +1,4 @@
-package analyzer
+package c5
 
 import (
 	"os"

@@ -1,5 +1,5 @@
 // Package analyzer provides code analysis implementations for the ARS pipeline.
-package analyzer
+package c4
 
 import (
 	"bytes"

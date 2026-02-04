@@ -1,4 +1,4 @@
-package analyzer
+package c6
 
 import (
 	"bytes"
@@ -6,6 +6,7 @@ import (
 
 	tree_sitter "github.com/tree-sitter/go-tree-sitter"
 
+	"github.com/ingo/agent-readyness/internal/analyzer"
 	"github.com/ingo/agent-readyness/internal/parser"
 	"github.com/ingo/agent-readyness/pkg/types"
 )
@@ -18,7 +19,7 @@ func pyDetectTests(files []*parser.ParsedTreeSitterFile) ([]types.TestFunctionMe
 	srcFileCount := 0
 
 	for _, f := range files {
-		isTest := isTestFileByPath(f.RelPath)
+		isTest := analyzer.IsTestFileByPath(f.RelPath)
 		if isTest {
 			testFileCount++
 		} else {
@@ -31,7 +32,7 @@ func pyDetectTests(files []*parser.ParsedTreeSitterFile) ([]types.TestFunctionMe
 
 		// Walk test file for test functions (def test_*)
 		root := f.Tree.RootNode()
-		WalkTree(root, func(node *tree_sitter.Node) {
+		analyzer.WalkTree(root, func(node *tree_sitter.Node) {
 			if node.Kind() != "function_definition" {
 				return
 			}
@@ -41,7 +42,7 @@ func pyDetectTests(files []*parser.ParsedTreeSitterFile) ([]types.TestFunctionMe
 				return
 			}
 
-			name := NodeText(nameNode, f.Content)
+			name := analyzer.NodeText(nameNode, f.Content)
 			if !strings.HasPrefix(name, "test_") {
 				return
 			}
@@ -89,7 +90,7 @@ func pyCountAssertions(funcNode *tree_sitter.Node, content []byte) int {
 			// Check for self.assert* or self.fail calls
 			fn := n.ChildByFieldName("function")
 			if fn != nil && fn.Kind() == "attribute" {
-				fnText := NodeText(fn, content)
+				fnText := analyzer.NodeText(fn, content)
 				if strings.HasPrefix(fnText, "self.assert") || fnText == "self.fail" {
 					count++
 				}
@@ -134,14 +135,14 @@ func pyAnalyzeIsolation(files []*parser.ParsedTreeSitterFile, testFuncs []types.
 	// Check each test file for external imports
 	testFileHasExtDep := make(map[string]bool)
 	for _, f := range files {
-		if !isTestFileByPath(f.RelPath) {
+		if !analyzer.IsTestFileByPath(f.RelPath) {
 			continue
 		}
 
 		root := f.Tree.RootNode()
 		hasExtDep := false
 
-		WalkTree(root, func(node *tree_sitter.Node) {
+		analyzer.WalkTree(root, func(node *tree_sitter.Node) {
 			kind := node.Kind()
 			if kind != "import_statement" && kind != "import_from_statement" {
 				return
@@ -157,10 +158,10 @@ func pyAnalyzeIsolation(files []*parser.ParsedTreeSitterFile, testFuncs []types.
 						if child.Kind() == "aliased_import" {
 							nameNode := child.ChildByFieldName("name")
 							if nameNode != nil {
-								modName = NodeText(nameNode, f.Content)
+								modName = analyzer.NodeText(nameNode, f.Content)
 							}
 						} else {
-							modName = NodeText(child, f.Content)
+							modName = analyzer.NodeText(child, f.Content)
 						}
 					}
 				}
@@ -168,7 +169,7 @@ func pyAnalyzeIsolation(files []*parser.ParsedTreeSitterFile, testFuncs []types.
 				for i := uint(0); i < node.ChildCount(); i++ {
 					child := node.Child(i)
 					if child != nil && (child.Kind() == "dotted_name" || child.Kind() == "relative_import") {
-						modName = NodeText(child, f.Content)
+						modName = analyzer.NodeText(child, f.Content)
 						break
 					}
 				}
@@ -204,7 +205,7 @@ func pyAnalyzeIsolation(files []*parser.ParsedTreeSitterFile, testFuncs []types.
 func pyCountLOC(files []*parser.ParsedTreeSitterFile) (testLOC, srcLOC int) {
 	for _, f := range files {
 		lines := bytes.Count(f.Content, []byte("\n")) + 1
-		if isTestFileByPath(f.RelPath) {
+		if analyzer.IsTestFileByPath(f.RelPath) {
 			testLOC += lines
 		} else {
 			srcLOC += lines

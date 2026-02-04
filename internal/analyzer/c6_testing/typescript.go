@@ -1,4 +1,4 @@
-package analyzer
+package c6
 
 import (
 	"bytes"
@@ -6,6 +6,7 @@ import (
 
 	tree_sitter "github.com/tree-sitter/go-tree-sitter"
 
+	"github.com/ingo/agent-readyness/internal/analyzer"
 	"github.com/ingo/agent-readyness/internal/parser"
 	"github.com/ingo/agent-readyness/pkg/types"
 )
@@ -18,7 +19,7 @@ func tsDetectTests(files []*parser.ParsedTreeSitterFile) ([]types.TestFunctionMe
 	srcFileCount := 0
 
 	for _, f := range files {
-		isTest := tsIsTestFile(f.RelPath)
+		isTest := analyzer.TsIsTestFile(f.RelPath)
 		if isTest {
 			testFileCount++
 		} else {
@@ -48,7 +49,7 @@ func tsCollectTestFunctions(node *tree_sitter.Node, content []byte, relPath stri
 	if kind == "call_expression" {
 		fn := node.ChildByFieldName("function")
 		if fn != nil {
-			fnName := NodeText(fn, content)
+			fnName := analyzer.NodeText(fn, content)
 
 			// it("...", () => { ... }) or test("...", () => { ... })
 			if fnName == "it" || fnName == "test" {
@@ -104,8 +105,8 @@ func tsExtractFirstStringArg(callNode *tree_sitter.Node, content []byte) string 
 		}
 		kind := child.Kind()
 		if kind == "string" || kind == "template_string" {
-			text := NodeText(child, content)
-			return tsStripQuotes(text)
+			text := analyzer.NodeText(child, content)
+			return analyzer.TsStripQuotes(text)
 		}
 	}
 	return ""
@@ -139,7 +140,7 @@ func tsCountAssertions(funcNode *tree_sitter.Node, content []byte) int {
 		if kind == "call_expression" {
 			fn := n.ChildByFieldName("function")
 			if fn != nil {
-				fnText := NodeText(fn, content)
+				fnText := analyzer.NodeText(fn, content)
 
 				// Jest/Vitest: expect(x).toBe(y) -- the outer call is .toBe()
 				// We count the expect() call as the assertion anchor
@@ -207,14 +208,14 @@ func tsAnalyzeIsolation(files []*parser.ParsedTreeSitterFile, testFuncs []types.
 	// Check each test file for external imports
 	testFileHasExtDep := make(map[string]bool)
 	for _, f := range files {
-		if !tsIsTestFile(f.RelPath) {
+		if !analyzer.TsIsTestFile(f.RelPath) {
 			continue
 		}
 
 		root := f.Tree.RootNode()
 		hasExtDep := false
 
-		WalkTree(root, func(node *tree_sitter.Node) {
+		analyzer.WalkTree(root, func(node *tree_sitter.Node) {
 			kind := node.Kind()
 			if kind != "import_statement" {
 				return
@@ -225,7 +226,7 @@ func tsAnalyzeIsolation(files []*parser.ParsedTreeSitterFile, testFuncs []types.
 			if src == nil {
 				return
 			}
-			modPath := tsStripQuotes(NodeText(src, f.Content))
+			modPath := analyzer.TsStripQuotes(analyzer.NodeText(src, f.Content))
 
 			// Skip relative imports (intra-project)
 			if strings.HasPrefix(modPath, ".") {
@@ -270,7 +271,7 @@ func tsAnalyzeIsolation(files []*parser.ParsedTreeSitterFile, testFuncs []types.
 func tsCountLOC(files []*parser.ParsedTreeSitterFile) (testLOC, srcLOC int) {
 	for _, f := range files {
 		lines := bytes.Count(f.Content, []byte("\n")) + 1
-		if tsIsTestFile(f.RelPath) {
+		if analyzer.TsIsTestFile(f.RelPath) {
 			testLOC += lines
 		} else {
 			srcLOC += lines

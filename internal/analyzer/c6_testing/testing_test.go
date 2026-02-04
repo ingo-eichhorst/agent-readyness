@@ -1,4 +1,4 @@
-package analyzer
+package c6
 
 import (
 	"go/ast"
@@ -131,12 +131,12 @@ func TestC6_TestToCodeRatio(t *testing.T) {
 func TestC6_GoCoverageProfile(t *testing.T) {
 	a := &C6Analyzer{}
 
-	coverFile := filepath.Join("..", "..", "testdata", "coverage", "cover.out")
+	coverFile := filepath.Join("..", "..", "..", "testdata", "coverage", "cover.out")
 	if _, err := os.Stat(coverFile); os.IsNotExist(err) {
 		t.Skip("cover.out testdata not found")
 	}
 
-	pct, src, err := a.parseCoverage(filepath.Join("..", "..", "testdata", "coverage"))
+	pct, src, err := a.parseCoverage(filepath.Join("..", "..", "..", "testdata", "coverage"))
 	if err != nil {
 		t.Fatalf("parseCoverage: %v", err)
 	}
@@ -156,7 +156,7 @@ func TestC6_LCOVParsing(t *testing.T) {
 
 	// Use a temp dir with only lcov.info (no cover.out)
 	tmpDir := t.TempDir()
-	lcovData, err := os.ReadFile(filepath.Join("..", "..", "testdata", "coverage", "lcov.info"))
+	lcovData, err := os.ReadFile(filepath.Join("..", "..", "..", "testdata", "coverage", "lcov.info"))
 	if err != nil {
 		t.Fatalf("read lcov fixture: %v", err)
 	}
@@ -184,7 +184,7 @@ func TestC6_CoberturaParsing(t *testing.T) {
 
 	// Use a temp dir with only cobertura.xml
 	tmpDir := t.TempDir()
-	cobData, err := os.ReadFile(filepath.Join("..", "..", "testdata", "coverage", "cobertura.xml"))
+	cobData, err := os.ReadFile(filepath.Join("..", "..", "..", "testdata", "coverage", "cobertura.xml"))
 	if err != nil {
 		t.Fatalf("read cobertura fixture: %v", err)
 	}

@@ -1,4 +1,4 @@
-package analyzer
+package c6
 
 import (
 	"path/filepath"
@@ -15,7 +15,7 @@ func TestTsDetectTests(t *testing.T) {
 	}
 	defer tsParser.Close()
 
-	testDir, _ := filepath.Abs("../../testdata/valid-ts-project")
+	testDir, _ := filepath.Abs("../../../testdata/valid-ts-project")
 
 	target := &types.AnalysisTarget{
 		Language: types.LangTypeScript,
@@ -82,7 +82,7 @@ func TestTsCountAssertions(t *testing.T) {
 	}
 	defer tsParser.Close()
 
-	testDir, _ := filepath.Abs("../../testdata/valid-ts-project")
+	testDir, _ := filepath.Abs("../../../testdata/valid-ts-project")
 
 	target := &types.AnalysisTarget{
 		Language: types.LangTypeScript,
@@ -132,7 +132,7 @@ func TestTsAnalyzeIsolation(t *testing.T) {
 	}
 	defer tsParser.Close()
 
-	testDir, _ := filepath.Abs("../../testdata/valid-ts-project")
+	testDir, _ := filepath.Abs("../../../testdata/valid-ts-project")
 
 	target := &types.AnalysisTarget{
 		Language: types.LangTypeScript,
@@ -171,7 +171,7 @@ func TestTsC6Integration(t *testing.T) {
 	}
 	defer tsParser.Close()
 
-	testDir, _ := filepath.Abs("../../testdata/valid-ts-project")
+	testDir, _ := filepath.Abs("../../../testdata/valid-ts-project")
 
 	analyzer := NewC6Analyzer(tsParser)
 	targets := []*types.AnalysisTarget{

@@ -1,4 +1,4 @@
-package analyzer
+package c7
 
 import (
 	"testing"

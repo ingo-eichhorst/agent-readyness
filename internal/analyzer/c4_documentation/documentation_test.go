@@ -1,13 +1,43 @@
-package analyzer
+package c4
 
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/ingo/agent-readyness/internal/parser"
 	"github.com/ingo/agent-readyness/pkg/types"
 )
+
+// findProjectRoot walks up from cwd to locate the .git directory.
+func findProjectRoot(t *testing.T) string {
+	t.Helper()
+	dir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd: %v", err)
+	}
+	for {
+		if _, err := os.Stat(filepath.Join(dir, ".git")); err == nil {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			t.Skip("no .git directory found in parent chain")
+		}
+		dir = parent
+	}
+}
+
+// isVendorPath checks if a path is in vendor directory.
+func isVendorPath(path string) bool {
+	return strings.Contains(path, "/vendor/") || strings.HasPrefix(path, "vendor/")
+}
+
+// isTestFile checks if a path is a test file.
+func isTestFile(path string) bool {
+	return strings.HasSuffix(path, "_test.go")
+}
 
 func TestC4Analyzer_Name(t *testing.T) {
 	a := NewC4Analyzer(nil)
@@ -395,15 +425,6 @@ func TestC4Analyzer_Integration(t *testing.T) {
 	if c4.TotalSourceLines == 0 {
 		t.Error("expected TotalSourceLines > 0 for ARS repo")
 	}
-}
-
-func isVendorPath(path string) bool {
-	return filepath.Base(filepath.Dir(path)) == "vendor"
-}
-
-func isTestFile(path string) bool {
-	return filepath.Base(path) != "c4_documentation_test.go" &&
-		len(path) > 8 && path[len(path)-8:] == "_test.go"
 }
 
 func TestAnalyzeCommentDensity_TypeScript(t *testing.T) {

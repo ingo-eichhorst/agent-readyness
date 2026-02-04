@@ -1,13 +1,6 @@
-//go:build reorganized
-// +build reorganized
-
 // Package analyzer provides code analysis implementations for the ARS pipeline.
 // This file provides type aliases and constructor wrappers for backward compatibility
-// after analyzers are reorganized into category subdirectories.
-//
-// Build tag: This file is excluded from normal builds until Plan 02 completes
-// the analyzer reorganization and populates the subdirectories.
-// After Plan 02, remove the "reorganized" build tag.
+// after analyzers were reorganized into category subdirectories.
 package analyzer
 
 import (

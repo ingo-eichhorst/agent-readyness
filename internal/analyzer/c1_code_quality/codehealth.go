@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	"github.com/fzipp/gocyclo"
-	"github.com/ingo/agent-readyness/internal/analyzer"
+	"github.com/ingo/agent-readyness/internal/analyzer/shared"
 	"github.com/ingo/agent-readyness/internal/parser"
 	"github.com/ingo/agent-readyness/pkg/types"
 )
@@ -181,7 +181,7 @@ func (a *C1Analyzer) analyzeGoC1() ([]types.FunctionMetric, []types.DuplicateBlo
 
 	// Coupling
 	modulePath := detectModulePath(srcPkgs)
-	graph := analyzer.BuildImportGraph(srcPkgs, modulePath)
+	graph := shared.BuildImportGraph(srcPkgs, modulePath)
 	coupling := goCouplingResult{
 		afferent: make(map[string]int),
 		efferent: make(map[string]int),

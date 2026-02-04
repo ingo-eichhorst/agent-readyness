@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/ingo/agent-readyness/internal/analyzer"
+	"github.com/ingo/agent-readyness/internal/analyzer/shared"
 	"github.com/ingo/agent-readyness/internal/parser"
 	arstypes "github.com/ingo/agent-readyness/pkg/types"
 )
@@ -171,7 +171,7 @@ func (a *C3Analyzer) analyzeGoC3() *arstypes.C3Metrics {
 	srcPkgs := filterSourcePackages(a.pkgs)
 
 	modulePath := detectModulePath(srcPkgs)
-	graph := analyzer.BuildImportGraph(srcPkgs, modulePath)
+	graph := shared.BuildImportGraph(srcPkgs, modulePath)
 
 	maxDepth, avgDepth := analyzeDirectoryDepth(srcPkgs, modulePath)
 	fanout := analyzeModuleFanout(srcPkgs, graph)
@@ -236,7 +236,7 @@ func packageDepth(pkgPath, modulePath string) int {
 }
 
 // analyzeModuleFanout computes average and max intra-module imports per package.
-func analyzeModuleFanout(pkgs []*parser.ParsedPackage, graph *analyzer.ImportGraph) arstypes.MetricSummary {
+func analyzeModuleFanout(pkgs []*parser.ParsedPackage, graph *shared.ImportGraph) arstypes.MetricSummary {
 	if len(pkgs) == 0 {
 		return arstypes.MetricSummary{}
 	}
@@ -263,7 +263,7 @@ func analyzeModuleFanout(pkgs []*parser.ParsedPackage, graph *analyzer.ImportGra
 
 // detectCircularDeps uses DFS with white/gray/black coloring to find cycles in the import graph.
 // In valid Go code, the compiler prevents import cycles, so this returns empty for compilable code.
-func detectCircularDeps(graph *analyzer.ImportGraph) [][]string {
+func detectCircularDeps(graph *shared.ImportGraph) [][]string {
 	const (
 		white = iota // unvisited
 		gray         // in current DFS path

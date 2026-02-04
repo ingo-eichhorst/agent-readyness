@@ -12,7 +12,7 @@ import (
 
 	tree_sitter "github.com/tree-sitter/go-tree-sitter"
 
-	"github.com/ingo/agent-readyness/internal/analyzer"
+	"github.com/ingo/agent-readyness/internal/analyzer/shared"
 	"github.com/ingo/agent-readyness/internal/parser"
 	"github.com/ingo/agent-readyness/pkg/types"
 )
@@ -44,7 +44,7 @@ func pyWalkFunctions(node *tree_sitter.Node, content []byte, file string, classN
 		nameNode := node.ChildByFieldName("name")
 		clsName := ""
 		if nameNode != nil {
-			clsName = analyzer.NodeText(nameNode, content)
+			clsName = shared.NodeText(nameNode, content)
 		}
 		body := node.ChildByFieldName("body")
 		if body != nil {
@@ -76,7 +76,7 @@ func pyWalkFunctions(node *tree_sitter.Node, content []byte, file string, classN
 		nameNode := node.ChildByFieldName("name")
 		name := ""
 		if nameNode != nil {
-			name = analyzer.NodeText(nameNode, content)
+			name = shared.NodeText(nameNode, content)
 		}
 
 		if className != "" {

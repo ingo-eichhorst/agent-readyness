@@ -733,16 +733,18 @@ var metricDescriptions = map[string]MetricDescription{
 	// C5: Temporal Dynamics Metrics
 	// ============================================================================
 	"churn_rate": {
-		Brief:     "Average code changes per file over time. Lower churn indicates stable code that's safer to modify.",
+		Brief:     "Average code changes per file over time. Code churn strongly predicts defect-prone areas <span class=\"citation\">(Kim et al., 2007)</span>.",
 		Threshold: 6.0,
 		Detailed: `<h4>Definition</h4>
 <p>Measures how frequently code changes over time, calculated from git history. High churn indicates files that are modified often, potentially due to instability, evolving requirements, or maintenance burden.</p>
 
 <h4>Why It Matters for AI Agents</h4>
-<p>High-churn code is more likely to change again soon, increasing the risk that agent modifications will conflict with ongoing work. Stable code provides a reliable foundation for agent changes. Churn also correlates with defect density.</p>
+<p>High-churn code is more likely to change again soon, increasing the risk that agent modifications will conflict with ongoing work. Stable code provides a reliable foundation for agent changes. Churn also correlates with defect density, meaning high-churn areas are riskier for automated modification.</p>
 
 <h4>Research Evidence</h4>
-<p>Code churn is a strong predictor of defects <span class="citation">(Kim et al., 2007)</span>. High-churn files are often complexity hotspots requiring special attention <span class="citation">(Tornhill, 2015)</span>.</p>
+<p>Foundational research established that process measures derived from change history are more predictive of faults than product metrics like code size <span class="citation">(Graves et al., 2000)</span>. Nagappan and Ball demonstrated that relative code churn measures (churn normalized by component size) predict system defect density with 89% accuracy on Windows Server 2003 <span class="citation">(Nagappan & Ball, 2005)</span>.</p>
+<p>Kim et al. extended this work, showing that change history patterns using a cache-based strategy effectively predict fault-prone files across seven software systems <span class="citation">(Kim et al., 2007)</span>. Tornhill synthesizes this research into practitioner guidance, identifying high-churn files as complexity hotspots requiring special attention <span class="citation">(Tornhill, 2015)</span>. Note: Tornhill is influential practitioner literature synthesizing academic research.</p>
+<p>While AI-era research has not specifically tested temporal metrics, code health broadly predicts agent reliability <span class="citation">(Borg et al., 2026)</span>. The connection is indirect but logical: temporal metrics predict defect-prone areas, which are harder for AI agents to modify successfully.</p>
 
 <h4>Recommended Thresholds</h4>
 <ul>
@@ -762,7 +764,7 @@ var metricDescriptions = map[string]MetricDescription{
 	},
 
 	"temporal_coupling_pct": {
-		Brief:     "Files that change together. Lower temporal coupling means more independent components.",
+		Brief:     "Files that change together. Temporal coupling reveals hidden dependencies not visible in code structure <span class=\"citation\">(Gall et al., 1998)</span>.",
 		Threshold: 6.0,
 		Detailed: `<h4>Definition</h4>
 <p>Percentage of file pairs that frequently change together in commits but have no direct import relationship. Indicates hidden coupling not visible in code structure but present in change patterns.</p>
@@ -771,7 +773,9 @@ var metricDescriptions = map[string]MetricDescription{
 <p>Temporal coupling reveals hidden dependencies that agents cannot see from code alone. When files are temporally coupled, changing one without the other often introduces bugs. Agents may miss these implicit relationships.</p>
 
 <h4>Research Evidence</h4>
-<p>Temporal coupling analysis reveals architectural issues not visible in static code <span class="citation">(Tornhill, 2015)</span>. Files that change together often should be co-located or have explicit dependencies.</p>
+<p>Gall et al. pioneered the detection of "logical coupling" from product release history, demonstrating that change patterns reveal architectural dependencies not apparent from static code analysis <span class="citation">(Gall et al., 1998)</span>. This foundational work established that modules changing together often indicate design issues or restructuring opportunities.</p>
+<p>D'Ambros et al. empirically validated that change coupling correlates with software defects across three large systems, and that incorporating change coupling information improves bug prediction models <span class="citation">(D'Ambros et al., 2009)</span>. Tornhill synthesizes this research into practitioner guidance, showing how temporal coupling analysis reveals hidden dependencies requiring attention <span class="citation">(Tornhill, 2015)</span>. Note: Tornhill represents influential practitioner literature.</p>
+<p>While AI-era research focuses on structural code health rather than temporal metrics specifically, the principle applies: hidden dependencies that surprise developers also surprise AI agents <span class="citation">(Borg et al., 2026)</span>.</p>
 
 <h4>Recommended Thresholds</h4>
 <ul>
@@ -791,7 +795,7 @@ var metricDescriptions = map[string]MetricDescription{
 	},
 
 	"author_fragmentation": {
-		Brief:     "Number of distinct authors per file. Fewer authors suggests clearer ownership and consistent style.",
+		Brief:     "Number of distinct authors per file. Ownership fragmentation increases defect rates <span class=\"citation\">(Bird et al., 2011)</span>.",
 		Threshold: 6.0,
 		Detailed: `<h4>Definition</h4>
 <p>Average number of distinct commit authors per file, measured from git history. High fragmentation indicates code touched by many developers without clear ownership.</p>
@@ -800,7 +804,9 @@ var metricDescriptions = map[string]MetricDescription{
 <p>Files with many authors often have inconsistent styles and patterns from different contributors. This inconsistency makes it harder for agents to match existing conventions. Clear ownership typically correlates with consistent, maintainable code.</p>
 
 <h4>Research Evidence</h4>
-<p>Code ownership patterns affect defect rates <span class="citation">(Kim et al., 2007)</span>. Files without clear ownership tend to accumulate inconsistencies and technical debt.</p>
+<p>Bird et al. conducted a definitive study on code ownership at Microsoft, finding that ownership measures relate to both pre-release and post-release faults <span class="citation">(Bird et al., 2011)</span>. Components with many low-expertise contributors had significantly higher defect rates than those with clear ownership. The study quantified that minor contributors (those with less than 5% of changes) increase defect risk.</p>
+<p>Kim et al.'s work on fault prediction from change history also incorporates developer contribution patterns, showing that author metrics contribute to prediction accuracy <span class="citation">(Kim et al., 2007)</span>. Tornhill synthesizes this research, identifying author fragmentation as an indicator of knowledge silos and potential quality issues <span class="citation">(Tornhill, 2015)</span>. Note: Tornhill represents influential practitioner literature.</p>
+<p>For AI agents, code with inconsistent patterns from multiple authors is harder to modify in a style-consistent way. Code health metrics broadly predict agent reliability <span class="citation">(Borg et al., 2026)</span>.</p>
 
 <h4>Recommended Thresholds</h4>
 <ul>
@@ -820,7 +826,7 @@ var metricDescriptions = map[string]MetricDescription{
 	},
 
 	"commit_stability": {
-		Brief:     "Ratio of additions to modifications. Higher stability means less rework and more forward progress.",
+		Brief:     "Ratio of additions to modifications. Code decay manifests through increasing modification patterns <span class=\"citation\">(Eick et al., 2001)</span>.",
 		Threshold: 6.0,
 		Detailed: `<h4>Definition</h4>
 <p>Measures the balance between new code additions and modifications to existing code. High stability indicates more additive development; low stability suggests significant rework or refactoring.</p>
@@ -829,7 +835,9 @@ var metricDescriptions = map[string]MetricDescription{
 <p>Stable code that mostly receives additions is safer for agent modifications. Frequently rewritten code may change again soon, potentially conflicting with agent work. Stability indicates mature, settled designs.</p>
 
 <h4>Research Evidence</h4>
-<p>Modification patterns predict future defects <span class="citation">(Kim et al., 2007)</span>. Code stability is associated with maturity and lower maintenance burden.</p>
+<p>Eick et al. defined and studied "code decay"—the phenomenon where code becomes increasingly difficult to change over time <span class="citation">(Eick et al., 2001)</span>. Their research identified change patterns as both symptoms and predictors of decay, establishing that high modification rates relative to additions indicate code under stress.</p>
+<p>Graves et al. demonstrated that modification patterns from change history predict future defects, with recently and frequently modified code being more fault-prone <span class="citation">(Graves et al., 2000)</span>. Tornhill extends this into practitioner guidance, using commit patterns as indicators of code maturity and stability <span class="citation">(Tornhill, 2015)</span>. Note: Tornhill represents influential practitioner literature.</p>
+<p>Note: Commit stability as a specific ratio metric has limited dedicated research. The thresholds represent practitioner consensus rather than empirically derived values. The underlying principle—that modification patterns indicate instability—has strong research support.</p>
 
 <h4>Recommended Thresholds</h4>
 <ul>
@@ -849,7 +857,7 @@ var metricDescriptions = map[string]MetricDescription{
 	},
 
 	"hotspot_concentration": {
-		Brief:     "How concentrated changes are in a few files. Lower concentration means distributed, healthier codebase.",
+		Brief:     "How concentrated changes are in a few files. Churn concentration identifies high-defect-density components <span class=\"citation\">(Nagappan & Ball, 2005)</span>.",
 		Threshold: 6.0,
 		Detailed: `<h4>Definition</h4>
 <p>Measures how concentrated code changes are in a small number of "hotspot" files. High concentration means most changes happen in few files; low concentration indicates changes are distributed evenly.</p>
@@ -858,7 +866,9 @@ var metricDescriptions = map[string]MetricDescription{
 <p>Hotspot files are high-risk modification targets. When agents must modify hotspots, the risk of conflicts and regressions is higher. Distributed changes across many files indicate healthier architecture with single-purpose modules.</p>
 
 <h4>Research Evidence</h4>
-<p>Hotspots are primary targets for quality improvement <span class="citation">(Tornhill, 2015)</span>. The Pareto principle often applies: 20% of files account for 80% of bugs and changes.</p>
+<p>Nagappan and Ball's research on code churn showed that churn concentration—where changes cluster in specific components—identifies high-defect-density areas <span class="citation">(Nagappan & Ball, 2005)</span>. Components with concentrated changes had disproportionately higher defect rates.</p>
+<p>Hassan extended this work, demonstrating that the complexity of changes (measured by entropy across files) predicts faults <span class="citation">(Hassan, 2009)</span>. Hotspots with high change entropy are particularly fault-prone. Tornhill synthesizes this research into practitioner guidance, identifying hotspots as primary refactoring targets following the Pareto principle: 20% of files often account for 80% of bugs and changes <span class="citation">(Tornhill, 2015)</span>. Note: Tornhill represents influential practitioner literature; the 20/80 ratio is a common heuristic, not an empirically derived constant.</p>
+<p>For AI agents, hotspots represent high-risk modification targets. Code health metrics broadly predict agent reliability, with defect-prone areas being harder for agents to modify successfully <span class="citation">(Borg et al., 2026)</span>.</p>
 
 <h4>Recommended Thresholds</h4>
 <ul>

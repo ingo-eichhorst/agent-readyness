@@ -18,7 +18,7 @@ This milestone establishes scientific foundations for all 33 ARS metric descript
 - Each phase corresponds to one analysis category
 
 - [x] **Phase 18: C1 Code Health** - Establish quality protocols + 6 metric citations
-- [ ] **Phase 19: C6 Testing** - 5 metric citations (well-researched domain)
+- [x] **Phase 19: C6 Testing** - 5 metric citations (well-researched domain)
 - [ ] **Phase 20: C2 Semantic Explicitness** - 5 metric citations
 - [ ] **Phase 21: C3 Architecture** - 5 metric citations
 - [ ] **Phase 22: C4 Documentation** - 7 metric citations
@@ -70,10 +70,10 @@ Plans:
   2. C2 References section contains complete citations with verified, accessible URLs
   3. Citations distinguish timeless type theory from dated empirical findings
   4. Every quantified claim in C2 metric descriptions has an explicit source attribution
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 20-01: [TBD during planning]
+- [ ] 20-01-PLAN.md — Add citations to all 5 C2 metrics and verify URLs
 
 ### Phase 21: C3 Architecture
 **Goal**: Add research-backed citations to all C3 Architecture metrics
@@ -157,7 +157,7 @@ Phases 18-24 execute sequentially. Phase 18 must complete first (establishes pro
 |-------|-----------|----------------|--------|-----------|
 | 18. C1 Code Health | v0.0.4 | 2/2 | Complete | 2026-02-04 |
 | 19. C6 Testing | v0.0.4 | 1/1 | Complete | 2026-02-04 |
-| 20. C2 Semantic Explicitness | v0.0.4 | 0/TBD | Not started | - |
+| 20. C2 Semantic Explicitness | v0.0.4 | 0/1 | Planned | - |
 | 21. C3 Architecture | v0.0.4 | 0/TBD | Not started | - |
 | 22. C4 Documentation | v0.0.4 | 0/TBD | Not started | - |
 | 23. C5 Temporal Dynamics | v0.0.4 | 0/TBD | Not started | - |

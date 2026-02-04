@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-04)
 
 **Core value:** Accurate, evidence-based scoring that predicts agent success and identifies specific improvements teams should make before adopting AI coding agents.
-**Current focus:** Phase 18 - C1 Code Health citations + quality protocol establishment
+**Current focus:** Phase 19 - C6 Testing citations
 
 ## Current Position
 
-Phase: 18 of 24 (C1 Code Health)
-Plan: 2 of 2 in current phase
+Phase: 19 of 24 (C6 Testing)
+Plan: 1 of 1 in current phase
 Status: Phase complete
-Last activity: 2026-02-04 — Completed 18-02-PLAN.md (C1 Code Health Citations)
+Last activity: 2026-02-04 — Completed 19-01-PLAN.md (C6 Testing Citations)
 
-Progress: [####################] 100% (v1-v0.0.3) | [##........] 14% (v0.0.4)
+Progress: [####################] 100% (v1-v0.0.3) | [###.......] 29% (v0.0.4)
 
 ## Performance Metrics
 
@@ -33,7 +33,7 @@ Progress: [####################] 100% (v1-v0.0.3) | [##........] 14% (v0.0.4)
 
 **v0.0.4 (Current):**
 - Phases: 7 (18-24)
-- Plans completed: 2
+- Plans completed: 3
 - Focus: Content expansion (citations), not code changes
 
 *Updated after each plan completion*
@@ -52,6 +52,8 @@ Recent decisions affecting current work:
 - [18-01]: DOI preferred, ArXiv acceptable — standard for AI-era research
 - [18-02]: Duplicate entries per category — Parnas/Gamma in both C1 and C3 for self-contained refs
 - [18-02]: Chowdhury (2022) for func_length — only empirical threshold despite Java-specific
+- [19-01]: Coverage controversy documented — Mockus (positive) vs Inozemtseva (low-moderate)
+- [19-01]: Kudrjavets production assertions contextualized for test assertions
 
 ### Pending Todos
 
@@ -65,5 +67,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-04
-Stopped at: Completed 18-02-PLAN.md (C1 Code Health Citations)
-Resume file: None — Phase 18 complete, ready for Phase 19
+Stopped at: Completed 19-01-PLAN.md (C6 Testing Citations)
+Resume file: None — Phase 19 complete, ready for Phase 20

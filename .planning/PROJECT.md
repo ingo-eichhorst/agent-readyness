@@ -40,19 +40,18 @@ Accurate, evidence-based scoring that predicts agent success and identifies spec
 - ✓ Cost-transparent opt-in LLM features (--enable-c4-llm, --enable-c7 flags) — v0.0.2
 - ✓ Complete 7-category framework (C1-C7) with updated composite scoring — v0.0.2
 
+**v0.0.3 requirements (22 total):**
+- ✓ Unified LLM integration on Claude Code CLI (removed Anthropic SDK, no API key required) — v0.0.3
+- ✓ Auto-enable LLM features when Claude CLI available, --no-llm flag for opt-out — v0.0.3
+- ✓ Badge generation with `--badge` flag producing shields.io markdown URL — v0.0.3
+- ✓ Expandable metric descriptions in HTML reports with 33 research-backed explanations — v0.0.3
+- ✓ Analyzer reorganization into 7 category subdirectories with shared utilities subpackage — v0.0.3
+- ✓ MIT LICENSE and standard Go project badges (Go Reference, Report Card, License, Release) — v0.0.3
+- ✓ Test coverage filename standardization (cover.out) for C6 self-analysis — v0.0.3
+
 ### Active
 
-**Current Milestone: v0.0.3 — Simplification & Polish**
-
-**Goal:** Simplify LLM integration by unifying on Claude Code CLI, add badge generation for visibility, improve HTML report with research-backed expandable descriptions, and reorganize codebase structure.
-
-**Target features (22 requirements across 6 GitHub issues):**
-- LLM Integration (#6): Remove Anthropic SDK, use Claude Code CLI for all LLM analysis
-- Badge Generation (#5): `--badge` flag generates shields.io markdown URL
-- HTML Report (#7): Expandable metric descriptions with research citations
-- README (#4): Add status badges (Go Reference, Report Card, License, Release)
-- Codebase Organization (#3): Reorganize analyzer/ into category subdirectories
-- Testing (#2): Always run tests with coverage flag
+(No active milestone — ready to plan v0.0.4)
 
 ### Out of Scope
 
@@ -68,13 +67,14 @@ Accurate, evidence-based scoring that predicts agent success and identifies spec
 
 ## Context
 
-**Current State (v0.0.2 shipped 2026-02-03):**
-- 21,122 LOC Go
-- Tech stack: Go 1.24, cobra CLI, Tree-sitter (Python/TypeScript), Anthropic SDK (LLM features), go-charts (HTML reports)
-- 100+ tests passing across 11 packages, 85%+ coverage
+**Current State (v0.0.3 shipped 2026-02-04):**
+- 22,624 LOC Go
+- Tech stack: Go 1.24, cobra CLI, Tree-sitter (Python/TypeScript), Claude Code CLI (LLM features), go-charts (HTML reports)
+- 100+ tests passing across 11 packages, 72%+ coverage
 - Validated on multi-language codebases (Go, Python, TypeScript)
-- 12 phases total (v1: 5 phases, v0.0.2: 7 phases), 31 plans completed
+- 17 phases total (v1: 5 phases, v0.0.2: 7 phases, v0.0.3: 5 phases), 38 plans completed
 - All 7 analysis categories operational (C1-C7)
+- Analyzer organized into 7 category subdirectories (c1_code_quality/ through c7_agent/)
 
 **Research Foundation:**
 - Borg et al. (2026): Code Health metrics predict maintainability
@@ -118,10 +118,14 @@ Internal tooling to identify which repositories need investment before agent ado
 | Parallel analyzer execution (v1) | Reduce wall-clock time for large codebases | ✓ Good - Performance meets <30s requirement |
 | Tree-sitter for Python/TypeScript (v0.0.2) | Language-agnostic parsing without runtime dependencies | ✓ Good - Multi-language without embedded interpreters (requires CGO) |
 | Native git CLI for C5 (v0.0.2) | 10-100x faster than go-git for log parsing | ✓ Good - Temporal analysis completes in seconds |
-| Anthropic SDK for LLM features (v0.0.2) | Single provider, Haiku for cost efficiency | ✓ Good - Cost-effective C4/C7 analysis |
+| Anthropic SDK for LLM features (v0.0.2) | Single provider, Haiku for cost efficiency | ⚠️ Replaced - Migrated to Claude Code CLI in v0.0.3 |
 | Tiered execution model (v0.0.2) | Free/fast default, opt-in LLM features | ✓ Good - Zero cost for static analysis, user controls LLM spend |
 | LLM-as-judge for C7 (v0.0.2) | Genuine agent evaluation vs synthetic metrics | ✓ Good - Most novel and differentiated metric in the space |
 | Git worktree isolation (v0.0.2) | Safe agent execution without modifying user's working tree | ✓ Good - C7 runs in isolated workspace |
+| Claude Code CLI for LLM features (v0.0.3) | Unified auth via CLI, no API key management | ✓ Good - Zero-config LLM features for CLI users |
+| Auto-enable LLM when CLI available (v0.0.3) | Reduce friction for users with Claude CLI installed | ✓ Good - LLM features work out of the box |
+| shared/ subpackage for analyzer utilities (v0.0.3) | Resolve import cycles when reorganizing analyzers | ✓ Good - Clean architecture, no cycles |
+| HTML5 details/summary for expandables (v0.0.3) | CSS-only expand/collapse, progressive enhancement | ✓ Good - Works without JavaScript |
 
 ---
-*Last updated: 2026-02-03 after v0.0.3 milestone initialization*
+*Last updated: 2026-02-04 after v0.0.3 milestone completion*

@@ -98,10 +98,10 @@ Plans:
   2. C4 References section contains complete citations with verified, accessible URLs
   3. Open-access versions provided for paywalled sources where possible
   4. Every quantified claim in C4 metric descriptions has an explicit source attribution
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 22-01: [TBD during planning]
+- [ ] 22-01-PLAN.md — Add citations to all 7 C4 metrics and verify URLs
 
 ### Phase 23: C5 Temporal Dynamics
 **Goal**: Add research-backed citations to all C5 Temporal Dynamics metrics
@@ -159,7 +159,7 @@ Phases 18-24 execute sequentially. Phase 18 must complete first (establishes pro
 | 19. C6 Testing | v0.0.4 | 1/1 | Complete | 2026-02-04 |
 | 20. C2 Semantic Explicitness | v0.0.4 | 1/1 | Complete | 2026-02-04 |
 | 21. C3 Architecture | v0.0.4 | 1/1 | Complete | 2026-02-04 |
-| 22. C4 Documentation | v0.0.4 | 0/TBD | Not started | - |
+| 22. C4 Documentation | v0.0.4 | 0/1 | Planned | - |
 | 23. C5 Temporal Dynamics | v0.0.4 | 0/TBD | Not started | - |
 | 24. C7 Agent Evaluation | v0.0.4 | 0/TBD | Not started | - |
 

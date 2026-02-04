@@ -98,8 +98,8 @@ func TestHTMLGenerator_GenerateReport(t *testing.T) {
 	if !strings.Contains(html, "C1: Code Health") {
 		t.Error("GenerateReport() missing category display name")
 	}
-	if !strings.Contains(html, "Research Citations") {
-		t.Error("GenerateReport() missing citations section")
+	if !strings.Contains(html, "category-citations") {
+		t.Error("GenerateReport() missing per-category citations")
 	}
 }
 

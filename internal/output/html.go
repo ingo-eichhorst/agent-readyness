@@ -48,6 +48,7 @@ type HTMLCategory struct {
 	ScoreClass        string // "ready", "assisted", "limited"
 	SubScores         []HTMLSubScore
 	ImpactDescription string
+	Citations         []Citation // Per-category citations
 }
 
 // HTMLSubScore represents a metric sub-score for HTML display.
@@ -125,7 +126,7 @@ func (g *HTMLGenerator) GenerateReport(w io.Writer, scored *types.ScoredResult, 
 		RadarChartSVG:   template.HTML(radarSVG), // Safe: we generated it
 		TrendChartSVG:   template.HTML(trendSVG), // Safe: we generated it
 		HasTrend:        baseline != nil && trendSVG != "",
-		Categories:      buildHTMLCategories(scored.Categories),
+		Categories:      buildHTMLCategories(scored.Categories, researchCitations),
 		Recommendations: buildHTMLRecommendations(recs),
 		Citations:       researchCitations,
 		InlineCSS:       template.CSS(string(cssBytes)), // Safe: from our template
@@ -162,22 +163,34 @@ func scoreToClass(score float64) string {
 }
 
 // buildHTMLCategories converts scored categories to HTML display format.
-func buildHTMLCategories(categories []types.CategoryScore) []HTMLCategory {
+func buildHTMLCategories(categories []types.CategoryScore, citations []Citation) []HTMLCategory {
 	result := make([]HTMLCategory, 0, len(categories))
 
 	for _, cat := range categories {
 		hc := HTMLCategory{
-			Name:        cat.Name,
-			DisplayName: categoryDisplayName(cat.Name),
-			Score:       cat.Score,
-			ScoreClass:  scoreToClass(cat.Score),
-			SubScores:   buildHTMLSubScores(cat.SubScores),
+			Name:              cat.Name,
+			DisplayName:       categoryDisplayName(cat.Name),
+			Score:             cat.Score,
+			ScoreClass:        scoreToClass(cat.Score),
+			SubScores:         buildHTMLSubScores(cat.SubScores),
 			ImpactDescription: categoryImpact(cat.Name),
+			Citations:         filterCitationsByCategory(citations, cat.Name),
 		}
 		result = append(result, hc)
 	}
 
 	return result
+}
+
+// filterCitationsByCategory returns citations matching the given category name.
+func filterCitationsByCategory(citations []Citation, categoryName string) []Citation {
+	var filtered []Citation
+	for _, c := range citations {
+		if c.Category == categoryName {
+			filtered = append(filtered, c)
+		}
+	}
+	return filtered
 }
 
 // buildHTMLSubScores converts sub-scores to HTML display format.

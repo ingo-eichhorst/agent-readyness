@@ -72,15 +72,15 @@ Requirements for milestone v0.0.4 Metric Research. Each maps to roadmap phases.
 
 ### C6: Testing Metrics (Issue #52)
 
-- [ ] **C6-01**: Research foundational sources (pre-2021) for all 5 C6 metrics
-- [ ] **C6-02**: Research AI/agent era sources (2021+) for all 5 C6 metrics
-- [ ] **C6-03**: Add inline citations to test_to_code_ratio description
-- [ ] **C6-04**: Add inline citations to coverage_percent description
-- [ ] **C6-05**: Add inline citations to test_isolation description
-- [ ] **C6-06**: Add inline citations to assertion_density_avg description
-- [ ] **C6-07**: Add inline citations to test_file_ratio description
-- [ ] **C6-08**: Add References section for all C6 metrics with verified URLs
-- [ ] **C6-09**: Verify all C6 citation URLs accessible
+- [x] **C6-01**: Research foundational sources (pre-2021) for all 5 C6 metrics
+- [x] **C6-02**: Research AI/agent era sources (2021+) for all 5 C6 metrics
+- [x] **C6-03**: Add inline citations to test_to_code_ratio description
+- [x] **C6-04**: Add inline citations to coverage_percent description
+- [x] **C6-05**: Add inline citations to test_isolation description
+- [x] **C6-06**: Add inline citations to assertion_density_avg description
+- [x] **C6-07**: Add inline citations to test_file_ratio description
+- [x] **C6-08**: Add References section for all C6 metrics with verified URLs
+- [x] **C6-09**: Verify all C6 citation URLs accessible
 
 ### C7: Agent Evaluation Metrics (Issue #53)
 

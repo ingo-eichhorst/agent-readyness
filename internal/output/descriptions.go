@@ -849,7 +849,7 @@ var metricDescriptions = map[string]MetricDescription{
 	// C6: Testing Metrics
 	// ============================================================================
 	"test_to_code_ratio": {
-		Brief:     "Ratio of test code to production code. More tests provide safety nets for agent modifications.",
+		Brief:     "Ratio of test code to production code. TDD teams see 40-90% fewer defects with comprehensive testing <span class=\"citation\">(Nagappan et al., 2008)</span>.",
 		Threshold: 6.0,
 		Detailed: `<h4>Definition</h4>
 <p>The ratio of test lines of code to production lines of code. A ratio of 1.0 means equal amounts of test and production code. Higher ratios indicate more comprehensive testing.</p>
@@ -858,7 +858,8 @@ var metricDescriptions = map[string]MetricDescription{
 <p>Tests are the safety net that catches agent mistakes. With good test coverage, agents can make changes and immediately verify they haven't broken existing functionality. Without tests, agent changes may introduce silent regressions.</p>
 
 <h4>Research Evidence</h4>
-<p>Test-driven development improves code quality and reduces defect rates <span class="citation">(Beck, 2002)</span>. Higher test ratios correlate with fewer production bugs <span class="citation">(Mockus et al., 2009)</span>.</p>
+<p>Beck established the test-first methodology that makes systematic testing practical <span class="citation">(Beck, 2002)</span>. Industrial studies at Microsoft and IBM found that teams using TDD experienced 40-90% lower pre-release defect density, with the trade-off of 15-35% longer initial development time <span class="citation">(Nagappan et al., 2008)</span>.</p>
+<p>Recent research on AI agents shows that code health metrics predict agent reliability, making test infrastructure a critical factor for AI-assisted development <span class="citation">(Borg et al., 2026)</span>.</p>
 
 <h4>Recommended Thresholds</h4>
 <ul>
@@ -878,7 +879,7 @@ var metricDescriptions = map[string]MetricDescription{
 	},
 
 	"coverage_percent": {
-		Brief:     "Percentage of code covered by tests. Higher coverage means more verified behavior for agents to rely on.",
+		Brief:     "Percentage of code covered by tests. Coverage correlates with fewer field defects <span class=\"citation\">(Mockus et al., 2009)</span>, though effect size is debated <span class=\"citation\">(Inozemtseva & Holmes, 2014)</span>.",
 		Threshold: 6.0,
 		Detailed: `<h4>Definition</h4>
 <p>The percentage of code statements executed during test runs. Measures how much of the codebase has test verification. Can include line coverage, branch coverage, or combined metrics.</p>
@@ -887,7 +888,8 @@ var metricDescriptions = map[string]MetricDescription{
 <p>Coverage indicates which code has verified behavior. Agents can modify covered code with confidence that tests will catch mistakes. Uncovered code is a blind spot where agent changes may cause undetected problems.</p>
 
 <h4>Research Evidence</h4>
-<p>Coverage correlates with defect detection <span class="citation">(Mockus et al., 2009)</span>. While coverage alone doesn't guarantee quality, low coverage reliably indicates undertested code.</p>
+<p>The relationship between coverage and defect detection is nuanced. Mockus et al. found that increases in coverage associate with fewer post-release field defects <span class="citation">(Mockus et al., 2009)</span>. However, Inozemtseva and Holmes demonstrated that when controlling for test suite size, coverage shows only "low to moderate correlation" with fault detection effectiveness <span class="citation">(Inozemtseva & Holmes, 2014)</span>.</p>
+<p>The practical interpretation: coverage is necessary but not sufficient. Low coverage reliably indicates undertested code, but high coverage alone does not guarantee effective testing. Assertion quality and test design matter alongside coverage metrics. Recent research confirms that comprehensive test infrastructure is critical for AI agent reliability <span class="citation">(Borg et al., 2026)</span>.</p>
 
 <h4>Recommended Thresholds</h4>
 <ul>
@@ -907,7 +909,7 @@ var metricDescriptions = map[string]MetricDescription{
 	},
 
 	"test_isolation": {
-		Brief:     "Independence of tests from external state. Isolated tests run reliably and help agents verify changes quickly.",
+		Brief:     "Independence of tests from external state. Test doubles isolate the system under test from dependencies <span class=\"citation\">(Meszaros, 2007)</span>.",
 		Threshold: 6.0,
 		Detailed: `<h4>Definition</h4>
 <p>Measures how well tests are isolated from external dependencies: databases, file systems, network services, and global state. Isolated tests use mocks, stubs, or in-memory implementations.</p>
@@ -916,7 +918,8 @@ var metricDescriptions = map[string]MetricDescription{
 <p>Isolated tests run quickly and reliably, providing fast feedback for agent changes. Tests dependent on external services are flaky and slow, reducing agent iteration speed. Agents can more confidently modify code with reliable test suites.</p>
 
 <h4>Research Evidence</h4>
-<p>Test isolation is fundamental to effective testing <span class="citation">(Beck, 2002)</span>. Flaky tests that depend on external state erode confidence and slow development.</p>
+<p>Meszaros established systematic patterns for test doubles (mocks, stubs, fakes) that isolate the System Under Test (SUT) from dependencies <span class="citation">(Meszaros, 2007)</span>. Beck emphasized that isolated tests run reliably, fast, and in any order—critical properties for rapid feedback <span class="citation">(Beck, 2002)</span>.</p>
+<p>Luo et al. analyzed 201 flaky tests and found that shared state and external dependencies are primary causes of test flakiness <span class="citation">(Luo et al., 2014)</span>. Flaky tests erode confidence: if developers ignore failures "because it's flaky," real bugs slip through. AI agent performance depends on reliable test feedback for iterative code modification <span class="citation">(Borg et al., 2026)</span>.</p>
 
 <h4>Recommended Thresholds</h4>
 <ul>
@@ -936,7 +939,7 @@ var metricDescriptions = map[string]MetricDescription{
 	},
 
 	"assertion_density_avg": {
-		Brief:     "Assertions per test. More assertions per test provide stronger verification of expected behavior.",
+		Brief:     "Assertions per test. Assertion density negatively correlates with fault density in production code <span class=\"citation\">(Kudrjavets et al., 2006)</span>.",
 		Threshold: 6.0,
 		Detailed: `<h4>Definition</h4>
 <p>The average number of assertions per test function. Measures how thoroughly tests verify expected behavior versus simply executing code paths.</p>
@@ -945,7 +948,8 @@ var metricDescriptions = map[string]MetricDescription{
 <p>Tests without sufficient assertions may pass while actual behavior is incorrect. When agents modify code, assertion-dense tests catch subtle bugs that path coverage alone would miss. Each assertion is a specification that agents must preserve.</p>
 
 <h4>Research Evidence</h4>
-<p>Assertion density correlates with defect detection effectiveness <span class="citation">(Mockus et al., 2009)</span>. Tests should verify behavior, not just execute code <span class="citation">(Beck, 2002)</span>.</p>
+<p>Kudrjavets et al. studied Windows components and found that assertion density in production code negatively correlates with fault density—components with more assertions had fewer bugs <span class="citation">(Kudrjavets et al., 2006)</span>. While this study focused on production assertions, the principle applies to test assertions: explicit verification catches errors that mere execution would miss.</p>
+<p>Beck emphasizes that tests should verify behavior, not just execute code paths <span class="citation">(Beck, 2002)</span>. A test that runs without assertions is not a test—it's documentation at best. AI agents benefit from assertion-dense tests because each assertion acts as a specification that must be preserved during code modification <span class="citation">(Borg et al., 2026)</span>.</p>
 
 <h4>Recommended Thresholds</h4>
 <ul>
@@ -965,7 +969,7 @@ var metricDescriptions = map[string]MetricDescription{
 	},
 
 	"test_file_ratio": {
-		Brief:     "Ratio of test files to source files. Higher ratios suggest systematic test organization.",
+		Brief:     "Ratio of test files to source files. Systematic test organization follows TDD structure <span class=\"citation\">(Meszaros, 2007)</span>.",
 		Threshold: 6.0,
 		Detailed: `<h4>Definition</h4>
 <p>The ratio of test files to production source files. Measures whether tests are systematically organized to cover the codebase. A ratio of 1.0 means one test file per source file.</p>
@@ -974,7 +978,8 @@ var metricDescriptions = map[string]MetricDescription{
 <p>Systematic test organization helps agents locate tests for code they're modifying. When each source file has a corresponding test file, agents can easily find and extend relevant tests. Random test organization makes test discovery difficult.</p>
 
 <h4>Research Evidence</h4>
-<p>Consistent project structure aids navigation and comprehension <span class="citation">(Sadowski et al., 2015)</span>. Test organization patterns like "test mirrors source" improve maintainability.</p>
+<p>Meszaros documents systematic test organization patterns that enhance maintainability and navigation <span class="citation">(Meszaros, 2007)</span>. Beck's TDD methodology naturally produces organized test structure by requiring tests before implementation <span class="citation">(Beck, 2002)</span>.</p>
+<p>Well-organized code structures significantly improve AI agent comprehension and reliability. Agents benefit from predictable file layouts where test files mirror source files, enabling automated test discovery and modification <span class="citation">(Borg et al., 2026)</span>.</p>
 
 <h4>Recommended Thresholds</h4>
 <ul>

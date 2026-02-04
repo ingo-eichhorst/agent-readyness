@@ -5,17 +5,19 @@
 - ✅ **v1 Initial Release** - Phases 1-5 (shipped 2026-02-01)
 - ✅ **v0.0.2 Complete Analysis Framework** - Phases 6-12 (shipped 2026-02-03)
 - ✅ **v0.0.3 Simplification & Polish** - Phases 13-17 (shipped 2026-02-04)
-- 🚧 **v0.0.4 Metric Research** - Phases 18-24 (in progress)
+- 🚧 **v0.0.4 Metric Research & C7 Implementation** - Phases 18-25 (in progress)
 
 ## Overview
 
-This milestone establishes scientific foundations for all 33 ARS metric descriptions. Each of the 7 analysis categories (C1-C7) receives research-backed citations with foundational sources (pre-2021) and AI-era evidence (2021+). Phase 18 establishes quality protocols (citation style guide, URL verification, source quality checklist) that all subsequent phases inherit. The work is content expansion within the existing citation infrastructure — no code changes required.
+This milestone establishes scientific foundations for all ARS metric descriptions AND implements the C7 agent evaluation metrics. Phases 18-23 add research-backed citations to C1-C6 metrics with foundational sources (pre-2021) and AI-era evidence (2021+). Phase 24 implements 5 MECE agent-assessable metrics for C7 (replacing the single overall_score metric). Phase 25 adds citations to the new C7 metrics.
 
 ## Phases
 
 **Phase Numbering:**
-- Phases 18-24 continue from v0.0.3 (ended at Phase 17)
-- Each phase corresponds to one analysis category
+- Phases 18-25 continue from v0.0.3 (ended at Phase 17)
+- Phases 18-23: Citation phases (one per category C1-C6)
+- Phase 24: C7 implementation (5 MECE metrics)
+- Phase 25: C7 citations
 
 - [x] **Phase 18: C1 Code Health** - Establish quality protocols + 6 metric citations
 - [x] **Phase 19: C6 Testing** - 5 metric citations (well-researched domain)
@@ -23,13 +25,14 @@ This milestone establishes scientific foundations for all 33 ARS metric descript
 - [x] **Phase 21: C3 Architecture** - 5 metric citations
 - [x] **Phase 22: C4 Documentation** - 7 metric citations
 - [x] **Phase 23: C5 Temporal Dynamics** - 5 metric citations
-- [ ] **Phase 24: C7 Agent Evaluation** - 1 metric citation (nascent field)
+- [ ] **Phase 24: C7 MECE Metrics Implementation** - Break down C7 into 5 scientifically-grounded agent-assessable metrics
+- [ ] **Phase 25: C7 Agent Evaluation** - Citations for 5 C7 metrics (nascent field)
 
 ## Phase Details
 
-### 🚧 v0.0.4 Metric Research (In Progress)
+### 🚧 v0.0.4 Metric Research & C7 Implementation (In Progress)
 
-**Milestone Goal:** Scientific foundations for all metric descriptions with verifiable citations
+**Milestone Goal:** Scientific foundations for all metric descriptions with verifiable citations + C7 agent evaluation implementation with 5 MECE metrics
 
 ### Phase 18: C1 Code Health
 **Goal**: Establish citation quality protocols and add research-backed citations to all C1 Code Health metrics
@@ -117,19 +120,37 @@ Plans:
 Plans:
 - [x] 23-01-PLAN.md — Add citations to all 5 C5 metrics and verify URLs
 
-### Phase 24: C7 Agent Evaluation
-**Goal**: Add research-backed citations to C7 Agent Evaluation metrics, explicitly acknowledging the nascent state of AI agent code quality research
-**Depends on**: Phase 18 (inherits quality protocols)
-**Requirements**: C7-01, C7-02, C7-03, C7-04, C7-05
+### Phase 24: C7 MECE Metrics Implementation
+**Goal**: Replace C7's single overall_score metric with 5 MECE (Mutually Exclusive, Collectively Exhaustive) agent-assessable metrics grounded in peer-reviewed research
+**Depends on**: Nothing (independent implementation phase)
+**Requirements**: C7-IMPL-01, C7-IMPL-02, C7-IMPL-03, C7-IMPL-04, C7-IMPL-05, C7-IMPL-06, C7-IMPL-07, C7-IMPL-08
 **Success Criteria** (what must be TRUE):
-  1. C7 overall_score metric has inline citations referencing Borg et al. 2026, SWE-bench, and adjacent AI code generation research
-  2. C7 References section contains complete citations with verified, accessible URLs
-  3. Research novelty is explicitly acknowledged (most relevant work is in preprints)
-  4. Adjacent research (LLM code generation, human factors in AI-assisted development) is cited where direct agent research is unavailable
+  1. 5 distinct metrics implemented (M1-M5): Task Execution Consistency, Code Behavior Comprehension, Cross-File Navigation, Identifier Interpretability, Documentation Accuracy Detection
+  2. Each metric uses heuristic-based selection (not random) for reproducible results
+  3. CLI progress display shows current metric, progress, token counter, and cost estimation
+  4. Metrics can execute in parallel using Claude Code agent spawning
+  5. Each metric produces 1-10 score with research-based thresholds
+  6. Integration with existing C7 analyzer structure maintains backward compatibility
 **Plans**: TBD
 
 Plans:
 - [ ] 24-01: [TBD during planning]
+- [ ] 24-02: [TBD during planning]
+- [ ] 24-03: [TBD during planning]
+
+### Phase 25: C7 Agent Evaluation Citations
+**Goal**: Add research-backed citations to the 5 new C7 metrics, explicitly acknowledging the nascent state of AI agent code quality research
+**Depends on**: Phase 24 (requires new metrics to exist), Phase 18 (inherits quality protocols)
+**Requirements**: C7-01, C7-02, C7-03, C7-04, C7-05, C7-06, C7-07, C7-08
+**Success Criteria** (what must be TRUE):
+  1. All 5 C7 metrics have inline citations referencing foundational research (SWE-bench, RepoGraph, etc.)
+  2. C7 References section contains complete citations with verified, accessible URLs
+  3. Research novelty is explicitly acknowledged (most relevant work is in preprints/2024-2025)
+  4. Each metric's thresholds are tied to empirical evidence from cited research
+**Plans**: TBD
+
+Plans:
+- [ ] 25-01: [TBD during planning]
 
 <details>
 <summary>Completed Milestones (v1 through v0.0.3)</summary>
@@ -151,7 +172,7 @@ See .planning/MILESTONES.md for details.
 ## Progress
 
 **Execution Order:**
-Phases 18-24 execute sequentially. Phase 18 must complete first (establishes protocols).
+Phases 18-25 execute sequentially. Phase 18 must complete first (establishes citation protocols). Phase 24 must complete before Phase 25 (implements metrics before adding citations).
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -161,7 +182,8 @@ Phases 18-24 execute sequentially. Phase 18 must complete first (establishes pro
 | 21. C3 Architecture | v0.0.4 | 1/1 | Complete | 2026-02-04 |
 | 22. C4 Documentation | v0.0.4 | 1/1 | Complete | 2026-02-04 |
 | 23. C5 Temporal Dynamics | v0.0.4 | 1/1 | Complete | 2026-02-05 |
-| 24. C7 Agent Evaluation | v0.0.4 | 0/TBD | Not started | - |
+| 24. C7 MECE Metrics Implementation | v0.0.4 | 0/TBD | Not started | - |
+| 25. C7 Agent Evaluation Citations | v0.0.4 | 0/TBD | Not started | - |
 
 ---
 *Roadmap created: 2026-02-04*

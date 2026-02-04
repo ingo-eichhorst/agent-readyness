@@ -82,13 +82,27 @@ Requirements for milestone v0.0.4 Metric Research. Each maps to roadmap phases.
 - [x] **C6-08**: Add References section for all C6 metrics with verified URLs
 - [x] **C6-09**: Verify all C6 citation URLs accessible
 
-### C7: Agent Evaluation Metrics (Issue #53)
+### C7: MECE Metrics Implementation (Issue #54)
 
-- [ ] **C7-01**: Research foundational sources (pre-2021) for C7 overall_score metric
-- [ ] **C7-02**: Research AI/agent era sources (2021+) for C7 overall_score metric
-- [ ] **C7-03**: Add inline citations to overall_score description
-- [ ] **C7-04**: Add References section for C7 metric with verified URLs
-- [ ] **C7-05**: Verify all C7 citation URLs accessible
+- [ ] **C7-IMPL-01**: Implement M1 (Task Execution Consistency) with 3-run variance measurement
+- [ ] **C7-IMPL-02**: Implement M2 (Code Behavior Comprehension) with complexity-based sampling
+- [ ] **C7-IMPL-03**: Implement M3 (Cross-File Navigation) with dependency tracing
+- [ ] **C7-IMPL-04**: Implement M4 (Identifier Interpretability) with semantic clarity rating
+- [ ] **C7-IMPL-05**: Implement M5 (Documentation Accuracy Detection) with mismatch detection
+- [ ] **C7-IMPL-06**: Create CLI progress display with token counter and cost estimation
+- [ ] **C7-IMPL-07**: Implement parallel execution capability for all 5 metrics
+- [ ] **C7-IMPL-08**: Define research-based scoring thresholds (1-10 scale) for each metric
+
+### C7: Agent Evaluation Citations (Issue #53)
+
+- [ ] **C7-01**: Research foundational sources for all 5 C7 metrics (M1-M5)
+- [ ] **C7-02**: Research AI/agent era sources (2021-2025) for all 5 C7 metrics
+- [ ] **C7-03**: Add inline citations to M1 (Task Execution Consistency) description
+- [ ] **C7-04**: Add inline citations to M2 (Code Behavior Comprehension) description
+- [ ] **C7-05**: Add inline citations to M3 (Cross-File Navigation) description
+- [ ] **C7-06**: Add inline citations to M4 (Identifier Interpretability) description
+- [ ] **C7-07**: Add inline citations to M5 (Documentation Accuracy Detection) description
+- [ ] **C7-08**: Add References section for all C7 metrics with verified URLs
 
 ### Quality Standards (Cross-Category)
 
@@ -175,11 +189,22 @@ Which phases cover which requirements. Updated during roadmap creation.
 | C5-07 | Phase 23 | Complete |
 | C5-08 | Phase 23 | Complete |
 | C5-09 | Phase 23 | Complete |
-| C7-01 | Phase 24 | Pending |
-| C7-02 | Phase 24 | Pending |
-| C7-03 | Phase 24 | Pending |
-| C7-04 | Phase 24 | Pending |
-| C7-05 | Phase 24 | Pending |
+| C7-IMPL-01 | Phase 24 | Pending |
+| C7-IMPL-02 | Phase 24 | Pending |
+| C7-IMPL-03 | Phase 24 | Pending |
+| C7-IMPL-04 | Phase 24 | Pending |
+| C7-IMPL-05 | Phase 24 | Pending |
+| C7-IMPL-06 | Phase 24 | Pending |
+| C7-IMPL-07 | Phase 24 | Pending |
+| C7-IMPL-08 | Phase 24 | Pending |
+| C7-01 | Phase 25 | Pending |
+| C7-02 | Phase 25 | Pending |
+| C7-03 | Phase 25 | Pending |
+| C7-04 | Phase 25 | Pending |
+| C7-05 | Phase 25 | Pending |
+| C7-06 | Phase 25 | Pending |
+| C7-07 | Phase 25 | Pending |
+| C7-08 | Phase 25 | Pending |
 
 **Coverage:**
 - v0.0.4 requirements: 66 total

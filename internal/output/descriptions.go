@@ -209,7 +209,7 @@ var metricDescriptions = map[string]MetricDescription{
 	// C2: Semantic Explicitness Metrics
 	// ============================================================================
 	"type_annotation_coverage": {
-		Brief:     "Percentage of values with explicit type annotations. Explicit types help agents understand data flow.",
+		Brief:     "Percentage of values with explicit type annotations. Type annotations catch 15% of bugs <span class=\"citation\">(Gao et al., 2017)</span>.",
 		Threshold: 6.0,
 		Detailed: `<h4>Definition</h4>
 <p>The percentage of function parameters, return values, and variables that have explicit type annotations. In Go, this is inherent; in TypeScript and Python, it measures type hint usage.</p>
@@ -218,7 +218,8 @@ var metricDescriptions = map[string]MetricDescription{
 <p>Type annotations serve as machine-readable documentation of programmer intent. Agents use types to understand what data flows through the system, validate their changes are type-safe, and navigate codebases efficiently. Without types, agents must infer intent from usage patterns, which is error-prone.</p>
 
 <h4>Research Evidence</h4>
-<p>Research shows type annotations significantly reduce bugs and improve code comprehension <span class="citation">(Gao et al., 2017)</span>. Studies on TypeScript adoption found that typed code has 15% fewer bugs than untyped JavaScript <span class="citation">(Ore et al., 2018)</span>.</p>
+<p>Pierce's foundational work established that type systems ensure "well-typed programs do not go wrong"—they prevent entire categories of runtime errors <span class="citation">(Pierce, 2002)</span>. Empirical studies confirm these theoretical benefits: TypeScript and Flow detect approximately 15% of bugs that would otherwise reach production <span class="citation">(Gao et al., 2017)</span>.</p>
+<p>Industry adoption validates these findings. A 2024 Meta survey found that 88% of Python developers consistently use type hints, with 49.8% citing bug prevention as a primary benefit <span class="citation">(Meta, 2024)</span>. For AI agents, type annotations are especially valuable: type-constrained decoding reduces LLM compilation errors by 52% in code generation tasks. Code health metrics including type coverage predict AI agent reliability <span class="citation">(Borg et al., 2026)</span>.</p>
 
 <h4>Recommended Thresholds</h4>
 <ul>
@@ -238,7 +239,7 @@ var metricDescriptions = map[string]MetricDescription{
 	},
 
 	"naming_consistency": {
-		Brief:     "Adherence to naming conventions. Consistent naming helps agents predict and generate correct identifiers.",
+		Brief:     "Adherence to naming conventions. Flawed identifiers correlate with low-quality code <span class=\"citation\">(Butler et al., 2009)</span>.",
 		Threshold: 6.0,
 		Detailed: `<h4>Definition</h4>
 <p>Measures how consistently the codebase follows naming conventions: camelCase for functions and variables, PascalCase for types and classes, UPPER_SNAKE_CASE for constants. Also checks for descriptive names over abbreviations.</p>
@@ -247,7 +248,8 @@ var metricDescriptions = map[string]MetricDescription{
 <p>Agents learn patterns from training data that follow common conventions. Inconsistent naming breaks these patterns, causing agents to generate code that clashes with local style. Consistent naming also helps agents infer purpose from names and maintain coherent code generation.</p>
 
 <h4>Research Evidence</h4>
-<p>Studies show identifier names are primary comprehension aids in code reading <span class="citation">(Sadowski et al., 2015)</span>. Consistent naming reduces cognitive load and helps both humans and AI systems understand code structure.</p>
+<p>Butler et al. conducted empirical studies correlating identifier naming quality with code quality. Their initial work found that flawed identifiers (poor grammar, single letters, abbreviations) correlate with lower-quality code as measured by static analysis tools <span class="citation">(Butler et al., 2009)</span>. A follow-up study extended these findings to method identifiers, confirming that consistent, descriptive naming associates with higher code quality <span class="citation">(Butler et al., 2010)</span>.</p>
+<p>Note: These studies focused on Java codebases; the naming conventions differ across languages, but the principle that naming quality correlates with code quality appears language-agnostic. Well-structured code with clear naming improves AI agent comprehension and reliability <span class="citation">(Borg et al., 2026)</span>.</p>
 
 <h4>Recommended Thresholds</h4>
 <ul>
@@ -267,7 +269,7 @@ var metricDescriptions = map[string]MetricDescription{
 	},
 
 	"magic_number_ratio": {
-		Brief:     "Unexplained numeric literals per 1,000 lines. Named constants help agents understand value significance.",
+		Brief:     "Unexplained numeric literals per 1,000 lines. Magic Number is a classic code smell <span class=\"citation\">(Fowler et al., 1999)</span>.",
 		Threshold: 6.0,
 		Detailed: `<h4>Definition</h4>
 <p>Counts numeric literals in code (excluding 0, 1, and common values) that are not defined as named constants. Reported as occurrences per 1,000 lines of code. Magic numbers are unexplained values embedded directly in logic.</p>
@@ -276,7 +278,8 @@ var metricDescriptions = map[string]MetricDescription{
 <p>When agents encounter magic numbers, they cannot determine the value's purpose or whether it can be safely changed. Named constants like MAX_RETRIES = 3 communicate intent; the literal 3 does not. Agents may incorrectly reuse or modify magic numbers without understanding their significance.</p>
 
 <h4>Research Evidence</h4>
-<p>Magic numbers are a classic code smell that reduces maintainability <span class="citation">(Fowler et al., 1999)</span>. Meaningful names for constants improve code understanding and reduce errors during modification.</p>
+<p>Fowler identified "Magic Number" as a canonical code smell, recommending replacement with named constants that communicate intent <span class="citation">(Fowler et al., 1999)</span>. From a type-theoretic perspective, named constants with appropriate types help prevent category errors—using a timeout value where a retry count is expected <span class="citation">(Pierce, 2002)</span>.</p>
+<p>Semantic clarity, including meaningful constant names, aids AI agent reasoning. Agents working with well-structured code experience significantly lower break rates <span class="citation">(Borg et al., 2026)</span>.</p>
 
 <h4>Recommended Thresholds</h4>
 <ul>
@@ -296,7 +299,7 @@ var metricDescriptions = map[string]MetricDescription{
 	},
 
 	"type_strictness": {
-		Brief:     "Use of strict type checking features. Stricter typing catches more errors at compile time.",
+		Brief:     "Use of strict type checking features. Type systems rule out untrapped errors <span class=\"citation\">(Cardelli, 1996)</span>.",
 		Threshold: 6.0,
 		Detailed: `<h4>Definition</h4>
 <p>Measures whether the codebase uses strict type checking features: strict mode in TypeScript, strict mypy settings in Python, or equivalent. A binary metric (enabled or not) that significantly impacts type safety.</p>
@@ -305,7 +308,8 @@ var metricDescriptions = map[string]MetricDescription{
 <p>Strict type checking catches type errors at compile time rather than runtime. When agents generate code, strict checking provides immediate feedback on type mismatches, allowing agents to self-correct. Without strict mode, type errors may only surface during execution.</p>
 
 <h4>Research Evidence</h4>
-<p>Strict typing reduces runtime errors by catching type mismatches early <span class="citation">(Gao et al., 2017)</span>. TypeScript's strict mode prevents common JavaScript pitfalls that would otherwise require extensive testing to catch.</p>
+<p>Cardelli's foundational work defines type safety as ruling out "untrapped errors"—runtime failures that can corrupt program state without immediate detection <span class="citation">(Cardelli, 1996)</span>. Wright and Felleisen formalized this through the progress and preservation theorems: well-typed programs either evaluate to a value or continue evaluating (progress), and evaluation preserves types (preservation) <span class="citation">(Wright & Felleisen, 1994)</span>.</p>
+<p>Empirical validation confirms these theoretical benefits. Gao et al. found that TypeScript and Flow detect 15% of bugs that would escape untyped JavaScript—this detection requires strict mode to achieve full coverage <span class="citation">(Gao et al., 2017)</span>. For AI agents, type constraints provide immediate feedback on generated code correctness, reducing LLM compilation errors by 52% in code generation tasks.</p>
 
 <h4>Recommended Thresholds</h4>
 <ul>
@@ -323,7 +327,7 @@ var metricDescriptions = map[string]MetricDescription{
 	},
 
 	"null_safety": {
-		Brief:     "Handling of null/undefined values. Explicit null handling prevents agent-generated null pointer bugs.",
+		Brief:     "Handling of null/undefined values. Null references were called a \"billion-dollar mistake\" <span class=\"citation\">(Hoare, 2009)</span>.",
 		Threshold: 6.0,
 		Detailed: `<h4>Definition</h4>
 <p>Measures usage of null-safe patterns: optional chaining (?.), nullish coalescing (??), null assertions, and proper Optional/Maybe types. Also detects unsafe patterns like unchecked null dereferences.</p>
@@ -332,7 +336,8 @@ var metricDescriptions = map[string]MetricDescription{
 <p>Null reference errors are among the most common runtime failures. When agents generate code, they may not anticipate all cases where values could be null. Explicit null handling in the codebase establishes patterns that agents can follow, reducing null-related bugs in generated code.</p>
 
 <h4>Research Evidence</h4>
-<p>Tony Hoare called null references his "billion-dollar mistake." Modern language features for null safety (Optional types, null-aware operators) significantly reduce null pointer exceptions <span class="citation">(Gao et al., 2017)</span>.</p>
+<p>Tony Hoare, inventor of the null reference, called it his "billion-dollar mistake" in a 2009 presentation <span class="citation">(Hoare, 2009)</span>. Note: This is a practitioner acknowledgment, not peer-reviewed research, but it carries weight as a reflection from the language designer who introduced the concept.</p>
+<p>Type theory provides the formal solution: Optional/Maybe types make nullability explicit in the type system, ensuring that potentially-absent values must be handled before use <span class="citation">(Pierce, 2002)</span>. Empirical research confirms that type annotations, including null-related annotations, help catch bugs that would otherwise reach production <span class="citation">(Gao et al., 2017)</span>. Languages like Kotlin demonstrate industry validation—language-level null safety largely eliminates the NullPointerException class of bugs.</p>
 
 <h4>Recommended Thresholds</h4>
 <ul>

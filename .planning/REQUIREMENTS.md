@@ -9,16 +9,16 @@ Requirements for milestone v0.0.4 Metric Research. Each maps to roadmap phases.
 
 ### C1: Code Health Metrics (Issue #47)
 
-- [ ] **C1-01**: Research foundational sources (pre-2021) for all 6 C1 metrics
-- [ ] **C1-02**: Research AI/agent era sources (2021+) for all 6 C1 metrics
-- [ ] **C1-03**: Add inline citations (Author, Year) to complexity_avg description
-- [ ] **C1-04**: Add inline citations (Author, Year) to func_length_avg description
-- [ ] **C1-05**: Add inline citations (Author, Year) to file_size_avg description
-- [ ] **C1-06**: Add inline citations (Author, Year) to afferent_coupling_avg description
-- [ ] **C1-07**: Add inline citations (Author, Year) to efferent_coupling_avg description
-- [ ] **C1-08**: Add inline citations (Author, Year) to duplication_rate description
-- [ ] **C1-09**: Add References section for all C1 metrics with verified URLs
-- [ ] **C1-10**: Verify all C1 citation URLs accessible
+- [x] **C1-01**: Research foundational sources (pre-2021) for all 6 C1 metrics
+- [x] **C1-02**: Research AI/agent era sources (2021+) for all 6 C1 metrics
+- [x] **C1-03**: Add inline citations (Author, Year) to complexity_avg description
+- [x] **C1-04**: Add inline citations (Author, Year) to func_length_avg description
+- [x] **C1-05**: Add inline citations (Author, Year) to file_size_avg description
+- [x] **C1-06**: Add inline citations (Author, Year) to afferent_coupling_avg description
+- [x] **C1-07**: Add inline citations (Author, Year) to efferent_coupling_avg description
+- [x] **C1-08**: Add inline citations (Author, Year) to duplication_rate description
+- [x] **C1-09**: Add References section for all C1 metrics with verified URLs
+- [x] **C1-10**: Verify all C1 citation URLs accessible
 
 ### C2: Semantic Explicitness Metrics (Issue #48)
 
@@ -92,10 +92,10 @@ Requirements for milestone v0.0.4 Metric Research. Each maps to roadmap phases.
 
 ### Quality Standards (Cross-Category)
 
-- [ ] **QA-01**: Establish citation style guide (format, density, source quality)
-- [ ] **QA-02**: Create URL verification protocol (curl -I + manual checks)
-- [ ] **QA-03**: Define Retraction Watch check process
-- [ ] **QA-04**: Document source quality checklist
+- [x] **QA-01**: Establish citation style guide (format, density, source quality)
+- [x] **QA-02**: Create URL verification protocol (curl -I + manual checks)
+- [x] **QA-03**: Define Retraction Watch check process
+- [x] **QA-04**: Document source quality checklist
 
 ## Out of Scope
 

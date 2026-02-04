@@ -1,4 +1,4 @@
-package analyzer
+package c2
 
 import (
 	"encoding/json"
@@ -8,6 +8,7 @@ import (
 
 	tree_sitter "github.com/tree-sitter/go-tree-sitter"
 
+	"github.com/ingo/agent-readyness/internal/analyzer"
 	"github.com/ingo/agent-readyness/internal/parser"
 	"github.com/ingo/agent-readyness/pkg/types"
 )
@@ -40,13 +41,13 @@ func (a *C2TypeScriptAnalyzer) Analyze(target *types.AnalysisTarget) (*types.C2L
 	}
 
 	var (
-		totalTypedElements   int
-		totalElements        int
-		anyCount             int
-		magicNumberCount     int
-		totalLOC             int
-		optionalChainCount   int
-		totalFunctions       int
+		totalTypedElements int
+		totalElements      int
+		anyCount           int
+		magicNumberCount   int
+		totalLOC           int
+		optionalChainCount int
+		totalFunctions     int
 	)
 
 	for _, sf := range sourceFiles {
@@ -62,7 +63,7 @@ func (a *C2TypeScriptAnalyzer) Analyze(target *types.AnalysisTarget) (*types.C2L
 		}
 
 		root := tree.RootNode()
-		lines := CountLines(content)
+		lines := analyzer.CountLines(content)
 		totalLOC += lines
 
 		// C2-TS-01: Type annotation coverage
@@ -131,7 +132,7 @@ func (a *C2TypeScriptAnalyzer) Analyze(target *types.AnalysisTarget) (*types.C2L
 func tsTypeAnnotations(root *tree_sitter.Node, content []byte) (int, int, int, int) {
 	var typed, total, anyC, funcCount int
 
-	WalkTree(root, func(node *tree_sitter.Node) {
+	analyzer.WalkTree(root, func(node *tree_sitter.Node) {
 		nodeKind := node.Kind()
 
 		switch nodeKind {
@@ -217,7 +218,7 @@ func countTSParams(params *tree_sitter.Node, content []byte, typed, total, anyC 
 
 // containsAnyType checks if a type annotation node contains explicit "any".
 func containsAnyType(node *tree_sitter.Node, content []byte) bool {
-	text := NodeText(node, content)
+	text := analyzer.NodeText(node, content)
 	// Check for standalone "any" type
 	return strings.Contains(text, "any")
 }
@@ -226,12 +227,12 @@ func containsAnyType(node *tree_sitter.Node, content []byte) bool {
 func tsMagicNumbers(root *tree_sitter.Node, content []byte) int {
 	count := 0
 
-	WalkTree(root, func(node *tree_sitter.Node) {
+	analyzer.WalkTree(root, func(node *tree_sitter.Node) {
 		if node.Kind() != "number" {
 			return
 		}
 
-		value := NodeText(node, content)
+		value := analyzer.NodeText(node, content)
 
 		// Exclude common values
 		if isTSCommonNumeric(value) {
@@ -246,7 +247,7 @@ func tsMagicNumbers(root *tree_sitter.Node, content []byte) int {
 				// Check if it's a const
 				for i := uint(0); i < parent.ChildCount(); i++ {
 					child := parent.Child(i)
-					if child != nil && NodeText(child, content) == "const" {
+					if child != nil && analyzer.NodeText(child, content) == "const" {
 						return
 					}
 				}
@@ -267,7 +268,7 @@ func tsMagicNumbers(root *tree_sitter.Node, content []byte) int {
 func tsOptionalChaining(root *tree_sitter.Node) int {
 	count := 0
 
-	WalkTree(root, func(node *tree_sitter.Node) {
+	analyzer.WalkTree(root, func(node *tree_sitter.Node) {
 		nodeKind := node.Kind()
 		// Tree-sitter represents optional chaining as member_expression with optional_chain
 		if nodeKind == "optional_chain" {

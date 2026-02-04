@@ -1,4 +1,4 @@
-package analyzer
+package c2
 
 import (
 	"os"
@@ -19,7 +19,7 @@ func TestC2PythonAnalyzer_ValidProject(t *testing.T) {
 	analyzer := NewC2PythonAnalyzer(tsParser)
 
 	// Build AnalysisTarget from testdata/valid-python-project
-	testDir, err := filepath.Abs("../../testdata/valid-python-project")
+	testDir, err := filepath.Abs("../../../testdata/valid-python-project")
 	if err != nil {
 		t.Fatalf("cannot resolve testdata path: %v", err)
 	}
@@ -75,7 +75,7 @@ func TestC2PythonAnalyzer_ValidProject(t *testing.T) {
 
 func TestC2PythonAnalyzer_TypeCheckerDetection(t *testing.T) {
 	// Test with pyproject.toml that does NOT have [tool.mypy] section
-	testDir, _ := filepath.Abs("../../testdata/valid-python-project")
+	testDir, _ := filepath.Abs("../../../testdata/valid-python-project")
 	strictness := pyDetectTypeChecker(testDir)
 	// Our test fixture doesn't have mypy config, so strictness should be 0
 	if strictness != 0 {
@@ -126,9 +126,9 @@ func TestPyNamingConventions(t *testing.T) {
 		{"create_user", true},
 		{"get_greeting", true},
 		{"list_users", true},
-		{"createUser", false},     // camelCase is not PEP 8
-		{"CreateUser", false},     // PascalCase is not PEP 8 for functions
-		{"SOME_CONSTANT", false},  // UPPER_CASE is not snake_case
+		{"createUser", false},    // camelCase is not PEP 8
+		{"CreateUser", false},    // PascalCase is not PEP 8 for functions
+		{"SOME_CONSTANT", false}, // UPPER_CASE is not snake_case
 	}
 
 	for _, tt := range tests {

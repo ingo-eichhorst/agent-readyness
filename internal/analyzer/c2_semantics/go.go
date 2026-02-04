@@ -1,4 +1,4 @@
-package analyzer
+package c2
 
 import (
 	"go/ast"
@@ -91,9 +91,9 @@ func (a *C2GoAnalyzer) Analyze(target *types.AnalysisTarget) (*types.C2LanguageM
 
 // anyUsageResult holds interface{}/any usage analysis results.
 type anyUsageResult struct {
-	totalTypeRefs  int
-	anyRefs        int
-	safetyPercent  float64 // 100 - anyUsagePercent
+	totalTypeRefs int
+	anyRefs       int
+	safetyPercent float64 // 100 - anyUsagePercent
 }
 
 // analyzeAnyUsage counts interface{}/any usage across all source packages.

@@ -1,4 +1,4 @@
-package analyzer
+package c2
 
 import (
 	"os"
@@ -18,7 +18,7 @@ func TestC2TypeScriptAnalyzer_ValidProject(t *testing.T) {
 
 	analyzer := NewC2TypeScriptAnalyzer(tsParser)
 
-	testDir, err := filepath.Abs("../../testdata/valid-ts-project")
+	testDir, err := filepath.Abs("../../../testdata/valid-ts-project")
 	if err != nil {
 		t.Fatalf("cannot resolve testdata path: %v", err)
 	}
@@ -73,7 +73,7 @@ func TestC2TypeScriptAnalyzer_ValidProject(t *testing.T) {
 }
 
 func TestC2TypeScriptAnalyzer_StrictModeDetection(t *testing.T) {
-	testDir, _ := filepath.Abs("../../testdata/valid-ts-project")
+	testDir, _ := filepath.Abs("../../../testdata/valid-ts-project")
 	isStrict, hasNullChecks := tsDetectStrictMode(testDir)
 	if !isStrict {
 		t.Error("tsDetectStrictMode: expected strict=true (tsconfig has strict: true)")
@@ -126,8 +126,8 @@ func TestC2Analyzer_MultiLanguageDispatch(t *testing.T) {
 
 	analyzer := NewC2Analyzer(tsParser)
 
-	pyDir, _ := filepath.Abs("../../testdata/valid-python-project")
-	tsDir, _ := filepath.Abs("../../testdata/valid-ts-project")
+	pyDir, _ := filepath.Abs("../../../testdata/valid-python-project")
+	tsDir, _ := filepath.Abs("../../../testdata/valid-ts-project")
 
 	targets := []*types.AnalysisTarget{
 		{

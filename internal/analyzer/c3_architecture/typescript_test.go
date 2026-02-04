@@ -1,4 +1,4 @@
-package analyzer
+package c3
 
 import (
 	"path/filepath"
@@ -15,7 +15,7 @@ func TestTsBuildImportGraph(t *testing.T) {
 	}
 	defer tsParser.Close()
 
-	testDir, _ := filepath.Abs("../../testdata/valid-ts-project")
+	testDir, _ := filepath.Abs("../../../testdata/valid-ts-project")
 
 	target := &types.AnalysisTarget{
 		Language: types.LangTypeScript,
@@ -91,7 +91,7 @@ func TestTsDetectDeadCode(t *testing.T) {
 	}
 	defer tsParser.Close()
 
-	testDir, _ := filepath.Abs("../../testdata/valid-ts-project")
+	testDir, _ := filepath.Abs("../../../testdata/valid-ts-project")
 
 	target := &types.AnalysisTarget{
 		Language: types.LangTypeScript,
@@ -152,7 +152,7 @@ func TestTsAnalyzeDirectoryDepth(t *testing.T) {
 	}
 	defer tsParser.Close()
 
-	testDir, _ := filepath.Abs("../../testdata/valid-ts-project")
+	testDir, _ := filepath.Abs("../../../testdata/valid-ts-project")
 
 	target := &types.AnalysisTarget{
 		Language: types.LangTypeScript,
@@ -212,9 +212,9 @@ func TestTsC3Integration(t *testing.T) {
 	}
 	defer tsParser.Close()
 
-	testDir, _ := filepath.Abs("../../testdata/valid-ts-project")
+	testDir, _ := filepath.Abs("../../../testdata/valid-ts-project")
 
-	analyzer := NewC3Analyzer(tsParser)
+	a := NewC3Analyzer(tsParser)
 	targets := []*types.AnalysisTarget{
 		{
 			Language: types.LangTypeScript,
@@ -242,7 +242,7 @@ func TestTsC3Integration(t *testing.T) {
 		},
 	}
 
-	result, err := analyzer.Analyze(targets)
+	result, err := a.Analyze(targets)
 	if err != nil {
 		t.Fatalf("Analyze() error: %v", err)
 	}

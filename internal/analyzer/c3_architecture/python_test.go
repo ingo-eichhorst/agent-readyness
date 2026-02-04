@@ -1,12 +1,31 @@
-package analyzer
+package c3
 
 import (
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/ingo/agent-readyness/internal/parser"
 	"github.com/ingo/agent-readyness/pkg/types"
 )
+
+// pyTestdataDir returns the absolute path to the project testdata directory.
+// Note: Uses same pattern as architecture_test.go but different name to avoid redeclaration.
+func pyTestdataDir() string {
+	_, file, _, _ := runtime.Caller(0)
+	return filepath.Join(filepath.Dir(file), "..", "..", "..", "testdata")
+}
+
+// pyLoadTestPackages loads Go packages from a testdata subdirectory.
+func pyLoadTestPackages(t *testing.T, subdir string) []*parser.ParsedPackage {
+	t.Helper()
+	p := &parser.GoPackagesParser{}
+	pkgs, err := p.Parse(filepath.Join(pyTestdataDir(), subdir))
+	if err != nil {
+		t.Fatalf("failed to parse %s: %v", subdir, err)
+	}
+	return pkgs
+}
 
 func TestPyBuildImportGraph(t *testing.T) {
 	tsParser, err := parser.NewTreeSitterParser()
@@ -15,7 +34,7 @@ func TestPyBuildImportGraph(t *testing.T) {
 	}
 	defer tsParser.Close()
 
-	testDir, _ := filepath.Abs("../../testdata/valid-python-project")
+	testDir, _ := filepath.Abs("../../../testdata/valid-python-project")
 
 	target := &types.AnalysisTarget{
 		Language: types.LangPython,
@@ -87,7 +106,7 @@ func TestPyDetectDeadCode(t *testing.T) {
 	}
 	defer tsParser.Close()
 
-	testDir, _ := filepath.Abs("../../testdata/valid-python-project")
+	testDir, _ := filepath.Abs("../../../testdata/valid-python-project")
 
 	target := &types.AnalysisTarget{
 		Language: types.LangPython,
@@ -146,7 +165,7 @@ func TestPyAnalyzeDirectoryDepth(t *testing.T) {
 	}
 	defer tsParser.Close()
 
-	testDir, _ := filepath.Abs("../../testdata/valid-python-project")
+	testDir, _ := filepath.Abs("../../../testdata/valid-python-project")
 
 	target := &types.AnalysisTarget{
 		Language: types.LangPython,
@@ -206,9 +225,9 @@ func TestPyC3Integration(t *testing.T) {
 	}
 	defer tsParser.Close()
 
-	testDir, _ := filepath.Abs("../../testdata/valid-python-project")
+	testDir, _ := filepath.Abs("../../../testdata/valid-python-project")
 
-	analyzer := NewC3Analyzer(tsParser)
+	a := NewC3Analyzer(tsParser)
 	targets := []*types.AnalysisTarget{
 		{
 			Language: types.LangPython,
@@ -236,7 +255,7 @@ func TestPyC3Integration(t *testing.T) {
 		},
 	}
 
-	result, err := analyzer.Analyze(targets)
+	result, err := a.Analyze(targets)
 	if err != nil {
 		t.Fatalf("Analyze() error: %v", err)
 	}
@@ -254,11 +273,11 @@ func TestPyC3Integration(t *testing.T) {
 
 // TestC3_GoRegressionWithNewConstructor verifies Go C3 analysis still works.
 func TestC3_GoRegressionWithNewConstructor(t *testing.T) {
-	pkgs := loadTestPackages(t, "coupling")
+	pkgs := pyLoadTestPackages(t, "coupling")
 
-	analyzer := NewC3Analyzer(nil)
-	analyzer.SetGoPackages(pkgs)
-	result, err := analyzer.Analyze(nil)
+	a := NewC3Analyzer(nil)
+	a.SetGoPackages(pkgs)
+	result, err := a.Analyze(nil)
 	if err != nil {
 		t.Fatalf("Analyze failed: %v", err)
 	}

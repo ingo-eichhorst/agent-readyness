@@ -1,4 +1,4 @@
-package analyzer
+package c3
 
 import (
 	"os"
@@ -7,14 +7,44 @@ import (
 
 	tree_sitter "github.com/tree-sitter/go-tree-sitter"
 
+	"github.com/ingo/agent-readyness/internal/analyzer"
 	"github.com/ingo/agent-readyness/internal/parser"
 	"github.com/ingo/agent-readyness/pkg/types"
 )
 
+// pyFilterSourceFiles filters to source-only Python files (not test files).
+func pyFilterSourceFiles(files []*parser.ParsedTreeSitterFile) []*parser.ParsedTreeSitterFile {
+	var result []*parser.ParsedTreeSitterFile
+	for _, f := range files {
+		if isTestFileByPath(f.RelPath) {
+			continue
+		}
+		result = append(result, f)
+	}
+	return result
+}
+
+// isTestFileByPath checks if a file path indicates a test file.
+func isTestFileByPath(path string) bool {
+	base := strings.ToLower(path)
+	parts := strings.Split(base, string(os.PathSeparator))
+	if len(parts) > 0 {
+		base = parts[len(parts)-1]
+	}
+	slashParts := strings.Split(base, "/")
+	if len(slashParts) > 0 {
+		base = slashParts[len(slashParts)-1]
+	}
+
+	return strings.HasPrefix(base, "test_") ||
+		strings.HasSuffix(base, "_test.py") ||
+		base == "conftest.py"
+}
+
 // pyBuildImportGraph builds an import graph from Python files.
 // It tracks intra-project imports only (skips stdlib/third-party).
-func pyBuildImportGraph(files []*parser.ParsedTreeSitterFile) *ImportGraph {
-	g := &ImportGraph{
+func pyBuildImportGraph(files []*parser.ParsedTreeSitterFile) *analyzer.ImportGraph {
+	g := &analyzer.ImportGraph{
 		Forward: make(map[string][]string),
 		Reverse: make(map[string][]string),
 	}
@@ -30,7 +60,7 @@ func pyBuildImportGraph(files []*parser.ParsedTreeSitterFile) *ImportGraph {
 		root := f.Tree.RootNode()
 		fromModule := pyFileToModule(f.RelPath)
 
-		WalkTree(root, func(node *tree_sitter.Node) {
+		analyzer.WalkTree(root, func(node *tree_sitter.Node) {
 			kind := node.Kind()
 
 			switch kind {
@@ -43,10 +73,10 @@ func pyBuildImportGraph(files []*parser.ParsedTreeSitterFile) *ImportGraph {
 						if child.Kind() == "aliased_import" {
 							nameNode := child.ChildByFieldName("name")
 							if nameNode != nil {
-								modName = NodeText(nameNode, f.Content)
+								modName = analyzer.NodeText(nameNode, f.Content)
 							}
 						} else {
-							modName = NodeText(child, f.Content)
+							modName = analyzer.NodeText(child, f.Content)
 						}
 						if modName != "" && modName != fromModule {
 							if _, ok := knownModules[modName]; ok {
@@ -71,7 +101,7 @@ func pyBuildImportGraph(files []*parser.ParsedTreeSitterFile) *ImportGraph {
 					}
 				}
 				if modNode != nil {
-					modName := NodeText(modNode, f.Content)
+					modName := analyzer.NodeText(modNode, f.Content)
 					// Handle relative imports (starting with .)
 					if strings.HasPrefix(modName, ".") {
 						modName = pyResolveRelativeImport(fromModule, modName)
@@ -139,10 +169,10 @@ func pyDetectDeadCode(files []*parser.ParsedTreeSitterFile) []types.DeadExport {
 
 	// Collect all top-level definitions
 	type definition struct {
-		name    string
-		file    string
-		line    int
-		kind    string
+		name string
+		file string
+		line int
+		kind string
 	}
 
 	var defs []definition
@@ -190,7 +220,7 @@ func pyDetectDeadCode(files []*parser.ParsedTreeSitterFile) []types.DeadExport {
 				continue
 			}
 
-			name := NodeText(nameNode, f.Content)
+			name := analyzer.NodeText(nameNode, f.Content)
 			// Skip private names
 			if strings.HasPrefix(name, "_") {
 				continue
@@ -209,7 +239,7 @@ func pyDetectDeadCode(files []*parser.ParsedTreeSitterFile) []types.DeadExport {
 	importedNames := make(map[string]bool)
 	for _, f := range files {
 		root := f.Tree.RootNode()
-		WalkTree(root, func(node *tree_sitter.Node) {
+		analyzer.WalkTree(root, func(node *tree_sitter.Node) {
 			if node.Kind() != "import_from_statement" {
 				return
 			}
@@ -223,7 +253,7 @@ func pyDetectDeadCode(files []*parser.ParsedTreeSitterFile) []types.DeadExport {
 				case "aliased_import":
 					nameNode := child.ChildByFieldName("name")
 					if nameNode != nil {
-						importedNames[NodeText(nameNode, f.Content)] = true
+						importedNames[analyzer.NodeText(nameNode, f.Content)] = true
 					}
 				case "dotted_name":
 					// This might be the module name, not an imported name
@@ -232,7 +262,7 @@ func pyDetectDeadCode(files []*parser.ParsedTreeSitterFile) []types.DeadExport {
 					// Check if this identifier is part of the import list
 					parent := child.Parent()
 					if parent != nil && parent.Kind() == "import_from_statement" {
-						name := NodeText(child, f.Content)
+						name := analyzer.NodeText(child, f.Content)
 						if name != "import" && name != "from" && name != "as" {
 							importedNames[name] = true
 						}

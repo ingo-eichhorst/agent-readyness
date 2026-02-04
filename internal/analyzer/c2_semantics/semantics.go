@@ -1,4 +1,4 @@
-package analyzer
+package c2
 
 import (
 	"github.com/ingo/agent-readyness/internal/parser"

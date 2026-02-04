@@ -70,3 +70,53 @@ func CountLines(content []byte) int {
 	}
 	return count
 }
+
+// isTestFileByPath checks if a file path indicates a Python test file.
+// Used by C6 testing analyzer until it's moved to its subdirectory.
+func isTestFileByPath(path string) bool {
+	base := strings.ToLower(path)
+	parts := strings.Split(base, "/")
+	if len(parts) > 0 {
+		base = parts[len(parts)-1]
+	}
+
+	return strings.HasPrefix(base, "test_") ||
+		strings.HasSuffix(base, "_test.py") ||
+		base == "conftest.py"
+}
+
+// tsIsTestFile checks if a TypeScript file path indicates a test file.
+// Used by C6 testing analyzer until it's moved to its subdirectory.
+func tsIsTestFile(path string) bool {
+	lower := strings.ToLower(path)
+	base := lower
+	parts := strings.Split(lower, "/")
+	if len(parts) > 0 {
+		base = parts[len(parts)-1]
+	}
+
+	// Check __tests__ directory
+	for _, p := range parts {
+		if p == "__tests__" {
+			return true
+		}
+	}
+
+	return strings.HasSuffix(base, ".test.ts") ||
+		strings.HasSuffix(base, ".spec.ts") ||
+		strings.HasSuffix(base, ".test.tsx") ||
+		strings.HasSuffix(base, ".spec.tsx") ||
+		strings.HasSuffix(base, ".test.js") ||
+		strings.HasSuffix(base, ".spec.js")
+}
+
+// tsStripQuotes removes surrounding quotes from a string literal.
+// Used by C6 testing analyzer until it's moved to its subdirectory.
+func tsStripQuotes(s string) string {
+	if len(s) >= 2 {
+		if (s[0] == '"' && s[len(s)-1] == '"') || (s[0] == '\'' && s[len(s)-1] == '\'') || (s[0] == '`' && s[len(s)-1] == '`') {
+			return s[1 : len(s)-1]
+		}
+	}
+	return s
+}

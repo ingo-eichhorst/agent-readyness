@@ -1,4 +1,4 @@
-package analyzer
+package c2
 
 import (
 	"testing"
@@ -10,7 +10,7 @@ import (
 func TestC2GoAnalyzer_SelfAnalysis(t *testing.T) {
 	// Parse this project's own codebase for C2 analysis
 	p := &parser.GoPackagesParser{}
-	pkgs, err := p.Parse("../../")
+	pkgs, err := p.Parse("../../../")
 	if err != nil {
 		t.Fatalf("failed to parse project: %v", err)
 	}
@@ -21,7 +21,7 @@ func TestC2GoAnalyzer_SelfAnalysis(t *testing.T) {
 	analyzer := &C2GoAnalyzer{pkgs: pkgs}
 	target := &types.AnalysisTarget{
 		Language: types.LangGo,
-		RootDir:  "../../",
+		RootDir:  "../../../",
 	}
 
 	metrics, err := analyzer.Analyze(target)
@@ -81,7 +81,7 @@ func TestC2GoAnalyzer_SelfAnalysis(t *testing.T) {
 
 func TestC2Analyzer_GoTarget(t *testing.T) {
 	p := &parser.GoPackagesParser{}
-	pkgs, err := p.Parse("../../")
+	pkgs, err := p.Parse("../../../")
 	if err != nil {
 		t.Fatalf("failed to parse project: %v", err)
 	}
@@ -92,7 +92,7 @@ func TestC2Analyzer_GoTarget(t *testing.T) {
 	targets := []*types.AnalysisTarget{
 		{
 			Language: types.LangGo,
-			RootDir:  "../../",
+			RootDir:  "../../../",
 		},
 	}
 

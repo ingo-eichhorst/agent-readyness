@@ -1,10 +1,30 @@
-package analyzer
+package c3
 
 import (
+	"path/filepath"
+	"runtime"
 	"testing"
 
+	"github.com/ingo/agent-readyness/internal/parser"
 	"github.com/ingo/agent-readyness/pkg/types"
 )
+
+// testdataDir returns the absolute path to the project testdata directory.
+func testdataDir() string {
+	_, file, _, _ := runtime.Caller(0)
+	return filepath.Join(filepath.Dir(file), "..", "..", "..", "testdata")
+}
+
+// loadTestPackages loads Go packages from a testdata subdirectory.
+func loadTestPackages(t *testing.T, subdir string) []*parser.ParsedPackage {
+	t.Helper()
+	p := &parser.GoPackagesParser{}
+	pkgs, err := p.Parse(filepath.Join(testdataDir(), subdir))
+	if err != nil {
+		t.Fatalf("failed to parse %s: %v", subdir, err)
+	}
+	return pkgs
+}
 
 func c3Metrics(t *testing.T, result *types.AnalysisResult) *types.C3Metrics {
 	t.Helper()
@@ -23,9 +43,9 @@ func c3Metrics(t *testing.T, result *types.AnalysisResult) *types.C3Metrics {
 func TestC3DirectoryDepth(t *testing.T) {
 	pkgs := loadTestPackages(t, "deepnest")
 
-	analyzer := &C3Analyzer{}
-	analyzer.SetGoPackages(pkgs)
-	result, err := analyzer.Analyze(nil)
+	a := &C3Analyzer{}
+	a.SetGoPackages(pkgs)
+	result, err := a.Analyze(nil)
 	if err != nil {
 		t.Fatalf("Analyze: %v", err)
 	}
@@ -46,9 +66,9 @@ func TestC3DirectoryDepth(t *testing.T) {
 func TestC3ModuleFanout(t *testing.T) {
 	pkgs := loadTestPackages(t, "coupling")
 
-	analyzer := &C3Analyzer{}
-	analyzer.SetGoPackages(pkgs)
-	result, err := analyzer.Analyze(nil)
+	a := &C3Analyzer{}
+	a.SetGoPackages(pkgs)
+	result, err := a.Analyze(nil)
 	if err != nil {
 		t.Fatalf("Analyze: %v", err)
 	}
@@ -70,9 +90,9 @@ func TestC3ModuleFanout(t *testing.T) {
 func TestC3CircularDeps(t *testing.T) {
 	pkgs := loadTestPackages(t, "coupling")
 
-	analyzer := &C3Analyzer{}
-	analyzer.SetGoPackages(pkgs)
-	result, err := analyzer.Analyze(nil)
+	a := &C3Analyzer{}
+	a.SetGoPackages(pkgs)
+	result, err := a.Analyze(nil)
 	if err != nil {
 		t.Fatalf("Analyze: %v", err)
 	}
@@ -89,9 +109,9 @@ func TestC3CircularDeps(t *testing.T) {
 func TestC3ImportComplexity(t *testing.T) {
 	pkgs := loadTestPackages(t, "coupling")
 
-	analyzer := &C3Analyzer{}
-	analyzer.SetGoPackages(pkgs)
-	result, err := analyzer.Analyze(nil)
+	a := &C3Analyzer{}
+	a.SetGoPackages(pkgs)
+	result, err := a.Analyze(nil)
 	if err != nil {
 		t.Fatalf("Analyze: %v", err)
 	}
@@ -113,9 +133,9 @@ func TestC3ImportComplexity(t *testing.T) {
 func TestC3DeadCode(t *testing.T) {
 	pkgs := loadTestPackages(t, "deadcode")
 
-	analyzer := &C3Analyzer{}
-	analyzer.SetGoPackages(pkgs)
-	result, err := analyzer.Analyze(nil)
+	a := &C3Analyzer{}
+	a.SetGoPackages(pkgs)
+	result, err := a.Analyze(nil)
 	if err != nil {
 		t.Fatalf("Analyze: %v", err)
 	}

@@ -1,4 +1,4 @@
-package analyzer
+package c3
 
 import (
 	"os"
@@ -7,14 +7,51 @@ import (
 
 	tree_sitter "github.com/tree-sitter/go-tree-sitter"
 
+	"github.com/ingo/agent-readyness/internal/analyzer"
 	"github.com/ingo/agent-readyness/internal/parser"
 	"github.com/ingo/agent-readyness/pkg/types"
 )
 
+// tsFilterSourceFiles filters to source-only TypeScript files (not test files).
+func tsFilterSourceFiles(files []*parser.ParsedTreeSitterFile) []*parser.ParsedTreeSitterFile {
+	var result []*parser.ParsedTreeSitterFile
+	for _, f := range files {
+		if tsIsTestFile(f.RelPath) {
+			continue
+		}
+		result = append(result, f)
+	}
+	return result
+}
+
+// tsIsTestFile checks if a TypeScript file path indicates a test file.
+func tsIsTestFile(path string) bool {
+	lower := strings.ToLower(path)
+	base := lower
+	parts := strings.Split(lower, "/")
+	if len(parts) > 0 {
+		base = parts[len(parts)-1]
+	}
+
+	// Check __tests__ directory
+	for _, p := range parts {
+		if p == "__tests__" {
+			return true
+		}
+	}
+
+	return strings.HasSuffix(base, ".test.ts") ||
+		strings.HasSuffix(base, ".spec.ts") ||
+		strings.HasSuffix(base, ".test.tsx") ||
+		strings.HasSuffix(base, ".spec.tsx") ||
+		strings.HasSuffix(base, ".test.js") ||
+		strings.HasSuffix(base, ".spec.js")
+}
+
 // tsBuildImportGraph builds an import graph from TypeScript files.
 // It tracks intra-project imports only (skips node_modules/third-party).
-func tsBuildImportGraph(files []*parser.ParsedTreeSitterFile) *ImportGraph {
-	g := &ImportGraph{
+func tsBuildImportGraph(files []*parser.ParsedTreeSitterFile) *analyzer.ImportGraph {
+	g := &analyzer.ImportGraph{
 		Forward: make(map[string][]string),
 		Reverse: make(map[string][]string),
 	}
@@ -31,7 +68,7 @@ func tsBuildImportGraph(files []*parser.ParsedTreeSitterFile) *ImportGraph {
 		fromFile := tsNormalizePath(f.RelPath)
 		fromDir := filepath.Dir(f.RelPath)
 
-		WalkTree(root, func(node *tree_sitter.Node) {
+		analyzer.WalkTree(root, func(node *tree_sitter.Node) {
 			kind := node.Kind()
 
 			var modulePath string
@@ -41,7 +78,7 @@ func tsBuildImportGraph(files []*parser.ParsedTreeSitterFile) *ImportGraph {
 				// ESM: import { foo } from "./bar"
 				src := node.ChildByFieldName("source")
 				if src != nil {
-					modulePath = tsStripQuotes(NodeText(src, f.Content))
+					modulePath = tsStripQuotes(analyzer.NodeText(src, f.Content))
 				}
 
 			case "call_expression":
@@ -50,7 +87,7 @@ func tsBuildImportGraph(files []*parser.ParsedTreeSitterFile) *ImportGraph {
 				if fn == nil {
 					return
 				}
-				if NodeText(fn, f.Content) != "require" {
+				if analyzer.NodeText(fn, f.Content) != "require" {
 					return
 				}
 				args := node.ChildByFieldName("arguments")
@@ -61,7 +98,7 @@ func tsBuildImportGraph(files []*parser.ParsedTreeSitterFile) *ImportGraph {
 				for i := uint(0); i < args.ChildCount(); i++ {
 					child := args.Child(i)
 					if child != nil && child.Kind() == "string" {
-						modulePath = tsStripQuotes(NodeText(child, f.Content))
+						modulePath = tsStripQuotes(analyzer.NodeText(child, f.Content))
 						break
 					}
 				}
@@ -154,7 +191,7 @@ func tsDetectDeadCode(files []*parser.ParsedTreeSitterFile) []types.DeadExport {
 	importedNames := make(map[string]bool)
 	for _, f := range files {
 		root := f.Tree.RootNode()
-		WalkTree(root, func(node *tree_sitter.Node) {
+		analyzer.WalkTree(root, func(node *tree_sitter.Node) {
 			if node.Kind() != "import_statement" {
 				return
 			}
@@ -202,7 +239,7 @@ func tsCollectExportedDefs(exportNode *tree_sitter.Node, content []byte, relPath
 			nameNode := child.ChildByFieldName("name")
 			if nameNode != nil {
 				*defs = append(*defs, tsExportDef{
-					name: NodeText(nameNode, content),
+					name: analyzer.NodeText(nameNode, content),
 					file: relPath,
 					line: int(nameNode.StartPosition().Row) + 1,
 					kind: "func",
@@ -212,7 +249,7 @@ func tsCollectExportedDefs(exportNode *tree_sitter.Node, content []byte, relPath
 			nameNode := child.ChildByFieldName("name")
 			if nameNode != nil {
 				*defs = append(*defs, tsExportDef{
-					name: NodeText(nameNode, content),
+					name: analyzer.NodeText(nameNode, content),
 					file: relPath,
 					line: int(nameNode.StartPosition().Row) + 1,
 					kind: "type",
@@ -226,7 +263,7 @@ func tsCollectExportedDefs(exportNode *tree_sitter.Node, content []byte, relPath
 					nameNode := declChild.ChildByFieldName("name")
 					if nameNode != nil {
 						*defs = append(*defs, tsExportDef{
-							name: NodeText(nameNode, content),
+							name: analyzer.NodeText(nameNode, content),
 							file: relPath,
 							line: int(nameNode.StartPosition().Row) + 1,
 							kind: "var",
@@ -242,7 +279,7 @@ func tsCollectExportedDefs(exportNode *tree_sitter.Node, content []byte, relPath
 					nameNode := spec.ChildByFieldName("name")
 					if nameNode != nil {
 						*defs = append(*defs, tsExportDef{
-							name: NodeText(nameNode, content),
+							name: analyzer.NodeText(nameNode, content),
 							file: relPath,
 							line: int(nameNode.StartPosition().Row) + 1,
 							kind: "var",
@@ -272,14 +309,14 @@ func tsCollectImportedNames(importNode *tree_sitter.Node, content []byte, names 
 				}
 				switch inner.Kind() {
 				case "identifier":
-					names[NodeText(inner, content)] = true
+					names[analyzer.NodeText(inner, content)] = true
 				case "named_imports":
 					for k := uint(0); k < inner.ChildCount(); k++ {
 						spec := inner.Child(k)
 						if spec != nil && spec.Kind() == "import_specifier" {
 							nameNode := spec.ChildByFieldName("name")
 							if nameNode != nil {
-								names[NodeText(nameNode, content)] = true
+								names[analyzer.NodeText(nameNode, content)] = true
 							}
 						}
 					}
@@ -291,11 +328,11 @@ func tsCollectImportedNames(importNode *tree_sitter.Node, content []byte, names 
 						for k := uint(0); k < inner.ChildCount(); k++ {
 							c := inner.Child(k)
 							if c != nil && c.Kind() == "identifier" {
-								names[NodeText(c, content)] = true
+								names[analyzer.NodeText(c, content)] = true
 							}
 						}
 					} else {
-						names[NodeText(nameNode, content)] = true
+						names[analyzer.NodeText(nameNode, content)] = true
 					}
 				}
 			}

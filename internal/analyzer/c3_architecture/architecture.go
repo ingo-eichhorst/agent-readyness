@@ -1,10 +1,12 @@
-package analyzer
+package c3
 
 import (
 	"go/types"
+	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/ingo/agent-readyness/internal/analyzer"
 	"github.com/ingo/agent-readyness/internal/parser"
 	arstypes "github.com/ingo/agent-readyness/pkg/types"
 )
@@ -169,7 +171,7 @@ func (a *C3Analyzer) analyzeGoC3() *arstypes.C3Metrics {
 	srcPkgs := filterSourcePackages(a.pkgs)
 
 	modulePath := detectModulePath(srcPkgs)
-	graph := BuildImportGraph(srcPkgs, modulePath)
+	graph := analyzer.BuildImportGraph(srcPkgs, modulePath)
 
 	maxDepth, avgDepth := analyzeDirectoryDepth(srcPkgs, modulePath)
 	fanout := analyzeModuleFanout(srcPkgs, graph)
@@ -234,7 +236,7 @@ func packageDepth(pkgPath, modulePath string) int {
 }
 
 // analyzeModuleFanout computes average and max intra-module imports per package.
-func analyzeModuleFanout(pkgs []*parser.ParsedPackage, graph *ImportGraph) arstypes.MetricSummary {
+func analyzeModuleFanout(pkgs []*parser.ParsedPackage, graph *analyzer.ImportGraph) arstypes.MetricSummary {
 	if len(pkgs) == 0 {
 		return arstypes.MetricSummary{}
 	}
@@ -261,7 +263,7 @@ func analyzeModuleFanout(pkgs []*parser.ParsedPackage, graph *ImportGraph) arsty
 
 // detectCircularDeps uses DFS with white/gray/black coloring to find cycles in the import graph.
 // In valid Go code, the compiler prevents import cycles, so this returns empty for compilable code.
-func detectCircularDeps(graph *ImportGraph) [][]string {
+func detectCircularDeps(graph *analyzer.ImportGraph) [][]string {
 	const (
 		white = iota // unvisited
 		gray         // in current DFS path
@@ -455,3 +457,48 @@ func detectDeadCode(pkgs []*parser.ParsedPackage) []arstypes.DeadExport {
 
 	return dead
 }
+
+// detectModulePath extracts the module path from go.mod in the package directory,
+// or infers it from the first package's import path.
+func detectModulePath(pkgs []*parser.ParsedPackage) string {
+	if len(pkgs) == 0 {
+		return ""
+	}
+
+	// Try to find go.mod by walking up from the first package's file
+	if len(pkgs[0].GoFiles) > 0 {
+		dir := filepath.Dir(pkgs[0].GoFiles[0])
+		for {
+			modFile := filepath.Join(dir, "go.mod")
+			data, err := readFile(modFile)
+			if err == nil {
+				for _, line := range strings.Split(string(data), "\n") {
+					line = strings.TrimSpace(line)
+					if strings.HasPrefix(line, "module ") {
+						return strings.TrimSpace(strings.TrimPrefix(line, "module"))
+					}
+				}
+			}
+			parent := filepath.Dir(dir)
+			if parent == dir {
+				break
+			}
+			dir = parent
+		}
+	}
+
+	// Fallback: use common prefix of package paths
+	if len(pkgs) > 0 {
+		path := pkgs[0].PkgPath
+		// Use everything up to the first package component
+		parts := strings.Split(path, "/")
+		if len(parts) >= 3 {
+			return strings.Join(parts[:3], "/")
+		}
+		return path
+	}
+	return ""
+}
+
+// readFile reads a file and returns its content.
+var readFile = os.ReadFile

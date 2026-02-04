@@ -37,10 +37,10 @@ Requirements for v0.0.3 milestone. Each maps to roadmap phases.
 
 ### Codebase Organization (Issue #3)
 
-- [ ] **REORG-01**: Create `internal/analyzer/c1/`, `c2/`, ... `c7/` subdirectories
-- [ ] **REORG-02**: Move category-specific files into respective subdirectories
-- [ ] **REORG-03**: Fix all import paths affected by restructure
-- [ ] **REORG-04**: Re-exports in `internal/analyzer/analyzer.go` for backward compatibility
+- [x] **REORG-01**: Create `internal/analyzer/c1/`, `c2/`, ... `c7/` subdirectories
+- [x] **REORG-02**: Move category-specific files into respective subdirectories
+- [x] **REORG-03**: Fix all import paths affected by restructure
+- [x] **REORG-04**: Re-exports in `internal/analyzer/analyzer.go` for backward compatibility
 
 ### Testing (Issue #2)
 
@@ -94,10 +94,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | README-02 | Phase 17 | Pending |
 | README-03 | Phase 17 | Pending |
 | README-04 | Phase 17 | Pending |
-| REORG-01 | Phase 16 | Pending |
-| REORG-02 | Phase 16 | Pending |
-| REORG-03 | Phase 16 | Pending |
-| REORG-04 | Phase 16 | Pending |
+| REORG-01 | Phase 16 | Complete |
+| REORG-02 | Phase 16 | Complete |
+| REORG-03 | Phase 16 | Complete |
+| REORG-04 | Phase 16 | Complete |
 | TEST-01 | Phase 17 | Pending |
 | TEST-02 | Phase 17 | Pending |
 

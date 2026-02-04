@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-04)
 
 **Core value:** Accurate, evidence-based scoring that predicts agent success and identifies specific improvements teams should make before adopting AI coding agents.
-**Current focus:** Phase 19 - C6 Testing citations
+**Current focus:** Phase 20 - C2 Semantic Explicitness citations
 
 ## Current Position
 
-Phase: 19 of 24 (C6 Testing)
+Phase: 20 of 24 (C2 Semantic Explicitness)
 Plan: 1 of 1 in current phase
 Status: Phase complete
-Last activity: 2026-02-04 — Completed 19-01-PLAN.md (C6 Testing Citations)
+Last activity: 2026-02-04 — Completed 20-01-PLAN.md (C2 Semantic Explicitness Citations)
 
-Progress: [####################] 100% (v1-v0.0.3) | [###.......] 29% (v0.0.4)
+Progress: [####################] 100% (v1-v0.0.3) | [####......] 43% (v0.0.4)
 
 ## Performance Metrics
 
@@ -33,7 +33,7 @@ Progress: [####################] 100% (v1-v0.0.3) | [###.......] 29% (v0.0.4)
 
 **v0.0.4 (Current):**
 - Phases: 7 (18-24)
-- Plans completed: 3
+- Plans completed: 4
 - Focus: Content expansion (citations), not code changes
 
 *Updated after each plan completion*
@@ -54,6 +54,8 @@ Recent decisions affecting current work:
 - [18-02]: Chowdhury (2022) for func_length — only empirical threshold despite Java-specific
 - [19-01]: Coverage controversy documented — Mockus (positive) vs Inozemtseva (low-moderate)
 - [19-01]: Kudrjavets production assertions contextualized for test assertions
+- [20-01]: Pierce (2002) as primary type theory foundation for C2 metrics
+- [20-01]: Hoare "billion dollar mistake" labeled as practitioner opinion, not research
 
 ### Pending Todos
 
@@ -67,5 +69,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-04
-Stopped at: Completed 19-01-PLAN.md (C6 Testing Citations)
-Resume file: None — Phase 19 complete, ready for Phase 20
+Stopped at: Completed 20-01-PLAN.md (C2 Semantic Explicitness Citations)
+Resume file: None — Phase 20 complete, ready for Phase 21

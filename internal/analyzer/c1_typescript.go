@@ -77,7 +77,7 @@ func tsWalkFunctions(node *tree_sitter.Node, content []byte, file string, classN
 		nameNode := node.ChildByFieldName("name")
 		clsName := ""
 		if nameNode != nil {
-			clsName = nodeText(nameNode, content)
+			clsName = NodeText(nameNode, content)
 		}
 		body := node.ChildByFieldName("body")
 		if body != nil {
@@ -94,7 +94,7 @@ func tsWalkFunctions(node *tree_sitter.Node, content []byte, file string, classN
 		nameNode := node.ChildByFieldName("name")
 		name := ""
 		if nameNode != nil {
-			name = nodeText(nameNode, content)
+			name = NodeText(nameNode, content)
 		}
 		if className != "" {
 			name = className + "." + name
@@ -118,7 +118,7 @@ func tsWalkFunctions(node *tree_sitter.Node, content []byte, file string, classN
 		nameNode := node.ChildByFieldName("name")
 		name := ""
 		if nameNode != nil {
-			name = nodeText(nameNode, content)
+			name = NodeText(nameNode, content)
 		}
 		if className != "" {
 			name = className + "." + name
@@ -170,7 +170,7 @@ func tsArrowFunctionName(node *tree_sitter.Node, content []byte) string {
 	if parent != nil && parent.Kind() == "variable_declarator" {
 		nameNode := parent.ChildByFieldName("name")
 		if nameNode != nil {
-			return nodeText(nameNode, content)
+			return NodeText(nameNode, content)
 		}
 	}
 	return "<anonymous>"
@@ -211,7 +211,7 @@ func tsComputeComplexity(funcNode *tree_sitter.Node, content []byte) int {
 			// switch_case with a test expression is a case; without is default
 			if n.ChildCount() > 0 {
 				firstChild := n.Child(0)
-				if firstChild != nil && nodeText(firstChild, content) != "default" {
+				if firstChild != nil && NodeText(firstChild, content) != "default" {
 					complexity++
 				}
 			}
@@ -223,7 +223,7 @@ func tsComputeComplexity(funcNode *tree_sitter.Node, content []byte) int {
 			// Count && || ?? operators
 			opNode := n.ChildByFieldName("operator")
 			if opNode != nil {
-				op := nodeText(opNode, content)
+				op := NodeText(opNode, content)
 				if op == "&&" || op == "||" || op == "??" {
 					complexity++
 				}

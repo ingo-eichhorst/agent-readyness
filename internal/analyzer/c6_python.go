@@ -31,7 +31,7 @@ func pyDetectTests(files []*parser.ParsedTreeSitterFile) ([]types.TestFunctionMe
 
 		// Walk test file for test functions (def test_*)
 		root := f.Tree.RootNode()
-		walkTree(root, func(node *tree_sitter.Node) {
+		WalkTree(root, func(node *tree_sitter.Node) {
 			if node.Kind() != "function_definition" {
 				return
 			}
@@ -41,7 +41,7 @@ func pyDetectTests(files []*parser.ParsedTreeSitterFile) ([]types.TestFunctionMe
 				return
 			}
 
-			name := nodeText(nameNode, f.Content)
+			name := NodeText(nameNode, f.Content)
 			if !strings.HasPrefix(name, "test_") {
 				return
 			}
@@ -89,7 +89,7 @@ func pyCountAssertions(funcNode *tree_sitter.Node, content []byte) int {
 			// Check for self.assert* or self.fail calls
 			fn := n.ChildByFieldName("function")
 			if fn != nil && fn.Kind() == "attribute" {
-				fnText := nodeText(fn, content)
+				fnText := NodeText(fn, content)
 				if strings.HasPrefix(fnText, "self.assert") || fnText == "self.fail" {
 					count++
 				}
@@ -141,7 +141,7 @@ func pyAnalyzeIsolation(files []*parser.ParsedTreeSitterFile, testFuncs []types.
 		root := f.Tree.RootNode()
 		hasExtDep := false
 
-		walkTree(root, func(node *tree_sitter.Node) {
+		WalkTree(root, func(node *tree_sitter.Node) {
 			kind := node.Kind()
 			if kind != "import_statement" && kind != "import_from_statement" {
 				return
@@ -157,10 +157,10 @@ func pyAnalyzeIsolation(files []*parser.ParsedTreeSitterFile, testFuncs []types.
 						if child.Kind() == "aliased_import" {
 							nameNode := child.ChildByFieldName("name")
 							if nameNode != nil {
-								modName = nodeText(nameNode, f.Content)
+								modName = NodeText(nameNode, f.Content)
 							}
 						} else {
-							modName = nodeText(child, f.Content)
+							modName = NodeText(child, f.Content)
 						}
 					}
 				}
@@ -168,7 +168,7 @@ func pyAnalyzeIsolation(files []*parser.ParsedTreeSitterFile, testFuncs []types.
 				for i := uint(0); i < node.ChildCount(); i++ {
 					child := node.Child(i)
 					if child != nil && (child.Kind() == "dotted_name" || child.Kind() == "relative_import") {
-						modName = nodeText(child, f.Content)
+						modName = NodeText(child, f.Content)
 						break
 					}
 				}

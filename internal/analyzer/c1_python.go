@@ -43,7 +43,7 @@ func pyWalkFunctions(node *tree_sitter.Node, content []byte, file string, classN
 		nameNode := node.ChildByFieldName("name")
 		clsName := ""
 		if nameNode != nil {
-			clsName = nodeText(nameNode, content)
+			clsName = NodeText(nameNode, content)
 		}
 		body := node.ChildByFieldName("body")
 		if body != nil {
@@ -75,7 +75,7 @@ func pyWalkFunctions(node *tree_sitter.Node, content []byte, file string, classN
 		nameNode := node.ChildByFieldName("name")
 		name := ""
 		if nameNode != nil {
-			name = nodeText(nameNode, content)
+			name = NodeText(nameNode, content)
 		}
 
 		if className != "" {

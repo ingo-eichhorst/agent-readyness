@@ -31,7 +31,7 @@ func tsBuildImportGraph(files []*parser.ParsedTreeSitterFile) *ImportGraph {
 		fromFile := tsNormalizePath(f.RelPath)
 		fromDir := filepath.Dir(f.RelPath)
 
-		walkTree(root, func(node *tree_sitter.Node) {
+		WalkTree(root, func(node *tree_sitter.Node) {
 			kind := node.Kind()
 
 			var modulePath string
@@ -41,7 +41,7 @@ func tsBuildImportGraph(files []*parser.ParsedTreeSitterFile) *ImportGraph {
 				// ESM: import { foo } from "./bar"
 				src := node.ChildByFieldName("source")
 				if src != nil {
-					modulePath = tsStripQuotes(nodeText(src, f.Content))
+					modulePath = tsStripQuotes(NodeText(src, f.Content))
 				}
 
 			case "call_expression":
@@ -50,7 +50,7 @@ func tsBuildImportGraph(files []*parser.ParsedTreeSitterFile) *ImportGraph {
 				if fn == nil {
 					return
 				}
-				if nodeText(fn, f.Content) != "require" {
+				if NodeText(fn, f.Content) != "require" {
 					return
 				}
 				args := node.ChildByFieldName("arguments")
@@ -61,7 +61,7 @@ func tsBuildImportGraph(files []*parser.ParsedTreeSitterFile) *ImportGraph {
 				for i := uint(0); i < args.ChildCount(); i++ {
 					child := args.Child(i)
 					if child != nil && child.Kind() == "string" {
-						modulePath = tsStripQuotes(nodeText(child, f.Content))
+						modulePath = tsStripQuotes(NodeText(child, f.Content))
 						break
 					}
 				}
@@ -154,7 +154,7 @@ func tsDetectDeadCode(files []*parser.ParsedTreeSitterFile) []types.DeadExport {
 	importedNames := make(map[string]bool)
 	for _, f := range files {
 		root := f.Tree.RootNode()
-		walkTree(root, func(node *tree_sitter.Node) {
+		WalkTree(root, func(node *tree_sitter.Node) {
 			if node.Kind() != "import_statement" {
 				return
 			}
@@ -202,7 +202,7 @@ func tsCollectExportedDefs(exportNode *tree_sitter.Node, content []byte, relPath
 			nameNode := child.ChildByFieldName("name")
 			if nameNode != nil {
 				*defs = append(*defs, tsExportDef{
-					name: nodeText(nameNode, content),
+					name: NodeText(nameNode, content),
 					file: relPath,
 					line: int(nameNode.StartPosition().Row) + 1,
 					kind: "func",
@@ -212,7 +212,7 @@ func tsCollectExportedDefs(exportNode *tree_sitter.Node, content []byte, relPath
 			nameNode := child.ChildByFieldName("name")
 			if nameNode != nil {
 				*defs = append(*defs, tsExportDef{
-					name: nodeText(nameNode, content),
+					name: NodeText(nameNode, content),
 					file: relPath,
 					line: int(nameNode.StartPosition().Row) + 1,
 					kind: "type",
@@ -226,7 +226,7 @@ func tsCollectExportedDefs(exportNode *tree_sitter.Node, content []byte, relPath
 					nameNode := declChild.ChildByFieldName("name")
 					if nameNode != nil {
 						*defs = append(*defs, tsExportDef{
-							name: nodeText(nameNode, content),
+							name: NodeText(nameNode, content),
 							file: relPath,
 							line: int(nameNode.StartPosition().Row) + 1,
 							kind: "var",
@@ -242,7 +242,7 @@ func tsCollectExportedDefs(exportNode *tree_sitter.Node, content []byte, relPath
 					nameNode := spec.ChildByFieldName("name")
 					if nameNode != nil {
 						*defs = append(*defs, tsExportDef{
-							name: nodeText(nameNode, content),
+							name: NodeText(nameNode, content),
 							file: relPath,
 							line: int(nameNode.StartPosition().Row) + 1,
 							kind: "var",
@@ -272,14 +272,14 @@ func tsCollectImportedNames(importNode *tree_sitter.Node, content []byte, names 
 				}
 				switch inner.Kind() {
 				case "identifier":
-					names[nodeText(inner, content)] = true
+					names[NodeText(inner, content)] = true
 				case "named_imports":
 					for k := uint(0); k < inner.ChildCount(); k++ {
 						spec := inner.Child(k)
 						if spec != nil && spec.Kind() == "import_specifier" {
 							nameNode := spec.ChildByFieldName("name")
 							if nameNode != nil {
-								names[nodeText(nameNode, content)] = true
+								names[NodeText(nameNode, content)] = true
 							}
 						}
 					}
@@ -291,11 +291,11 @@ func tsCollectImportedNames(importNode *tree_sitter.Node, content []byte, names 
 						for k := uint(0); k < inner.ChildCount(); k++ {
 							c := inner.Child(k)
 							if c != nil && c.Kind() == "identifier" {
-								names[nodeText(c, content)] = true
+								names[NodeText(c, content)] = true
 							}
 						}
 					} else {
-						names[nodeText(nameNode, content)] = true
+						names[NodeText(nameNode, content)] = true
 					}
 				}
 			}

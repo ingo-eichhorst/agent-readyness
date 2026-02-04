@@ -48,7 +48,7 @@ func tsCollectTestFunctions(node *tree_sitter.Node, content []byte, relPath stri
 	if kind == "call_expression" {
 		fn := node.ChildByFieldName("function")
 		if fn != nil {
-			fnName := nodeText(fn, content)
+			fnName := NodeText(fn, content)
 
 			// it("...", () => { ... }) or test("...", () => { ... })
 			if fnName == "it" || fnName == "test" {
@@ -104,7 +104,7 @@ func tsExtractFirstStringArg(callNode *tree_sitter.Node, content []byte) string 
 		}
 		kind := child.Kind()
 		if kind == "string" || kind == "template_string" {
-			text := nodeText(child, content)
+			text := NodeText(child, content)
 			return tsStripQuotes(text)
 		}
 	}
@@ -139,7 +139,7 @@ func tsCountAssertions(funcNode *tree_sitter.Node, content []byte) int {
 		if kind == "call_expression" {
 			fn := n.ChildByFieldName("function")
 			if fn != nil {
-				fnText := nodeText(fn, content)
+				fnText := NodeText(fn, content)
 
 				// Jest/Vitest: expect(x).toBe(y) -- the outer call is .toBe()
 				// We count the expect() call as the assertion anchor
@@ -214,7 +214,7 @@ func tsAnalyzeIsolation(files []*parser.ParsedTreeSitterFile, testFuncs []types.
 		root := f.Tree.RootNode()
 		hasExtDep := false
 
-		walkTree(root, func(node *tree_sitter.Node) {
+		WalkTree(root, func(node *tree_sitter.Node) {
 			kind := node.Kind()
 			if kind != "import_statement" {
 				return
@@ -225,7 +225,7 @@ func tsAnalyzeIsolation(files []*parser.ParsedTreeSitterFile, testFuncs []types.
 			if src == nil {
 				return
 			}
-			modPath := tsStripQuotes(nodeText(src, f.Content))
+			modPath := tsStripQuotes(NodeText(src, f.Content))
 
 			// Skip relative imports (intra-project)
 			if strings.HasPrefix(modPath, ".") {

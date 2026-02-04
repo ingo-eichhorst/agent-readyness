@@ -62,7 +62,7 @@ func (a *C2TypeScriptAnalyzer) Analyze(target *types.AnalysisTarget) (*types.C2L
 		}
 
 		root := tree.RootNode()
-		lines := countLines(content)
+		lines := CountLines(content)
 		totalLOC += lines
 
 		// C2-TS-01: Type annotation coverage
@@ -131,7 +131,7 @@ func (a *C2TypeScriptAnalyzer) Analyze(target *types.AnalysisTarget) (*types.C2L
 func tsTypeAnnotations(root *tree_sitter.Node, content []byte) (int, int, int, int) {
 	var typed, total, anyC, funcCount int
 
-	walkTree(root, func(node *tree_sitter.Node) {
+	WalkTree(root, func(node *tree_sitter.Node) {
 		nodeKind := node.Kind()
 
 		switch nodeKind {
@@ -217,7 +217,7 @@ func countTSParams(params *tree_sitter.Node, content []byte, typed, total, anyC 
 
 // containsAnyType checks if a type annotation node contains explicit "any".
 func containsAnyType(node *tree_sitter.Node, content []byte) bool {
-	text := nodeText(node, content)
+	text := NodeText(node, content)
 	// Check for standalone "any" type
 	return strings.Contains(text, "any")
 }
@@ -226,12 +226,12 @@ func containsAnyType(node *tree_sitter.Node, content []byte) bool {
 func tsMagicNumbers(root *tree_sitter.Node, content []byte) int {
 	count := 0
 
-	walkTree(root, func(node *tree_sitter.Node) {
+	WalkTree(root, func(node *tree_sitter.Node) {
 		if node.Kind() != "number" {
 			return
 		}
 
-		value := nodeText(node, content)
+		value := NodeText(node, content)
 
 		// Exclude common values
 		if isTSCommonNumeric(value) {
@@ -246,7 +246,7 @@ func tsMagicNumbers(root *tree_sitter.Node, content []byte) int {
 				// Check if it's a const
 				for i := uint(0); i < parent.ChildCount(); i++ {
 					child := parent.Child(i)
-					if child != nil && nodeText(child, content) == "const" {
+					if child != nil && NodeText(child, content) == "const" {
 						return
 					}
 				}
@@ -267,7 +267,7 @@ func tsMagicNumbers(root *tree_sitter.Node, content []byte) int {
 func tsOptionalChaining(root *tree_sitter.Node) int {
 	count := 0
 
-	walkTree(root, func(node *tree_sitter.Node) {
+	WalkTree(root, func(node *tree_sitter.Node) {
 		nodeKind := node.Kind()
 		// Tree-sitter represents optional chaining as member_expression with optional_chain
 		if nodeKind == "optional_chain" {

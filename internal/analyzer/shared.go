@@ -4,6 +4,8 @@ package analyzer
 import (
 	"strings"
 
+	tree_sitter "github.com/tree-sitter/go-tree-sitter"
+
 	"github.com/ingo/agent-readyness/internal/parser"
 )
 
@@ -34,4 +36,37 @@ func BuildImportGraph(pkgs []*parser.ParsedPackage, modulePath string) *ImportGr
 	}
 
 	return g
+}
+
+// WalkTree walks a Tree-sitter tree depth-first, calling fn for each node.
+func WalkTree(node *tree_sitter.Node, fn func(*tree_sitter.Node)) {
+	if node == nil {
+		return
+	}
+	fn(node)
+	for i := uint(0); i < node.ChildCount(); i++ {
+		child := node.Child(i)
+		if child != nil {
+			WalkTree(child, fn)
+		}
+	}
+}
+
+// NodeText extracts the text content of a Tree-sitter node.
+func NodeText(node *tree_sitter.Node, content []byte) string {
+	return string(content[node.StartByte():node.EndByte()])
+}
+
+// CountLines counts lines in source content.
+func CountLines(content []byte) int {
+	if len(content) == 0 {
+		return 0
+	}
+	count := 1
+	for _, b := range content {
+		if b == '\n' {
+			count++
+		}
+	}
+	return count
 }

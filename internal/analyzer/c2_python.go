@@ -64,7 +64,7 @@ func (a *C2PythonAnalyzer) Analyze(target *types.AnalysisTarget) (*types.C2Langu
 		}
 
 		root := tree.RootNode()
-		lines := countLines(content)
+		lines := CountLines(content)
 		totalLOC += lines
 
 		// C2-PY-01: Type annotation coverage
@@ -117,7 +117,7 @@ func (a *C2PythonAnalyzer) Analyze(target *types.AnalysisTarget) (*types.C2Langu
 func pyTypeAnnotations(root *tree_sitter.Node, content []byte) (int, int, int, int) {
 	var annotatedParams, annotatedReturns, totalParams, totalFunctions int
 
-	walkTree(root, func(node *tree_sitter.Node) {
+	WalkTree(root, func(node *tree_sitter.Node) {
 		nodeType := node.Kind()
 		if nodeType != "function_definition" {
 			return
@@ -146,7 +146,7 @@ func pyTypeAnnotations(root *tree_sitter.Node, content []byte) (int, int, int, i
 			switch childKind {
 			case "identifier":
 				// Plain parameter without type annotation
-				paramName := nodeText(child, content)
+				paramName := NodeText(child, content)
 				if paramName == "self" || paramName == "cls" {
 					continue
 				}
@@ -157,7 +157,7 @@ func pyTypeAnnotations(root *tree_sitter.Node, content []byte) (int, int, int, i
 				// Check if it's self/cls
 				nameNode := child.ChildByFieldName("name")
 				if nameNode != nil {
-					paramName := nodeText(nameNode, content)
+					paramName := NodeText(nameNode, content)
 					if paramName == "self" || paramName == "cls" {
 						continue
 					}
@@ -169,7 +169,7 @@ func pyTypeAnnotations(root *tree_sitter.Node, content []byte) (int, int, int, i
 				// Default parameter -- check if it has a type annotation
 				nameNode := child.ChildByFieldName("name")
 				if nameNode != nil {
-					paramName := nodeText(nameNode, content)
+					paramName := NodeText(nameNode, content)
 					if paramName == "self" || paramName == "cls" {
 						continue
 					}
@@ -180,7 +180,7 @@ func pyTypeAnnotations(root *tree_sitter.Node, content []byte) (int, int, int, i
 			case "typed_default_parameter":
 				nameNode := child.ChildByFieldName("name")
 				if nameNode != nil {
-					paramName := nodeText(nameNode, content)
+					paramName := NodeText(nameNode, content)
 					if paramName == "self" || paramName == "cls" {
 						continue
 					}
@@ -202,7 +202,7 @@ func pyTypeAnnotations(root *tree_sitter.Node, content []byte) (int, int, int, i
 func pyNamingConsistency(root *tree_sitter.Node, content []byte) (int, int) {
 	var consistent, total int
 
-	walkTree(root, func(node *tree_sitter.Node) {
+	WalkTree(root, func(node *tree_sitter.Node) {
 		nodeType := node.Kind()
 		parent := node.Parent()
 		if parent == nil {
@@ -218,7 +218,7 @@ func pyNamingConsistency(root *tree_sitter.Node, content []byte) (int, int) {
 			if nameNode == nil || nameNode.Id() != node.Id() {
 				return
 			}
-			name := nodeText(node, content)
+			name := NodeText(node, content)
 			if name == "" || name == "_" || len(name) <= 1 {
 				return
 			}
@@ -237,7 +237,7 @@ func pyNamingConsistency(root *tree_sitter.Node, content []byte) (int, int) {
 			if nameNode == nil || nameNode.Id() != node.Id() {
 				return
 			}
-			name := nodeText(node, content)
+			name := NodeText(node, content)
 			if name == "" || len(name) <= 1 {
 				return
 			}
@@ -255,13 +255,13 @@ func pyNamingConsistency(root *tree_sitter.Node, content []byte) (int, int) {
 func pyMagicNumbers(root *tree_sitter.Node, content []byte) int {
 	count := 0
 
-	walkTree(root, func(node *tree_sitter.Node) {
+	WalkTree(root, func(node *tree_sitter.Node) {
 		nodeType := node.Kind()
 		if nodeType != "integer" && nodeType != "float" {
 			return
 		}
 
-		value := nodeText(node, content)
+		value := NodeText(node, content)
 
 		// Exclude common values
 		if isPyCommonNumeric(value) {
@@ -325,38 +325,6 @@ func hasINISection(path string, section string) bool {
 	return strings.Contains(string(data), section)
 }
 
-// walkTree walks a Tree-sitter tree depth-first, calling fn for each node.
-func walkTree(node *tree_sitter.Node, fn func(*tree_sitter.Node)) {
-	if node == nil {
-		return
-	}
-	fn(node)
-	for i := uint(0); i < node.ChildCount(); i++ {
-		child := node.Child(i)
-		if child != nil {
-			walkTree(child, fn)
-		}
-	}
-}
-
-// nodeText extracts the text content of a Tree-sitter node.
-func nodeText(node *tree_sitter.Node, content []byte) string {
-	return string(content[node.StartByte():node.EndByte()])
-}
-
-// countLines counts lines in source content.
-func countLines(content []byte) int {
-	if len(content) == 0 {
-		return 0
-	}
-	count := 1
-	for _, b := range content {
-		if b == '\n' {
-			count++
-		}
-	}
-	return count
-}
 
 // isSnakeCase checks if a name follows snake_case convention.
 var snakeCasePattern = regexp.MustCompile(`^[a-z][a-z0-9]*(_[a-z0-9]+)*$`)
@@ -392,7 +360,7 @@ func isUpperCaseAssignment(node *tree_sitter.Node, content []byte) bool {
 		if current.Kind() == "assignment" {
 			left := current.ChildByFieldName("left")
 			if left != nil && left.Kind() == "identifier" {
-				name := nodeText(left, content)
+				name := NodeText(left, content)
 				return upperCasePattern.MatchString(name)
 			}
 		}

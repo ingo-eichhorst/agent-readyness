@@ -10,19 +10,19 @@ See: .planning/PROJECT.md (updated 2026-02-03)
 ## Current Position
 
 Milestone: v0.0.3 Simplification & Polish
-Phase: 15 of 17 (claude-code-integration)
-Plan: 2 of 2
-Status: Phase 15 complete
-Last activity: 2026-02-04 — Phase 15 verified
+Phase: 16 of 17 (analyzer-reorganization)
+Plan: 1 of 2
+Status: In progress
+Last activity: 2026-02-04 — Completed 16-01-PLAN.md
 
-Progress: [========================........] 3/5 phases (Phases 13-15 complete)
+Progress: [==========================......] 3.5/5 phases (Phases 13-15 complete, 16 in progress)
 
 ## Performance Metrics
 
 **Velocity (from v0.0.2):**
-- Total plans completed: 35
+- Total plans completed: 36
 - Average duration: 6 min
-- Total execution time: 206 min
+- Total execution time: 211 min
 
 *Updated after each plan completion*
 
@@ -43,6 +43,7 @@ All decisions are logged in PROJECT.md Key Decisions table.
 - Single retry with 2-second backoff for CLI evaluation (15-01)
 - Auto-enable LLM when CLI detected, opt-out with --no-llm (15-02)
 - Remove cost estimates and confirmation prompts for CLI-based evaluation (15-02)
+- Build tag 'reorganized' for gradual analyzer migration (16-01)
 
 ### Pending Todos
 
@@ -57,7 +58,7 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-04
-Stopped at: Phase 15 verified
+Stopped at: Completed 16-01-PLAN.md
 Resume file: None
 
-**Next steps:** Plan Phase 16 (Analyzer Reorganization)
+**Next steps:** Execute 16-02-PLAN.md (Move analyzer files into subdirectories)

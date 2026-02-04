@@ -72,11 +72,11 @@ Plans:
   2. All analyzer files moved to appropriate subdirectories
   3. All import paths work correctly (no broken imports)
   4. Root-level analyzer.go provides re-exports for backward compatibility
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 16-01: Create subdirectory structure and move files
-- [ ] 16-02: Fix imports and add re-exports
+- [ ] 16-01-PLAN.md — Foundation: create directories, shared.go, root re-exports
+- [ ] 16-02-PLAN.md — Move all category files, update imports, verify tests
 
 ### Phase 17: README & Testing
 **Goal**: Project has standard status badges and test commands include coverage

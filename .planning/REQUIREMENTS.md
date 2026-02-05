@@ -95,14 +95,14 @@ Requirements for milestone v0.0.4 Metric Research. Each maps to roadmap phases.
 
 ### C7: Agent Evaluation Citations (Issue #53)
 
-- [ ] **C7-01**: Research foundational sources for all 5 C7 metrics (M1-M5)
-- [ ] **C7-02**: Research AI/agent era sources (2021-2025) for all 5 C7 metrics
-- [ ] **C7-03**: Add inline citations to M1 (Task Execution Consistency) description
-- [ ] **C7-04**: Add inline citations to M2 (Code Behavior Comprehension) description
-- [ ] **C7-05**: Add inline citations to M3 (Cross-File Navigation) description
-- [ ] **C7-06**: Add inline citations to M4 (Identifier Interpretability) description
-- [ ] **C7-07**: Add inline citations to M5 (Documentation Accuracy Detection) description
-- [ ] **C7-08**: Add References section for all C7 metrics with verified URLs
+- [x] **C7-01**: Research foundational sources for all 5 C7 metrics (M1-M5)
+- [x] **C7-02**: Research AI/agent era sources (2021-2025) for all 5 C7 metrics
+- [x] **C7-03**: Add inline citations to M1 (Task Execution Consistency) description
+- [x] **C7-04**: Add inline citations to M2 (Code Behavior Comprehension) description
+- [x] **C7-05**: Add inline citations to M3 (Cross-File Navigation) description
+- [x] **C7-06**: Add inline citations to M4 (Identifier Interpretability) description
+- [x] **C7-07**: Add inline citations to M5 (Documentation Accuracy Detection) description
+- [x] **C7-08**: Add References section for all C7 metrics with verified URLs
 
 ### Quality Standards (Cross-Category)
 
@@ -197,14 +197,14 @@ Which phases cover which requirements. Updated during roadmap creation.
 | C7-IMPL-06 | Phase 24 | Complete |
 | C7-IMPL-07 | Phase 24 | Complete |
 | C7-IMPL-08 | Phase 24 | Complete |
-| C7-01 | Phase 25 | Pending |
-| C7-02 | Phase 25 | Pending |
-| C7-03 | Phase 25 | Pending |
-| C7-04 | Phase 25 | Pending |
-| C7-05 | Phase 25 | Pending |
-| C7-06 | Phase 25 | Pending |
-| C7-07 | Phase 25 | Pending |
-| C7-08 | Phase 25 | Pending |
+| C7-01 | Phase 25 | Complete |
+| C7-02 | Phase 25 | Complete |
+| C7-03 | Phase 25 | Complete |
+| C7-04 | Phase 25 | Complete |
+| C7-05 | Phase 25 | Complete |
+| C7-06 | Phase 25 | Complete |
+| C7-07 | Phase 25 | Complete |
+| C7-08 | Phase 25 | Complete |
 
 **Coverage:**
 - v0.0.4 requirements: 66 total

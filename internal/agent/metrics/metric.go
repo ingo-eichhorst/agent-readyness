@@ -61,46 +61,29 @@ type Executor interface {
 	ExecutePrompt(ctx context.Context, workDir, prompt, tools string, timeout time.Duration) (response string, err error)
 }
 
-// Stub constructors - replaced in Task 2 with real implementations.
-// These exist so registry.go compiles before metric implementations exist.
+// Metric constructors - these return the real implementations.
 
 // NewM1Consistency creates the Task Execution Consistency metric.
 func NewM1Consistency() Metric {
-	return &stubMetric{id: "task_execution_consistency", name: "Task Execution Consistency"}
+	return NewM1ConsistencyMetric()
 }
 
 // NewM2Comprehension creates the Code Behavior Comprehension metric.
 func NewM2Comprehension() Metric {
-	return &stubMetric{id: "code_behavior_comprehension", name: "Code Behavior Comprehension"}
+	return NewM2ComprehensionMetric()
 }
 
 // NewM3Navigation creates the Cross-File Navigation metric.
 func NewM3Navigation() Metric {
-	return &stubMetric{id: "cross_file_navigation", name: "Cross-File Navigation"}
+	return NewM3NavigationMetric()
 }
 
 // NewM4Identifiers creates the Identifier Interpretability metric.
 func NewM4Identifiers() Metric {
-	return &stubMetric{id: "identifier_interpretability", name: "Identifier Interpretability"}
+	return NewM4IdentifiersMetric()
 }
 
 // NewM5Documentation creates the Documentation Accuracy Detection metric.
 func NewM5Documentation() Metric {
-	return &stubMetric{id: "documentation_accuracy_detection", name: "Documentation Accuracy Detection"}
-}
-
-// stubMetric is a placeholder until real implementations exist.
-type stubMetric struct {
-	id   string
-	name string
-}
-
-func (s *stubMetric) ID() string      { return s.id }
-func (s *stubMetric) Name() string    { return s.name }
-func (s *stubMetric) Description() string { return "Stub implementation" }
-func (s *stubMetric) Timeout() time.Duration { return 60 * time.Second }
-func (s *stubMetric) SampleCount() int { return 1 }
-func (s *stubMetric) SelectSamples(_ []*types.AnalysisTarget) []Sample { return nil }
-func (s *stubMetric) Execute(_ context.Context, _ string, _ []Sample, _ Executor) MetricResult {
-	return MetricResult{MetricID: s.id, MetricName: s.name, Error: "stub implementation"}
+	return NewM5DocumentationMetric()
 }

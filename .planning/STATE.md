@@ -63,6 +63,9 @@ Recent decisions affecting current work:
 - [23-01]: Tornhill (2015) labeled as practitioner literature synthesizing academic research
 - [23-01]: Borg et al. noted as indirect support for temporal metrics (validates code health broadly)
 - [23-01]: Commit stability research gap acknowledged — thresholds are practitioner consensus
+- [24-01]: Heuristic-based response scoring — keyword pattern matching over additional LLM calls
+- [24-01]: Per-metric sample selection formulas — complexity/sqrt(LOC), import count, comment density
+- [24-01]: Variance thresholds for M1 — <5% excellent, <15% good, <30% acceptable based on 13% benchmark variance
 
 ### Pending Todos
 

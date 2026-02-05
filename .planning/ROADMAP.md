@@ -25,7 +25,7 @@ This milestone establishes scientific foundations for all ARS metric description
 - [x] **Phase 21: C3 Architecture** - 5 metric citations
 - [x] **Phase 22: C4 Documentation** - 7 metric citations
 - [x] **Phase 23: C5 Temporal Dynamics** - 5 metric citations
-- [ ] **Phase 24: C7 MECE Metrics Implementation** - Break down C7 into 5 scientifically-grounded agent-assessable metrics
+- [x] **Phase 24: C7 MECE Metrics Implementation** - Break down C7 into 5 scientifically-grounded agent-assessable metrics
 - [ ] **Phase 25: C7 Agent Evaluation** - Citations for 5 C7 metrics (nascent field)
 
 ## Phase Details
@@ -150,10 +150,10 @@ Plans:
   2. C7 References section contains complete citations with verified, accessible URLs
   3. Research novelty is explicitly acknowledged (most relevant work is in preprints/2024-2025)
   4. Each metric's thresholds are tied to empirical evidence from cited research
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 25-01: [TBD during planning]
+- [ ] 25-01-PLAN.md — Add citations to all 5 C7 metrics and verify URLs
 
 <details>
 <summary>Completed Milestones (v1 through v0.0.3)</summary>
@@ -186,7 +186,7 @@ Phases 18-25 execute sequentially. Phase 18 must complete first (establishes cit
 | 22. C4 Documentation | v0.0.4 | 1/1 | Complete | 2026-02-04 |
 | 23. C5 Temporal Dynamics | v0.0.4 | 1/1 | Complete | 2026-02-05 |
 | 24. C7 MECE Metrics Implementation | v0.0.4 | 6/6 | Complete | 2026-02-05 |
-| 25. C7 Agent Evaluation Citations | v0.0.4 | 0/TBD | Not started | - |
+| 25. C7 Agent Evaluation Citations | v0.0.4 | 0/1 | Not started | - |
 
 ---
 *Roadmap created: 2026-02-04*

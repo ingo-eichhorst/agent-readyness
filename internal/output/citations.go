@@ -135,7 +135,7 @@ var researchCitations = []Citation{
 	{
 		Category:    "C2",
 		Title:       "Typed Python in 2024: Well adopted, yet usability challenges persist",
-		Authors:     "Meta Engineering",
+		Authors:     "Meta",
 		Year:        2024,
 		URL:         "https://engineering.fb.com/2024/12/09/developer-tools/typed-python-2024-survey-meta/",
 		Description: "88% of Python developers use type hints; 49.8% cite bug prevention",
@@ -175,7 +175,7 @@ var researchCitations = []Citation{
 	{
 		Category:    "C3",
 		Title:       "Structured Design",
-		Authors:     "Stevens, Myers & Constantine",
+		Authors:     "Stevens et al.",
 		Year:        1974,
 		URL:         "https://doi.org/10.1147/sj.132.0115",
 		Description: "Original coupling and cohesion definitions; low coupling improves software quality",

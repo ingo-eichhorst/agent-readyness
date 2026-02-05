@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-04)
 ## Current Position
 
 Phase: 24 of 25 (C7 MECE Metrics Implementation)
-Plan: 2 of 5 in current phase
+Plan: 4 of 5 in current phase
 Status: In progress
-Last activity: 2026-02-05 — Completed 24-02-PLAN.md (C7 Progress Display)
+Last activity: 2026-02-05 — Completed 24-04-PLAN.md (Types & Scoring Config)
 
-Progress: [####################] 100% (v1-v0.0.3) | [########..] 80% (v0.0.4)
+Progress: [####################] 100% (v1-v0.0.3) | [#########.] 90% (v0.0.4)
 
 ## Performance Metrics
 
@@ -33,7 +33,7 @@ Progress: [####################] 100% (v1-v0.0.3) | [########..] 80% (v0.0.4)
 
 **v0.0.4 (Current):**
 - Phases: 8 (18-25)
-- Plans completed: 8
+- Plans completed: 10
 - Focus: Citations (18-23), C7 implementation (24), C7 citations (25)
 
 *Updated after each plan completion*
@@ -66,6 +66,8 @@ Recent decisions affecting current work:
 - [24-01]: Heuristic-based response scoring — keyword pattern matching over additional LLM calls
 - [24-01]: Per-metric sample selection formulas — complexity/sqrt(LOC), import count, comment density
 - [24-01]: Variance thresholds for M1 — <5% excellent, <15% good, <30% acceptable based on 13% benchmark variance
+- [24-04]: 1-10 scale for MECE metrics — aligned with C1-C6, legacy 0-100 preserved
+- [24-04]: Weight distribution M2+M3=25% each, M1=20%, M4+M5=15% each — research-based prioritization
 
 ### Pending Todos
 
@@ -79,5 +81,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-05
-Stopped at: Completed 24-02-PLAN.md (C7 Progress Display)
-Resume file: None — Continue with 24-03-PLAN.md
+Stopped at: Completed 24-04-PLAN.md (Types & Scoring Config)
+Resume file: None — Continue with 24-05-PLAN.md

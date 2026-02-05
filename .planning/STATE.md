@@ -33,7 +33,7 @@ Progress: [####################] 100% (v1-v0.0.3) | [#########.] 90% (v0.0.4)
 
 **v0.0.4 (Current):**
 - Phases: 8 (18-25)
-- Plans completed: 10
+- Plans completed: 11
 - Focus: Citations (18-23), C7 implementation (24), C7 citations (25)
 
 *Updated after each plan completion*
@@ -68,6 +68,8 @@ Recent decisions affecting current work:
 - [24-01]: Variance thresholds for M1 — <5% excellent, <15% good, <30% acceptable based on 13% benchmark variance
 - [24-04]: 1-10 scale for MECE metrics — aligned with C1-C6, legacy 0-100 preserved
 - [24-04]: Weight distribution M2+M3=25% each, M1=20%, M4+M5=15% each — research-based prioritization
+- [24-03]: CLIExecutorAdapter in agent package — avoids import cycle with metrics subpackage
+- [24-03]: errgroup nil-return pattern — ensures all 5 metrics complete even if one fails
 
 ### Pending Todos
 

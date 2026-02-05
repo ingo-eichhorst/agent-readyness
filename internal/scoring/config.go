@@ -444,15 +444,81 @@ func DefaultConfig() *ScoringConfig {
 				Name:   "Agent Evaluation",
 				Weight: 0.10,
 				Metrics: []MetricThresholds{
+					// Legacy overall_score preserved for backward compatibility
 					{
 						Name:   "overall_score",
-						Weight: 1.0,
+						Weight: 0.0, // Zero weight - not used in new scoring
 						Breakpoints: []Breakpoint{
 							{Value: 0, Score: 1},
 							{Value: 30, Score: 3},
 							{Value: 50, Score: 5},
 							{Value: 70, Score: 7},
 							{Value: 90, Score: 10},
+						},
+					},
+					// M1: Task Execution Consistency
+					// Measures reproducibility across runs
+					// Research: Agent benchmarks show ~13% variance is typical
+					{
+						Name:   "task_execution_consistency",
+						Weight: 0.20,
+						Breakpoints: []Breakpoint{
+							{Value: 1, Score: 1},   // >30% variance
+							{Value: 4, Score: 4},   // 15-30% variance
+							{Value: 7, Score: 7},   // 5-15% variance
+							{Value: 10, Score: 10}, // <5% variance
+						},
+					},
+					// M2: Code Behavior Comprehension
+					// Measures understanding of code semantics (not syntax)
+					// Research: LLMs struggle with semantic vs syntactic understanding
+					{
+						Name:   "code_behavior_comprehension",
+						Weight: 0.25,
+						Breakpoints: []Breakpoint{
+							{Value: 1, Score: 1},   // Fundamentally wrong
+							{Value: 4, Score: 4},   // Partial understanding
+							{Value: 7, Score: 7},   // Correct main path
+							{Value: 10, Score: 10}, // All paths including edge cases
+						},
+					},
+					// M3: Cross-File Navigation
+					// Measures dependency tracing across files
+					// Research: RepoGraph shows 32.8% improvement with repo-level understanding
+					{
+						Name:   "cross_file_navigation",
+						Weight: 0.25,
+						Breakpoints: []Breakpoint{
+							{Value: 1, Score: 1},   // Single file only
+							{Value: 4, Score: 4},   // Direct dependencies
+							{Value: 7, Score: 7},   // Most of chain
+							{Value: 10, Score: 10}, // Complete trace
+						},
+					},
+					// M4: Identifier Interpretability
+					// Measures ability to infer meaning from names
+					// Research: Descriptive compound identifiers improve comprehension
+					{
+						Name:   "identifier_interpretability",
+						Weight: 0.15,
+						Breakpoints: []Breakpoint{
+							{Value: 1, Score: 1},   // Misinterprets
+							{Value: 4, Score: 4},   // Needs context
+							{Value: 7, Score: 7},   // Mostly correct
+							{Value: 10, Score: 10}, // Correct interpretation
+						},
+					},
+					// M5: Documentation Accuracy Detection
+					// Measures ability to detect comment/code mismatches
+					// Research: CCI detection is a distinct, measurable capability
+					{
+						Name:   "documentation_accuracy_detection",
+						Weight: 0.15,
+						Breakpoints: []Breakpoint{
+							{Value: 1, Score: 1},   // Cannot detect
+							{Value: 4, Score: 4},   // Obvious only
+							{Value: 7, Score: 7},   // Most mismatches
+							{Value: 10, Score: 10}, // All mismatches
 						},
 					},
 				},

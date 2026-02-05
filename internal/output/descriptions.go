@@ -1039,6 +1039,163 @@ var metricDescriptions = map[string]MetricDescription{
 <li>Review test coverage by module</li>
 </ul>`,
 	},
+
+	// ============================================================================
+	// C7: Agent Evaluation Metrics
+	// ============================================================================
+	"task_execution_consistency": {
+		Brief:     "Reproducibility of agent task completion. Agent benchmarks show 13% typical variance <span class=\"citation\">(Kapoor et al., 2024)</span>.",
+		Threshold: 6.0,
+		Detailed: `<h4>Definition</h4>
+<p>Measures whether an agent produces consistent results when executing the same task multiple times. Runs the same simple task 3 times and measures variance in completion quality.</p>
+
+<h4>Why It Matters for AI Agents</h4>
+<p>Production use requires predictable behavior. High variance means unreliable results in CI/CD pipelines and user-facing applications. Consistency is a prerequisite to other capabilities—an agent that occasionally succeeds but mostly fails cannot be trusted.</p>
+
+<h4>Research Evidence</h4>
+<p>SWE-bench evaluation methodology established that agent performance varies across runs, with the benchmark becoming the standard for evaluating LLM task completion on real-world GitHub issues <span class="citation">(Jimenez et al., 2024)</span>. A systematic analysis of agent benchmarking identified reproducibility as a critical gap: "many agent evaluations are rarely accompanied by error bars" <span class="citation">(Kapoor et al., 2024)</span>. The study found 13% typical variance in agent benchmark results.</p>
+<p><em>Note: The 5%/15%/30% variance thresholds are practitioner-derived heuristics based on the 13% benchmark observation, not empirically validated boundaries.</em></p>
+
+<h4>Recommended Thresholds</h4>
+<ul>
+<li><strong>Score 10 (&lt;5% variance):</strong> Highly consistent, production-ready</li>
+<li><strong>Score 7 (5-15% variance):</strong> Acceptable for most use cases</li>
+<li><strong>Score 4 (15-30% variance):</strong> Inconsistent, requires human review</li>
+<li><strong>Score 1 (&gt;30% variance):</strong> Unreliable, not suitable for automation</li>
+</ul>
+
+<h4>How to Improve</h4>
+<ul>
+<li>Simplify code structure (lower complexity)</li>
+<li>Add explicit context (clear comments, descriptive names)</li>
+<li>Reduce ambiguity in requirements and task descriptions</li>
+<li>Improve test coverage to provide clearer success criteria</li>
+</ul>`,
+	},
+
+	"code_behavior_comprehension": {
+		Brief:     "Agent understanding of code semantics. LLMs fail on 78% of bugs after semantic-preserving mutations <span class=\"citation\">(Haroon et al., 2025)</span>.",
+		Threshold: 6.0,
+		Detailed: `<h4>Definition</h4>
+<p>Measures how well agents understand code behavior beyond surface-level patterns. Tests whether agents can correctly predict behavior changes when code is modified in semantically meaningful ways.</p>
+
+<h4>Why It Matters for AI Agents</h4>
+<p>Shallow pattern matching produces code that looks right but behaves incorrectly. Agents that truly understand code behavior can predict side effects, identify edge cases, and make semantically correct modifications. This distinguishes useful agents from autocomplete engines.</p>
+
+<h4>Research Evidence</h4>
+<p>Recent research reveals significant limitations in LLM code comprehension. Haroon et al. found that LLMs lose the ability to debug the same bug in 78% of cases when semantic-preserving mutations are applied, indicating shallow understanding rather than true semantic comprehension <span class="citation">(Haroon et al., 2025)</span>.</p>
+<p>Havare et al. developed a code comprehension benchmark for LLMs, finding that fine-tuning can improve accuracy from 70% to 87.66%, demonstrating both the limitations of base models and the potential for improvement <span class="citation">(Havare et al., 2025)</span>.</p>
+<p><em>Note: This research field is emerging (2025 preprints); findings should be interpreted as directional rather than definitive. Score boundaries are heuristic.</em></p>
+
+<h4>Recommended Thresholds</h4>
+<ul>
+<li><strong>Score 10:</strong> Correctly explains behavior changes for complex modifications</li>
+<li><strong>Score 7:</strong> Handles most cases, may miss edge cases</li>
+<li><strong>Score 4:</strong> Basic comprehension, struggles with subtle behavior</li>
+<li><strong>Score 1:</strong> Surface-level pattern matching only</li>
+</ul>
+
+<h4>How to Improve</h4>
+<ul>
+<li>Add explicit behavior documentation (pre/post conditions)</li>
+<li>Use descriptive variable and function names</li>
+<li>Include examples in docstrings showing expected behavior</li>
+<li>Write property-based tests that encode behavior constraints</li>
+</ul>`,
+	},
+
+	"cross_file_navigation": {
+		Brief:     "Ability to trace dependencies across files. Repository-level understanding improves agent performance by 32.8% <span class=\"citation\">(Ouyang et al., 2025)</span>.",
+		Threshold: 6.0,
+		Detailed: `<h4>Definition</h4>
+<p>Measures the agent's ability to trace imports and data flow across multiple files. Tests whether agents can navigate beyond single-file context to understand repository structure and follow dependency chains.</p>
+
+<h4>Why It Matters for AI Agents</h4>
+<p>Real-world codebases are multi-file systems. Agents that only understand single files cannot trace data flow, identify dependencies, or make coordinated changes across modules. This capability distinguishes "toy" demos from production-ready agents.</p>
+
+<h4>Research Evidence</h4>
+<p>RepoGraph research demonstrates that repository-level code understanding substantially improves agent performance on software engineering tasks, achieving a 32.8% average relative improvement in resolve rate on SWE-bench-Lite <span class="citation">(Ouyang et al., 2025)</span>.</p>
+<p>SWE-bench evaluations show that successful issue resolution requires understanding context beyond the immediate file—agents must navigate to related files, understand interfaces, and coordinate changes <span class="citation">(Jimenez et al., 2024)</span>.</p>
+<p><em>Note: Score boundaries are heuristic; empirical calibration is ongoing.</em></p>
+
+<h4>Recommended Thresholds</h4>
+<ul>
+<li><strong>Score 10:</strong> Complete trace with all files/functions correctly identified</li>
+<li><strong>Score 7:</strong> Most files found, minor gaps in the chain</li>
+<li><strong>Score 4:</strong> Direct dependencies only, missing deeper connections</li>
+<li><strong>Score 1:</strong> Cannot navigate beyond single file</li>
+</ul>
+
+<h4>How to Improve</h4>
+<ul>
+<li>Flatten deep directory hierarchies</li>
+<li>Use explicit imports over barrel files/re-exports</li>
+<li>Add clear module boundary documentation</li>
+<li>Reduce circular dependencies</li>
+</ul>`,
+	},
+
+	"identifier_interpretability": {
+		Brief:     "Clarity of identifier names for AI comprehension. Identifier quality correlates with code quality <span class=\"citation\">(Butler et al., 2009)</span>.",
+		Threshold: 6.0,
+		Detailed: `<h4>Definition</h4>
+<p>Measures how interpretable identifier names (variables, functions, classes) are to AI agents. Evaluates naming consistency, descriptiveness, and adherence to domain conventions that aid machine understanding.</p>
+
+<h4>Why It Matters for AI Agents</h4>
+<p>Identifiers are the primary semantic signal agents use to understand code purpose. Clear, consistent names help agents infer intent, predict behavior, and generate appropriate code. Cryptic abbreviations and inconsistent naming force agents to guess.</p>
+
+<h4>Research Evidence</h4>
+<p>Butler et al. conducted empirical studies correlating identifier naming quality with code quality in 8 Java projects. They found that flawed identifiers (poor grammar, single letters, abbreviations) correlate with lower-quality code as measured by static analysis tools <span class="citation">(Butler et al., 2009)</span>.</p>
+<p>Recent AI-era research confirms these principles extend to AI agents. Borg et al. found that code health metrics, including semantic clarity from naming, predict AI agent reliability—agents experience 36-44% higher break rates on unhealthy code <span class="citation">(Borg et al., 2026)</span>.</p>
+<p><em>Note: The Butler et al. research was Java-specific; the principle that naming quality correlates with code quality appears language-agnostic, though specific conventions differ.</em></p>
+
+<h4>Recommended Thresholds</h4>
+<ul>
+<li><strong>Score 10:</strong> All identifiers descriptive and consistent</li>
+<li><strong>Score 7:</strong> Most identifiers clear, minor inconsistencies</li>
+<li><strong>Score 4:</strong> Mixed quality, some cryptic names</li>
+<li><strong>Score 1:</strong> Pervasive abbreviations and unclear names</li>
+</ul>
+
+<h4>How to Improve</h4>
+<ul>
+<li>Use full words instead of abbreviations (userCount not uc)</li>
+<li>Follow consistent naming conventions (camelCase, snake_case)</li>
+<li>Include units in numeric identifiers (timeoutMs, sizeMB)</li>
+<li>Use domain-specific vocabulary consistently</li>
+</ul>`,
+	},
+
+	"documentation_accuracy_detection": {
+		Brief:     "Agent ability to identify code-comment inconsistencies. A study found 13 inconsistency types from 1.3B AST changes <span class=\"citation\">(Wen et al., 2019)</span>.",
+		Threshold: 6.0,
+		Detailed: `<h4>Definition</h4>
+<p>Measures whether agents can detect when documentation (comments, docstrings) no longer accurately describes the code. Tests the agent's ability to identify code-comment inconsistencies that arise from code evolution.</p>
+
+<h4>Why It Matters for AI Agents</h4>
+<p>Outdated documentation misleads agents into generating incorrect code. Agents that can detect inconsistencies can flag potential issues and avoid propagating errors. This capability is essential for maintaining documentation quality in AI-assisted development.</p>
+
+<h4>Research Evidence</h4>
+<p>Wen et al. conducted a large-scale empirical study analyzing 1.3 billion AST changes, identifying a taxonomy of 13 code-comment inconsistency (CCI) types <span class="citation">(Wen et al., 2019)</span>. This foundational work established the scope and nature of documentation accuracy challenges.</p>
+<p>Xu et al. developed state-of-the-art CCI detection achieving 82.6% F1-score on 1,518 open-source projects, demonstrating that automated detection is feasible <span class="citation">(Xu et al., 2024)</span>.</p>
+<p>Borg et al. confirmed that documentation quality impacts AI agent reliability, with agents experiencing higher break rates on code with inconsistent or misleading comments <span class="citation">(Borg et al., 2026)</span>.</p>
+
+<h4>Recommended Thresholds</h4>
+<ul>
+<li><strong>Score 10:</strong> Detects all inconsistencies with correct explanations</li>
+<li><strong>Score 7:</strong> Catches most issues, occasional false positives</li>
+<li><strong>Score 4:</strong> Detects obvious mismatches only</li>
+<li><strong>Score 1:</strong> Cannot identify documentation inaccuracies</li>
+</ul>
+
+<h4>How to Improve</h4>
+<ul>
+<li>Update comments when modifying code</li>
+<li>Use automated documentation linters</li>
+<li>Add CI checks for comment-code consistency</li>
+<li>Prefer self-documenting code over comments where possible</li>
+</ul>`,
+	},
 }
 
 // getMetricDescription returns the description for a metric, with a default fallback.

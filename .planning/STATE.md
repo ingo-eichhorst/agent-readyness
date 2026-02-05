@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-04)
 ## Current Position
 
 Phase: 24 of 25 (C7 MECE Metrics Implementation)
-Plan: 4 of 5 in current phase
-Status: In progress
-Last activity: 2026-02-05 — Completed 24-04-PLAN.md (Types & Scoring Config)
+Plan: 5 of 5 in current phase (PHASE COMPLETE)
+Status: Phase complete
+Last activity: 2026-02-05 — Completed 24-05-PLAN.md (C7 Analyzer Integration)
 
-Progress: [####################] 100% (v1-v0.0.3) | [#########.] 90% (v0.0.4)
+Progress: [####################] 100% (v1-v0.0.3) | [##########] 96% (v0.0.4)
 
 ## Performance Metrics
 
@@ -33,7 +33,7 @@ Progress: [####################] 100% (v1-v0.0.3) | [#########.] 90% (v0.0.4)
 
 **v0.0.4 (Current):**
 - Phases: 8 (18-25)
-- Plans completed: 11
+- Plans completed: 12
 - Focus: Citations (18-23), C7 implementation (24), C7 citations (25)
 
 *Updated after each plan completion*
@@ -70,6 +70,7 @@ Recent decisions affecting current work:
 - [24-04]: Weight distribution M2+M3=25% each, M1=20%, M4+M5=15% each — research-based prioritization
 - [24-03]: CLIExecutorAdapter in agent package — avoids import cycle with metrics subpackage
 - [24-03]: errgroup nil-return pattern — ensures all 5 metrics complete even if one fails
+- [24-05]: Weights duplicated in analyzer with documentation — intentional for quick display vs formal scoring
 
 ### Pending Todos
 
@@ -83,5 +84,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-05
-Stopped at: Completed 24-04-PLAN.md (Types & Scoring Config)
-Resume file: None — Continue with 24-05-PLAN.md
+Stopped at: Completed 24-05-PLAN.md (C7 Analyzer Integration) - Phase 24 complete
+Resume file: None — Continue with Phase 25 (C7 Citations)

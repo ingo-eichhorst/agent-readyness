@@ -1,11 +1,11 @@
-package metrics
+package agent
 
 import (
 	"context"
 	"fmt"
 	"time"
 
-	"github.com/ingo/agent-readyness/internal/agent"
+	"github.com/ingo/agent-readyness/internal/agent/metrics"
 )
 
 // CLIExecutorAdapter adapts the real Claude CLI executor to the metrics.Executor interface.
@@ -19,6 +19,7 @@ func NewCLIExecutorAdapter(workDir string) *CLIExecutorAdapter {
 }
 
 // ExecutePrompt runs a prompt via Claude CLI and returns the response.
+// Implements metrics.Executor interface.
 func (a *CLIExecutorAdapter) ExecutePrompt(ctx context.Context, workDir, prompt, tools string, timeout time.Duration) (string, error) {
 	// Use the provided workDir if specified, otherwise fall back to adapter's default
 	dir := workDir
@@ -27,7 +28,7 @@ func (a *CLIExecutorAdapter) ExecutePrompt(ctx context.Context, workDir, prompt,
 	}
 
 	// Create a task-like structure for the executor
-	task := agent.Task{
+	task := Task{
 		ID:             "metric_eval",
 		Name:           "Metric Evaluation",
 		Prompt:         prompt,
@@ -35,10 +36,10 @@ func (a *CLIExecutorAdapter) ExecutePrompt(ctx context.Context, workDir, prompt,
 		TimeoutSeconds: int(timeout.Seconds()),
 	}
 
-	executor := agent.NewExecutor(dir)
+	executor := NewExecutor(dir)
 	result := executor.ExecuteTask(ctx, task)
 
-	if result.Status != agent.StatusCompleted {
+	if result.Status != StatusCompleted {
 		if result.Error != "" {
 			return "", fmt.Errorf("execution failed: %s", result.Error)
 		}
@@ -47,3 +48,6 @@ func (a *CLIExecutorAdapter) ExecutePrompt(ctx context.Context, workDir, prompt,
 
 	return result.Response, nil
 }
+
+// Compile-time check that CLIExecutorAdapter implements metrics.Executor.
+var _ metrics.Executor = (*CLIExecutorAdapter)(nil)

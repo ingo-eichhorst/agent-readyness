@@ -1,5 +1,32 @@
 # Project Milestones: Agent Readiness Score (ARS)
 
+## v0.0.4 Metric Research & C7 Implementation (Shipped: 2026-02-05)
+
+**Delivered:** Scientific foundations for all ARS metric descriptions with 58 research citations plus complete C7 MECE metrics implementation with parallel execution framework
+
+**Phases completed:** 18-25 (16 plans total)
+
+**Key accomplishments:**
+
+- Established citation quality protocols (docs/CITATION-GUIDE.md) with format standards, density targets (2-6 per metric), and URL verification protocols used across all subsequent phases
+- Added 58 research citations covering all 38 metrics across 7 categories with balanced foundational sources (pre-2021) and AI-era evidence (2021-2026)
+- Implemented 5 MECE agent-assessable metrics (M1-M5) replacing single C7 overall_score: Task Execution Consistency, Code Behavior Comprehension, Cross-File Navigation, Identifier Interpretability, Documentation Accuracy Detection
+- Built parallel execution framework with real-time progress display showing current metric, token counter, and cost estimation
+- Achieved scientific rigor with proper qualification of practitioner vs peer-reviewed sources, explicit acknowledgment of research gaps, and careful claims tied to empirical evidence
+
+**Stats:**
+
+- 66 files modified (+14,177 lines / -334 lines net +13,843)
+- 26,372 total lines of Go (+3,748 from v0.0.3)
+- 8 phases, 16 plans, ~50 tasks
+- 5 days from start to ship (2026-01-31 → 2026-02-05)
+
+**Git range:** `feat(18-02)` (e322ca4) → `feat(25-01)` (6fe4af4) + citation fixes (c9994cb)
+
+**What's next:** Expand validation to open-source Go libraries (kubernetes, prometheus), tune scoring thresholds based on real-world results, consider v1.0 release with public launch
+
+---
+
 ## v0.0.3 Simplification & Polish (Shipped: 2026-02-04)
 
 **Delivered:** Unified LLM integration on Claude Code CLI with badge generation, expandable HTML metric descriptions, and analyzer reorganization into category subdirectories

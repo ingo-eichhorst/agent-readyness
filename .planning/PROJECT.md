@@ -49,17 +49,20 @@ Accurate, evidence-based scoring that predicts agent success and identifies spec
 - ✓ MIT LICENSE and standard Go project badges (Go Reference, Report Card, License, Release) — v0.0.3
 - ✓ Test coverage filename standardization (cover.out) for C6 self-analysis — v0.0.3
 
+**v0.0.4 requirements (66 total):**
+- ✓ Citation quality protocols (style guide, URL verification, source quality checklist) — v0.0.4
+- ✓ C1 Code Quality metrics: 6 metrics with foundational + AI-era citations — v0.0.4
+- ✓ C2 Semantic Explicitness metrics: 5 metrics with foundational + AI-era citations — v0.0.4
+- ✓ C3 Architecture metrics: 5 metrics with foundational + AI-era citations — v0.0.4
+- ✓ C4 Documentation metrics: 7 metrics with foundational + AI-era citations — v0.0.4
+- ✓ C5 Temporal metrics: 5 metrics with foundational + AI-era citations — v0.0.4
+- ✓ C6 Testing metrics: 5 metrics with foundational + AI-era citations — v0.0.4
+- ✓ C7 MECE metrics: 5 agent-assessable metrics with parallel execution framework — v0.0.4
+- ✓ C7 Agent Evaluation citations: 5 metrics with foundational + AI-era citations — v0.0.4
+
 ### Active
 
-**v0.0.4 Metric Research — Scientific foundations for all metric descriptions**
-
-- [ ] C1 Code Quality metrics: Add foundational + AI-era citations (#47)
-- [ ] C2 Semantic Explicitness metrics: Add foundational + AI-era citations (#48)
-- [ ] C3 Architecture metrics: Add foundational + AI-era citations (#49)
-- [ ] C4 Documentation metrics: Add foundational + AI-era citations (#50)
-- [ ] C5 Temporal metrics: Add foundational + AI-era citations (#51)
-- [ ] C6 Testing metrics: Add foundational + AI-era citations (#52)
-- [ ] C7 Agent Evaluation metrics: Add foundational + AI-era citations (#53)
+(No active requirements — use /gsd:new-milestone to define next milestone)
 
 ### Out of Scope
 
@@ -75,14 +78,15 @@ Accurate, evidence-based scoring that predicts agent success and identifies spec
 
 ## Context
 
-**Current State (v0.0.3 shipped 2026-02-04):**
-- 22,624 LOC Go
+**Current State (v0.0.4 shipped 2026-02-05):**
+- 26,372 LOC Go (+3,748 from v0.0.3)
 - Tech stack: Go 1.24, cobra CLI, Tree-sitter (Python/TypeScript), Claude Code CLI (LLM features), go-charts (HTML reports)
 - 100+ tests passing across 11 packages, 72%+ coverage
 - Validated on multi-language codebases (Go, Python, TypeScript)
-- 17 phases total (v1: 5 phases, v0.0.2: 7 phases, v0.0.3: 5 phases), 38 plans completed
-- All 7 analysis categories operational (C1-C7)
-- Analyzer organized into 7 category subdirectories (c1_code_quality/ through c7_agent/)
+- 25 phases total (v1: 5, v0.0.2: 7, v0.0.3: 5, v0.0.4: 8), 54 plans completed
+- All 7 analysis categories operational with 58 research citations
+- C7 now uses 5 MECE metrics with parallel execution (M1-M5)
+- Complete citation system: docs/CITATION-GUIDE.md + 58 citations across C1-C7
 
 **Research Foundation:**
 - Borg et al. (2026): Code Health metrics predict maintainability
@@ -136,4 +140,4 @@ Internal tooling to identify which repositories need investment before agent ado
 | HTML5 details/summary for expandables (v0.0.3) | CSS-only expand/collapse, progressive enhancement | ✓ Good - Works without JavaScript |
 
 ---
-*Last updated: 2026-02-04 after v0.0.4 milestone started*
+*Last updated: 2026-02-05 after v0.0.4 milestone shipped*

@@ -250,18 +250,35 @@ type C4Metrics struct {
 	LLMFilesSampled   int     // Number of files sampled for LLM analysis
 }
 
-// C7Metrics holds Agent Evaluation metric results.
+// C7Metrics holds Agent Evaluation metric results including 5 MECE metrics.
 type C7Metrics struct {
-	Available              bool            // false if claude CLI not found or user declined
-	IntentClarity          int             // 0-100 score
-	ModificationConfidence int             // 0-100 score
-	CrossFileCoherence     int             // 0-100 score
-	SemanticCompleteness   int             // 0-100 score
-	OverallScore           float64         // average of 4 task scores (0-100)
-	TaskResults            []C7TaskResult  // detailed per-task results
-	TotalDuration          float64         // seconds
-	TokensUsed             int             // estimated total tokens
-	CostUSD                float64         // estimated cost
+	Available bool // false if claude CLI not found or user declined
+
+	// Legacy 4-task scores (0-100 scale) - preserved for backward compatibility
+	IntentClarity          int // 0-100 score
+	ModificationConfidence int // 0-100 score
+	CrossFileCoherence     int // 0-100 score
+	SemanticCompleteness   int // 0-100 score
+
+	// NEW: 5 MECE metrics (1-10 scale)
+	TaskExecutionConsistency       int // M1: Reproducibility across runs (1-10)
+	CodeBehaviorComprehension      int // M2: Understanding what code does (1-10)
+	CrossFileNavigation            int // M3: Tracing dependencies across files (1-10)
+	IdentifierInterpretability     int // M4: Inferring meaning from names (1-10)
+	DocumentationAccuracyDetection int // M5: Detecting comment/code mismatches (1-10)
+
+	// Aggregate scores
+	OverallScore float64 // Legacy: average of 4 task scores (0-100)
+	MECEScore    float64 // NEW: weighted average of 5 MECE metrics (1-10)
+
+	// Detailed results
+	TaskResults   []C7TaskResult   // Legacy task results
+	MetricResults []C7MetricResult // NEW: MECE metric results
+
+	// Execution metadata
+	TotalDuration float64 // seconds
+	TokensUsed    int     // estimated total tokens
+	CostUSD       float64 // estimated cost
 }
 
 // C7TaskResult holds results for a single C7 evaluation task.
@@ -272,4 +289,15 @@ type C7TaskResult struct {
 	Status    string  // completed, timeout, error
 	Duration  float64 // seconds
 	Reasoning string  // scoring rationale from LLM judge
+}
+
+// C7MetricResult holds results for a single MECE metric.
+type C7MetricResult struct {
+	MetricID   string   // e.g., "task_execution_consistency"
+	MetricName string   // e.g., "Task Execution Consistency"
+	Score      int      // 1-10
+	Status     string   // completed, timeout, error
+	Duration   float64  // seconds
+	Reasoning  string   // scoring rationale
+	Samples    []string // sample descriptions used
 }

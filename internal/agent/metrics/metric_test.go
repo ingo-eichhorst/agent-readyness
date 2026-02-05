@@ -1,0 +1,487 @@
+package metrics
+
+import (
+	"testing"
+
+	"github.com/ingo/agent-readyness/pkg/types"
+)
+
+func TestAllMetricsReturns5(t *testing.T) {
+	metrics := AllMetrics()
+	if len(metrics) != 5 {
+		t.Errorf("AllMetrics() returned %d metrics, want 5", len(metrics))
+	}
+}
+
+func TestMetricIDsAreUnique(t *testing.T) {
+	metrics := AllMetrics()
+	seen := make(map[string]bool)
+	for _, m := range metrics {
+		if seen[m.ID()] {
+			t.Errorf("duplicate metric ID: %s", m.ID())
+		}
+		seen[m.ID()] = true
+	}
+}
+
+func TestMetricNamesAreUnique(t *testing.T) {
+	metrics := AllMetrics()
+	seen := make(map[string]bool)
+	for _, m := range metrics {
+		if seen[m.Name()] {
+			t.Errorf("duplicate metric Name: %s", m.Name())
+		}
+		seen[m.Name()] = true
+	}
+}
+
+func TestGetMetricByID(t *testing.T) {
+	tests := []struct {
+		id   string
+		want string
+	}{
+		{"task_execution_consistency", "Task Execution Consistency"},
+		{"code_behavior_comprehension", "Code Behavior Comprehension"},
+		{"cross_file_navigation", "Cross-File Navigation"},
+		{"identifier_interpretability", "Identifier Interpretability"},
+		{"documentation_accuracy_detection", "Documentation Accuracy Detection"},
+	}
+
+	for _, tc := range tests {
+		m := GetMetric(tc.id)
+		if m == nil {
+			t.Errorf("GetMetric(%q) returned nil", tc.id)
+			continue
+		}
+		if m.Name() != tc.want {
+			t.Errorf("GetMetric(%q).Name() = %q, want %q", tc.id, m.Name(), tc.want)
+		}
+	}
+}
+
+func TestGetMetricUnknown(t *testing.T) {
+	m := GetMetric("unknown_metric")
+	if m != nil {
+		t.Errorf("GetMetric(unknown) = %v, want nil", m)
+	}
+}
+
+func TestM1Consistency_SelectSamples(t *testing.T) {
+	m := NewM1Consistency()
+
+	// Empty targets should return empty samples
+	samples := m.SelectSamples(nil)
+	if len(samples) > m.SampleCount() {
+		t.Errorf("SelectSamples returned %d samples, max should be %d", len(samples), m.SampleCount())
+	}
+}
+
+func TestM2Comprehension_SelectSamples(t *testing.T) {
+	m := NewM2Comprehension()
+
+	// With targets
+	targets := []*types.AnalysisTarget{
+		{
+			RootDir:  "/test",
+			Language: "go",
+			Files: []types.SourceFile{
+				{Path: "/test/main.go", Lines: 100, Class: types.ClassSource},
+				{Path: "/test/util.go", Lines: 50, Class: types.ClassSource},
+			},
+		},
+	}
+
+	samples := m.SelectSamples(targets)
+	if len(samples) > m.SampleCount() {
+		t.Errorf("SelectSamples returned %d samples, max should be %d", len(samples), m.SampleCount())
+	}
+}
+
+func TestM3Navigation_SelectSamples(t *testing.T) {
+	m := NewM3Navigation()
+
+	// Create targets with files containing imports
+	content := []byte(`package main
+
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+)
+
+func main() {
+	fmt.Println("hello")
+}
+`)
+
+	targets := []*types.AnalysisTarget{
+		{
+			RootDir:  "/test",
+			Language: types.LangGo,
+			Files: []types.SourceFile{
+				{Path: "/test/main.go", Lines: 15, Class: types.ClassSource, Content: content},
+			},
+		},
+	}
+
+	samples := m.SelectSamples(targets)
+	if len(samples) > m.SampleCount() {
+		t.Errorf("SelectSamples returned %d samples, max should be %d", len(samples), m.SampleCount())
+	}
+}
+
+func TestM4Identifiers_SelectSamples(t *testing.T) {
+	m := NewM4Identifiers()
+
+	// Create targets with exported identifiers
+	content := []byte(`package analyzer
+
+type CodeAnalyzer struct {
+	config AnalyzerConfig
+}
+
+func NewCodeAnalyzer(cfg AnalyzerConfig) *CodeAnalyzer {
+	return &CodeAnalyzer{config: cfg}
+}
+
+func (a *CodeAnalyzer) AnalyzeDirectory(path string) error {
+	return nil
+}
+
+var GlobalConfiguration = Config{}
+`)
+
+	targets := []*types.AnalysisTarget{
+		{
+			RootDir:  "/test",
+			Language: types.LangGo,
+			Files: []types.SourceFile{
+				{Path: "/test/analyzer.go", Lines: 20, Class: types.ClassSource, Content: content},
+			},
+		},
+	}
+
+	samples := m.SelectSamples(targets)
+	if len(samples) > m.SampleCount() {
+		t.Errorf("SelectSamples returned %d samples, max should be %d", len(samples), m.SampleCount())
+	}
+
+	// Check that samples have identifier info
+	for _, sample := range samples {
+		if sample.FunctionName == "" {
+			t.Errorf("Sample should have FunctionName set for identifier: %+v", sample)
+		}
+	}
+}
+
+func TestM5Documentation_SelectSamples(t *testing.T) {
+	m := NewM5Documentation()
+
+	// Create targets with comments
+	content := []byte(`package main
+
+// main is the entry point for the application.
+// It initializes the config and starts the server.
+func main() {
+	// Load configuration from environment
+	cfg := loadConfig()
+
+	// Start the HTTP server
+	// This will block until shutdown
+	startServer(cfg)
+}
+
+// loadConfig reads configuration from environment variables.
+func loadConfig() Config {
+	return Config{}
+}
+
+// startServer starts the HTTP server on the configured port.
+func startServer(cfg Config) {
+	// Implementation here
+}
+`)
+
+	targets := []*types.AnalysisTarget{
+		{
+			RootDir:  "/test",
+			Language: types.LangGo,
+			Files: []types.SourceFile{
+				{Path: "/test/main.go", Lines: 30, Class: types.ClassSource, Content: content},
+			},
+		},
+	}
+
+	samples := m.SelectSamples(targets)
+	if len(samples) > m.SampleCount() {
+		t.Errorf("SelectSamples returned %d samples, max should be %d", len(samples), m.SampleCount())
+	}
+}
+
+func TestMetricTimeoutsArePositive(t *testing.T) {
+	for _, m := range AllMetrics() {
+		if m.Timeout() <= 0 {
+			t.Errorf("%s.Timeout() = %v, want > 0", m.ID(), m.Timeout())
+		}
+	}
+}
+
+func TestMetricSampleCountsArePositive(t *testing.T) {
+	for _, m := range AllMetrics() {
+		if m.SampleCount() <= 0 {
+			t.Errorf("%s.SampleCount() = %d, want > 0", m.ID(), m.SampleCount())
+		}
+	}
+}
+
+func TestMetricDescriptionsNonEmpty(t *testing.T) {
+	for _, m := range AllMetrics() {
+		if m.Description() == "" {
+			t.Errorf("%s.Description() is empty", m.ID())
+		}
+	}
+}
+
+func TestCalculateVariance(t *testing.T) {
+	tests := []struct {
+		name     string
+		scores   []int
+		expected float64
+	}{
+		{"empty", []int{}, 0},
+		{"single", []int{5}, 0},
+		{"identical", []int{5, 5, 5}, 0},
+		{"varied", []int{2, 4, 6}, 2.6666666666666665}, // variance = ((2-4)^2 + (4-4)^2 + (6-4)^2) / 3 = 8/3
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := calculateVariance(tc.scores)
+			if got != tc.expected {
+				t.Errorf("calculateVariance(%v) = %v, want %v", tc.scores, got, tc.expected)
+			}
+		})
+	}
+}
+
+func TestCountIdentifierWords(t *testing.T) {
+	tests := []struct {
+		name     string
+		expected int
+	}{
+		{"simple", 1},
+		{"CamelCase", 2},
+		{"PascalCaseWord", 3},
+		{"snake_case", 2},
+		{"SCREAMING_SNAKE_CASE", 3},
+		{"NewHTTPServer", 6}, // N-ew-H-T-T-P-S-erver counts all uppercase transitions
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := countIdentifierWords(tc.name)
+			if got != tc.expected {
+				t.Errorf("countIdentifierWords(%q) = %d, want %d", tc.name, got, tc.expected)
+			}
+		})
+	}
+}
+
+func TestAbs(t *testing.T) {
+	tests := []struct {
+		input    int
+		expected int
+	}{
+		{0, 0},
+		{5, 5},
+		{-5, 5},
+		{-100, 100},
+	}
+
+	for _, tc := range tests {
+		got := abs(tc.input)
+		if got != tc.expected {
+			t.Errorf("abs(%d) = %d, want %d", tc.input, got, tc.expected)
+		}
+	}
+}
+
+func TestMin(t *testing.T) {
+	tests := []struct {
+		a, b     int
+		expected int
+	}{
+		{1, 2, 1},
+		{2, 1, 1},
+		{5, 5, 5},
+		{-1, 1, -1},
+	}
+
+	for _, tc := range tests {
+		got := min(tc.a, tc.b)
+		if got != tc.expected {
+			t.Errorf("min(%d, %d) = %d, want %d", tc.a, tc.b, got, tc.expected)
+		}
+	}
+}
+
+// Test scoring heuristics for M2 (Comprehension)
+func TestM2_ScoreComprehensionResponse(t *testing.T) {
+	m := NewM2Comprehension().(*M2Comprehension)
+
+	tests := []struct {
+		name     string
+		response string
+		minScore int
+		maxScore int
+	}{
+		{
+			name:     "empty response",
+			response: "",
+			minScore: 1,
+			maxScore: 5,
+		},
+		{
+			name:     "good response with indicators",
+			response: "The function returns the result after handling errors. It validates input and checks conditions in a loop. It iterates through items for each element and ensures edge cases are handled.",
+			minScore: 7,
+			maxScore: 10,
+		},
+		{
+			name:     "uncertain response",
+			response: "I'm not sure what this does. It might process data, probably returns something. The behavior is unclear to me.",
+			minScore: 1,
+			maxScore: 5,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			score := m.scoreComprehensionResponse(tc.response)
+			if score < tc.minScore || score > tc.maxScore {
+				t.Errorf("scoreComprehensionResponse() = %d, want between %d and %d", score, tc.minScore, tc.maxScore)
+			}
+		})
+	}
+}
+
+// Test scoring heuristics for M3 (Navigation)
+func TestM3_ScoreNavigationResponse(t *testing.T) {
+	m := NewM3Navigation().(*M3Navigation)
+
+	tests := []struct {
+		name     string
+		response string
+		minScore int
+		maxScore int
+	}{
+		{
+			name:     "empty response",
+			response: "",
+			minScore: 1,
+			maxScore: 5,
+		},
+		{
+			name:     "good navigation trace",
+			response: "Imports: import fmt, import os/path/filepath. The module exports a function that calls another package. Data Flow: main() -> handler() in /src/handlers/user.go -> database.Query() in /src/db/query.go",
+			minScore: 7,
+			maxScore: 10,
+		},
+		{
+			name:     "failed navigation",
+			response: "Cannot find the file. Unable to trace dependencies. File not found in the project.",
+			minScore: 1,
+			maxScore: 4,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			score := m.scoreNavigationResponse(tc.response)
+			if score < tc.minScore || score > tc.maxScore {
+				t.Errorf("scoreNavigationResponse() = %d, want between %d and %d", score, tc.minScore, tc.maxScore)
+			}
+		})
+	}
+}
+
+// Test scoring heuristics for M4 (Identifiers)
+func TestM4_ScoreIdentifierResponse(t *testing.T) {
+	m := NewM4Identifiers().(*M4Identifiers)
+
+	tests := []struct {
+		name     string
+		response string
+		minScore int
+		maxScore int
+	}{
+		{
+			name:     "empty response",
+			response: "",
+			minScore: 1,
+			maxScore: 5,
+		},
+		{
+			name:     "accurate interpretation",
+			response: "Interpretation: This function creates a new database connection. It handles connection pooling. Type: function. Verification: Confirmed accurate - the code does exactly that. Accuracy: Correct.",
+			minScore: 7,
+			maxScore: 10,
+		},
+		{
+			name:     "wrong interpretation",
+			response: "I got it wrong.",
+			minScore: 1,
+			maxScore: 6,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			score := m.scoreIdentifierResponse(tc.response)
+			if score < tc.minScore || score > tc.maxScore {
+				t.Errorf("scoreIdentifierResponse() = %d, want between %d and %d", score, tc.minScore, tc.maxScore)
+			}
+		})
+	}
+}
+
+// Test scoring heuristics for M5 (Documentation)
+func TestM5_ScoreDocumentationResponse(t *testing.T) {
+	m := NewM5Documentation().(*M5Documentation)
+
+	tests := []struct {
+		name     string
+		response string
+		minScore int
+		maxScore int
+	}{
+		{
+			name:     "empty response",
+			response: "",
+			minScore: 1,
+			maxScore: 5,
+		},
+		{
+			name:     "thorough analysis",
+			response: "## Summary\nOverall documentation is good.\n\n## Accurate Documentation\nThe main function comment correctly describes its behavior.\n\n## Potential Mismatches\nLocation: line 45\nComment says: returns nil on success\nCode does: returns error on failure\nIssue: Documentation is outdated",
+			minScore: 8,
+			maxScore: 10,
+		},
+		{
+			name:     "failed analysis",
+			response: "Cannot analyze the file. Error reading content. No comments found.",
+			minScore: 1,
+			maxScore: 4,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			score := m.scoreDocumentationResponse(tc.response)
+			if score < tc.minScore || score > tc.maxScore {
+				t.Errorf("scoreDocumentationResponse() = %d, want between %d and %d", score, tc.minScore, tc.maxScore)
+			}
+		})
+	}
+}

@@ -16,8 +16,8 @@ This milestone makes HTML reports transparent and actionable. Evidence data flow
 ## Phases
 
 - [x] **Phase 30: Evidence Data Flow** - Evidence types and extraction for all 7 categories
-- [ ] **Phase 31: Modal UI Infrastructure** - Native dialog component with accessibility and clipboard support
-- [ ] **Phase 32: Call Trace Modals** - Per-metric trace modals for C7 and C1-C6 scoring transparency
+- [x] **Phase 31: Modal UI Infrastructure** - Native dialog component with accessibility and clipboard support
+- [x] **Phase 32: Call Trace Modals** - Per-metric trace modals for C7 and C1-C6 scoring transparency
 - [ ] **Phase 33: Improvement Prompt Modals** - Per-metric prompt modals with copy-to-clipboard
 - [ ] **Phase 34: Testing & Quality** - Cross-cutting tests for evidence, size budget, schema, prompts, and accessibility
 
@@ -68,9 +68,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 32-01-PLAN.md -- Thread trace data to HTML generator, populate C7 DebugSamples unconditionally, render C7 trace modals
-- [ ] 32-02-PLAN.md -- Add C1-C6 breakpoint table and evidence traces with syntax highlighting CSS
-- [ ] 32-03-PLAN.md -- Progressive enhancement `<details>` fallback and file size reporting
+- [x] 32-01-PLAN.md -- Thread trace data to HTML generator, populate C7 DebugSamples unconditionally, render C7 trace modals
+- [x] 32-02-PLAN.md -- Add C1-C6 breakpoint table and evidence traces with syntax highlighting CSS
+- [x] 32-03-PLAN.md -- Progressive enhancement `<details>` fallback and file size reporting
 
 ### Phase 33: Improvement Prompt Modals
 **Goal**: Users can click "Improve" on any metric to get a research-backed, project-specific prompt they can paste into an AI agent
@@ -113,6 +113,6 @@ Plans:
 |-------|----------------|--------|-----------|
 | 30. Evidence Data Flow | 3/3 | ✓ Complete | 2026-02-06 |
 | 31. Modal UI Infrastructure | 2/2 | ✓ Complete | 2026-02-06 |
-| 32. Call Trace Modals | 0/3 | Not started | - |
+| 32. Call Trace Modals | 3/3 | ✓ Complete | 2026-02-06 |
 | 33. Improvement Prompt Modals | 0/3 | Not started | - |
 | 34. Testing & Quality | 0/2 | Not started | - |

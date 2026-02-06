@@ -15,6 +15,25 @@
             <span class="score score-{{.TierClass}}">{{printf "%.1f" .Composite}}</span>
             <span class="tier tier-{{.TierClass}}">{{.Tier}}</span>
         </div>
+        <!-- Tier Legend -->
+        <div class="tier-legend">
+            <div class="tier-legend-item">
+                <div class="tier-legend-badge tier-ready">Ready</div>
+                <div class="tier-legend-threshold">≥ 8.0</div>
+            </div>
+            <div class="tier-legend-item">
+                <div class="tier-legend-badge tier-assisted">Assisted</div>
+                <div class="tier-legend-threshold">≥ 6.0</div>
+            </div>
+            <div class="tier-legend-item">
+                <div class="tier-legend-badge tier-limited">Limited</div>
+                <div class="tier-legend-threshold">≥ 4.0</div>
+            </div>
+            <div class="tier-legend-item">
+                <div class="tier-legend-badge tier-hostile">Hostile</div>
+                <div class="tier-legend-threshold">< 4.0</div>
+            </div>
+        </div>
         <p class="generated-at">Generated: {{.GeneratedAt}}</p>
     </header>
 
@@ -155,6 +174,62 @@
                 referencesList.style.display = 'block';
             }
         });
+    });
+    </script>
+
+    <dialog id="ars-modal" class="ars-modal">
+      <div class="ars-modal-content">
+        <header class="ars-modal-header">
+          <h3 class="ars-modal-title"></h3>
+          <button class="ars-modal-close" autofocus aria-label="Close">&times;</button>
+        </header>
+        <div class="ars-modal-body"></div>
+      </div>
+    </dialog>
+
+    <script>
+    // Modal dialog functions
+    var arsModal = document.getElementById('ars-modal');
+    var arsModalTitle = arsModal.querySelector('.ars-modal-title');
+    var arsModalBody = arsModal.querySelector('.ars-modal-body');
+    var arsModalCloseBtn = arsModal.querySelector('.ars-modal-close');
+
+    function openModal(title, bodyHTML) {
+        arsModalTitle.textContent = title;
+        arsModalBody.innerHTML = bodyHTML;
+        var scrollY = window.scrollY;
+        document.body.dataset.scrollY = scrollY;
+        document.body.style.position = 'fixed';
+        document.body.style.top = -scrollY + 'px';
+        document.body.style.left = '0';
+        document.body.style.right = '0';
+        arsModal.showModal();
+    }
+
+    function closeModal() {
+        arsModal.close();
+    }
+
+    // Close button click
+    arsModalCloseBtn.addEventListener('click', function() {
+        closeModal();
+    });
+
+    // Backdrop click detection
+    arsModal.addEventListener('click', function(e) {
+        if (e.target === arsModal) {
+            closeModal();
+        }
+    });
+
+    // Restore scroll position on dialog close
+    arsModal.addEventListener('close', function() {
+        var scrollY = document.body.dataset.scrollY || '0';
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.left = '';
+        document.body.style.right = '';
+        window.scrollTo(0, parseInt(scrollY));
     });
     </script>
 </body>

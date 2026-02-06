@@ -11,7 +11,7 @@ func TestRunMetricsParallel_NoTargets(t *testing.T) {
 	ctx := context.Background()
 
 	// Running with no targets should not panic
-	result := RunMetricsParallel(ctx, "/tmp", nil, nil)
+	result := RunMetricsParallel(ctx, "/tmp", nil, nil, nil)
 
 	// Should have 5 results (one per metric)
 	if len(result.Results) != 5 {
@@ -36,7 +36,7 @@ func TestRunMetricsParallel_NoTargets(t *testing.T) {
 func TestRunMetricsSequential_NoTargets(t *testing.T) {
 	ctx := context.Background()
 
-	result := RunMetricsSequential(ctx, "/tmp", nil, nil)
+	result := RunMetricsSequential(ctx, "/tmp", nil, nil, nil)
 
 	if len(result.Results) != 5 {
 		t.Errorf("got %d results, want 5", len(result.Results))
@@ -63,7 +63,7 @@ func TestRunMetricsParallel_ContextCancellation(t *testing.T) {
 	cancel() // Cancel immediately
 
 	// Should complete without hanging
-	result := RunMetricsParallel(ctx, "/tmp", nil, nil)
+	result := RunMetricsParallel(ctx, "/tmp", nil, nil, nil)
 
 	// Should still have results (possibly with errors)
 	if len(result.Results) == 0 {
@@ -76,7 +76,7 @@ func TestRunMetricsSequential_ContextCancellation(t *testing.T) {
 	cancel() // Cancel immediately
 
 	// Should complete without hanging
-	result := RunMetricsSequential(ctx, "/tmp", nil, nil)
+	result := RunMetricsSequential(ctx, "/tmp", nil, nil, nil)
 
 	// Should have at least some results
 	if len(result.Results) == 0 {
@@ -97,7 +97,7 @@ func TestRunMetricsParallel_WithProgress(t *testing.T) {
 	}
 	progress := NewC7Progress(nil, ids, nil)
 
-	result := RunMetricsParallel(ctx, "/tmp", nil, progress)
+	result := RunMetricsParallel(ctx, "/tmp", nil, progress, nil)
 
 	// Results should be populated
 	if len(result.Results) != 5 {
@@ -128,7 +128,7 @@ func TestRunMetricsSequential_WithProgress(t *testing.T) {
 	}
 	progress := NewC7Progress(nil, ids, nil)
 
-	result := RunMetricsSequential(ctx, "/tmp", nil, progress)
+	result := RunMetricsSequential(ctx, "/tmp", nil, progress, nil)
 
 	if len(result.Results) != 5 {
 		t.Errorf("got %d results, want 5", len(result.Results))
@@ -139,7 +139,7 @@ func TestParallelResult_TotalTokensAccumulation(t *testing.T) {
 	// This tests that token counts are properly accumulated
 	ctx := context.Background()
 
-	result := RunMetricsParallel(ctx, "/tmp", nil, nil)
+	result := RunMetricsParallel(ctx, "/tmp", nil, nil, nil)
 
 	// TotalTokens should be sum of all metric token counts
 	var expectedTotal int
@@ -156,7 +156,7 @@ func TestRunMetricsParallel_AllMetricsComplete(t *testing.T) {
 	ctx := context.Background()
 
 	// Even with empty targets, all 5 metrics should complete (with errors)
-	result := RunMetricsParallel(ctx, "/tmp", []*types.AnalysisTarget{}, nil)
+	result := RunMetricsParallel(ctx, "/tmp", []*types.AnalysisTarget{}, nil, nil)
 
 	if len(result.Results) != 5 {
 		t.Errorf("got %d results, want 5", len(result.Results))
@@ -188,7 +188,7 @@ func TestRunMetricsSequential_StopsOnContextCancel(t *testing.T) {
 	// Cancel after a brief moment (simulates timeout)
 	cancel()
 
-	result := RunMetricsSequential(ctx, "/tmp", targets, nil)
+	result := RunMetricsSequential(ctx, "/tmp", targets, nil, nil)
 
 	// Should have stopped early due to context cancellation
 	// May not have all 5 results if it checked context between metrics

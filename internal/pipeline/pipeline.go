@@ -42,6 +42,7 @@ type Pipeline struct {
 	badgeOutput  bool             // generate shields.io badge markdown
 	debugC7      bool             // C7 debug mode enabled
 	debugWriter  io.Writer        // io.Discard (normal) or os.Stderr (debug)
+	debugDir     string           // directory for C7 response persistence and replay
 }
 
 // New creates a Pipeline with GoPackagesParser, all analyzers, and a scorer.
@@ -148,6 +149,14 @@ func (p *Pipeline) SetC7Debug(enabled bool) {
 	}
 	if p.c7Analyzer != nil {
 		p.c7Analyzer.SetDebug(enabled, p.debugWriter)
+	}
+}
+
+// SetDebugDir configures the directory for C7 response persistence and replay.
+func (p *Pipeline) SetDebugDir(dir string) {
+	p.debugDir = dir
+	if p.c7Analyzer != nil {
+		p.c7Analyzer.SetDebugDir(dir)
 	}
 }
 

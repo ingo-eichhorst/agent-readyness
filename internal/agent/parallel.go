@@ -19,11 +19,13 @@ type ParallelResult struct {
 
 // RunMetricsParallel executes all metrics concurrently with progress updates.
 // It does not abort on individual metric failures - all metrics run to completion.
+// If executor is nil, a default CLIExecutorAdapter is created for live CLI execution.
 func RunMetricsParallel(
 	ctx context.Context,
 	workDir string,
 	targets []*types.AnalysisTarget,
 	progress *C7Progress,
+	executor metrics.Executor,
 ) ParallelResult {
 	allMetrics := metrics.AllMetrics()
 	result := ParallelResult{
@@ -31,8 +33,10 @@ func RunMetricsParallel(
 		Errors:  make([]error, 0),
 	}
 
-	// Create executor adapter for metrics (defined in this package)
-	executor := NewCLIExecutorAdapter(workDir)
+	// Use provided executor or create default CLI adapter
+	if executor == nil {
+		executor = NewCLIExecutorAdapter(workDir)
+	}
 
 	// Use errgroup for concurrent execution
 	g, ctx := errgroup.WithContext(ctx)
@@ -106,11 +110,13 @@ func executeMetricWithProgress(
 }
 
 // RunMetricsSequential executes all metrics sequentially (fallback/debugging).
+// If executor is nil, a default CLIExecutorAdapter is created for live CLI execution.
 func RunMetricsSequential(
 	ctx context.Context,
 	workDir string,
 	targets []*types.AnalysisTarget,
 	progress *C7Progress,
+	executor metrics.Executor,
 ) ParallelResult {
 	allMetrics := metrics.AllMetrics()
 	result := ParallelResult{
@@ -118,7 +124,10 @@ func RunMetricsSequential(
 		Errors:  make([]error, 0),
 	}
 
-	executor := NewCLIExecutorAdapter(workDir)
+	// Use provided executor or create default CLI adapter
+	if executor == nil {
+		executor = NewCLIExecutorAdapter(workDir)
+	}
 
 	for i, m := range allMetrics {
 		samples := m.SelectSamples(targets)

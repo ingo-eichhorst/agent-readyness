@@ -18,6 +18,7 @@ type C7Analyzer struct {
 	enabled     bool      // only runs if explicitly enabled
 	debug       bool      // debug mode flag
 	debugWriter io.Writer // where debug output goes (io.Discard or os.Stderr)
+	debugDir    string    // directory for response persistence and replay
 }
 
 // NewC7Analyzer creates a C7Analyzer. It's disabled by default.
@@ -39,6 +40,11 @@ func (a *C7Analyzer) Enable(evaluator *agent.Evaluator) {
 func (a *C7Analyzer) SetDebug(enabled bool, w io.Writer) {
 	a.debug = enabled
 	a.debugWriter = w
+}
+
+// SetDebugDir configures the directory for response persistence and replay.
+func (a *C7Analyzer) SetDebugDir(dir string) {
+	a.debugDir = dir
 }
 
 // Name returns the analyzer display name.
@@ -87,7 +93,28 @@ func (a *C7Analyzer) Analyze(targets []*types.AnalysisTarget) (*types.AnalysisRe
 	ctx := context.Background()
 	startTime := time.Now()
 
-	result := agent.RunMetricsParallel(ctx, workDir, targets, progress)
+	// Determine executor: replay from files or live CLI
+	var executor metrics.Executor
+	if a.debugDir != "" {
+		responses, loadErr := agent.LoadResponses(a.debugDir)
+		if loadErr == nil && len(responses) > 0 {
+			fmt.Fprintf(a.debugWriter, "[C7 DEBUG] Replay mode: loading %d responses from %s\n", len(responses), a.debugDir)
+			executor = agent.NewReplayExecutor(responses)
+		} else {
+			fmt.Fprintf(a.debugWriter, "[C7 DEBUG] Capture mode: responses will be saved to %s\n", a.debugDir)
+		}
+	}
+
+	result := agent.RunMetricsParallel(ctx, workDir, targets, progress, executor)
+
+	// Save responses for future replay (only when in capture mode, i.e. executor was nil)
+	if a.debugDir != "" && executor == nil {
+		if saveErr := agent.SaveResponses(a.debugDir, result.Results); saveErr != nil {
+			fmt.Fprintf(a.debugWriter, "[C7 DEBUG] Warning: failed to save responses: %v\n", saveErr)
+		} else {
+			fmt.Fprintf(a.debugWriter, "[C7 DEBUG] Saved %d metric responses to %s\n", len(result.Results), a.debugDir)
+		}
+	}
 
 	// Build C7Metrics from results
 	c7metrics := a.buildMetrics(result, startTime)

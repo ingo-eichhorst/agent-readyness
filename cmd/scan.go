@@ -22,6 +22,7 @@ var (
 	baselinePath string // Path to previous JSON for trend comparison
 	badgeOutput  bool   // Generate shields.io badge markdown
 	debugC7      bool   // Enable C7 debug mode (implies --enable-c7)
+	debugDir     string // Directory for C7 response persistence and replay
 )
 
 var scanCmd = &cobra.Command{
@@ -42,6 +43,16 @@ No --lang flag needed.`,
 
 		if err := validateProject(dir); err != nil {
 			return err
+		}
+
+		// --debug-dir implies --debug-c7
+		if debugDir != "" {
+			debugC7 = true
+			absDir, absErr := filepath.Abs(debugDir)
+			if absErr != nil {
+				return fmt.Errorf("invalid debug-dir path: %w", absErr)
+			}
+			debugDir = absDir
 		}
 
 		// Load scoring config
@@ -106,6 +117,11 @@ No --lang flag needed.`,
 			p.SetC7Debug(true)
 		}
 
+		// Configure debug directory for response persistence and replay
+		if debugDir != "" {
+			p.SetDebugDir(debugDir)
+		}
+
 		// Configure HTML output if requested
 		if outputHTML != "" {
 			p.SetHTMLOutput(outputHTML, baselinePath)
@@ -142,6 +158,7 @@ func init() {
 	scanCmd.Flags().StringVar(&baselinePath, "baseline", "", "path to previous JSON output for trend comparison")
 	scanCmd.Flags().BoolVar(&badgeOutput, "badge", false, "generate shields.io badge markdown URL")
 	scanCmd.Flags().BoolVar(&debugC7, "debug-c7", false, "enable C7 debug mode (implies --enable-c7; debug output on stderr)")
+	scanCmd.Flags().StringVar(&debugDir, "debug-dir", "", "directory for C7 response persistence and replay (implies --debug-c7)")
 	rootCmd.AddCommand(scanCmd)
 }
 

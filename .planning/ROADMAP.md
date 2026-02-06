@@ -65,12 +65,12 @@ Plans:
   3. C1-C6 trace modal displays the current raw value, scoring breakpoints with where the value falls, and the top-5 worst offending files/functions
   4. JSON and shell command content in trace modals has syntax highlighting (distinct colors for keys, values, strings)
   5. Generated HTML report with C7 trace data embedded stays under 500KB total file size
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 32-01: Add "View Trace" buttons and C7 trace modal rendering (prompts, responses, score breakdown)
-- [ ] 32-02: Add C1-C6 scoring explanation trace (breakpoints, worst offenders) with syntax highlighting
-- [ ] 32-03: Implement progressive enhancement fallback and enforce 500KB file size budget with truncation
+- [ ] 32-01-PLAN.md -- Thread trace data to HTML generator, populate C7 DebugSamples unconditionally, render C7 trace modals
+- [ ] 32-02-PLAN.md -- Add C1-C6 breakpoint table and evidence traces with syntax highlighting CSS
+- [ ] 32-03-PLAN.md -- Progressive enhancement `<details>` fallback and file size reporting
 
 ### Phase 33: Improvement Prompt Modals
 **Goal**: Users can click "Improve" on any metric to get a research-backed, project-specific prompt they can paste into an AI agent

@@ -5,21 +5,21 @@
 See: .planning/PROJECT.md (updated 2026-02-06)
 
 **Core value:** Accurate, evidence-based scoring that predicts agent success and identifies specific improvements teams should make before adopting AI coding agents.
-**Current focus:** Phase 28 complete - Heuristic Tests & Scoring Fixes
+**Current focus:** Phase 29 in progress - Debug Rendering & Replay
 
 ## Current Position
 
-Phase: 28 of 29 (Heuristic Tests & Scoring Fixes)
-Plan: 3 of 3 in current phase (all complete)
-Status: Phase complete
-Last activity: 2026-02-06 — Completed 28-03-PLAN.md
+Phase: 29 of 29 (Debug Rendering & Replay)
+Plan: 1 of 3 in current phase
+Status: In progress
+Last activity: 2026-02-06 — Completed 29-01-PLAN.md
 
-Progress: [######....] 41% (v0.0.5)
+Progress: [######....] 43% (v0.0.5)
 
 ## Performance Metrics
 
 **Velocity (all milestones):**
-- Total plans completed: 60
+- Total plans completed: 61
 - Phases completed: 28
 - Total milestones shipped: 4
 
@@ -62,6 +62,8 @@ Recent decisions affecting current work:
 - [28-03]: Grouped indicators over individual - each thematic group contributes +1 max regardless of members matched
 - [28-03]: Variable BaseScore per metric (M2=2, M3=2, M4=1, M5=3) tuned to target score ranges
 - [28-03]: M4 uses "accurate" not "correct" for self_report_positive to avoid false-positive on "partially correct"
+- [29-01]: Prompt truncated to 200 chars, response to 500 chars in debug output for readability
+- [29-01]: Only matched indicators shown in score trace line (unmatched omitted for brevity)
 
 ### Pending Todos
 
@@ -74,5 +76,5 @@ None - M2/M3/M4 scoring issues fully resolved (Bug 1: extractC7 in 28-02, Bug 2:
 ## Session Continuity
 
 Last session: 2026-02-06
-Stopped at: Completed 28-03-PLAN.md (Phase 28 complete)
+Stopped at: Completed 29-01-PLAN.md
 Resume file: None

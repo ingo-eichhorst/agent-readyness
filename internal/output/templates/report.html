@@ -72,6 +72,7 @@
                         <th>Value</th>
                         <th>Score</th>
                         <th>Weight</th>
+                        <th></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -84,10 +85,11 @@
                         <td>{{.FormattedValue}}</td>
                         <td class="score-cell score-{{.ScoreClass}}">{{printf "%.1f" .Score}}</td>
                         <td>{{printf "%.0f" .WeightPct}}%</td>
+                        <td class="trace-cell">{{if .HasTrace}}<button class="ars-modal-trigger" onclick="openModal('{{.DisplayName}} Trace', document.getElementById('trace-{{.Key}}').innerHTML)">View Trace</button>{{end}}</td>
                     </tr>
                     <tr class="metric-details-row" data-for="{{.Key}}"{{if not .ShouldExpand}} style="display: none;"{{end}}>
                         <td></td>
-                        <td colspan="4" class="metric-details-content">
+                        <td colspan="5" class="metric-details-content">
                             {{if .BriefDescription}}
                             <div class="metric-brief">{{.BriefDescription}}</div>
                             {{end}}
@@ -99,6 +101,7 @@
                     {{end}}
                 </tbody>
             </table>
+            {{range .SubScores}}{{if .HasTrace}}<template id="trace-{{.Key}}">{{.TraceHTML}}</template>{{end}}{{end}}
             {{if .ImpactDescription}}<p class="impact">{{.ImpactDescription}}</p>{{end}}
             {{if .Citations}}
             <div class="category-citations">

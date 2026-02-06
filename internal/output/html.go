@@ -287,6 +287,7 @@ func categoryDisplayName(name string) string {
 		"C4": "C4: Documentation Quality",
 		"C5": "C5: Temporal Dynamics",
 		"C6": "C6: Testing",
+		"C7": "C7: Agent Evaluation",
 	}
 	if dn, ok := names[name]; ok {
 		return dn

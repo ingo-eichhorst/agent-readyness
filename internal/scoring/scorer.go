@@ -1,6 +1,10 @@
 package scoring
 
 import (
+	"fmt"
+	"sort"
+	"strings"
+
 	"github.com/ingo/agent-readyness/pkg/types"
 )
 
@@ -187,6 +191,152 @@ func extractC1(ar *types.AnalysisResult) (map[string]float64, map[string]bool, m
 		return nil, nil, nil
 	}
 
+	evidence := make(map[string][]types.EvidenceItem)
+
+	// complexity_avg: top 5 functions by cyclomatic complexity
+	if len(m.Functions) > 0 {
+		sorted := make([]types.FunctionMetric, len(m.Functions))
+		copy(sorted, m.Functions)
+		sort.Slice(sorted, func(i, j int) bool {
+			return sorted[i].Complexity > sorted[j].Complexity
+		})
+		limit := 5
+		if len(sorted) < limit {
+			limit = len(sorted)
+		}
+		items := make([]types.EvidenceItem, limit)
+		for i := 0; i < limit; i++ {
+			items[i] = types.EvidenceItem{
+				FilePath:    sorted[i].File,
+				Line:        sorted[i].Line,
+				Value:       float64(sorted[i].Complexity),
+				Description: fmt.Sprintf("%s has complexity %d", sorted[i].Name, sorted[i].Complexity),
+			}
+		}
+		evidence["complexity_avg"] = items
+	}
+
+	// func_length_avg: top 5 functions by line count
+	if len(m.Functions) > 0 {
+		sorted := make([]types.FunctionMetric, len(m.Functions))
+		copy(sorted, m.Functions)
+		sort.Slice(sorted, func(i, j int) bool {
+			return sorted[i].LineCount > sorted[j].LineCount
+		})
+		limit := 5
+		if len(sorted) < limit {
+			limit = len(sorted)
+		}
+		items := make([]types.EvidenceItem, limit)
+		for i := 0; i < limit; i++ {
+			items[i] = types.EvidenceItem{
+				FilePath:    sorted[i].File,
+				Line:        sorted[i].Line,
+				Value:       float64(sorted[i].LineCount),
+				Description: fmt.Sprintf("%s is %d lines", sorted[i].Name, sorted[i].LineCount),
+			}
+		}
+		evidence["func_length_avg"] = items
+	}
+
+	// file_size_avg: single worst file
+	if m.FileSize.MaxEntity != "" {
+		evidence["file_size_avg"] = []types.EvidenceItem{{
+			FilePath:    m.FileSize.MaxEntity,
+			Line:        0,
+			Value:       float64(m.FileSize.Max),
+			Description: fmt.Sprintf("largest file: %d lines", m.FileSize.Max),
+		}}
+	}
+
+	// afferent_coupling_avg: top 5 packages by incoming dependency count
+	if len(m.AfferentCoupling) > 0 {
+		type pkgCount struct {
+			pkg   string
+			count int
+		}
+		entries := make([]pkgCount, 0, len(m.AfferentCoupling))
+		for pkg, count := range m.AfferentCoupling {
+			entries = append(entries, pkgCount{pkg, count})
+		}
+		sort.Slice(entries, func(i, j int) bool {
+			return entries[i].count > entries[j].count
+		})
+		limit := 5
+		if len(entries) < limit {
+			limit = len(entries)
+		}
+		items := make([]types.EvidenceItem, limit)
+		for i := 0; i < limit; i++ {
+			items[i] = types.EvidenceItem{
+				FilePath:    entries[i].pkg,
+				Line:        0,
+				Value:       float64(entries[i].count),
+				Description: fmt.Sprintf("imported by %d packages", entries[i].count),
+			}
+		}
+		evidence["afferent_coupling_avg"] = items
+	}
+
+	// efferent_coupling_avg: top 5 packages by outgoing dependency count
+	if len(m.EfferentCoupling) > 0 {
+		type pkgCount struct {
+			pkg   string
+			count int
+		}
+		entries := make([]pkgCount, 0, len(m.EfferentCoupling))
+		for pkg, count := range m.EfferentCoupling {
+			entries = append(entries, pkgCount{pkg, count})
+		}
+		sort.Slice(entries, func(i, j int) bool {
+			return entries[i].count > entries[j].count
+		})
+		limit := 5
+		if len(entries) < limit {
+			limit = len(entries)
+		}
+		items := make([]types.EvidenceItem, limit)
+		for i := 0; i < limit; i++ {
+			items[i] = types.EvidenceItem{
+				FilePath:    entries[i].pkg,
+				Line:        0,
+				Value:       float64(entries[i].count),
+				Description: fmt.Sprintf("imports %d packages", entries[i].count),
+			}
+		}
+		evidence["efferent_coupling_avg"] = items
+	}
+
+	// duplication_rate: top 5 duplicate blocks by line count
+	if len(m.DuplicatedBlocks) > 0 {
+		sorted := make([]types.DuplicateBlock, len(m.DuplicatedBlocks))
+		copy(sorted, m.DuplicatedBlocks)
+		sort.Slice(sorted, func(i, j int) bool {
+			return sorted[i].LineCount > sorted[j].LineCount
+		})
+		limit := 5
+		if len(sorted) < limit {
+			limit = len(sorted)
+		}
+		items := make([]types.EvidenceItem, limit)
+		for i := 0; i < limit; i++ {
+			items[i] = types.EvidenceItem{
+				FilePath:    sorted[i].FileA,
+				Line:        sorted[i].StartA,
+				Value:       float64(sorted[i].LineCount),
+				Description: fmt.Sprintf("%d-line duplicate block", sorted[i].LineCount),
+			}
+		}
+		evidence["duplication_rate"] = items
+	}
+
+	// Ensure all 6 metric keys have at least empty arrays
+	for _, key := range []string{"complexity_avg", "func_length_avg", "file_size_avg", "afferent_coupling_avg", "efferent_coupling_avg", "duplication_rate"} {
+		if evidence[key] == nil {
+			evidence[key] = []types.EvidenceItem{}
+		}
+	}
+
 	return map[string]float64{
 		"complexity_avg":        m.CyclomaticComplexity.Avg,
 		"func_length_avg":      m.FunctionLength.Avg,
@@ -194,7 +344,7 @@ func extractC1(ar *types.AnalysisResult) (map[string]float64, map[string]bool, m
 		"afferent_coupling_avg": avgMapValues(m.AfferentCoupling),
 		"efferent_coupling_avg": avgMapValues(m.EfferentCoupling),
 		"duplication_rate":      m.DuplicationRate,
-	}, nil, make(map[string][]types.EvidenceItem)
+	}, nil, evidence
 }
 
 // extractC2 extracts C2 (Semantic Explicitness) metrics from an AnalysisResult.
@@ -212,13 +362,21 @@ func extractC2(ar *types.AnalysisResult) (map[string]float64, map[string]bool, m
 		return nil, nil, nil
 	}
 
+	evidence := map[string][]types.EvidenceItem{
+		"type_annotation_coverage": {},
+		"naming_consistency":       {},
+		"magic_number_ratio":       {},
+		"type_strictness":          {},
+		"null_safety":              {},
+	}
+
 	return map[string]float64{
 		"type_annotation_coverage": m.Aggregate.TypeAnnotationCoverage,
 		"naming_consistency":       m.Aggregate.NamingConsistency,
 		"magic_number_ratio":       m.Aggregate.MagicNumberRatio,
 		"type_strictness":          m.Aggregate.TypeStrictness,
 		"null_safety":              m.Aggregate.NullSafety,
-	}, nil, make(map[string][]types.EvidenceItem)
+	}, nil, evidence
 }
 
 // extractC3 extracts C3 (Architecture) metrics from an AnalysisResult.
@@ -232,13 +390,85 @@ func extractC3(ar *types.AnalysisResult) (map[string]float64, map[string]bool, m
 		return nil, nil, nil
 	}
 
+	evidence := make(map[string][]types.EvidenceItem)
+
+	// max_dir_depth: no per-item data available
+	// module_fanout_avg: single worst module if available
+	if m.ModuleFanout.MaxEntity != "" {
+		evidence["module_fanout_avg"] = []types.EvidenceItem{{
+			FilePath:    m.ModuleFanout.MaxEntity,
+			Line:        0,
+			Value:       float64(m.ModuleFanout.Max),
+			Description: fmt.Sprintf("highest fanout: %d references", m.ModuleFanout.Max),
+		}}
+	}
+
+	// circular_deps: first 5 cycles
+	if len(m.CircularDeps) > 0 {
+		limit := 5
+		if len(m.CircularDeps) < limit {
+			limit = len(m.CircularDeps)
+		}
+		items := make([]types.EvidenceItem, limit)
+		for i := 0; i < limit; i++ {
+			cycle := m.CircularDeps[i]
+			filePath := ""
+			if len(cycle) > 0 {
+				filePath = cycle[0]
+			}
+			items[i] = types.EvidenceItem{
+				FilePath:    filePath,
+				Line:        0,
+				Value:       float64(len(cycle)),
+				Description: fmt.Sprintf("cycle: %s", strings.Join(cycle, " -> ")),
+			}
+		}
+		evidence["circular_deps"] = items
+	}
+
+	// import_complexity_avg: single worst if available
+	if m.ImportComplexity.MaxEntity != "" {
+		evidence["import_complexity_avg"] = []types.EvidenceItem{{
+			FilePath:    m.ImportComplexity.MaxEntity,
+			Line:        0,
+			Value:       float64(m.ImportComplexity.Max),
+			Description: fmt.Sprintf("most complex imports: %d segments", m.ImportComplexity.Max),
+		}}
+	}
+
+	// dead_exports: first 5 unused exports
+	if len(m.DeadExports) > 0 {
+		limit := 5
+		if len(m.DeadExports) < limit {
+			limit = len(m.DeadExports)
+		}
+		items := make([]types.EvidenceItem, limit)
+		for i := 0; i < limit; i++ {
+			de := m.DeadExports[i]
+			items[i] = types.EvidenceItem{
+				FilePath:    de.File,
+				Line:        de.Line,
+				Value:       1,
+				Description: fmt.Sprintf("unused %s: %s", de.Kind, de.Name),
+			}
+		}
+		evidence["dead_exports"] = items
+	}
+
+	// Ensure all 5 keys have at least empty arrays
+	for _, key := range []string{"max_dir_depth", "module_fanout_avg", "circular_deps", "import_complexity_avg", "dead_exports"} {
+		if evidence[key] == nil {
+			evidence[key] = []types.EvidenceItem{}
+		}
+	}
+
 	return map[string]float64{
 		"max_dir_depth":        float64(m.MaxDirectoryDepth),
 		"module_fanout_avg":    m.ModuleFanout.Avg,
 		"circular_deps":        float64(len(m.CircularDeps)),
 		"import_complexity_avg": m.ImportComplexity.Avg,
 		"dead_exports":          float64(len(m.DeadExports)),
-	}, nil, make(map[string][]types.EvidenceItem)
+	}, nil, evidence
 }
 
 // extractC4 extracts C4 (Documentation Quality) metrics from an AnalysisResult.
@@ -270,6 +500,16 @@ func extractC4(ar *types.AnalysisResult) (map[string]float64, map[string]bool, m
 		diagramsVal = 1.0
 	}
 
+	evidence := map[string][]types.EvidenceItem{
+		"readme_word_count":    {},
+		"comment_density":      {},
+		"api_doc_coverage":     {},
+		"changelog_present":    {},
+		"examples_present":     {},
+		"contributing_present": {},
+		"diagrams_present":     {},
+	}
+
 	return map[string]float64{
 		"readme_word_count":     float64(m.ReadmeWordCount),
 		"comment_density":       m.CommentDensity,
@@ -278,7 +518,7 @@ func extractC4(ar *types.AnalysisResult) (map[string]float64, map[string]bool, m
 		"examples_present":      examplesVal,
 		"contributing_present":  contributingVal,
 		"diagrams_present":      diagramsVal,
-	}, nil, make(map[string][]types.EvidenceItem)
+	}, nil, evidence
 }
 
 // extractC6 extracts C6 (Testing) metrics from an AnalysisResult.
@@ -312,7 +552,63 @@ func extractC6(ar *types.AnalysisResult) (map[string]float64, map[string]bool, m
 		unavailable["coverage_percent"] = true
 	}
 
-	return rawValues, unavailable, make(map[string][]types.EvidenceItem)
+	evidence := make(map[string][]types.EvidenceItem)
+
+	// test_isolation: top 5 tests with external dependencies
+	if len(m.TestFunctions) > 0 {
+		var withExtDep []types.TestFunctionMetric
+		for _, tf := range m.TestFunctions {
+			if tf.HasExternalDep {
+				withExtDep = append(withExtDep, tf)
+			}
+		}
+		limit := 5
+		if len(withExtDep) < limit {
+			limit = len(withExtDep)
+		}
+		items := make([]types.EvidenceItem, limit)
+		for i := 0; i < limit; i++ {
+			items[i] = types.EvidenceItem{
+				FilePath:    withExtDep[i].File,
+				Line:        withExtDep[i].Line,
+				Value:       1,
+				Description: fmt.Sprintf("%s has external dependency", withExtDep[i].Name),
+			}
+		}
+		evidence["test_isolation"] = items
+	}
+
+	// assertion_density_avg: top 5 tests with lowest assertion count (worst offenders)
+	if len(m.TestFunctions) > 0 {
+		sorted := make([]types.TestFunctionMetric, len(m.TestFunctions))
+		copy(sorted, m.TestFunctions)
+		sort.Slice(sorted, func(i, j int) bool {
+			return sorted[i].AssertionCount < sorted[j].AssertionCount
+		})
+		limit := 5
+		if len(sorted) < limit {
+			limit = len(sorted)
+		}
+		items := make([]types.EvidenceItem, limit)
+		for i := 0; i < limit; i++ {
+			items[i] = types.EvidenceItem{
+				FilePath:    sorted[i].File,
+				Line:        sorted[i].Line,
+				Value:       float64(sorted[i].AssertionCount),
+				Description: fmt.Sprintf("%s has %d assertions", sorted[i].Name, sorted[i].AssertionCount),
+			}
+		}
+		evidence["assertion_density_avg"] = items
+	}
+
+	// Ensure all 5 keys have at least empty arrays
+	for _, key := range []string{"test_to_code_ratio", "coverage_percent", "test_isolation", "assertion_density_avg", "test_file_ratio"} {
+		if evidence[key] == nil {
+			evidence[key] = []types.EvidenceItem{}
+		}
+	}
+
+	return rawValues, unavailable, evidence
 }
 
 // extractC5 extracts C5 (Temporal Dynamics) metrics from an AnalysisResult.
@@ -334,7 +630,101 @@ func extractC5(ar *types.AnalysisResult) (map[string]float64, map[string]bool, m
 			"commit_stability":      true,
 			"hotspot_concentration": true,
 		}
-		return map[string]float64{}, unavailable, nil
+		emptyEvidence := make(map[string][]types.EvidenceItem)
+		for k := range unavailable {
+			emptyEvidence[k] = []types.EvidenceItem{}
+		}
+		return map[string]float64{}, unavailable, emptyEvidence
+	}
+
+	evidence := make(map[string][]types.EvidenceItem)
+
+	// churn_rate: top 5 hotspots by commit count
+	if len(m.TopHotspots) > 0 {
+		limit := 5
+		if len(m.TopHotspots) < limit {
+			limit = len(m.TopHotspots)
+		}
+		items := make([]types.EvidenceItem, limit)
+		for i := 0; i < limit; i++ {
+			h := m.TopHotspots[i]
+			items[i] = types.EvidenceItem{
+				FilePath:    h.Path,
+				Line:        0,
+				Value:       float64(h.CommitCount),
+				Description: fmt.Sprintf("%d commits", h.CommitCount),
+			}
+		}
+		evidence["churn_rate"] = items
+	}
+
+	// temporal_coupling_pct: top 5 coupled pairs
+	if len(m.CoupledPairs) > 0 {
+		limit := 5
+		if len(m.CoupledPairs) < limit {
+			limit = len(m.CoupledPairs)
+		}
+		items := make([]types.EvidenceItem, limit)
+		for i := 0; i < limit; i++ {
+			p := m.CoupledPairs[i]
+			items[i] = types.EvidenceItem{
+				FilePath:    p.FileA,
+				Line:        0,
+				Value:       p.Coupling,
+				Description: fmt.Sprintf("coupled with %s (%.0f%%)", p.FileB, p.Coupling),
+			}
+		}
+		evidence["temporal_coupling_pct"] = items
+	}
+
+	// author_fragmentation: top 5 hotspots by author count
+	if len(m.TopHotspots) > 0 {
+		sorted := make([]types.FileChurn, len(m.TopHotspots))
+		copy(sorted, m.TopHotspots)
+		sort.Slice(sorted, func(i, j int) bool {
+			return sorted[i].AuthorCount > sorted[j].AuthorCount
+		})
+		limit := 5
+		if len(sorted) < limit {
+			limit = len(sorted)
+		}
+		items := make([]types.EvidenceItem, limit)
+		for i := 0; i < limit; i++ {
+			h := sorted[i]
+			items[i] = types.EvidenceItem{
+				FilePath:    h.Path,
+				Line:        0,
+				Value:       float64(h.AuthorCount),
+				Description: fmt.Sprintf("%d distinct authors", h.AuthorCount),
+			}
+		}
+		evidence["author_fragmentation"] = items
+	}
+
+	// hotspot_concentration: top 5 hotspots by total changes
+	if len(m.TopHotspots) > 0 {
+		limit := 5
+		if len(m.TopHotspots) < limit {
+			limit = len(m.TopHotspots)
+		}
+		items := make([]types.EvidenceItem, limit)
+		for i := 0; i < limit; i++ {
+			h := m.TopHotspots[i]
+			items[i] = types.EvidenceItem{
+				FilePath:    h.Path,
+				Line:        0,
+				Value:       float64(h.TotalChanges),
+				Description: fmt.Sprintf("hotspot: %d changes", h.TotalChanges),
+			}
+		}
+		evidence["hotspot_concentration"] = items
+	}
+
+	// Ensure all 5 keys have at least empty arrays
+	for _, key := range []string{"churn_rate", "temporal_coupling_pct", "author_fragmentation", "commit_stability", "hotspot_concentration"} {
+		if evidence[key] == nil {
+			evidence[key] = []types.EvidenceItem{}
+		}
 	}
 
 	return map[string]float64{
@@ -343,7 +733,7 @@ func extractC5(ar *types.AnalysisResult) (map[string]float64, map[string]bool, m
 		"author_fragmentation":  m.AuthorFragmentation,
 		"commit_stability":      m.CommitStability,
 		"hotspot_concentration": m.HotspotConcentration,
-	}, nil, make(map[string][]types.EvidenceItem)
+	}, nil, evidence
 }
 
 // extractC7 extracts C7 (Agent Evaluation) metrics from an AnalysisResult.
@@ -365,7 +755,19 @@ func extractC7(ar *types.AnalysisResult) (map[string]float64, map[string]bool, m
 			"identifier_interpretability":      true,
 			"documentation_accuracy_detection": true,
 		}
-		return map[string]float64{}, unavailable, nil
+		emptyEvidence := make(map[string][]types.EvidenceItem)
+		for k := range unavailable {
+			emptyEvidence[k] = []types.EvidenceItem{}
+		}
+		return map[string]float64{}, unavailable, emptyEvidence
+	}
+
+	evidence := map[string][]types.EvidenceItem{
+		"task_execution_consistency":       {},
+		"code_behavior_comprehension":      {},
+		"cross_file_navigation":            {},
+		"identifier_interpretability":      {},
+		"documentation_accuracy_detection": {},
 	}
 
 	return map[string]float64{
@@ -374,7 +776,7 @@ func extractC7(ar *types.AnalysisResult) (map[string]float64, map[string]bool, m
 		"cross_file_navigation":            float64(m.CrossFileNavigation),
 		"identifier_interpretability":      float64(m.IdentifierInterpretability),
 		"documentation_accuracy_detection": float64(m.DocumentationAccuracyDetection),
-	}, nil, make(map[string][]types.EvidenceItem)
+	}, nil, evidence
 }
 
 // scoreMetrics is a generic scoring helper for any category.

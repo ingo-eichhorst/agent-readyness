@@ -10,16 +10,16 @@ See: .planning/PROJECT.md (updated 2026-02-06)
 ## Current Position
 
 Phase: 30 of 34 (Evidence Data Flow)
-Plan: 0 of 3 in current phase
-Status: Ready to plan
-Last activity: 2026-02-06 -- Roadmap created for v0.0.6
+Plan: 1 of 3 in current phase
+Status: In progress
+Last activity: 2026-02-06 -- Completed 30-01-PLAN.md
 
-Progress: [..........] 0% (v0.0.6: 0/13 plans)
+Progress: [#.........] 8% (v0.0.6: 1/13 plans)
 
 ## Performance Metrics
 
 **Velocity (all milestones):**
-- Total plans completed: 63
+- Total plans completed: 64
 - Phases completed: 29
 - Total milestones shipped: 5
 
@@ -45,7 +45,9 @@ Recent decisions affecting current work:
 
 - [v0.0.5]: io.Writer debug pattern for zero-cost debug output
 - [v0.0.5]: C7DebugSample type captures prompt/response/score data (reusable for trace modals)
-- [v0.0.5]: extractC7 returns all 6 C7 metrics (overall_score + 5 MECE) in scoring pipeline
+- [v0.0.6]: C7 overall_score fully removed (not just zero-weight) -- 5 MECE metrics only
+- [v0.0.6]: SubScore.Evidence uses json:"evidence" without omitempty (guarantees [] not null)
+- [v0.0.6]: MetricExtractor returns 3 values (rawValues, unavailable, evidence)
 
 ### Pending Todos
 
@@ -53,10 +55,10 @@ None.
 
 ### Blockers/Concerns
 
-None -- clean start for v0.0.6. All v0.0.5 debug infrastructure available for C7 trace rendering.
+None.
 
 ## Session Continuity
 
 Last session: 2026-02-06
-Stopped at: Roadmap created for v0.0.6 milestone
+Stopped at: Completed 30-01-PLAN.md
 Resume file: None

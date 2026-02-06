@@ -29,10 +29,10 @@ This milestone fixes the M2/M3/M4 scoring bug (GitHub #55) and establishes debug
   1. Running `ars scan . --debug-c7` activates C7 evaluation automatically (no need to also pass `--enable-c7`)
   2. Debug output appears exclusively on stderr; `ars scan . --debug-c7 --json 2>/dev/null | jq` produces valid JSON on stdout
   3. Running `ars scan .` without `--debug-c7` produces identical output and performance to current behavior (zero-cost when disabled)
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 26-01: Register --debug-c7 flag, thread through Pipeline to C7Analyzer, establish DebugWriter (io.Discard / os.Stderr)
+- [ ] 26-01-PLAN.md -- Wire --debug-c7 flag from CLI through Pipeline to C7Analyzer with debugWriter pattern and tests
 
 ### Phase 27: Data Capture
 **Goal**: Debug mode preserves full prompts, responses, and score traces that flow through the pipeline for downstream rendering

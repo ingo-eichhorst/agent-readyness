@@ -1,6 +1,8 @@
 package c7
 
 import (
+	"io"
+	"os"
 	"testing"
 
 	"github.com/ingo/agent-readyness/pkg/types"
@@ -92,5 +94,42 @@ func TestEstimateResponseTokens(t *testing.T) {
 		if got != tt.expected {
 			t.Errorf("estimateResponseTokens(%q) = %d, want %d", tt.input, got, tt.expected)
 		}
+	}
+}
+
+func TestC7Analyzer_SetDebug(t *testing.T) {
+	a := NewC7Analyzer()
+
+	// Default state: debug off, writer is io.Discard
+	if a.debug {
+		t.Error("debug should be false by default")
+	}
+	if a.debugWriter != io.Discard {
+		t.Error("debugWriter should be io.Discard by default")
+	}
+
+	// Enable debug with os.Stderr
+	a.SetDebug(true, os.Stderr)
+
+	if !a.debug {
+		t.Error("debug should be true after SetDebug(true, ...)")
+	}
+	if a.debugWriter != os.Stderr {
+		t.Error("debugWriter should be os.Stderr after SetDebug(true, os.Stderr)")
+	}
+}
+
+func TestC7Analyzer_DebugWriterNeverNil(t *testing.T) {
+	a := NewC7Analyzer()
+
+	// Even without SetDebug being called, debugWriter should be io.Discard (not nil)
+	if a.debugWriter == nil {
+		t.Fatal("debugWriter must never be nil -- should default to io.Discard")
+	}
+
+	// Writing to io.Discard should not panic
+	_, err := a.debugWriter.Write([]byte("test"))
+	if err != nil {
+		t.Errorf("writing to default debugWriter should not error: %v", err)
 	}
 }

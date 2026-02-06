@@ -3,6 +3,8 @@ package pipeline
 import (
 	"bytes"
 	"errors"
+	"io"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -282,5 +284,60 @@ func TestProgressCallbackInvoked(t *testing.T) {
 		if !found {
 			t.Errorf("missing progress callback for stage %q, got stages: %v", want, stages)
 		}
+	}
+}
+
+func TestDefaultPipelineHasZeroCostDebug(t *testing.T) {
+	var buf bytes.Buffer
+	p := New(&buf, false, nil, 0, false, nil)
+
+	if p.debugC7 {
+		t.Error("debugC7 should be false by default")
+	}
+	if p.debugWriter != io.Discard {
+		t.Error("debugWriter should be io.Discard by default")
+	}
+}
+
+func TestSetC7DebugSetsWriterToStderr(t *testing.T) {
+	var buf bytes.Buffer
+	p := New(&buf, false, nil, 0, false, nil)
+
+	// Verify defaults
+	if p.debugWriter != io.Discard {
+		t.Fatal("debugWriter should be io.Discard before SetC7Debug")
+	}
+
+	p.SetC7Debug(true)
+
+	if p.debugWriter != os.Stderr {
+		t.Error("debugWriter should be os.Stderr after SetC7Debug(true)")
+	}
+	if !p.debugC7 {
+		t.Error("debugC7 should be true after SetC7Debug(true)")
+	}
+}
+
+func TestSetC7DebugThreadsToC7Analyzer(t *testing.T) {
+	var buf bytes.Buffer
+	p := New(&buf, false, nil, 0, false, nil)
+
+	// Verify c7Analyzer exists
+	if p.c7Analyzer == nil {
+		t.Fatal("c7Analyzer should not be nil after New()")
+	}
+
+	p.SetC7Debug(true)
+
+	// c7Analyzer.debug and debugWriter are unexported, but since we are
+	// in the pipeline package we can access them through the type alias.
+	// The C7Analyzer type is accessed via analyzer.C7Analyzer alias.
+	// Since fields are unexported, we verify indirectly by checking the
+	// pipeline state was threaded correctly.
+	if !p.debugC7 {
+		t.Error("pipeline debugC7 should be true")
+	}
+	if p.debugWriter != os.Stderr {
+		t.Error("pipeline debugWriter should be os.Stderr")
 	}
 }

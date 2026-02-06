@@ -32,7 +32,11 @@ var scanCmd = &cobra.Command{
 
 Supported languages: Go, Python, TypeScript
 Languages are auto-detected from project files (go.mod, pyproject.toml, tsconfig.json, etc.)
-No --lang flag needed.`,
+No --lang flag needed.
+
+Debug mode:
+  --debug-c7            Show detailed C7 agent evaluation diagnostics on stderr
+  --debug-c7 --debug-dir DIR  Save responses to DIR for offline analysis and replay`,
 	Args:  cobra.ExactArgs(1),
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -157,8 +161,8 @@ func init() {
 	scanCmd.Flags().StringVar(&outputHTML, "output-html", "", "generate self-contained HTML report at specified path")
 	scanCmd.Flags().StringVar(&baselinePath, "baseline", "", "path to previous JSON output for trend comparison")
 	scanCmd.Flags().BoolVar(&badgeOutput, "badge", false, "generate shields.io badge markdown URL")
-	scanCmd.Flags().BoolVar(&debugC7, "debug-c7", false, "enable C7 debug mode (implies --enable-c7; debug output on stderr)")
-	scanCmd.Flags().StringVar(&debugDir, "debug-dir", "", "directory for C7 response persistence and replay (implies --debug-c7)")
+	scanCmd.Flags().BoolVar(&debugC7, "debug-c7", false, "enable C7 debug mode: show per-metric prompts, responses, scores, and indicator traces on stderr (implies --enable-c7)")
+	scanCmd.Flags().StringVar(&debugDir, "debug-dir", "", "directory for C7 response persistence and replay; saves responses on first run, replays from saved files on subsequent runs (implies --debug-c7)")
 	rootCmd.AddCommand(scanCmd)
 }
 

@@ -88,6 +88,37 @@ ars scan . --enable-c7
 
 **Supported languages:** Go, Python, TypeScript (auto-detected)
 
+### C7 Debug Mode
+
+When investigating C7 Agent Evaluation scores, use debug mode to inspect what the agent sees and how responses are scored:
+
+```bash
+# Show debug output on stderr (normal output unchanged on stdout)
+ars scan . --debug-c7
+
+# Pipe normal output to file while viewing debug on terminal
+ars scan . --debug-c7 --json > results.json 2>debug.log
+
+# Save responses for offline analysis
+ars scan . --debug-c7 --debug-dir ./c7-debug
+
+# Replay saved responses (fast, no Claude CLI calls)
+ars scan . --debug-c7 --debug-dir ./c7-debug
+```
+
+Debug output includes:
+- Per-metric, per-sample prompt text (truncated)
+- Full agent response (truncated in terminal, full in saved files)
+- Score breakdown with heuristic indicator traces
+- Timing data per sample and per metric
+
+The `--debug-dir` flag enables response persistence:
+- **First run**: Executes Claude CLI normally and saves all responses as JSON files
+- **Subsequent runs**: Loads saved responses instead of calling Claude CLI (replay mode)
+- Replay mode enables fast iteration on heuristic scoring without API costs
+
+Debug output goes exclusively to stderr, so JSON output (`--json`) remains valid on stdout.
+
 ## Test
 
 go test ./... -coverprofile=cover.out

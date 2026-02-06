@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-06)
 
 **Core value:** Accurate, evidence-based scoring that predicts agent success and identifies specific improvements teams should make before adopting AI coding agents.
-**Current focus:** Phase 27 - Data Capture
+**Current focus:** Phase 28 - Heuristic Tests & Scoring Fixes
 
 ## Current Position
 
 Phase: 27 of 29 (Data Capture)
 Plan: 2 of 2 in current phase
-Status: Phase complete
-Last activity: 2026-02-06 — Completed 27-02-PLAN.md
+Status: Phase complete, verified ✓
+Last activity: 2026-02-06 — Completed Phase 27
 
 Progress: [###.......] 33% (v0.0.5)
 

@@ -3,60 +3,70 @@
 **Defined:** 2026-02-06
 **Core Value:** Accurate, evidence-based scoring that predicts agent success and identifies specific improvements teams should make before adopting AI coding agents.
 
-## v0.0.5 Requirements (C7 Debug Infrastructure)
+## v0.0.6 Requirements (Interactive HTML Report)
 
-Requirements for investigating and fixing M2/M3/M4 scoring anomalies.
+Requirements for adding call trace and improvement prompt modals to HTML reports.
 
-### Debug Foundation
+### Evidence Data Flow
 
-- [x] **DBG-01**: CLI accepts `--debug-c7` flag to enable C7 debug mode
-- [x] **DBG-02**: Debug mode auto-enables C7 evaluation if not already enabled
-- [x] **DBG-03**: Debug output writes exclusively to stderr (preserves stdout for JSON/HTML)
-- [x] **DBG-04**: Debug mode captures full prompts sent to each metric
-- [x] **DBG-05**: Debug mode captures full Claude CLI responses for each sample
-- [x] **DBG-06**: Debug mode displays score traces showing heuristic indicator contributions
+- [ ] **EV-01**: SubScore type includes Evidence field with top-5 worst offenders per metric
+- [ ] **EV-02**: MetricExtractor signature returns evidence alongside score and raw value
+- [ ] **EV-03**: All 7 extractCx functions populate evidence for their metrics
+- [ ] **EV-04**: Evidence includes file path, line number, value, and description fields
+- [ ] **EV-05**: JSON output includes evidence data with omitempty for backward compatibility
 
-### Heuristic Testing
+### Modal UI Infrastructure
 
-- [x] **TEST-01**: Test fixtures with real captured Claude CLI responses in `testdata/c7_responses/`
-- [x] **TEST-02**: Unit tests for M2 (Code Behavior Comprehension) scoring function
-- [x] **TEST-03**: Unit tests for M3 (Cross-File Navigation) scoring function
-- [x] **TEST-04**: Unit tests for M4 (Identifier Interpretability) scoring function
-- [x] **TEST-05**: Tests document expected scores for each fixture response
+- [ ] **UI-01**: Native HTML `<dialog>` element for all modals
+- [ ] **UI-02**: Modal opens via JavaScript showModal() method
+- [ ] **UI-03**: Modal closes via Escape key, X button, or backdrop click
+- [ ] **UI-04**: Modal has keyboard focus trapping and ARIA attributes
+- [ ] **UI-05**: Modal width is responsive (min(90vw, 700px) for mobile support)
+- [ ] **UI-06**: Modal content is scrollable with max-height constraint
+- [ ] **UI-07**: iOS Safari scroll lock using position:fixed workaround
 
-### Response Replay
+### Call Trace Modal (Issue #56)
 
-- [ ] **RPL-01**: `--debug-dir` flag specifies directory for response persistence
-- [ ] **RPL-02**: Debug mode saves captured responses to JSON files in debug-dir
-- [ ] **RPL-03**: Replay mode loads responses from debug-dir instead of executing Claude CLI
-- [ ] **RPL-04**: Replay mode enables fast heuristic iteration without agent execution
+- [ ] **TR-01**: Per-metric "View Trace" button in HTML report metric rows
+- [ ] **TR-02**: C7 trace modal shows full prompts and responses for all samples
+- [ ] **TR-03**: C7 trace shows score breakdown with matched indicators
+- [ ] **TR-04**: C1-C6 trace modal shows scoring explanation (current value, breakpoints, target)
+- [ ] **TR-05**: C1-C6 trace shows top-5 worst offenders (files/functions with highest values)
+- [ ] **TR-06**: Syntax highlighting for JSON and shell command content
+- [ ] **TR-07**: Trace data respects 500KB total file size budget
+- [ ] **TR-08**: Progressive enhancement: content accessible in <details> fallback without JS
 
-### Scoring Fixes
+### Improvement Prompt Modal (Issue #57)
 
-- [x] **FIX-01**: M2 scoring function produces non-zero scores for valid comprehension responses
-- [x] **FIX-02**: M3 scoring function produces non-zero scores for valid navigation responses
-- [x] **FIX-03**: M4 scoring function produces non-zero scores for valid interpretation responses
-- [x] **FIX-04**: Heuristic adjustments documented with rationale in code comments
+- [ ] **PR-01**: Per-metric "Improve" button in HTML report metric rows
+- [ ] **PR-02**: Modal shows research-backed prompt template for the category
+- [ ] **PR-03**: Prompt includes current score, target score, and metric-specific guidance
+- [ ] **PR-04**: Prompt interpolates project-specific data (file names, metric values, thresholds)
+- [ ] **PR-05**: Copy-to-clipboard button with "Copied!" visual feedback
+- [ ] **PR-06**: Clipboard fallback chain: Clipboard API → execCommand → visible <pre> block
+- [ ] **PR-07**: 7 category-level prompt templates (C1-C7) based on research structure
+- [ ] **PR-08**: Prompt structure: Context → Build/Test → Task → Verification
+- [ ] **PR-09**: Progressive enhancement: prompt visible in <details> fallback without JS
 
-### Documentation
+### Testing & Quality
 
-- [ ] **DOC-01**: GitHub issue #55 updated with root cause analysis
-- [ ] **DOC-02**: GitHub issue #55 documents fixes applied and test results
-- [ ] **DOC-03**: `--debug-c7` flag documented in CLI help output
-- [ ] **DOC-04**: Debug mode usage documented in README or docs/
+- [ ] **TEST-01**: Unit tests verify evidence extraction for all metrics
+- [ ] **TEST-02**: File size budget test fails if HTML report exceeds 500KB
+- [ ] **TEST-03**: JSON schema compatibility test validates backward compatibility
+- [ ] **TEST-04**: Prompt template coverage test ensures all 38 metrics mapped to category templates
+- [ ] **TEST-05**: Accessibility test validates keyboard navigation and ARIA attributes
+- [ ] **TEST-06**: Mobile responsive test validates modal layout on small screens
 
 ## Out of Scope
 
 | Feature | Reason |
 |---------|--------|
-| Real-time response streaming | High complexity, debug mode is for post-execution analysis |
-| Live debugger integration (Delve) | Over-engineering for heuristic investigation |
-| Complex debug query language | Scope creep beyond investigation needs |
-| Full logging framework (slog) | Adds new paradigm for single debug flag, inconsistent with existing `io.Writer` pattern |
-| --verbose flag reuse | Affects all categories, C7 debug is category-specific and more voluminous |
-| M1/M5 scoring changes | M1 and M5 already score correctly (10/10) |
-| Automated response capture in CI | Debug mode is for manual investigation, not automated testing |
-| JavaScript-based debug UI | CLI tool, no web interface |
+| Per-metric prompt templates (38 total) | Too many to maintain; category-level (7 templates) sufficient |
+| LLM-generated dynamic prompts | Adds latency and cost; static templates with interpolation sufficient |
+| Interactive prompt editing in modal | Scope creep; copy-paste workflow is simpler |
+| Real-time trace streaming | Batch analysis only; no streaming infrastructure |
+| Trace filtering/search UI | Show everything; users can browser search if needed |
+| C2/C4 per-file evidence | Aggregate metrics only; synthesizing fake evidence adds complexity |
 
 ## Traceability
 
@@ -64,35 +74,13 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DBG-01 | Phase 26 | Complete |
-| DBG-02 | Phase 26 | Complete |
-| DBG-03 | Phase 26 | Complete |
-| DBG-04 | Phase 27 | Complete |
-| DBG-05 | Phase 27 | Complete |
-| DBG-06 | Phase 27 | Complete |
-| TEST-01 | Phase 28 | Complete |
-| TEST-02 | Phase 28 | Complete |
-| TEST-03 | Phase 28 | Complete |
-| TEST-04 | Phase 28 | Complete |
-| TEST-05 | Phase 28 | Complete |
-| FIX-01 | Phase 28 | Complete |
-| FIX-02 | Phase 28 | Complete |
-| FIX-03 | Phase 28 | Complete |
-| FIX-04 | Phase 28 | Complete |
-| RPL-01 | Phase 29 | Pending |
-| RPL-02 | Phase 29 | Pending |
-| RPL-03 | Phase 29 | Pending |
-| RPL-04 | Phase 29 | Pending |
-| DOC-01 | Phase 29 | Pending |
-| DOC-02 | Phase 29 | Pending |
-| DOC-03 | Phase 29 | Pending |
-| DOC-04 | Phase 29 | Pending |
+| TBD | TBD | Pending |
 
 **Coverage:**
-- v0.0.5 requirements: 23 total
-- Mapped to phases: 23/23
-- Unmapped: 0
+- v0.0.6 requirements: 30 total
+- Mapped to phases: TBD
+- Unmapped: TBD
 
 ---
 *Requirements defined: 2026-02-06*
-*Last updated: 2026-02-06 after roadmap creation*
+*Last updated: 2026-02-06 after initial definition*

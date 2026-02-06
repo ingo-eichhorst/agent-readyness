@@ -5,21 +5,21 @@
 See: .planning/PROJECT.md (updated 2026-02-06)
 
 **Core value:** Accurate, evidence-based scoring that predicts agent success and identifies specific improvements teams should make before adopting AI coding agents.
-**Current focus:** Phase 31 - HTML Evidence Display (v0.0.6)
+**Current focus:** Phase 32 - Call Trace Modals (v0.0.6)
 
 ## Current Position
 
-Phase: 31 of 34 (Modal UI Infrastructure)
-Plan: 2 of 2 in current phase
-Status: Phase complete
-Last activity: 2026-02-06 -- Completed 31-02-PLAN.md
+Phase: 32 of 34 (Call Trace Modals)
+Plan: 1 of 3 in current phase
+Status: In progress
+Last activity: 2026-02-06 -- Completed 32-01-PLAN.md
 
-Progress: [####......] 38% (v0.0.6: 5/13 plans)
+Progress: [######....] 46% (v0.0.6: 6/13 plans)
 
 ## Performance Metrics
 
 **Velocity (all milestones):**
-- Total plans completed: 68
+- Total plans completed: 69
 - Phases completed: 31
 - Total milestones shipped: 5
 
@@ -54,6 +54,9 @@ Recent decisions affecting current work:
 - [v0.0.6]: openModal(title, bodyHTML) / closeModal() as shared modal API
 - [v0.0.6]: .ars-modal-trigger CSS class convention for modal opener buttons
 - [v0.0.6]: noscript hides JS-only buttons; native dialog handles focus trapping
+- [v0.0.6]: DebugSamples populated unconditionally (debug flag only controls terminal output)
+- [v0.0.6]: TraceData struct threads ScoringConfig + AnalysisResults to HTML generator
+- [v0.0.6]: Trace content stored in <template> elements, injected into modal via innerHTML
 
 ### Pending Todos
 
@@ -66,5 +69,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-06
-Stopped at: Completed 31-02-PLAN.md (Phase 31 complete)
+Stopped at: Completed 32-01-PLAN.md
 Resume file: None

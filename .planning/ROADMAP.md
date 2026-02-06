@@ -18,7 +18,7 @@ This milestone makes HTML reports transparent and actionable. Evidence data flow
 - [x] **Phase 30: Evidence Data Flow** - Evidence types and extraction for all 7 categories
 - [x] **Phase 31: Modal UI Infrastructure** - Native dialog component with accessibility and clipboard support
 - [x] **Phase 32: Call Trace Modals** - Per-metric trace modals for C7 and C1-C6 scoring transparency
-- [ ] **Phase 33: Improvement Prompt Modals** - Per-metric prompt modals with copy-to-clipboard
+- [x] **Phase 33: Improvement Prompt Modals** - Per-metric prompt modals with copy-to-clipboard
 - [ ] **Phase 34: Testing & Quality** - Cross-cutting tests for evidence, size budget, schema, prompts, and accessibility
 
 ## Phase Details
@@ -85,9 +85,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 33-01-PLAN.md -- Prompt rendering engine with 4-section templates, target calculation, and unit tests
-- [ ] 33-02-PLAN.md -- Wire prompts into HTML report with Improve buttons, clipboard copy fallback, and progressive enhancement
-- [ ] 33-03-PLAN.md -- Integration tests for prompt modal rendering across all 7 categories
+- [x] 33-01-PLAN.md -- Prompt rendering engine with 4-section templates, target calculation, and unit tests
+- [x] 33-02-PLAN.md -- Wire prompts into HTML report with Improve buttons, clipboard copy fallback, and progressive enhancement
+- [x] 33-03-PLAN.md -- Integration tests for prompt modal rendering across all 7 categories
 
 ### Phase 34: Testing & Quality
 **Goal**: Automated tests validate evidence extraction, file size budget, JSON compatibility, prompt coverage, accessibility, and responsive layout
@@ -114,5 +114,5 @@ Plans:
 | 30. Evidence Data Flow | 3/3 | ✓ Complete | 2026-02-06 |
 | 31. Modal UI Infrastructure | 2/2 | ✓ Complete | 2026-02-06 |
 | 32. Call Trace Modals | 3/3 | ✓ Complete | 2026-02-06 |
-| 33. Improvement Prompt Modals | 0/3 | Not started | - |
+| 33. Improvement Prompt Modals | 3/3 | ✓ Complete | 2026-02-07 |
 | 34. Testing & Quality | 0/2 | Not started | - |

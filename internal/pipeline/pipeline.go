@@ -43,6 +43,7 @@ type Pipeline struct {
 	debugC7      bool             // C7 debug mode enabled
 	debugWriter  io.Writer        // io.Discard (normal) or os.Stderr (debug)
 	debugDir     string           // directory for C7 response persistence and replay
+	langs        []types.Language // detected project languages
 }
 
 // New creates a Pipeline with GoPackagesParser, all analyzers, and a scorer.
@@ -172,6 +173,7 @@ func (p *Pipeline) Run(dir string) error {
 
 	// Detect project languages
 	langs := discovery.DetectProjectLanguages(dir)
+	p.langs = langs
 	if len(langs) == 0 {
 		return fmt.Errorf("no recognized source files found in %s\nSupported languages: Go, Python, TypeScript", dir)
 	}
@@ -343,9 +345,14 @@ func (p *Pipeline) generateHTMLReport(recs []recommend.Recommendation) error {
 	defer f.Close()
 
 	// Build trace data for modal rendering
+	langStrings := make([]string, len(p.langs))
+	for i, l := range p.langs {
+		langStrings[i] = string(l)
+	}
 	traceData := &output.TraceData{
 		ScoringConfig:   p.scorer.Config,
 		AnalysisResults: p.results,
+		Languages:       langStrings,
 	}
 
 	// Generate report

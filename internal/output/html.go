@@ -68,6 +68,8 @@ type HTMLSubScore struct {
 	ShouldExpand        bool          // true if score below threshold
 	TraceHTML           template.HTML // Pre-rendered modal body content
 	HasTrace            bool          // Whether trace data is available
+	PromptHTML          template.HTML // Pre-rendered improvement prompt modal content
+	HasPrompt           bool          // Whether prompt data is available
 }
 
 // TraceData holds analysis data needed for rendering call trace modals.
@@ -75,6 +77,7 @@ type HTMLSubScore struct {
 type TraceData struct {
 	ScoringConfig   *scoring.ScoringConfig
 	AnalysisResults []*types.AnalysisResult
+	Languages       []string // Detected project languages for build/test commands
 }
 
 // HTMLRecommendation represents a recommendation for HTML display.
@@ -255,9 +258,9 @@ func buildHTMLSubScores(categoryName string, subScores []types.SubScore, trace *
 		}
 
 		// Populate C1-C6 breakpoint trace data
+		var breakpoints []scoring.Breakpoint
 		if categoryName != "C7" && trace != nil && trace.ScoringConfig != nil {
 			catCfg := trace.ScoringConfig.Category(categoryName)
-			var breakpoints []scoring.Breakpoint
 			for _, mt := range catCfg.Metrics {
 				if mt.Name == ss.MetricName {
 					breakpoints = mt.Breakpoints
@@ -268,6 +271,49 @@ func buildHTMLSubScores(categoryName string, subScores []types.SubScore, trace *
 			if traceHTML != "" {
 				hss.TraceHTML = template.HTML(traceHTML)
 				hss.HasTrace = true
+			}
+		}
+
+		// Populate improvement prompt (for metrics scoring below 9.0)
+		if ss.Available && ss.Score < 9.0 && trace != nil {
+			// Determine language for build commands
+			lang := ""
+			if len(trace.Languages) > 0 {
+				lang = trace.Languages[0]
+			}
+
+			// For C7 metrics, look up breakpoints separately
+			if categoryName == "C7" && trace.ScoringConfig != nil && len(breakpoints) == 0 {
+				catCfg := trace.ScoringConfig.Category(categoryName)
+				for _, mt := range catCfg.Metrics {
+					if mt.Name == ss.MetricName {
+						breakpoints = mt.Breakpoints
+						break
+					}
+				}
+			}
+
+			// Calculate target
+			targetValue, targetScore := nextTarget(ss.Score, breakpoints)
+
+			promptHTML := renderImprovementPrompt(PromptParams{
+				CategoryName:    categoryName,
+				CategoryDisplay: categoryDisplayName(categoryName),
+				CategoryImpact:  categoryImpact(categoryName),
+				MetricName:      ss.MetricName,
+				MetricDisplay:   metricDisplayName(ss.MetricName),
+				RawValue:        ss.RawValue,
+				FormattedValue:  formatMetricValue(ss.MetricName, ss.RawValue, ss.Available),
+				Score:           ss.Score,
+				TargetScore:     targetScore,
+				TargetValue:     targetValue,
+				HasBreakpoints:  len(breakpoints) > 0,
+				Evidence:        ss.Evidence,
+				Language:        lang,
+			})
+			if promptHTML != "" {
+				hss.PromptHTML = template.HTML(promptHTML)
+				hss.HasPrompt = true
 			}
 		}
 

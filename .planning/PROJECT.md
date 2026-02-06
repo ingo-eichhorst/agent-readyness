@@ -62,7 +62,13 @@ Accurate, evidence-based scoring that predicts agent success and identifies spec
 
 ### Active
 
-(No active requirements — use /gsd:new-milestone to define next milestone)
+**v0.0.5 requirements (C7 M2/M3/M4 Bug Fix):**
+- [ ] C7 M2 (Code Behavior Comprehension) calculates non-zero scores
+- [ ] C7 M3 (Cross-File Navigation) calculates non-zero scores
+- [ ] C7 M4 (Identifier Interpretability) calculates non-zero scores
+- [ ] `--debug-c7` flag enables response inspection for all metrics
+- [ ] Unit tests for M2/M3/M4 scoring heuristics with realistic agent responses
+- [ ] GitHub #55 updated with root cause analysis and resolution
 
 ### Out of Scope
 
@@ -139,5 +145,15 @@ Internal tooling to identify which repositories need investment before agent ado
 | shared/ subpackage for analyzer utilities (v0.0.3) | Resolve import cycles when reorganizing analyzers | ✓ Good - Clean architecture, no cycles |
 | HTML5 details/summary for expandables (v0.0.3) | CSS-only expand/collapse, progressive enhancement | ✓ Good - Works without JavaScript |
 
+## Current Milestone: v0.0.5 C7 Scoring Bug Fix
+
+**Goal:** Fix M2, M3, M4 metrics returning 0/10 and establish debug infrastructure for C7 validation.
+
+**Target deliverables:**
+- Working M2/M3/M4 scoring (non-zero scores for valid responses)
+- Debug mode for response inspection
+- Test coverage for scoring heuristics
+- Documented root cause and resolution
+
 ---
-*Last updated: 2026-02-05 after v0.0.4 milestone shipped*
+*Last updated: 2026-02-06 after v0.0.5 milestone started*

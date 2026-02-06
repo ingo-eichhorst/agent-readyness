@@ -9,10 +9,10 @@ See: .planning/PROJECT.md (updated 2026-02-04)
 
 ## Current Position
 
-Phase: 25 of 25 (C7 Agent Evaluation Citations)
-Plan: 1 of 1 in current phase (PHASE COMPLETE)
-Status: Phase complete - v0.0.4 MILESTONE COMPLETE
-Last activity: 2026-02-05 - Completed 25-01-PLAN.md (C7 Citations)
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements for v0.0.5
+Last activity: 2026-02-06 - Milestone v0.0.5 started
 
 Progress: [####################] 100% (v1-v0.0.3) | [####################] 100% (v0.0.4)
 

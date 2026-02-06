@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-06)
 
 **Core value:** Accurate, evidence-based scoring that predicts agent success and identifies specific improvements teams should make before adopting AI coding agents.
-**Current focus:** Phase 29 in progress - Debug Rendering & Replay
+**Current focus:** v0.0.5 complete - Debug Rendering & Replay
 
 ## Current Position
 
 Phase: 29 of 29 (Debug Rendering & Replay)
-Plan: 2 of 3 in current phase
-Status: In progress
-Last activity: 2026-02-06 — Completed 29-02-PLAN.md
+Plan: 3 of 3 in current phase
+Status: Phase complete -- v0.0.5 milestone shipped
+Last activity: 2026-02-06 — Completed 29-03-PLAN.md
 
-Progress: [######....] 44% (v0.0.5)
+Progress: [##########] 100% (v0.0.5)
 
 ## Performance Metrics
 
 **Velocity (all milestones):**
-- Total plans completed: 62
-- Phases completed: 28
-- Total milestones shipped: 4
+- Total plans completed: 63
+- Phases completed: 29
+- Total milestones shipped: 5
 
 **By Milestone:**
 
@@ -31,11 +31,7 @@ Progress: [######....] 44% (v0.0.5)
 | v0.0.2 | 7 | 15 | 2 |
 | v0.0.3 | 5 | 7 | 2 |
 | v0.0.4 | 8 | 14 | 5 |
-
-**v0.0.5 (In Progress):**
-- Phases: 4 (26-29)
-- Plans estimated: 9
-- Focus: C7 debug infrastructure + M2/M3/M4 scoring fix
+| v0.0.5 | 4 | 9 | 1 |
 
 *Updated after each plan completion*
 
@@ -75,10 +71,10 @@ None.
 
 ### Blockers/Concerns
 
-None - M2/M3/M4 scoring issues fully resolved (Bug 1: extractC7 in 28-02, Bug 2: scoring saturation in 28-03).
+None - v0.0.5 milestone complete. All M2/M3/M4 scoring issues resolved, debug infrastructure shipped.
 
 ## Session Continuity
 
 Last session: 2026-02-06
-Stopped at: Completed 29-02-PLAN.md
+Stopped at: Completed 29-03-PLAN.md (v0.0.5 milestone complete)
 Resume file: None

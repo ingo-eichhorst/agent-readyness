@@ -49,11 +49,11 @@ Plans:
   3. Tab key cycles focus within the modal (does not escape to page behind)
   4. Modal content scrolls independently when content exceeds viewport height
   5. On mobile viewports (375px wide), the modal fills available width without horizontal overflow
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 31-01: Implement native dialog element with showModal/close JS, responsive CSS, and iOS scroll lock
-- [ ] 31-02: Add progressive enhancement fallback (details/summary) and ARIA attributes
+- [ ] 31-01-PLAN.md -- Native dialog element with showModal/close JS, responsive CSS, and iOS scroll lock
+- [ ] 31-02-PLAN.md -- Progressive enhancement fallback, trigger button styling, and modal presence test
 
 ### Phase 32: Call Trace Modals
 **Goal**: Users can click "View Trace" on any metric to see exactly how the score was derived

@@ -5,22 +5,22 @@
 See: .planning/PROJECT.md (updated 2026-02-06)
 
 **Core value:** Accurate, evidence-based scoring that predicts agent success and identifies specific improvements teams should make before adopting AI coding agents.
-**Current focus:** Phase 28 - Heuristic Tests & Scoring Fixes
+**Current focus:** Phase 28 complete - Heuristic Tests & Scoring Fixes
 
 ## Current Position
 
 Phase: 28 of 29 (Heuristic Tests & Scoring Fixes)
-Plan: 2 of 3 in current phase (28-01 + 28-02 complete, 28-03 remaining)
-Status: In progress
-Last activity: 2026-02-06 — Completed 28-01-PLAN.md
+Plan: 3 of 3 in current phase (all complete)
+Status: Phase complete
+Last activity: 2026-02-06 — Completed 28-03-PLAN.md
 
-Progress: [######....] 39% (v0.0.5)
+Progress: [######....] 41% (v0.0.5)
 
 ## Performance Metrics
 
 **Velocity (all milestones):**
-- Total plans completed: 59
-- Phases completed: 27
+- Total plans completed: 60
+- Phases completed: 28
 - Total milestones shipped: 4
 
 **By Milestone:**
@@ -59,6 +59,9 @@ Recent decisions affecting current work:
 - [27-02]: omitempty only on DebugSamples field - existing C7MetricResult fields lack json tags
 - [28-02]: extractC7 returns all 6 C7 metrics (overall_score + 5 MECE) - root cause fix for C7 scoring 0/1
 - [28-01]: Realistic fixtures over live CLI capture when concurrent instances rate-limited
+- [28-03]: Grouped indicators over individual - each thematic group contributes +1 max regardless of members matched
+- [28-03]: Variable BaseScore per metric (M2=2, M3=2, M4=1, M5=3) tuned to target score ranges
+- [28-03]: M4 uses "accurate" not "correct" for self_report_positive to avoid false-positive on "partially correct"
 
 ### Pending Todos
 
@@ -66,10 +69,10 @@ None.
 
 ### Blockers/Concerns
 
-- **M2/M3/M4 scoring 0/10:** Root cause partially fixed (Bug 1: extractC7 not returning MECE metrics). Remaining heuristic test fixes in 28-03.
+None - M2/M3/M4 scoring issues fully resolved (Bug 1: extractC7 in 28-02, Bug 2: scoring saturation in 28-03).
 
 ## Session Continuity
 
 Last session: 2026-02-06
-Stopped at: Completed 28-01-PLAN.md (28-02 also complete, 28-03 remaining)
+Stopped at: Completed 28-03-PLAN.md (Phase 28 complete)
 Resume file: None

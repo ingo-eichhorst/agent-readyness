@@ -92,4 +92,4 @@ Plans:
 | 26. Debug Foundation | 1/1 | ✓ Complete | 2026-02-06 |
 | 27. Data Capture | 2/2 | ✓ Complete | 2026-02-06 |
 | 28. Heuristic Tests & Scoring Fixes | 3/3 | ✓ Complete | 2026-02-06 |
-| 29. Debug Rendering & Replay | 0/3 | Not started | - |
+| 29. Debug Rendering & Replay | 3/3 | ✓ Complete | 2026-02-06 |

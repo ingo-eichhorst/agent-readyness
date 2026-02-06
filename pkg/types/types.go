@@ -293,11 +293,39 @@ type C7TaskResult struct {
 
 // C7MetricResult holds results for a single MECE metric.
 type C7MetricResult struct {
-	MetricID   string   // e.g., "task_execution_consistency"
-	MetricName string   // e.g., "Task Execution Consistency"
-	Score      int      // 1-10
-	Status     string   // completed, timeout, error
-	Duration   float64  // seconds
-	Reasoning  string   // scoring rationale
-	Samples    []string // sample descriptions used
+	MetricID     string           // e.g., "task_execution_consistency"
+	MetricName   string           // e.g., "Task Execution Consistency"
+	Score        int              // 1-10
+	Status       string           // completed, timeout, error
+	Duration     float64          // seconds
+	Reasoning    string           // scoring rationale
+	Samples      []string         // sample descriptions used
+	DebugSamples []C7DebugSample  `json:"debug_samples,omitempty"` // only present when debug active
+}
+
+// C7IndicatorMatch records one heuristic indicator check during scoring.
+type C7IndicatorMatch struct {
+	Name    string `json:"name"`    // e.g., "positive:returns", "negative:unclear"
+	Matched bool   `json:"matched"` // Whether the indicator was found
+	Delta   int    `json:"delta"`   // Point contribution (+1, -1, +2, etc.)
+}
+
+// C7ScoreTrace records the complete scoring breakdown for one sample.
+type C7ScoreTrace struct {
+	BaseScore  int                `json:"base_score"`  // Starting score before adjustments
+	Indicators []C7IndicatorMatch `json:"indicators"`  // Each indicator checked
+	FinalScore int                `json:"final_score"` // Score after clamping to 1-10
+}
+
+// C7DebugSample holds complete debug data for one metric sample evaluation.
+// Only populated when debug mode is active.
+type C7DebugSample struct {
+	FilePath    string       `json:"file_path"`
+	Description string       `json:"description"`
+	Prompt      string       `json:"prompt"`
+	Response    string       `json:"response"`
+	Score       int          `json:"score"`
+	Duration    float64      `json:"duration_seconds"`
+	ScoreTrace  C7ScoreTrace `json:"score_trace"`
+	Error       string       `json:"error,omitempty"`
 }

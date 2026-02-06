@@ -5,8 +5,104 @@ import (
 	"html/template"
 	"strings"
 
+	"github.com/ingo/agent-readyness/internal/scoring"
 	"github.com/ingo/agent-readyness/pkg/types"
 )
+
+// renderBreakpointTrace renders the full C1-C6 trace modal content showing
+// the breakpoint scoring table with the current band highlighted, and
+// top-5 worst offender evidence.
+func renderBreakpointTrace(metricName string, rawValue float64, score float64, breakpoints []scoring.Breakpoint, evidence []types.EvidenceItem) string {
+	if len(breakpoints) == 0 && len(evidence) == 0 {
+		return ""
+	}
+
+	var b strings.Builder
+
+	// Breakpoint table section
+	if len(breakpoints) > 0 {
+		currentBand := findCurrentBand(rawValue, breakpoints)
+
+		b.WriteString(`<div class="trace-section"><h4>Scoring Scale</h4>`)
+		b.WriteString(`<table class="trace-breakpoint-table"><thead><tr><th>Range</th><th>Score</th></tr></thead><tbody>`)
+
+		for i, bp := range breakpoints {
+			var rangeStr string
+			if i == 0 {
+				rangeStr = fmt.Sprintf("&le; %.4g", bp.Value)
+			} else if i == len(breakpoints)-1 {
+				rangeStr = fmt.Sprintf("&ge; %.4g", bp.Value)
+			} else {
+				rangeStr = fmt.Sprintf("%.4g &ndash; %.4g", breakpoints[i-1].Value, bp.Value)
+			}
+
+			rowClass := ""
+			if i == currentBand {
+				rowClass = ` class="trace-current-band"`
+			}
+
+			b.WriteString(fmt.Sprintf(`<tr%s><td>%s</td><td>%.0f</td></tr>`, rowClass, rangeStr, bp.Score))
+		}
+
+		b.WriteString(`</tbody></table>`)
+
+		formattedVal := formatMetricValue(metricName, rawValue, true)
+		b.WriteString(fmt.Sprintf(`<p class="trace-summary">Current value: <strong>%s</strong> &rarr; Score: <strong>%.1f</strong></p>`,
+			template.HTMLEscapeString(formattedVal), score))
+		b.WriteString(`</div>`)
+	}
+
+	// Evidence section (top offenders)
+	if len(evidence) > 0 {
+		b.WriteString(`<div class="trace-section"><h4>Top Offenders</h4>`)
+		b.WriteString(`<table class="trace-evidence-table"><thead><tr><th>File</th><th>Line</th><th>Value</th><th>Description</th></tr></thead><tbody>`)
+
+		for _, ev := range evidence {
+			filePath := template.HTMLEscapeString(ev.FilePath)
+			desc := template.HTMLEscapeString(ev.Description)
+			b.WriteString(fmt.Sprintf(`<tr><td title="%s">%s</td><td>%d</td><td>%.4g</td><td>%s</td></tr>`,
+				filePath, filePath, ev.Line, ev.Value, desc))
+		}
+
+		b.WriteString(`</tbody></table></div>`)
+	}
+
+	return b.String()
+}
+
+// findCurrentBand returns the index of the breakpoint row that should be
+// highlighted for the given raw value. Returns -1 if breakpoints are empty.
+//
+// The logic handles both ascending-score (higher value = higher score, e.g. coverage)
+// and descending-score (higher value = lower score, e.g. complexity) breakpoint tables.
+func findCurrentBand(rawValue float64, breakpoints []scoring.Breakpoint) int {
+	if len(breakpoints) == 0 {
+		return -1
+	}
+
+	// Determine direction: ascending values with ascending scores vs descending scores
+	ascending := breakpoints[0].Score < breakpoints[len(breakpoints)-1].Score
+
+	if ascending {
+		// Values go up, scores go up (e.g., coverage: 0->1, 30->4, 50->6, ...)
+		// rawValue falls in the band at or before the first breakpoint whose Value >= rawValue
+		for i := 0; i < len(breakpoints); i++ {
+			if rawValue <= breakpoints[i].Value {
+				return i
+			}
+		}
+		return len(breakpoints) - 1
+	}
+
+	// Values go up, scores go down (e.g., complexity: 1->10, 5->8, 10->6, ...)
+	// rawValue falls in the band at or before the first breakpoint whose Value >= rawValue
+	for i := 0; i < len(breakpoints); i++ {
+		if rawValue <= breakpoints[i].Value {
+			return i
+		}
+	}
+	return len(breakpoints) - 1
+}
 
 // renderC7Trace renders trace HTML for a C7 metric.
 // Returns empty string if no matching metric or no DebugSamples.

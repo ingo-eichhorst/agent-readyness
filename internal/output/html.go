@@ -254,6 +254,23 @@ func buildHTMLSubScores(categoryName string, subScores []types.SubScore, trace *
 			}
 		}
 
+		// Populate C1-C6 breakpoint trace data
+		if categoryName != "C7" && trace != nil && trace.ScoringConfig != nil {
+			catCfg := trace.ScoringConfig.Category(categoryName)
+			var breakpoints []scoring.Breakpoint
+			for _, mt := range catCfg.Metrics {
+				if mt.Name == ss.MetricName {
+					breakpoints = mt.Breakpoints
+					break
+				}
+			}
+			traceHTML := renderBreakpointTrace(ss.MetricName, ss.RawValue, ss.Score, breakpoints, ss.Evidence)
+			if traceHTML != "" {
+				hss.TraceHTML = template.HTML(traceHTML)
+				hss.HasTrace = true
+			}
+		}
+
 		result = append(result, hss)
 	}
 

@@ -99,11 +99,11 @@ Plans:
   3. A test loads a v0.0.5-era JSON baseline and verifies backward-compatible comparison still works
   4. A test verifies all 38 metrics (across 7 categories) map to a category-level prompt template
   5. A test validates ARIA attributes and keyboard navigation patterns in generated HTML
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 34-01: Evidence extraction tests for all categories and JSON schema backward compatibility test
-- [ ] 34-02: HTML file size budget test, prompt template coverage test, and accessibility validation test
+- [ ] 34-01-PLAN.md -- Evidence extraction tests for all 7 categories and JSON backward compatibility enhancement
+- [ ] 34-02-PLAN.md -- HTML file size budget, prompt template coverage for all 38 metrics, accessibility and responsive validation
 
 ## Progress
 

@@ -845,6 +845,159 @@ func TestScore_UnknownCategory(t *testing.T) {
 	}
 }
 
+// --- extractC7 tests ---
+
+func TestExtractC7_ReturnsAllMetrics(t *testing.T) {
+	ar := &types.AnalysisResult{
+		Metrics: map[string]interface{}{
+			"c7": &types.C7Metrics{
+				Available:                      true,
+				OverallScore:                   75.0,
+				TaskExecutionConsistency:       8,
+				CodeBehaviorComprehension:      7,
+				CrossFileNavigation:            6,
+				IdentifierInterpretability:     7,
+				DocumentationAccuracyDetection: 5,
+			},
+		},
+	}
+
+	rawValues, unavailable := extractC7(ar)
+
+	if unavailable != nil {
+		t.Errorf("expected no unavailable metrics, got %v", unavailable)
+	}
+
+	expectedKeys := []string{
+		"overall_score",
+		"task_execution_consistency",
+		"code_behavior_comprehension",
+		"cross_file_navigation",
+		"identifier_interpretability",
+		"documentation_accuracy_detection",
+	}
+
+	for _, key := range expectedKeys {
+		val, ok := rawValues[key]
+		if !ok {
+			t.Errorf("missing key %q in rawValues", key)
+			continue
+		}
+		if key != "overall_score" && val == 0 {
+			t.Errorf("key %q has value 0, expected non-zero", key)
+		}
+	}
+
+	// Verify specific values
+	if rawValues["overall_score"] != 75.0 {
+		t.Errorf("overall_score = %v, want 75.0", rawValues["overall_score"])
+	}
+	if rawValues["code_behavior_comprehension"] != 7.0 {
+		t.Errorf("code_behavior_comprehension = %v, want 7.0", rawValues["code_behavior_comprehension"])
+	}
+	if rawValues["task_execution_consistency"] != 8.0 {
+		t.Errorf("task_execution_consistency = %v, want 8.0", rawValues["task_execution_consistency"])
+	}
+	if rawValues["cross_file_navigation"] != 6.0 {
+		t.Errorf("cross_file_navigation = %v, want 6.0", rawValues["cross_file_navigation"])
+	}
+	if rawValues["identifier_interpretability"] != 7.0 {
+		t.Errorf("identifier_interpretability = %v, want 7.0", rawValues["identifier_interpretability"])
+	}
+	if rawValues["documentation_accuracy_detection"] != 5.0 {
+		t.Errorf("documentation_accuracy_detection = %v, want 5.0", rawValues["documentation_accuracy_detection"])
+	}
+
+	// Verify count: exactly 6 keys
+	if len(rawValues) != 6 {
+		t.Errorf("expected 6 keys, got %d", len(rawValues))
+	}
+}
+
+func TestExtractC7_UnavailableMarksAllMetrics(t *testing.T) {
+	ar := &types.AnalysisResult{
+		Metrics: map[string]interface{}{
+			"c7": &types.C7Metrics{
+				Available: false,
+			},
+		},
+	}
+
+	_, unavailable := extractC7(ar)
+
+	expectedUnavailable := []string{
+		"overall_score",
+		"task_execution_consistency",
+		"code_behavior_comprehension",
+		"cross_file_navigation",
+		"identifier_interpretability",
+		"documentation_accuracy_detection",
+	}
+
+	for _, key := range expectedUnavailable {
+		if !unavailable[key] {
+			t.Errorf("expected %q in unavailable set", key)
+		}
+	}
+
+	// Verify count: exactly 6 unavailable
+	if len(unavailable) != 6 {
+		t.Errorf("expected 6 unavailable metrics, got %d", len(unavailable))
+	}
+}
+
+func TestScoreC7_NonZeroSubScores(t *testing.T) {
+	s := &Scorer{Config: DefaultConfig()}
+	ar := &types.AnalysisResult{
+		Name:     "agent-evaluation",
+		Category: "C7",
+		Metrics: map[string]interface{}{
+			"c7": &types.C7Metrics{
+				Available:                      true,
+				OverallScore:                   75.0,
+				TaskExecutionConsistency:       8,
+				CodeBehaviorComprehension:      7,
+				CrossFileNavigation:            6,
+				IdentifierInterpretability:     7,
+				DocumentationAccuracyDetection: 5,
+			},
+		},
+	}
+	got := scoreCategory(s, ar)
+
+	if got.Name != "C7" {
+		t.Errorf("name = %q, want C7", got.Name)
+	}
+	if got.Weight != 0.10 {
+		t.Errorf("weight = %v, want 0.10", got.Weight)
+	}
+	if len(got.SubScores) != 6 {
+		t.Fatalf("subscore count = %d, want 6", len(got.SubScores))
+	}
+
+	// The MECE metrics (non-zero weight) should produce non-zero scores
+	// overall_score has weight 0.0 so doesn't affect category score
+	meceNonZero := 0
+	for _, ss := range got.SubScores {
+		if ss.MetricName != "overall_score" && ss.Score > 0 {
+			meceNonZero++
+		}
+	}
+	if meceNonZero != 5 {
+		t.Errorf("expected 5 non-zero MECE sub-scores, got %d", meceNonZero)
+	}
+
+	// Category score should be non-zero (this was the original bug)
+	if got.Score <= 0 {
+		t.Errorf("C7 category score = %v, want > 0 (was the original bug)", got.Score)
+	}
+
+	// With values 5-8, score should be reasonable (not near zero or max)
+	if got.Score < 4.0 || got.Score > 9.0 {
+		t.Errorf("C7 score = %v, want between 4.0 and 9.0 for mid-range inputs", got.Score)
+	}
+}
+
 // --- Custom config test ---
 
 func TestScoreC1_CustomConfig(t *testing.T) {

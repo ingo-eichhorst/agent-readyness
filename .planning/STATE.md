@@ -10,17 +10,17 @@ See: .planning/PROJECT.md (updated 2026-02-06)
 ## Current Position
 
 Phase: 31 of 34 (Modal UI Infrastructure)
-Plan: 1 of 2 in current phase
-Status: In progress
-Last activity: 2026-02-06 -- Completed 31-01-PLAN.md
+Plan: 2 of 2 in current phase
+Status: Phase complete
+Last activity: 2026-02-06 -- Completed 31-02-PLAN.md
 
-Progress: [###.......] 31% (v0.0.6: 4/13 plans)
+Progress: [####......] 38% (v0.0.6: 5/13 plans)
 
 ## Performance Metrics
 
 **Velocity (all milestones):**
-- Total plans completed: 67
-- Phases completed: 30
+- Total plans completed: 68
+- Phases completed: 31
 - Total milestones shipped: 5
 
 **By Milestone:**
@@ -52,6 +52,8 @@ Recent decisions affecting current work:
 - [v0.0.6]: JSON version bumped 1->2, sub_scores always present (verbose deprecated)
 - [v0.0.6]: Native <dialog> with showModal() for modal dialogs (no library)
 - [v0.0.6]: openModal(title, bodyHTML) / closeModal() as shared modal API
+- [v0.0.6]: .ars-modal-trigger CSS class convention for modal opener buttons
+- [v0.0.6]: noscript hides JS-only buttons; native dialog handles focus trapping
 
 ### Pending Todos
 
@@ -64,5 +66,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-06
-Stopped at: Completed 31-01-PLAN.md
+Stopped at: Completed 31-02-PLAN.md (Phase 31 complete)
 Resume file: None

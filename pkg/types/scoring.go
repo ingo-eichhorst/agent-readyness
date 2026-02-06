@@ -16,13 +16,22 @@ type CategoryScore struct {
 	SubScores []SubScore // Per-metric sub-scores
 }
 
+// EvidenceItem represents a single worst-offender for a metric.
+type EvidenceItem struct {
+	FilePath    string  `json:"file_path"`
+	Line        int     `json:"line"`
+	Value       float64 `json:"value"`
+	Description string  `json:"description"`
+}
+
 // SubScore holds the score for a single metric within a category.
 type SubScore struct {
-	MetricName string  // Metric identifier (e.g., "complexity_avg")
-	RawValue   float64 // Original metric value
-	Score      float64 // Interpolated score (1-10), negative if unavailable
-	Weight     float64 // Weight within category
-	Available  bool    // Whether the metric data was available
+	MetricName string         `json:"metric_name"`
+	RawValue   float64        `json:"raw_value"`
+	Score      float64        `json:"score"`
+	Weight     float64        `json:"weight"`
+	Available  bool           `json:"available"`
+	Evidence   []EvidenceItem `json:"evidence"`
 }
 
 // ExitError is returned when the CLI should exit with a specific code.

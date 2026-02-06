@@ -20,8 +20,10 @@ func newTestScoredResult() *types.ScoredResult {
 				Score:  8.1,
 				Weight: 0.25,
 				SubScores: []types.SubScore{
-					{MetricName: "complexity_avg", RawValue: 5.0, Score: 8.5, Weight: 0.30, Available: true},
-					{MetricName: "func_length_avg", RawValue: 20.0, Score: 7.8, Weight: 0.25, Available: true},
+					{MetricName: "complexity_avg", RawValue: 5.0, Score: 8.5, Weight: 0.30, Available: true, Evidence: []types.EvidenceItem{
+						{FilePath: "pkg/foo.go", Line: 42, Value: 15, Description: "highComplexity has complexity 15"},
+					}},
+					{MetricName: "func_length_avg", RawValue: 20.0, Score: 7.8, Weight: 0.25, Available: true, Evidence: []types.EvidenceItem{}},
 				},
 			},
 			{
@@ -29,7 +31,7 @@ func newTestScoredResult() *types.ScoredResult {
 				Score:  6.5,
 				Weight: 0.15,
 				SubScores: []types.SubScore{
-					{MetricName: "max_dir_depth", RawValue: 5.0, Score: 6.0, Weight: 0.20, Available: true},
+					{MetricName: "max_dir_depth", RawValue: 5.0, Score: 6.0, Weight: 0.20, Available: true, Evidence: []types.EvidenceItem{}},
 				},
 			},
 			{
@@ -37,8 +39,8 @@ func newTestScoredResult() *types.ScoredResult {
 				Score:  6.8,
 				Weight: 0.20,
 				SubScores: []types.SubScore{
-					{MetricName: "coverage_percent", RawValue: 55.0, Score: 6.5, Weight: 0.30, Available: true},
-					{MetricName: "test_isolation", RawValue: -1, Score: -1, Weight: 0.15, Available: false},
+					{MetricName: "coverage_percent", RawValue: 55.0, Score: 6.5, Weight: 0.30, Available: true, Evidence: []types.EvidenceItem{}},
+					{MetricName: "test_isolation", RawValue: -1, Score: -1, Weight: 0.15, Available: false, Evidence: []types.EvidenceItem{}},
 				},
 			},
 		},
@@ -121,12 +123,28 @@ func TestJSONVersion(t *testing.T) {
 		t.Fatalf("unmarshal error: %v", err)
 	}
 
-	if parsed.Version != "1" {
-		t.Errorf("version = %q, want %q", parsed.Version, "1")
+	if parsed.Version != "2" {
+		t.Errorf("version = %q, want %q", parsed.Version, "2")
 	}
 }
 
-func TestJSONVerboseIncludesMetrics(t *testing.T) {
+func TestJSONAlwaysIncludesSubScores(t *testing.T) {
+	scored := newTestScoredResult()
+	report := BuildJSONReport(scored, nil, false, false)
+	var buf bytes.Buffer
+	if err := RenderJSON(&buf, report); err != nil {
+		t.Fatalf("RenderJSON error: %v", err)
+	}
+	out := buf.String()
+	if !strings.Contains(out, `"sub_scores"`) {
+		t.Error("JSON output should always include sub_scores field")
+	}
+	if strings.Contains(out, `"metrics"`) {
+		t.Error("JSON output should use sub_scores, not metrics")
+	}
+}
+
+func TestJSONSubScoresIncludeMetricFields(t *testing.T) {
 	scored := newTestScoredResult()
 	report := BuildJSONReport(scored, nil, true, false)
 
@@ -140,37 +158,20 @@ func TestJSONVerboseIncludesMetrics(t *testing.T) {
 		t.Fatalf("unmarshal error: %v", err)
 	}
 
-	// Verbose mode should populate metrics
 	if len(parsed.Categories) == 0 {
 		t.Fatal("no categories in output")
 	}
-	if len(parsed.Categories[0].Metrics) == 0 {
-		t.Error("verbose mode should include metrics in categories")
+	if len(parsed.Categories[0].SubScores) == 0 {
+		t.Error("sub_scores should always be present in categories")
 	}
 
 	// Check metric fields
-	m := parsed.Categories[0].Metrics[0]
+	m := parsed.Categories[0].SubScores[0]
 	if m.Name != "complexity_avg" {
 		t.Errorf("metric name = %q, want %q", m.Name, "complexity_avg")
 	}
 	if m.RawValue != 5.0 {
 		t.Errorf("metric raw_value = %v, want 5.0", m.RawValue)
-	}
-}
-
-func TestJSONNonVerboseOmitsMetrics(t *testing.T) {
-	scored := newTestScoredResult()
-	report := BuildJSONReport(scored, nil, false, false)
-
-	var buf bytes.Buffer
-	if err := RenderJSON(&buf, report); err != nil {
-		t.Fatalf("RenderJSON error: %v", err)
-	}
-
-	out := buf.String()
-	// With omitempty, the "metrics" key should not appear
-	if strings.Contains(out, `"metrics"`) {
-		t.Error("non-verbose mode should omit metrics field from JSON")
 	}
 }
 
@@ -302,5 +303,88 @@ func TestJSONOmitsBadgeByDefault(t *testing.T) {
 	}
 	if strings.Contains(out, `"badge_markdown"`) {
 		t.Error("badge_markdown should be omitted when includeBadge is false")
+	}
+}
+
+func TestJSONEvidenceNotNull(t *testing.T) {
+	scored := newTestScoredResult()
+	report := BuildJSONReport(scored, nil, false, false)
+	var buf bytes.Buffer
+	if err := RenderJSON(&buf, report); err != nil {
+		t.Fatalf("RenderJSON error: %v", err)
+	}
+	out := buf.String()
+	// Evidence should be [] not null
+	if strings.Contains(out, `"evidence": null`) {
+		t.Error("evidence should be empty array [], not null")
+	}
+	// At least one evidence array should be present
+	if !strings.Contains(out, `"evidence"`) {
+		t.Error("evidence field should be present in JSON output")
+	}
+}
+
+func TestJSONEvidenceWithData(t *testing.T) {
+	scored := newTestScoredResult()
+	report := BuildJSONReport(scored, nil, false, false)
+	var buf bytes.Buffer
+	if err := RenderJSON(&buf, report); err != nil {
+		t.Fatalf("RenderJSON error: %v", err)
+	}
+	var parsed JSONReport
+	if err := json.Unmarshal(buf.Bytes(), &parsed); err != nil {
+		t.Fatalf("unmarshal error: %v", err)
+	}
+	// Find the complexity_avg metric which has test evidence
+	c1 := parsed.Categories[0]
+	if len(c1.SubScores) == 0 {
+		t.Fatal("C1 should have sub_scores")
+	}
+	found := false
+	for _, m := range c1.SubScores {
+		if m.Name == "complexity_avg" && len(m.Evidence) > 0 {
+			found = true
+			ev := m.Evidence[0]
+			if ev.FilePath != "pkg/foo.go" {
+				t.Errorf("evidence file_path = %q, want %q", ev.FilePath, "pkg/foo.go")
+			}
+			if ev.Line != 42 {
+				t.Errorf("evidence line = %d, want 42", ev.Line)
+			}
+		}
+	}
+	if !found {
+		t.Error("complexity_avg should have evidence data")
+	}
+}
+
+func TestJSONBaselineBackwardCompatibility(t *testing.T) {
+	// Simulate v0.0.5 JSON with "metrics" field name
+	oldJSON := `{
+		"version": "1",
+		"composite_score": 7.5,
+		"tier": "Agent-Assisted",
+		"categories": [
+			{"name": "C1", "score": 8.0, "weight": 0.25, "metrics": [
+				{"name": "complexity_avg", "raw_value": 5.0, "score": 8.5, "weight": 0.30, "available": true}
+			]}
+		]
+	}`
+	var report JSONReport
+	if err := json.Unmarshal([]byte(oldJSON), &report); err != nil {
+		t.Fatalf("unmarshal old JSON: %v", err)
+	}
+	// Category-level fields must load correctly
+	if report.Categories[0].Name != "C1" {
+		t.Errorf("category name = %q, want C1", report.Categories[0].Name)
+	}
+	if report.Categories[0].Score != 8.0 {
+		t.Errorf("category score = %v, want 8.0", report.Categories[0].Score)
+	}
+	// SubScores will be empty (old json tag "metrics" doesn't match new "sub_scores")
+	// This is fine -- loadBaseline never reads sub-scores
+	// Verify we don't crash
+	if report.CompositeScore != 7.5 {
+		t.Errorf("composite = %v, want 7.5", report.CompositeScore)
 	}
 }

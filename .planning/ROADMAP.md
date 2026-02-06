@@ -15,7 +15,7 @@ This milestone makes HTML reports transparent and actionable. Evidence data flow
 
 ## Phases
 
-- [ ] **Phase 30: Evidence Data Flow** - Evidence types and extraction for all 7 categories
+- [x] **Phase 30: Evidence Data Flow** - Evidence types and extraction for all 7 categories
 - [ ] **Phase 31: Modal UI Infrastructure** - Native dialog component with accessibility and clipboard support
 - [ ] **Phase 32: Call Trace Modals** - Per-metric trace modals for C7 and C1-C6 scoring transparency
 - [ ] **Phase 33: Improvement Prompt Modals** - Per-metric prompt modals with copy-to-clipboard
@@ -35,9 +35,9 @@ This milestone makes HTML reports transparent and actionable. Evidence data flow
 **Plans**: 3 plans
 
 Plans:
-- [ ] 30-01-PLAN.md -- Define EvidenceItem type, update SubScore and MetricExtractor, remove C7 overall_score
-- [ ] 30-02-PLAN.md -- Populate evidence in all 7 extractCx functions from existing CxMetrics data
-- [ ] 30-03-PLAN.md -- Wire evidence into JSON output with sub_scores field, validate backward compatibility
+- [x] 30-01-PLAN.md -- Define EvidenceItem type, update SubScore and MetricExtractor, remove C7 overall_score
+- [x] 30-02-PLAN.md -- Populate evidence in all 7 extractCx functions from existing CxMetrics data
+- [x] 30-03-PLAN.md -- Wire evidence into JSON output with sub_scores field, validate backward compatibility
 
 ### Phase 31: Modal UI Infrastructure
 **Goal**: HTML reports contain a reusable modal component that opens, scrolls, and closes correctly on desktop and mobile
@@ -111,7 +111,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 30. Evidence Data Flow | 0/3 | Not started | - |
+| 30. Evidence Data Flow | 3/3 | ✓ Complete | 2026-02-06 |
 | 31. Modal UI Infrastructure | 0/2 | Not started | - |
 | 32. Call Trace Modals | 0/3 | Not started | - |
 | 33. Improvement Prompt Modals | 0/3 | Not started | - |

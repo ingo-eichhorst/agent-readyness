@@ -9,11 +9,11 @@ Requirements for adding call trace and improvement prompt modals to HTML reports
 
 ### Evidence Data Flow
 
-- [ ] **EV-01**: SubScore type includes Evidence field with top-5 worst offenders per metric
-- [ ] **EV-02**: MetricExtractor signature returns evidence alongside score and raw value
-- [ ] **EV-03**: All 7 extractCx functions populate evidence for their metrics
-- [ ] **EV-04**: Evidence includes file path, line number, value, and description fields
-- [ ] **EV-05**: JSON output includes evidence data with omitempty for backward compatibility
+- [x] **EV-01**: SubScore type includes Evidence field with top-5 worst offenders per metric
+- [x] **EV-02**: MetricExtractor signature returns evidence alongside score and raw value
+- [x] **EV-03**: All 7 extractCx functions populate evidence for their metrics
+- [x] **EV-04**: Evidence includes file path, line number, value, and description fields
+- [x] **EV-05**: JSON output includes evidence data with omitempty for backward compatibility
 
 ### Modal UI Infrastructure
 

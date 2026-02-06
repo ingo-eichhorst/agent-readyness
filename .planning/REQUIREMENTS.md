@@ -12,17 +12,17 @@ Requirements for investigating and fixing M2/M3/M4 scoring anomalies.
 - [x] **DBG-01**: CLI accepts `--debug-c7` flag to enable C7 debug mode
 - [x] **DBG-02**: Debug mode auto-enables C7 evaluation if not already enabled
 - [x] **DBG-03**: Debug output writes exclusively to stderr (preserves stdout for JSON/HTML)
-- [ ] **DBG-04**: Debug mode captures full prompts sent to each metric
-- [ ] **DBG-05**: Debug mode captures full Claude CLI responses for each sample
-- [ ] **DBG-06**: Debug mode displays score traces showing heuristic indicator contributions
+- [x] **DBG-04**: Debug mode captures full prompts sent to each metric
+- [x] **DBG-05**: Debug mode captures full Claude CLI responses for each sample
+- [x] **DBG-06**: Debug mode displays score traces showing heuristic indicator contributions
 
 ### Heuristic Testing
 
-- [ ] **TEST-01**: Test fixtures with real captured Claude CLI responses in `testdata/c7_responses/`
-- [ ] **TEST-02**: Unit tests for M2 (Code Behavior Comprehension) scoring function
-- [ ] **TEST-03**: Unit tests for M3 (Cross-File Navigation) scoring function
-- [ ] **TEST-04**: Unit tests for M4 (Identifier Interpretability) scoring function
-- [ ] **TEST-05**: Tests document expected scores for each fixture response
+- [x] **TEST-01**: Test fixtures with real captured Claude CLI responses in `testdata/c7_responses/`
+- [x] **TEST-02**: Unit tests for M2 (Code Behavior Comprehension) scoring function
+- [x] **TEST-03**: Unit tests for M3 (Cross-File Navigation) scoring function
+- [x] **TEST-04**: Unit tests for M4 (Identifier Interpretability) scoring function
+- [x] **TEST-05**: Tests document expected scores for each fixture response
 
 ### Response Replay
 
@@ -33,10 +33,10 @@ Requirements for investigating and fixing M2/M3/M4 scoring anomalies.
 
 ### Scoring Fixes
 
-- [ ] **FIX-01**: M2 scoring function produces non-zero scores for valid comprehension responses
-- [ ] **FIX-02**: M3 scoring function produces non-zero scores for valid navigation responses
-- [ ] **FIX-03**: M4 scoring function produces non-zero scores for valid interpretation responses
-- [ ] **FIX-04**: Heuristic adjustments documented with rationale in code comments
+- [x] **FIX-01**: M2 scoring function produces non-zero scores for valid comprehension responses
+- [x] **FIX-02**: M3 scoring function produces non-zero scores for valid navigation responses
+- [x] **FIX-03**: M4 scoring function produces non-zero scores for valid interpretation responses
+- [x] **FIX-04**: Heuristic adjustments documented with rationale in code comments
 
 ### Documentation
 
@@ -67,18 +67,18 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DBG-01 | Phase 26 | Complete |
 | DBG-02 | Phase 26 | Complete |
 | DBG-03 | Phase 26 | Complete |
-| DBG-04 | Phase 27 | Pending |
-| DBG-05 | Phase 27 | Pending |
-| DBG-06 | Phase 27 | Pending |
-| TEST-01 | Phase 28 | Pending |
-| TEST-02 | Phase 28 | Pending |
-| TEST-03 | Phase 28 | Pending |
-| TEST-04 | Phase 28 | Pending |
-| TEST-05 | Phase 28 | Pending |
-| FIX-01 | Phase 28 | Pending |
-| FIX-02 | Phase 28 | Pending |
-| FIX-03 | Phase 28 | Pending |
-| FIX-04 | Phase 28 | Pending |
+| DBG-04 | Phase 27 | Complete |
+| DBG-05 | Phase 27 | Complete |
+| DBG-06 | Phase 27 | Complete |
+| TEST-01 | Phase 28 | Complete |
+| TEST-02 | Phase 28 | Complete |
+| TEST-03 | Phase 28 | Complete |
+| TEST-04 | Phase 28 | Complete |
+| TEST-05 | Phase 28 | Complete |
+| FIX-01 | Phase 28 | Complete |
+| FIX-02 | Phase 28 | Complete |
+| FIX-03 | Phase 28 | Complete |
+| FIX-04 | Phase 28 | Complete |
 | RPL-01 | Phase 29 | Pending |
 | RPL-02 | Phase 29 | Pending |
 | RPL-03 | Phase 29 | Pending |

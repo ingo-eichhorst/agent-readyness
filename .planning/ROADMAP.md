@@ -16,7 +16,7 @@ This milestone fixes the M2/M3/M4 scoring bug (GitHub #55) and establishes debug
 
 - [x] **Phase 26: Debug Foundation** - Flag plumbing and debug output channel
 - [x] **Phase 27: Data Capture** - Prompt/response storage and score trace infrastructure
-- [ ] **Phase 28: Heuristic Tests & Scoring Fixes** - Real response fixtures, unit tests, and M2/M3/M4 bug fixes
+- [x] **Phase 28: Heuristic Tests & Scoring Fixes** - Real response fixtures, unit tests, and M2/M3/M4 bug fixes
 - [ ] **Phase 29: Debug Rendering & Replay** - Terminal/JSON debug output, response persistence, replay mode, documentation
 
 ## Phase Details
@@ -62,9 +62,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 28-01-PLAN.md -- Capture real Claude CLI response fixtures into testdata/c7_responses/ directory
-- [ ] 28-02-PLAN.md -- Fix extractC7 to return M1-M5 metric scores in formal scoring pipeline
-- [ ] 28-03-PLAN.md -- Fixture-based unit tests for M2/M3/M4 + fix scoring saturation with grouped indicators
+- [x] 28-01-PLAN.md -- Capture real Claude CLI response fixtures into testdata/c7_responses/ directory
+- [x] 28-02-PLAN.md -- Fix extractC7 to return M1-M5 metric scores in formal scoring pipeline
+- [x] 28-03-PLAN.md -- Fixture-based unit tests for M2/M3/M4 + fix scoring saturation with grouped indicators
 
 ### Phase 29: Debug Rendering & Replay
 **Goal**: Users can inspect C7 debug data in terminal output, persist responses to disk for offline analysis, and replay saved responses without re-executing Claude CLI
@@ -91,5 +91,5 @@ Plans:
 |-------|----------------|--------|-----------|
 | 26. Debug Foundation | 1/1 | ✓ Complete | 2026-02-06 |
 | 27. Data Capture | 2/2 | ✓ Complete | 2026-02-06 |
-| 28. Heuristic Tests & Scoring Fixes | 0/3 | Not started | - |
+| 28. Heuristic Tests & Scoring Fixes | 3/3 | ✓ Complete | 2026-02-06 |
 | 29. Debug Rendering & Replay | 0/3 | Not started | - |

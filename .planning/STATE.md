@@ -9,17 +9,17 @@ See: .planning/PROJECT.md (updated 2026-02-06)
 
 ## Current Position
 
-Phase: 27 of 29 (Data Capture)
-Plan: 2 of 2 in current phase
-Status: Phase complete, verified ✓
-Last activity: 2026-02-06 — Completed Phase 27
+Phase: 28 of 29 (Heuristic Tests & Scoring Fixes)
+Plan: 2 of 3 in current phase
+Status: In progress
+Last activity: 2026-02-06 — Completed 28-02-PLAN.md
 
-Progress: [###.......] 33% (v0.0.5)
+Progress: [####......] 37% (v0.0.5)
 
 ## Performance Metrics
 
 **Velocity (all milestones):**
-- Total plans completed: 57
+- Total plans completed: 58
 - Phases completed: 27
 - Total milestones shipped: 4
 
@@ -57,6 +57,7 @@ Recent decisions affecting current work:
 - [27-01]: All indicators tracked (matched and unmatched) with Delta=0 for unmatched
 - [27-02]: Separate output types from internal types - convertScoreTrace bridges metrics.ScoreTrace to types.C7ScoreTrace
 - [27-02]: omitempty only on DebugSamples field - existing C7MetricResult fields lack json tags
+- [28-02]: extractC7 returns all 6 C7 metrics (overall_score + 5 MECE) - root cause fix for C7 scoring 0/1
 
 ### Pending Todos
 
@@ -64,10 +65,10 @@ None.
 
 ### Blockers/Concerns
 
-- **M2/M3/M4 scoring 0/10:** Root cause under investigation (GitHub #55). Likely heuristic indicator saturation or response format mismatch. Phase 28 will diagnose and fix.
+- **M2/M3/M4 scoring 0/10:** Root cause partially fixed (Bug 1: extractC7 not returning MECE metrics). Remaining heuristic test fixes in 28-03.
 
 ## Session Continuity
 
 Last session: 2026-02-06
-Stopped at: Completed 27-02-PLAN.md (Phase 27 complete)
+Stopped at: Completed 28-02-PLAN.md
 Resume file: None

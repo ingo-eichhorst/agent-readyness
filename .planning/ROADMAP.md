@@ -82,12 +82,12 @@ Plans:
   3. Clicking "Copy" places the full prompt text on the clipboard, and a "Copied!" confirmation appears
   4. On file:// protocol (local HTML files), copy still works via the execCommand fallback or shows a selectable pre block
   5. All 7 categories (C1-C7) have prompt templates with the structure: Context, Build/Test Commands, Task, Verification
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 33-01: Create 7 category-level prompt templates with Context/Build/Task/Verification structure
-- [ ] 33-02: Implement prompt interpolation with evidence data and GeneratePrompts() in recommend package
-- [ ] 33-03: Render "Improve" buttons, prompt modals, copy-to-clipboard with fallback chain, and progressive enhancement
+- [ ] 33-01-PLAN.md -- Prompt rendering engine with 4-section templates, target calculation, and unit tests
+- [ ] 33-02-PLAN.md -- Wire prompts into HTML report with Improve buttons, clipboard copy fallback, and progressive enhancement
+- [ ] 33-03-PLAN.md -- Integration tests for prompt modal rendering across all 7 categories
 
 ### Phase 34: Testing & Quality
 **Goal**: Automated tests validate evidence extraction, file size budget, JSON compatibility, prompt coverage, accessibility, and responsive layout

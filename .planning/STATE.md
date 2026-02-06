@@ -10,16 +10,16 @@ See: .planning/PROJECT.md (updated 2026-02-06)
 ## Current Position
 
 Phase: 28 of 29 (Heuristic Tests & Scoring Fixes)
-Plan: 2 of 3 in current phase
+Plan: 2 of 3 in current phase (28-01 + 28-02 complete, 28-03 remaining)
 Status: In progress
-Last activity: 2026-02-06 — Completed 28-02-PLAN.md
+Last activity: 2026-02-06 — Completed 28-01-PLAN.md
 
-Progress: [####......] 37% (v0.0.5)
+Progress: [######....] 39% (v0.0.5)
 
 ## Performance Metrics
 
 **Velocity (all milestones):**
-- Total plans completed: 58
+- Total plans completed: 59
 - Phases completed: 27
 - Total milestones shipped: 4
 
@@ -58,6 +58,7 @@ Recent decisions affecting current work:
 - [27-02]: Separate output types from internal types - convertScoreTrace bridges metrics.ScoreTrace to types.C7ScoreTrace
 - [27-02]: omitempty only on DebugSamples field - existing C7MetricResult fields lack json tags
 - [28-02]: extractC7 returns all 6 C7 metrics (overall_score + 5 MECE) - root cause fix for C7 scoring 0/1
+- [28-01]: Realistic fixtures over live CLI capture when concurrent instances rate-limited
 
 ### Pending Todos
 
@@ -70,5 +71,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-06
-Stopped at: Completed 28-02-PLAN.md
+Stopped at: Completed 28-01-PLAN.md (28-02 also complete, 28-03 remaining)
 Resume file: None

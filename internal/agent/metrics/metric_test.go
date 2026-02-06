@@ -1,10 +1,21 @@
 package metrics
 
 import (
+	"context"
 	"testing"
+	"time"
 
 	"github.com/ingo/agent-readyness/pkg/types"
 )
+
+// mockExecutor implements the Executor interface returning canned responses.
+type mockExecutor struct {
+	response string
+}
+
+func (m *mockExecutor) ExecutePrompt(ctx context.Context, workDir, prompt, tools string, timeout time.Duration) (string, error) {
+	return m.response, nil
+}
 
 func TestAllMetricsReturns5(t *testing.T) {
 	metrics := AllMetrics()
@@ -358,7 +369,7 @@ func TestM2_ScoreComprehensionResponse(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			score := m.scoreComprehensionResponse(tc.response)
+			score, _ := m.scoreComprehensionResponse(tc.response)
 			if score < tc.minScore || score > tc.maxScore {
 				t.Errorf("scoreComprehensionResponse() = %d, want between %d and %d", score, tc.minScore, tc.maxScore)
 			}
@@ -398,7 +409,7 @@ func TestM3_ScoreNavigationResponse(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			score := m.scoreNavigationResponse(tc.response)
+			score, _ := m.scoreNavigationResponse(tc.response)
 			if score < tc.minScore || score > tc.maxScore {
 				t.Errorf("scoreNavigationResponse() = %d, want between %d and %d", score, tc.minScore, tc.maxScore)
 			}
@@ -438,7 +449,7 @@ func TestM4_ScoreIdentifierResponse(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			score := m.scoreIdentifierResponse(tc.response)
+			score, _ := m.scoreIdentifierResponse(tc.response)
 			if score < tc.minScore || score > tc.maxScore {
 				t.Errorf("scoreIdentifierResponse() = %d, want between %d and %d", score, tc.minScore, tc.maxScore)
 			}
@@ -478,9 +489,247 @@ func TestM5_ScoreDocumentationResponse(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			score := m.scoreDocumentationResponse(tc.response)
+			score, _ := m.scoreDocumentationResponse(tc.response)
 			if score < tc.minScore || score > tc.maxScore {
 				t.Errorf("scoreDocumentationResponse() = %d, want between %d and %d", score, tc.minScore, tc.maxScore)
+			}
+		})
+	}
+}
+
+// TestScoreTrace_SumsCorrectly verifies that for each metric (M2-M5), the
+// ScoreTrace is the source of truth: BaseScore + sum(Deltas) == FinalScore
+// (before clamping). Also checks that non-empty responses produce indicators.
+func TestScoreTrace_SumsCorrectly(t *testing.T) {
+	tests := []struct {
+		name     string
+		scoreFn  func(string) (int, ScoreTrace)
+		response string
+	}{
+		{
+			name:     "M2 good response",
+			scoreFn:  NewM2ComprehensionMetric().scoreComprehensionResponse,
+			response: "The function returns the result after handling errors. It validates input and checks conditions.",
+		},
+		{
+			name:     "M2 empty response",
+			scoreFn:  NewM2ComprehensionMetric().scoreComprehensionResponse,
+			response: "",
+		},
+		{
+			name:     "M3 good response",
+			scoreFn:  NewM3NavigationMetric().scoreNavigationResponse,
+			response: "Imports: import fmt, import os. The module exports a function that calls -> /src/handler.go",
+		},
+		{
+			name:     "M3 empty response",
+			scoreFn:  NewM3NavigationMetric().scoreNavigationResponse,
+			response: "",
+		},
+		{
+			name:     "M4 good response",
+			scoreFn:  NewM4IdentifiersMetric().scoreIdentifierResponse,
+			response: "Interpretation: This function creates a database connection. Verification: Confirmed accurate. Accuracy: Correct.",
+		},
+		{
+			name:     "M4 empty response",
+			scoreFn:  NewM4IdentifiersMetric().scoreIdentifierResponse,
+			response: "",
+		},
+		{
+			name:     "M5 good response",
+			scoreFn:  NewM5DocumentationMetric().scoreDocumentationResponse,
+			response: "## Summary\nGood documentation.\n## Accurate Documentation\nComment correctly describes behavior.\n## Potential Mismatches\nLocation: line 10\nComment says: returns nil\nCode does: returns error\nIssue: outdated",
+		},
+		{
+			name:     "M5 empty response",
+			scoreFn:  NewM5DocumentationMetric().scoreDocumentationResponse,
+			response: "",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			score, trace := tc.scoreFn(tc.response)
+
+			// Verify base score is 5 for M2-M5
+			if trace.BaseScore != 5 {
+				t.Errorf("BaseScore = %d, want 5", trace.BaseScore)
+			}
+
+			// Verify that indicators exist
+			if len(trace.Indicators) == 0 {
+				t.Errorf("expected at least 1 indicator, got 0")
+			}
+
+			// Compute expected score from trace
+			expected := trace.BaseScore
+			for _, ind := range trace.Indicators {
+				expected += ind.Delta
+			}
+			if expected < 1 {
+				expected = 1
+			}
+			if expected > 10 {
+				expected = 10
+			}
+
+			if trace.FinalScore != expected {
+				t.Errorf("FinalScore = %d, but BaseScore(%d) + sum(Deltas) clamped = %d",
+					trace.FinalScore, trace.BaseScore, expected)
+			}
+
+			if score != trace.FinalScore {
+				t.Errorf("returned score %d != trace.FinalScore %d", score, trace.FinalScore)
+			}
+
+			// Verify Delta is 0 when Matched is false
+			for _, ind := range trace.Indicators {
+				if !ind.Matched && ind.Delta != 0 {
+					t.Errorf("indicator %q: Matched=false but Delta=%d (want 0)", ind.Name, ind.Delta)
+				}
+			}
+		})
+	}
+}
+
+// TestAllMetrics_CapturePrompt verifies that all 5 metrics populate sr.Prompt
+// when Execute() is called with a mock executor.
+func TestAllMetrics_CapturePrompt(t *testing.T) {
+	executor := &mockExecutor{
+		response: `["funcA", "funcB", "funcC"]`,
+	}
+
+	// Build source file content that satisfies selection criteria for all metrics
+	content := []byte(`package main
+
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+	"encoding/json"
+)
+
+// main is the entry point.
+// It initializes config and starts the server.
+func main() {
+	// Load config
+	cfg := loadConfig()
+	if cfg.Port == 0 {
+		cfg.Port = 8080
+	}
+	startServer(cfg)
+}
+
+// loadConfig reads environment variables.
+func loadConfig() Config {
+	return Config{}
+}
+
+// startServer starts the HTTP server.
+func startServer(cfg Config) {}
+
+// ProcessRequest handles incoming HTTP requests.
+// It validates and routes to the appropriate handler.
+func ProcessRequest(r Request) Response {
+	if r.Valid {
+		switch r.Method {
+		case "GET":
+			return handleGet(r)
+		case "POST":
+			return handlePost(r)
+		default:
+			return errorResponse()
+		}
+	}
+	return errorResponse()
+}
+
+// ValidateInput checks request validity.
+func ValidateInput(input string) bool {
+	if len(input) == 0 {
+		return false
+	}
+	for _, c := range input {
+		if c == ';' {
+			return false
+		}
+	}
+	return true
+}
+
+// BatchProcess handles multiple items.
+func BatchProcess(items []string) []string {
+	var results []string
+	for _, item := range items {
+		if len(item) > 0 {
+			results = append(results, item)
+		} else {
+			results = append(results, "empty")
+		}
+	}
+	return results
+}
+
+type Config struct{ Port int }
+type Request struct{ Valid bool; Method string }
+type Response struct{}
+
+func handleGet(r Request) Response { return Response{} }
+func handlePost(r Request) Response { return Response{} }
+func handle(r Request) Response { return Response{} }
+func errorResponse() Response { return Response{} }
+`)
+
+	targets := []*types.AnalysisTarget{
+		{
+			RootDir:  "/test",
+			Language: types.LangGo,
+			Files: []types.SourceFile{
+				{
+					Path:    "/test/main.go",
+					RelPath: "main.go",
+					Lines:   80,
+					Class:   types.ClassSource,
+					Content: content,
+				},
+			},
+		},
+	}
+
+	ctx := context.Background()
+
+	tests := []struct {
+		name   string
+		metric Metric
+	}{
+		{"M1", NewM1Consistency()},
+		{"M2", NewM2Comprehension()},
+		{"M3", NewM3Navigation()},
+		{"M4", NewM4Identifiers()},
+		{"M5", NewM5Documentation()},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			samples := tc.metric.SelectSamples(targets)
+			if len(samples) == 0 {
+				t.Skip("no samples selected (file may not meet selection criteria)")
+			}
+
+			result := tc.metric.Execute(ctx, "/test", samples, executor)
+
+			// Check that at least one successful sample has a non-empty Prompt
+			foundPrompt := false
+			for _, sr := range result.Samples {
+				if sr.Error == "" && sr.Prompt != "" {
+					foundPrompt = true
+					break
+				}
+			}
+			if !foundPrompt {
+				t.Errorf("%s: no successful SampleResult has a non-empty Prompt", tc.name)
 			}
 		})
 	}

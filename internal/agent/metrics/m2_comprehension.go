@@ -81,7 +81,7 @@ func (m *M2Comprehension) SelectSamples(targets []*types.AnalysisTarget) []Sampl
 			score := float64(complexityCount) / math.Sqrt(float64(file.Lines))
 
 			candidates = append(candidates, Sample{
-				FilePath:       file.Path,
+				FilePath:       file.RelPath,
 				SelectionScore: score,
 				Description:    fmt.Sprintf("Complex file (%d complexity indicators, %d LOC)", complexityCount, file.Lines),
 			})
@@ -156,6 +156,7 @@ Be specific and reference actual code elements.`, sample.FilePath)
 		sr := SampleResult{
 			Sample:   sample,
 			Response: response,
+			Prompt:   prompt,
 			Duration: time.Since(sampleStart),
 		}
 
@@ -164,7 +165,7 @@ Be specific and reference actual code elements.`, sample.FilePath)
 			sr.Score = 0
 		} else {
 			// Heuristic scoring based on response quality indicators
-			sr.Score = m.scoreComprehensionResponse(response)
+			sr.Score, sr.ScoreTrace = m.scoreComprehensionResponse(response)
 			totalScore += sr.Score
 			successCount++
 		}
@@ -186,10 +187,11 @@ Be specific and reference actual code elements.`, sample.FilePath)
 }
 
 // scoreComprehensionResponse uses heuristics to score the comprehension explanation.
-func (m *M2Comprehension) scoreComprehensionResponse(response string) int {
-	response = strings.ToLower(response)
+// The ScoreTrace is the source of truth: FinalScore = BaseScore + sum(Deltas), clamped.
+func (m *M2Comprehension) scoreComprehensionResponse(response string) (int, ScoreTrace) {
+	responseLower := strings.ToLower(response)
 
-	score := 5 // Base score
+	trace := ScoreTrace{BaseScore: 5}
 
 	// Positive indicators (depth of understanding)
 	positiveIndicators := []string{
@@ -203,9 +205,14 @@ func (m *M2Comprehension) scoreComprehensionResponse(response string) int {
 	}
 
 	for _, indicator := range positiveIndicators {
-		if strings.Contains(response, indicator) {
-			score++
+		matched := strings.Contains(responseLower, indicator)
+		delta := 0
+		if matched {
+			delta = 1
 		}
+		trace.Indicators = append(trace.Indicators, IndicatorMatch{
+			Name: "positive:" + indicator, Matched: matched, Delta: delta,
+		})
 	}
 
 	// Negative indicators (superficial or wrong)
@@ -216,27 +223,49 @@ func (m *M2Comprehension) scoreComprehensionResponse(response string) int {
 	}
 
 	for _, indicator := range negativeIndicators {
-		if strings.Contains(response, indicator) {
-			score--
+		matched := strings.Contains(responseLower, indicator)
+		delta := 0
+		if matched {
+			delta = -1
 		}
+		trace.Indicators = append(trace.Indicators, IndicatorMatch{
+			Name: "negative:" + indicator, Matched: matched, Delta: delta,
+		})
 	}
 
 	// Length bonus (detailed explanations are better, up to a point)
 	wordCount := len(strings.Fields(response))
-	if wordCount > 100 {
-		score++
-	}
-	if wordCount > 200 {
-		score++
-	}
 
-	// Clamp to 1-10
+	matched100 := wordCount > 100
+	delta100 := 0
+	if matched100 {
+		delta100 = 1
+	}
+	trace.Indicators = append(trace.Indicators, IndicatorMatch{
+		Name: "length>100_words", Matched: matched100, Delta: delta100,
+	})
+
+	matched200 := wordCount > 200
+	delta200 := 0
+	if matched200 {
+		delta200 = 1
+	}
+	trace.Indicators = append(trace.Indicators, IndicatorMatch{
+		Name: "length>200_words", Matched: matched200, Delta: delta200,
+	})
+
+	// Compute final score from trace
+	score := trace.BaseScore
+	for _, ind := range trace.Indicators {
+		score += ind.Delta
+	}
 	if score < 1 {
 		score = 1
 	}
 	if score > 10 {
 		score = 10
 	}
+	trace.FinalScore = score
 
-	return score
+	return score, trace
 }

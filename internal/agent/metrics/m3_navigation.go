@@ -70,7 +70,7 @@ func (m *M3Navigation) SelectSamples(targets []*types.AnalysisTarget) []Sample {
 			}
 
 			candidates = append(candidates, Sample{
-				FilePath:       file.Path,
+				FilePath:       file.RelPath,
 				SelectionScore: float64(importCount),
 				Description:    fmt.Sprintf("High import count (%d imports)", importCount),
 			})
@@ -149,6 +149,7 @@ Reference actual file paths and function names from the codebase.`, sample.FileP
 		sr := SampleResult{
 			Sample:   sample,
 			Response: response,
+			Prompt:   prompt,
 			Duration: time.Since(sampleStart),
 		}
 
@@ -156,7 +157,7 @@ Reference actual file paths and function names from the codebase.`, sample.FileP
 			sr.Error = err.Error()
 			sr.Score = 0
 		} else {
-			sr.Score = m.scoreNavigationResponse(response)
+			sr.Score, sr.ScoreTrace = m.scoreNavigationResponse(response)
 			totalScore += sr.Score
 			successCount++
 		}
@@ -178,10 +179,11 @@ Reference actual file paths and function names from the codebase.`, sample.FileP
 }
 
 // scoreNavigationResponse uses heuristics to score the navigation trace.
-func (m *M3Navigation) scoreNavigationResponse(response string) int {
+// The ScoreTrace is the source of truth: FinalScore = BaseScore + sum(Deltas), clamped.
+func (m *M3Navigation) scoreNavigationResponse(response string) (int, ScoreTrace) {
 	responseLower := strings.ToLower(response)
 
-	score := 5 // Base score
+	trace := ScoreTrace{BaseScore: 5}
 
 	// Positive indicators (cross-file understanding)
 	positiveIndicators := []struct {
@@ -207,19 +209,36 @@ func (m *M3Navigation) scoreNavigationResponse(response string) int {
 	}
 
 	for _, ind := range positiveIndicators {
-		if strings.Contains(responseLower, ind.pattern) {
-			score += ind.weight
+		matched := strings.Contains(responseLower, ind.pattern)
+		delta := 0
+		if matched {
+			delta = ind.weight
 		}
+		trace.Indicators = append(trace.Indicators, IndicatorMatch{
+			Name: "positive:" + ind.pattern, Matched: matched, Delta: delta,
+		})
 	}
 
 	// Count file path references (indicates multi-file navigation)
 	pathCount := strings.Count(response, "/")
-	if pathCount > 3 {
-		score++
+
+	matchedPath3 := pathCount > 3
+	deltaPath3 := 0
+	if matchedPath3 {
+		deltaPath3 = 1
 	}
-	if pathCount > 6 {
-		score++
+	trace.Indicators = append(trace.Indicators, IndicatorMatch{
+		Name: "pathCount>3", Matched: matchedPath3, Delta: deltaPath3,
+	})
+
+	matchedPath6 := pathCount > 6
+	deltaPath6 := 0
+	if matchedPath6 {
+		deltaPath6 = 1
 	}
+	trace.Indicators = append(trace.Indicators, IndicatorMatch{
+		Name: "pathCount>6", Matched: matchedPath6, Delta: deltaPath6,
+	})
 
 	// Negative indicators
 	negativeIndicators := []string{
@@ -228,27 +247,49 @@ func (m *M3Navigation) scoreNavigationResponse(response string) int {
 	}
 
 	for _, indicator := range negativeIndicators {
-		if strings.Contains(responseLower, indicator) {
-			score--
+		matched := strings.Contains(responseLower, indicator)
+		delta := 0
+		if matched {
+			delta = -1
 		}
+		trace.Indicators = append(trace.Indicators, IndicatorMatch{
+			Name: "negative:" + indicator, Matched: matched, Delta: delta,
+		})
 	}
 
 	// Length check (navigation should be detailed)
 	wordCount := len(strings.Fields(response))
-	if wordCount < 50 {
-		score--
-	}
-	if wordCount > 150 {
-		score++
-	}
 
-	// Clamp to 1-10
+	matchedShort := wordCount < 50
+	deltaShort := 0
+	if matchedShort {
+		deltaShort = -1
+	}
+	trace.Indicators = append(trace.Indicators, IndicatorMatch{
+		Name: "length<50_words", Matched: matchedShort, Delta: deltaShort,
+	})
+
+	matchedLong := wordCount > 150
+	deltaLong := 0
+	if matchedLong {
+		deltaLong = 1
+	}
+	trace.Indicators = append(trace.Indicators, IndicatorMatch{
+		Name: "length>150_words", Matched: matchedLong, Delta: deltaLong,
+	})
+
+	// Compute final score from trace
+	score := trace.BaseScore
+	for _, ind := range trace.Indicators {
+		score += ind.Delta
+	}
 	if score < 1 {
 		score = 1
 	}
 	if score > 10 {
 		score = 10
 	}
+	trace.FinalScore = score
 
-	return score
+	return score, trace
 }

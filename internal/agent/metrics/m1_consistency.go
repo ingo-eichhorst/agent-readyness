@@ -72,7 +72,7 @@ func (m *M1Consistency) SelectSamples(targets []*types.AnalysisTarget) []Sample 
 			score := (sizeScore + funcScore) / 2
 
 			candidates = append(candidates, Sample{
-				FilePath:       file.Path,
+				FilePath:       file.RelPath,
 				SelectionScore: score,
 				Description:    fmt.Sprintf("Moderate size (%d LOC, %d funcs)", file.Lines, funcCount),
 			})
@@ -85,7 +85,7 @@ func (m *M1Consistency) SelectSamples(targets []*types.AnalysisTarget) []Sample 
 			for _, file := range target.Files {
 				if file.Class != types.ClassSource && file.Lines > 20 {
 					candidates = append(candidates, Sample{
-						FilePath:       file.Path,
+						FilePath:       file.RelPath,
 						SelectionScore: float64(file.Lines),
 						Description:    fmt.Sprintf("Fallback selection (%d LOC)", file.Lines),
 					})
@@ -138,6 +138,7 @@ Do not include any explanation, just the JSON array.`, sample.FilePath)
 		sr := SampleResult{
 			Sample:   sample,
 			Response: response,
+			Prompt:   prompt,
 		}
 
 		if err != nil {
@@ -146,15 +147,57 @@ Do not include any explanation, just the JSON array.`, sample.FilePath)
 		} else {
 			// Score based on response validity (does it look like a JSON array?)
 			response = strings.TrimSpace(response)
+			trace := ScoreTrace{BaseScore: 0}
+
 			if strings.HasPrefix(response, "[") && strings.HasSuffix(response, "]") {
-				sr.Score = 10
+				trace.Indicators = append(trace.Indicators, IndicatorMatch{
+					Name: "json_array_exact", Matched: true, Delta: 10,
+				})
 			} else if strings.Contains(response, "[") {
-				sr.Score = 7
+				trace.Indicators = append(trace.Indicators, IndicatorMatch{
+					Name: "json_array_exact", Matched: false, Delta: 0,
+				})
+				trace.Indicators = append(trace.Indicators, IndicatorMatch{
+					Name: "json_array_partial", Matched: true, Delta: 7,
+				})
 			} else if len(response) > 0 {
-				sr.Score = 4
+				trace.Indicators = append(trace.Indicators, IndicatorMatch{
+					Name: "json_array_exact", Matched: false, Delta: 0,
+				})
+				trace.Indicators = append(trace.Indicators, IndicatorMatch{
+					Name: "json_array_partial", Matched: false, Delta: 0,
+				})
+				trace.Indicators = append(trace.Indicators, IndicatorMatch{
+					Name: "non_empty_response", Matched: true, Delta: 4,
+				})
 			} else {
-				sr.Score = 1
+				trace.Indicators = append(trace.Indicators, IndicatorMatch{
+					Name: "json_array_exact", Matched: false, Delta: 0,
+				})
+				trace.Indicators = append(trace.Indicators, IndicatorMatch{
+					Name: "json_array_partial", Matched: false, Delta: 0,
+				})
+				trace.Indicators = append(trace.Indicators, IndicatorMatch{
+					Name: "non_empty_response", Matched: false, Delta: 0,
+				})
+				trace.Indicators = append(trace.Indicators, IndicatorMatch{
+					Name: "empty_response", Matched: true, Delta: 1,
+				})
 			}
+
+			score := trace.BaseScore
+			for _, ind := range trace.Indicators {
+				score += ind.Delta
+			}
+			if score < 1 {
+				score = 1
+			}
+			if score > 10 {
+				score = 10
+			}
+			trace.FinalScore = score
+			sr.Score = score
+			sr.ScoreTrace = trace
 			scores = append(scores, sr.Score)
 		}
 

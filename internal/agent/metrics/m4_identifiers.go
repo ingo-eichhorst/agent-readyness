@@ -107,7 +107,7 @@ func (m *M4Identifiers) SelectSamples(targets []*types.AnalysisTarget) []Sample 
 
 						candidates = append(candidates, identifierCandidate{
 							name:     name,
-							filePath: file.Path,
+							filePath: file.RelPath,
 							line:     lineNum,
 							score:    score,
 						})
@@ -235,6 +235,7 @@ Format:
 		sr := SampleResult{
 			Sample:   sample,
 			Response: response,
+			Prompt:   prompt,
 			Duration: time.Since(sampleStart),
 		}
 
@@ -242,7 +243,7 @@ Format:
 			sr.Error = err.Error()
 			sr.Score = 0
 		} else {
-			sr.Score = m.scoreIdentifierResponse(response)
+			sr.Score, sr.ScoreTrace = m.scoreIdentifierResponse(response)
 			totalScore += sr.Score
 			successCount++
 		}
@@ -264,21 +265,39 @@ Format:
 }
 
 // scoreIdentifierResponse uses heuristics to score the identifier interpretation.
-func (m *M4Identifiers) scoreIdentifierResponse(response string) int {
+// The ScoreTrace is the source of truth: FinalScore = BaseScore + sum(Deltas), clamped.
+func (m *M4Identifiers) scoreIdentifierResponse(response string) (int, ScoreTrace) {
 	responseLower := strings.ToLower(response)
 
-	score := 5 // Base score
+	trace := ScoreTrace{BaseScore: 5}
 
 	// Check for self-reported accuracy (agent verifies its own interpretation)
-	if strings.Contains(responseLower, "accurate") || strings.Contains(responseLower, "correct") {
-		score += 2
+	matchedAccurate := strings.Contains(responseLower, "accurate") || strings.Contains(responseLower, "correct")
+	deltaAccurate := 0
+	if matchedAccurate {
+		deltaAccurate = 2
 	}
-	if strings.Contains(responseLower, "mostly correct") || strings.Contains(responseLower, "partially") {
-		score++
+	trace.Indicators = append(trace.Indicators, IndicatorMatch{
+		Name: "self_report:accurate/correct", Matched: matchedAccurate, Delta: deltaAccurate,
+	})
+
+	matchedPartial := strings.Contains(responseLower, "mostly correct") || strings.Contains(responseLower, "partially")
+	deltaPartial := 0
+	if matchedPartial {
+		deltaPartial = 1
 	}
-	if strings.Contains(responseLower, "incorrect") || strings.Contains(responseLower, "wrong") || strings.Contains(responseLower, "misunderstood") {
-		score -= 2
+	trace.Indicators = append(trace.Indicators, IndicatorMatch{
+		Name: "self_report:mostly_correct/partially", Matched: matchedPartial, Delta: deltaPartial,
+	})
+
+	matchedWrong := strings.Contains(responseLower, "incorrect") || strings.Contains(responseLower, "wrong") || strings.Contains(responseLower, "misunderstood")
+	deltaWrong := 0
+	if matchedWrong {
+		deltaWrong = -2
 	}
+	trace.Indicators = append(trace.Indicators, IndicatorMatch{
+		Name: "self_report:incorrect/wrong/misunderstood", Matched: matchedWrong, Delta: deltaWrong,
+	})
 
 	// Positive indicators (detailed interpretation)
 	positiveIndicators := []string{
@@ -288,26 +307,47 @@ func (m *M4Identifiers) scoreIdentifierResponse(response string) int {
 	}
 
 	for _, indicator := range positiveIndicators {
-		if strings.Contains(responseLower, indicator) {
-			score++
+		matched := strings.Contains(responseLower, indicator)
+		delta := 0
+		if matched {
+			delta = 1
 		}
+		trace.Indicators = append(trace.Indicators, IndicatorMatch{
+			Name: "positive:" + indicator, Matched: matched, Delta: delta,
+		})
 	}
 
 	// Structure check (response has expected sections)
-	if strings.Contains(responseLower, "verification:") {
-		score++
+	matchedVerification := strings.Contains(responseLower, "verification:")
+	deltaVerification := 0
+	if matchedVerification {
+		deltaVerification = 1
 	}
-	if strings.Contains(responseLower, "accuracy:") {
-		score++
-	}
+	trace.Indicators = append(trace.Indicators, IndicatorMatch{
+		Name: "structure:verification", Matched: matchedVerification, Delta: deltaVerification,
+	})
 
-	// Clamp to 1-10
+	matchedAccuracySection := strings.Contains(responseLower, "accuracy:")
+	deltaAccuracySection := 0
+	if matchedAccuracySection {
+		deltaAccuracySection = 1
+	}
+	trace.Indicators = append(trace.Indicators, IndicatorMatch{
+		Name: "structure:accuracy", Matched: matchedAccuracySection, Delta: deltaAccuracySection,
+	})
+
+	// Compute final score from trace
+	score := trace.BaseScore
+	for _, ind := range trace.Indicators {
+		score += ind.Delta
+	}
 	if score < 1 {
 		score = 1
 	}
 	if score > 10 {
 		score = 10
 	}
+	trace.FinalScore = score
 
-	return score
+	return score, trace
 }

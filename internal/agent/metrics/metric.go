@@ -36,13 +36,29 @@ type Sample struct {
 	Description    string  // Why this sample was selected
 }
 
+// IndicatorMatch records a single heuristic indicator check and its point contribution.
+type IndicatorMatch struct {
+	Name    string // e.g., "positive:returns", "negative:unclear", "length>100"
+	Matched bool   // Whether the indicator was found in the response
+	Delta   int    // Point contribution: +1, -1, +2, etc. (0 if !Matched)
+}
+
+// ScoreTrace records the full scoring breakdown so the trace is the source of truth.
+type ScoreTrace struct {
+	BaseScore  int              // Starting score before adjustments (typically 5)
+	Indicators []IndicatorMatch // Each indicator checked and its result
+	FinalScore int              // Score after clamping to 1-10
+}
+
 // SampleResult holds the outcome of evaluating one sample.
 type SampleResult struct {
-	Sample   Sample
-	Score    int           // 1-10 scale
-	Response string        // Agent's response
-	Duration time.Duration // How long this sample took
-	Error    string        // Empty if successful
+	Sample     Sample
+	Score      int           // 1-10 scale
+	Response   string        // Agent's response
+	Prompt     string        // The prompt sent to the agent
+	ScoreTrace ScoreTrace    // Heuristic scoring breakdown
+	Duration   time.Duration // How long this sample took
+	Error      string        // Empty if successful
 }
 
 // MetricResult holds the complete outcome of a metric evaluation.

@@ -1217,3 +1217,585 @@ cmd/scan.go (--enable-c7 flag)
 ---
 *Stack research for: ARS v0.0.5 -- C7 debug tooling and heuristic testing*
 *Researched: 2026-02-06*
+
+---
+
+# Stack Research: Interactive HTML Report Enhancements (v0.0.5 Milestone)
+
+**Domain:** Modal UI, syntax highlighting, and copy-to-clipboard for self-contained HTML reports
+**Researched:** 2026-02-06
+**Confidence:** HIGH (verified against MDN, Can I Use, and codebase inspection)
+
+## Executive Summary
+
+Adding modal overlays, syntax highlighting, and copy-to-clipboard to the existing HTML report requires **zero new Go dependencies** and **zero external JavaScript libraries**. The three capabilities map to well-supported web platform features:
+
+1. **Modal overlays:** Native HTML `<dialog>` element with `showModal()` -- 95.81% global browser support, built-in focus trap, Escape dismissal, and `::backdrop` styling.
+2. **Syntax highlighting:** Custom ~30-line inline JavaScript function for JSON/command highlighting -- purpose-built for our narrow use case (JSON objects and shell commands only).
+3. **Copy-to-clipboard:** `navigator.clipboard.writeText()` API -- 95.68% global support, already partially used in the badge section of the existing report.
+
+The report template (`internal/output/templates/report.html`) already contains inline JavaScript for expand/collapse and a `navigator.clipboard.writeText()` call for badge copying. These additions extend the existing pattern with minimal incremental complexity.
+
+**Net Go dependency change: 0. Net external library change: 0.**
+
+---
+
+## 1. Modal Overlay UI
+
+### Recommendation: Native HTML `<dialog>` Element with `showModal()`
+
+**Use `<dialog>` with JavaScript `.showModal()` / `.close()` calls.** Do NOT use CSS-only modal hacks or the Invoker Commands API.
+
+| Technology | Version | Purpose | Why Recommended |
+|------------|---------|---------|-----------------|
+| HTML `<dialog>` element | HTML5.2+ | Native modal container | 95.81% global support; built-in accessibility, focus trap, backdrop, Escape key handling |
+| `HTMLDialogElement.showModal()` | Web API | Open dialog as modal | Moves to top layer, makes background inert, traps focus |
+| `HTMLDialogElement.close()` | Web API | Close dialog | Fires close event, restores focus to trigger element |
+| CSS `::backdrop` | CSS Selectors L4 | Style the overlay behind modal | Native pseudo-element, no extra DOM nodes needed |
+
+### Browser Support (Verified via Can I Use)
+
+| Browser | Minimum Version | Release Date |
+|---------|----------------|--------------|
+| Chrome | 37+ | 2014 |
+| Firefox | 98+ | March 2022 |
+| Safari | 15.4+ | March 2022 |
+| Edge | 79+ | 2020 |
+
+**Global support: 95.81%** -- Baseline Widely Available since March 2022.
+
+**Source:** [Can I Use: dialog](https://caniuse.com/dialog) (HIGH confidence)
+
+### Why NOT CSS-Only Modals (:target or checkbox hack)
+
+| Approach | Why Avoid |
+|----------|-----------|
+| `:target` pseudo-class | Modifies URL hash; breaks back button; no Escape key dismissal; no focus trap |
+| Checkbox hack | Requires invisible `<input>` elements; no semantic meaning; no accessibility support |
+| Custom `<div>` modal with JS | Reinvents focus trap, Escape handling, backdrop, inert background -- all built into `<dialog>` |
+
+The `<dialog>` element provides everything for free: focus trapping, Escape key dismissal, `::backdrop`, `aria-modal`, and top-layer rendering. Building these from scratch would be hundreds of lines of fragile JavaScript.
+
+### Why NOT the Invoker Commands API (commandfor/command)
+
+The Invoker Commands API (`<button commandfor="dialog" command="show-modal">`) would allow zero-JS modal opening. However:
+
+- **Global support: only 73.81%** as of February 2026
+- **Baseline status: "low"** -- achieved across all major browsers only in December 2025 (Safari 26.2 was last)
+- Users on Safari < 26.2, Firefox < 144, or Chrome < 135 would see non-functional buttons
+
+**Verdict:** Too new. Use `.showModal()` JavaScript calls for now. Revisit when Invoker Commands reaches 90%+ global support (likely mid-2027).
+
+**Sources:**
+- [Can I Use: Invoker Commands](https://caniuse.com/wf-invoker-commands) -- 73.81% global support (HIGH confidence)
+- [InfoQ: HTML Invoker Commands](https://www.infoq.com/news/2026/01/html-invoker-commands/) -- Timeline context (MEDIUM confidence)
+
+### Implementation Pattern
+
+#### HTML Structure
+
+```html
+<!-- Trigger button (in each recommendation card) -->
+<button class="modal-trigger" data-modal="modal-rec-{{.Rank}}">
+    View Improvement Prompt
+</button>
+
+<!-- Dialog element (rendered once per recommendation) -->
+<dialog id="modal-rec-{{.Rank}}" class="ars-modal">
+    <div class="modal-header">
+        <h3>{{.Summary}}</h3>
+        <button class="modal-close" aria-label="Close">&times;</button>
+    </div>
+    <div class="modal-body">
+        <!-- Content here: trace output, improvement prompt, etc. -->
+    </div>
+</dialog>
+```
+
+#### JavaScript (inline in `<script>` block)
+
+```javascript
+// Modal open/close -- extend existing <script> block
+document.querySelectorAll('.modal-trigger').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const modal = document.getElementById(btn.dataset.modal);
+        if (modal) modal.showModal();
+    });
+});
+
+document.querySelectorAll('.modal-close').forEach(btn => {
+    btn.addEventListener('click', () => {
+        btn.closest('dialog').close();
+    });
+});
+
+// Close on backdrop click (click outside modal content)
+document.querySelectorAll('.ars-modal').forEach(dialog => {
+    dialog.addEventListener('click', (e) => {
+        if (e.target === dialog) dialog.close();
+    });
+});
+```
+
+#### CSS
+
+```css
+/* Modal dialog */
+.ars-modal {
+    border: none;
+    border-radius: 0.5rem;
+    padding: 0;
+    max-width: 700px;
+    width: 90vw;
+    max-height: 80vh;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
+}
+
+.ars-modal::backdrop {
+    background: rgba(0, 0, 0, 0.5);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.modal-header h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 0;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: var(--color-muted);
+    padding: 0 0.25rem;
+    line-height: 1;
+}
+
+.modal-close:hover {
+    color: var(--color-text);
+}
+
+.modal-body {
+    padding: 1.5rem;
+    overflow-y: auto;
+    max-height: calc(80vh - 4rem);
+}
+```
+
+### Progressive Enhancement
+
+The `<dialog>` element is hidden by default (display: none until opened). If JavaScript is disabled:
+- Modal content is invisible but present in DOM
+- Core report content (scores, charts, recommendations) remains fully accessible
+- Only the "View Improvement Prompt" / "View Trace" buttons become non-functional
+
+This is acceptable progressive enhancement: the modal content is supplementary detail, not core report data.
+
+### Go Template Integration
+
+The `<dialog>` elements are rendered server-side by Go's `html/template`. Each modal's content is generated at report creation time -- no client-side data fetching needed.
+
+Key consideration: Go's `html/template` auto-escapes content in JavaScript contexts. Since modal content is in HTML (not inside `<script>` tags), standard template actions work correctly:
+
+```html
+<dialog id="modal-trace-{{.Rank}}">
+    <div class="modal-body">
+        <pre><code>{{.TraceContent}}</code></pre>
+    </div>
+</dialog>
+```
+
+The `{{.TraceContent}}` will be HTML-escaped by `html/template`, which is correct for display inside a `<code>` block. For content that contains safe HTML (like pre-formatted trace output), use `template.HTML` type in Go, following the existing pattern for `DetailedDescription` and `RadarChartSVG`.
+
+---
+
+## 2. Syntax Highlighting for Code Blocks
+
+### Recommendation: Custom Inline JSON/Command Highlighter (~30 lines)
+
+**Write a purpose-built ~30-line JavaScript function.** Do NOT use highlight.js, Prism.js, or microlight.js.
+
+| Technology | Version | Purpose | Why Recommended |
+|------------|---------|---------|-----------------|
+| Custom inline JS | N/A | Highlight JSON keys/values and shell commands | Exactly fits the narrow scope; zero external dependencies; ~30 lines total |
+
+### Why Custom, Not a Library
+
+The ARS report needs syntax highlighting for exactly two content types:
+
+1. **JSON objects** -- Agent response payloads, structured output
+2. **Shell commands** -- `claude -p "..." --output-format json`
+
+This is fundamentally different from a code editor or documentation site that needs to highlight dozens of languages.
+
+| Factor | highlight.js (custom build) | Prism.js | microlight.js | Custom 30-line function |
+|--------|---------------------------|----------|---------------|------------------------|
+| Size (minified) | ~15-20 KB (core + JSON + bash) | ~4-5 KB (core + JSON + bash) | 2.2 KB | ~0.8 KB |
+| Languages | 39+ in common build | Extensible | Language-agnostic | JSON + shell commands only |
+| CSS theme needed | Yes (~1 KB) | Yes (~1 KB) | No | No (uses existing CSS vars) |
+| Build step for custom bundle | Yes (download page or npm) | Yes (download page or npm) | No | No |
+| Self-contained embedding | Possible but awkward | Possible but awkward | Easy | Trivial -- it IS inline |
+| Color scheme matches report | Requires theme customization | Requires theme customization | Uses text-shadow (different aesthetic) | Uses existing CSS variables |
+
+**The math is clear:** Adding even the smallest library (microlight.js at 2.2 KB) introduces an external artifact that must be embedded, versioned, and maintained. A custom function uses the CSS variables already defined in `styles.css` and highlights exactly what the ARS report contains.
+
+### Implementation
+
+#### JSON Highlighting Function
+
+```javascript
+// Syntax highlighting for JSON and commands
+function highlightJSON(text) {
+    return text
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"([^"]*)"(\s*:)/g, '<span class="hl-key">"$1"</span>$2')
+        .replace(/"([^"]*)"/g, '<span class="hl-string">"$1"</span>')
+        .replace(/\b(true|false|null)\b/g, '<span class="hl-literal">$1</span>')
+        .replace(/\b(-?\d+\.?\d*)\b/g, '<span class="hl-number">$1</span>');
+}
+
+// Apply to all code blocks with data-lang attribute
+document.querySelectorAll('code[data-lang="json"]').forEach(el => {
+    el.innerHTML = highlightJSON(el.textContent);
+});
+```
+
+This is a well-established pattern. The regex approach for JSON highlighting appears in multiple community implementations (CodePen, GitHub Gists) and is reliable for well-formed JSON output, which is what the ARS report produces.
+
+**Source:** [JSON Syntax Highlighting Gist](https://gist.github.com/faffyman/6183311) -- Community pattern (~15 lines for core logic) (MEDIUM confidence)
+
+#### CSS Classes
+
+```css
+/* Syntax highlighting -- uses existing report color palette */
+.hl-key { color: #2563eb; }          /* Blue -- matches link color */
+.hl-string { color: #059669; }       /* Green */
+.hl-number { color: #d97706; }       /* Amber */
+.hl-literal { color: #7c3aed; }      /* Purple -- true/false/null */
+
+/* Code blocks in modals */
+.modal-body pre {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 0.375rem;
+    padding: 1rem;
+    overflow-x: auto;
+    font-size: 0.8rem;
+    line-height: 1.5;
+}
+
+.modal-body code {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+}
+```
+
+#### Shell Command Highlighting
+
+For shell commands (simpler -- just highlight the command name and flags):
+
+```javascript
+function highlightCommand(text) {
+    return text
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/^(\s*)([\w./]+)/gm, '$1<span class="hl-cmd">$2</span>')
+        .replace(/(--?\w[\w-]*)/g, '<span class="hl-flag">$1</span>')
+        .replace(/"([^"]*)"/g, '<span class="hl-string">"$1"</span>');
+}
+
+document.querySelectorAll('code[data-lang="shell"]').forEach(el => {
+    el.innerHTML = highlightCommand(el.textContent);
+});
+```
+
+```css
+.hl-cmd { color: #2563eb; font-weight: 600; }
+.hl-flag { color: #7c3aed; }
+```
+
+### Template Usage
+
+In Go templates, mark code blocks with `data-lang` for the highlighting script to target:
+
+```html
+<pre><code data-lang="json">{{.JSONContent}}</code></pre>
+<pre><code data-lang="shell">{{.CommandContent}}</code></pre>
+```
+
+The `{{.JSONContent}}` will be HTML-escaped by `html/template`. The highlighting function reads `textContent` (which gives unescaped text), processes it, then writes to `innerHTML`. This is safe because the function does its own HTML entity escaping (`&amp;`, `&lt;`, `&gt;`) before applying `<span>` tags.
+
+### When to Reconsider
+
+If ARS later needs to highlight Go, Python, or TypeScript source code (e.g., showing "worst offender" files), then Prism.js with a custom build becomes worth the cost. For JSON and shell commands, the custom approach is clearly better.
+
+---
+
+## 3. Copy-to-Clipboard
+
+### Recommendation: `navigator.clipboard.writeText()` with Visual Feedback
+
+**Extend the existing pattern.** The report already uses `navigator.clipboard.writeText()` for badge markdown copying (line 34 of `report.html`).
+
+| Technology | Version | Purpose | Why Recommended |
+|------------|---------|---------|-----------------|
+| `navigator.clipboard.writeText()` | Clipboard API | Copy text to system clipboard | 95.68% global support; already used in report; async, promise-based |
+
+### Browser Support (Verified via Can I Use)
+
+| Browser | Minimum Version |
+|---------|----------------|
+| Chrome | 66+ |
+| Firefox | 63+ |
+| Safari | 13.1+ |
+| Edge | 79+ |
+
+**Global support: 95.68%**
+
+**Important constraints:**
+- Requires secure context (HTTPS or `file://` protocol). HTML reports opened from local filesystem (`file://`) work correctly.
+- Requires user gesture (click event). This is already the case since we use button click handlers.
+
+**Source:** [Can I Use: Clipboard writeText](https://caniuse.com/mdn-api_clipboard_writetext) (HIGH confidence)
+
+### Current Implementation (Already in Report)
+
+The badge section already has a working copy button (line 34 of `report.html`):
+
+```html
+<button onclick="navigator.clipboard.writeText(document.getElementById('badge-markdown').textContent)">Copy</button>
+```
+
+This inline approach works but lacks feedback. The new implementation should add visual confirmation.
+
+### Enhanced Implementation with Feedback
+
+```javascript
+// Copy-to-clipboard with visual feedback
+function copyToClipboard(btn, targetId) {
+    const text = document.getElementById(targetId).textContent;
+    navigator.clipboard.writeText(text).then(() => {
+        const original = btn.textContent;
+        btn.textContent = 'Copied!';
+        btn.classList.add('copied');
+        setTimeout(() => {
+            btn.textContent = original;
+            btn.classList.remove('copied');
+        }, 1500);
+    }).catch(() => {
+        // Fallback: select text for manual copy
+        const range = document.createRange();
+        range.selectNodeContents(document.getElementById(targetId));
+        window.getSelection().removeAllRanges();
+        window.getSelection().addRange(range);
+    });
+}
+```
+
+#### CSS for Feedback State
+
+```css
+/* Copy button states */
+.copy-btn {
+    padding: 0.25rem 0.625rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--color-text);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 0.25rem;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+
+.copy-btn:hover {
+    background: var(--color-border);
+}
+
+.copy-btn.copied {
+    color: var(--color-green);
+    border-color: var(--color-green);
+}
+```
+
+#### Template Usage
+
+```html
+<!-- In modal for improvement prompt -->
+<div class="prompt-container">
+    <div class="prompt-header">
+        <span>Improvement Prompt</span>
+        <button class="copy-btn" onclick="copyToClipboard(this, 'prompt-{{.Rank}}')">Copy</button>
+    </div>
+    <pre><code id="prompt-{{.Rank}}">{{.PromptText}}</code></pre>
+</div>
+```
+
+### Fallback Strategy
+
+The `.catch()` handler selects the text content, making it ready for manual Ctrl+C/Cmd+C. This covers:
+- Browsers without Clipboard API (very rare at 95.68% support)
+- Non-secure contexts where the API is blocked
+- Permission denials
+
+No `document.execCommand('copy')` fallback is needed. That API is deprecated and the text-selection fallback is more reliable than attempting to use a deprecated API that browsers may remove.
+
+**Source:** [MDN: Clipboard.writeText()](https://developer.mozilla.org/en-US/docs/Web/API/Clipboard/writeText) (HIGH confidence)
+
+---
+
+## Integration with Existing Report Infrastructure
+
+### Files to Modify
+
+| File | Change | Why |
+|------|--------|-----|
+| `internal/output/templates/report.html` | Add `<dialog>` elements, expand `<script>` block, add copy buttons | Core template changes |
+| `internal/output/templates/styles.css` | Add modal, syntax highlighting, and copy button styles | All CSS inline via `{{.InlineCSS}}` |
+| `internal/output/html.go` | Add new fields to `HTMLReportData` and `HTMLRecommendation` for modal content | New template data needed |
+
+### Files NOT to Modify
+
+| File | Why Leave Alone |
+|------|-----------------|
+| `go.mod` | No new Go dependencies |
+| `internal/output/descriptions.go` | Metric descriptions do not need modals (already have expand/collapse) |
+| `internal/output/charts.go` | SVG charts unrelated to interactive UI |
+
+### Embedding Strategy
+
+All JavaScript and CSS remain inline in the template, following the existing pattern:
+- CSS: embedded via `{{.InlineCSS}}` in `<style>` tag (line 8 of `report.html`)
+- JavaScript: inline `<script>` block at bottom of `<body>` (lines 125-159 of `report.html`)
+
+The new JavaScript (~40 lines total for modals + highlighting + copy) extends the existing ~30 lines. Total inline JavaScript remains under 80 lines -- acceptable for a self-contained report.
+
+### Template Data Additions
+
+```go
+// New fields needed in HTMLRecommendation (or new struct)
+type HTMLRecommendation struct {
+    // ... existing fields ...
+    ImprovementPrompt string // Text for copy-to-clipboard
+    HasTrace          bool   // Whether call trace is available
+    TraceContent      string // Formatted trace output
+}
+```
+
+The trace content and improvement prompts are generated server-side in Go. The template renders them into `<dialog>` elements. The JavaScript only handles open/close/copy interactions -- no client-side data processing.
+
+### Go `html/template` Safety
+
+Go's `html/template` package auto-escapes content based on context. Key behaviors for this milestone:
+
+| Context | Template Action | Behavior |
+|---------|----------------|----------|
+| Inside `<code>` | `{{.JSONContent}}` | HTML-escaped (correct for display; JS reads via `.textContent`) |
+| Inside `<script>` | `{{.Value}}` | JS-escaped (not needed; we use `data-` attributes, not inline values) |
+| CSS attribute | `{{.InlineCSS}}` | Already uses `template.CSS` type (trusted) |
+| Pre-formatted HTML | `{{.DetailedDescription}}` | Already uses `template.HTML` type (trusted) |
+
+No changes to the template safety model are needed. New content (trace output, prompts) goes into HTML context as plain text, which `html/template` handles correctly by default.
+
+---
+
+## What NOT to Add
+
+| Avoid | Why | Use Instead |
+|-------|-----|-------------|
+| highlight.js | 15-20 KB for two content types; requires embedding minified bundle and CSS theme | Custom 30-line highlighter |
+| Prism.js | 4-5 KB for two content types; requires build step for custom bundle | Custom 30-line highlighter |
+| microlight.js | 2.2 KB; language-agnostic (different aesthetic from report); known DOS vulnerability with large inputs | Custom 30-line highlighter |
+| Alpine.js / Petite-Vue | Reactive framework for what is static content with open/close behavior | Vanilla JS event listeners |
+| Web Components | Over-engineering for one-off modal/copy pattern | Standard HTML + JS |
+| Invoker Commands API | Only 73.81% browser support; too new for production | `showModal()` / `.close()` JS calls |
+| CSS-only modals (`:target`) | Breaks back button; no focus trap; no Escape key; no accessibility | `<dialog>` element |
+| `document.execCommand('copy')` | Deprecated API; browsers actively removing it | `navigator.clipboard.writeText()` |
+| clipboard.js library | 3 KB library for one function that is 5 lines of native code | `navigator.clipboard.writeText()` |
+| Any external CDN | Breaks self-contained constraint; offline usage fails; additional HTTP request | Inline everything |
+
+### Size Budget Reasoning
+
+Current report inline CSS: ~560 lines (~14 KB uncompressed).
+Current report inline JS: ~30 lines (~1 KB uncompressed).
+New JS additions: ~70 lines (~2 KB uncompressed).
+New CSS additions: ~60 lines (~1.5 KB uncompressed).
+
+**Total inline code after changes: ~640 lines CSS + ~100 lines JS = ~18.5 KB.**
+
+This is well within acceptable limits for a self-contained HTML report. For comparison, embedding just highlight.js core would add 15-20 KB of minified JavaScript alone.
+
+---
+
+## Version Compatibility
+
+| Component | Minimum Browser | Global Support | Notes |
+|-----------|----------------|----------------|-------|
+| `<dialog>` element | Chrome 37, FF 98, Safari 15.4 | 95.81% | Baseline since March 2022 |
+| `::backdrop` | Same as `<dialog>` | 95.81% | Part of `<dialog>` spec |
+| `showModal()` / `close()` | Same as `<dialog>` | 95.81% | Part of `<dialog>` spec |
+| `navigator.clipboard.writeText()` | Chrome 66, FF 63, Safari 13.1 | 95.68% | Requires secure context |
+| `element.textContent` | All browsers | ~100% | Fundamental DOM API |
+| CSS custom properties | Chrome 49, FF 31, Safari 9.1 | 97%+ | Already used in `styles.css` |
+| Template literals | ES6+ | 97%+ | Not used; vanilla string concatenation sufficient |
+
+All technologies have 95%+ global support. The lowest common denominator is `navigator.clipboard.writeText()` at 95.68%.
+
+---
+
+## Recommended Stack Summary
+
+### New Go Dependencies: ZERO
+
+| Component | Technology | Status |
+|-----------|-----------|--------|
+| Modal overlay | HTML `<dialog>` + `showModal()` | Web standard, no Go deps |
+| Syntax highlighting | Custom inline JS (~30 lines) | Written as part of template |
+| Copy-to-clipboard | `navigator.clipboard.writeText()` | Already used in report |
+| Modal styling | CSS `::backdrop` + custom classes | Added to `styles.css` |
+| Code block styling | CSS `.hl-key`, `.hl-string`, etc. | Added to `styles.css` |
+
+### New External Libraries: ZERO
+
+Everything is inline HTML, CSS, and JavaScript within the Go template. The report remains fully self-contained: a single HTML file with no external dependencies.
+
+---
+
+## Sources
+
+### HTML Dialog Element
+- [MDN: dialog element](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/dialog) -- Comprehensive reference including accessibility (HIGH confidence)
+- [Can I Use: dialog](https://caniuse.com/dialog) -- 95.81% global support, Baseline since March 2022 (HIGH confidence)
+- [MDN: showModal()](https://developer.mozilla.org/en-US/docs/Web/API/HTMLDialogElement/showModal) -- API reference for modal behavior (HIGH confidence)
+- [MDN: ::backdrop](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Selectors/::backdrop) -- Backdrop pseudo-element styling (HIGH confidence)
+
+### Invoker Commands API (Evaluated, NOT Recommended)
+- [Can I Use: Invoker Commands](https://caniuse.com/wf-invoker-commands) -- 73.81% global support, "low" baseline (HIGH confidence)
+- [InfoQ: HTML Invoker Commands](https://www.infoq.com/news/2026/01/html-invoker-commands/) -- Chrome 135, FF 144, Safari 26.2 timeline (MEDIUM confidence)
+- [CSS-Tricks: Invoker Commands](https://css-tricks.com/invoker-commands-additional-ways-to-work-with-dialog-popover-and-more/) -- Detailed API overview (MEDIUM confidence)
+
+### Clipboard API
+- [Can I Use: Clipboard writeText](https://caniuse.com/mdn-api_clipboard_writetext) -- 95.68% global support (HIGH confidence)
+- [MDN: Clipboard.writeText()](https://developer.mozilla.org/en-US/docs/Web/API/Clipboard/writeText) -- API reference and security requirements (HIGH confidence)
+- [web.dev: Copy text](https://web.dev/patterns/clipboard/copy-text) -- Best practices for clipboard access (MEDIUM confidence)
+
+### Syntax Highlighting (Evaluated Alternatives)
+- [highlight.js](https://highlightjs.org/) -- Zero-dependency highlighter, ~20 KB common build (HIGH confidence)
+- [Prism.js](https://prismjs.com/) -- 2 KB core + language plugins (HIGH confidence)
+- [microlight.js](https://asvd.github.io/microlight/) -- 2.2 KB language-agnostic highlighter (MEDIUM confidence)
+- [JSON Syntax Highlighting Gist](https://gist.github.com/faffyman/6183311) -- ~15-line regex-based JSON highlighter (MEDIUM confidence)
+
+### Existing Codebase (Primary Source)
+- `internal/output/templates/report.html` -- Current template with inline JS (authoritative)
+- `internal/output/templates/styles.css` -- Current CSS with CSS custom properties (authoritative)
+- `internal/output/html.go` -- Template data structures and rendering (authoritative)
+
+---
+*Stack research for: ARS v0.0.5 -- Interactive HTML report enhancements (modals, syntax highlighting, clipboard)*
+*Researched: 2026-02-06*

@@ -1,665 +1,346 @@
-# Pitfalls Research: ARS v0.0.3
+# Pitfalls Research: Debug Infrastructure for C7 Agent Evaluation
 
-**Milestone:** v0.0.3 (Claude Code CLI integration, analyzer reorganization, badges, HTML enhancements)
-**Researched:** 2026-02-03
-**Confidence:** MEDIUM-HIGH (verified with official Go docs, shields.io docs, and Claude Code CLI reference)
+**Domain:** Adding debug mode to an existing CLI tool (ARS C7 evaluation)
+**Researched:** 2026-02-06
+**Confidence:** HIGH (grounded in actual codebase analysis of 25+ source files)
 
-This document catalogs pitfalls specific to the v0.0.3 milestone changes:
-1. Replacing direct Anthropic API calls with CLI subprocess invocation
-2. Reorganizing Go package structure mid-project
-3. Generating shields.io badges
-4. Adding interactive HTML elements to static reports
+This document catalogs pitfalls specific to adding debug/diagnostic infrastructure to the ARS CLI tool, with emphasis on the C7 agent evaluation subsystem (M2/M3/M4 scoring investigation).
 
-> **Note:** This document supersedes the previous v2 expansion pitfalls for this milestone.
-> The v2 document remains valid for broader concerns (Tree-sitter parsing, C5 git forensics, etc.).
+> **Supersedes:** Previous v0.0.3 pitfalls document. That document covered CLI subprocess invocation, package reorganization, badges, and HTML reporting -- all now shipped in v0.0.4.
 
 ---
 
 ## Critical Pitfalls
 
-These mistakes can cause rewrites, major delays, or user-facing failures.
+These mistakes can cause broken output, CI failures, or require significant rework.
 
-### 1. Claude CLI JSON Output Schema Instability
+### 1. Debug Output Polluting Structured Output Channels
 
-**Risk:** The Claude Code CLI is under active development. The JSON output format (`--output-format json`) may change between versions, breaking the `parseJSONOutput` function in `internal/agent/executor.go`. The current code assumes a fixed structure:
-```json
-{"type":"result","session_id":"abc123","result":"..."}
-```
+**What goes wrong:**
+Debug information leaks into stdout, corrupting JSON output consumed by downstream tools. ARS has three output modes (terminal, JSON, HTML) and two separate consumers already write to stdout vs stderr:
 
-A [GitHub issue](https://github.com/anthropics/claude-code/issues/9058) confirms that Claude Code cannot guarantee output matches a specific JSON schema. The `--output-format json` returns Claude Code's wrapper structure, with actual data nested inside. Recent changes (November 2025) moved the `output_format` parameter to `output_config.format`.
+- `pipeline.Pipeline.writer` (set to `cmd.OutOrStdout()`) carries all structured output: terminal rendering, JSON, scores
+- `pipeline.Spinner` and `agent.C7Progress` write to `os.Stderr` for progress indicators
+- `discovery.Walker` writes warnings directly to `os.Stderr`
+- `workspace.go` uses `log.Printf` (which defaults to `os.Stderr`)
 
-**Warning signs:**
-- Tests pass locally but fail in CI (different Claude CLI versions)
-- Users report "failed to parse CLI output" errors after updating Claude CLI
-- JSON unmarshal errors with unexpected fields
-- Existing `parseJSONOutput` function returns errors on valid CLI output
+If debug output is routed through `p.writer` (stdout) or through `fmt.Fprintf(w, ...)` in any render function, it will:
+1. Break `--json` output parsing (invalid JSON)
+2. Corrupt piped output (`ars scan . | jq .composite_score`)
+3. Pollute HTML report generation
 
-**Prevention:**
-1. Pin Claude CLI version in documentation and CI (minimum version requirement)
-2. Add version compatibility check: run `claude --version` and compare against known-good versions
-3. Use defensive parsing that ignores unknown fields (Go's `json.Unmarshal` does this by default, but validate expected fields exist)
-4. Add a version-mismatch warning message with upgrade instructions
-5. Wrap JSON parsing with clear error messages including the actual output received (already partially implemented with `preview` in `parseJSONOutput`)
-6. Consider using `--output-format stream-json` with `--include-partial-messages` for more robust streaming, but note this is not backwards-compatible
+**Why it happens:**
+The codebase has no unified logging abstraction. Output goes through four different mechanisms: `io.Writer` parameter, `fmt.Fprintf(os.Stderr, ...)`, `log.Printf()`, and `color.Fprintf(w, ...)`. A developer adding debug statements naturally reaches for `fmt.Fprintf` to the nearest writer, which is often stdout.
 
-**Phase impact:** Phase 1 (CLI integration) - Must establish version checking and defensive parsing from the start.
-
-**Sources:**
-- [Claude Code CLI reference](https://code.claude.com/docs/en/cli-reference)
-- [GitHub Issue: JSON Schema Compliance](https://github.com/anthropics/claude-code/issues/9058)
-- [GitHub Issue: JSON Parse Error on Windows](https://github.com/anthropics/claude-code/issues/14442)
-
----
-
-### 2. Subprocess Timeout Not Killing Child Processes
-
-**Risk:** The current `exec.CommandContext` usage in `internal/agent/executor.go` will kill the Claude CLI process when context times out, but Claude CLI spawns child processes (Node.js workers, language servers) that become orphaned. These zombie processes can:
-- Consume resources indefinitely
-- Hold locks on files in the workspace
-- Prevent cleanup of temporary worktrees
-- Leak entries in the process table
-
-The existing code has partial mitigation:
-```go
-cmd.Cancel = func() error {
-    return cmd.Process.Signal(os.Interrupt)
-}
-cmd.WaitDelay = 10 * time.Second
-```
-
-However, [Go Issue #22485](https://github.com/golang/go/issues/22485) documents that `CommandContext` with timeout does not kill subprocesses - only the direct child is killed.
+**How to avoid:**
+- Route ALL debug output exclusively through stderr. Never write debug output through the `io.Writer` parameter passed to render functions.
+- Create a single `DebugWriter` that wraps `os.Stderr` and is gated by a flag. All debug output flows through this one channel.
+- Verify the separation with a test: run `ars scan --json --debug <dir> 2>/dev/null` and confirm the output is valid JSON. Run `ars scan --json --debug <dir> 2>&1 1>/dev/null` and confirm only debug lines appear.
 
 **Warning signs:**
-- Increasing memory/CPU usage over time when running C7 repeatedly
-- "directory not empty" errors during worktree cleanup
-- Orphaned `node` or `claude` processes visible in `ps aux`
-- Tests hanging in CI after timeout
-- `(*Cmd).Wait` blocks forever waiting for orphaned grandchildren
+- Any `fmt.Fprintf(w, ...)` call in new code where `w` is the pipeline writer
+- Debug output appearing in `--json` mode output
+- CI pipeline JSON parsing failures after enabling debug mode
+- HTML reports containing `[DEBUG]` lines in rendered text
 
-**Prevention:**
-1. Use process groups (PGID) to kill entire process tree on timeout:
-   ```go
-   import "syscall"
-
-   cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-   // On timeout: syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
-   ```
-2. Add a cleanup function that explicitly hunts orphaned Claude processes
-3. Consider running Claude CLI in a container/sandbox for full isolation
-4. Add integration tests that verify no orphaned processes after timeout
-5. Document that Docker/container environments need `dumb-init` or similar on PID 1 to reap zombies
-6. Use `WaitDelay` > 0 to avoid blocking forever on orphaned subprocess I/O pipes
-
-**Phase impact:** Phase 1 (CLI integration) - Process management must be robust before expanding CLI usage to C4.
-
-**Sources:**
-- [Go Issue #22485: CommandContext with timeout with multiple subprocesses isn't canceled](https://github.com/golang/go/issues/22485)
-- [Killing a process and all of its descendants in Go](https://sigmoid.at/post/2023/08/kill_process_descendants_golang/)
-- [Go exec package documentation](https://pkg.go.dev/os/exec) - WaitDelay field documentation
+**Phase to address:** Phase 1 (foundation) -- establish the debug output channel before writing any debug content.
 
 ---
 
-### 3. Import Path Breakage During Analyzer Reorganization
+### 2. Debug Flags Causing Performance Regression in Normal Mode
 
-**Risk:** The `internal/analyzer/` directory has 33 files with cross-dependencies. Reorganizing into subdirectories (e.g., `internal/analyzer/go/`, `internal/analyzer/python/`) will break:
-- All internal imports across the codebase (90+ Go files)
-- The `pipeline/` package which imports analyzers
-- Test files that import analyzer types
-- The `cmd/scan.go` which wires up analyzers
+**What goes wrong:**
+Debug infrastructure adds overhead even when debug mode is disabled. In ARS, the C7 evaluation already takes 120+ seconds with 5 metrics running in parallel (`RunMetricsParallel` in `parallel.go`). Each metric makes 3-5 Claude CLI subprocess calls. Poorly implemented debug hooks add latency on every call:
 
-Go modules do not have a built-in tool for batch import path updates. The `gopls` and `goimports` tools help but are not atomic. Manual changes across 90+ files are error-prone.
+- String formatting of debug messages that are never printed (Go still evaluates `fmt.Sprintf` arguments)
+- Mutex contention from debug state tracking in the hot path of `C7Progress` (already has `sync.Mutex`)
+- File I/O for debug log writing on every sample evaluation in `M2Comprehension.Execute()`
+- Capturing and storing full CLI responses (which can be large) even when not debugging
 
-Current import structure at risk:
-```go
-import "github.com/ingo/agent-readyness/internal/analyzer"
-```
+**Why it happens:**
+The natural approach is to add `if debug { log(...) }` everywhere. But the arguments to `log()` are evaluated before the `if` check in Go. And accumulating debug data (storing full responses, timing breakdowns) costs memory and CPU even when gated behind a flag, because the data structures exist and are allocated.
+
+**How to avoid:**
+- Use a `DebugLogger` interface with a no-op implementation for production. The no-op implementation should have zero allocations -- not even format string arguments should be evaluated.
+- Avoid storing debug data in hot-path structs (`MetricResult`, `SampleResult`). Instead, emit debug events through a channel or callback that is nil-checked before invocation.
+- Benchmark before and after: `go test -bench=. -benchmem ./internal/agent/...` with debug disabled must show zero regression.
+- For the C7 parallel execution path specifically: debug logging must not introduce serialization points. The `errgroup.Group` in `RunMetricsParallel` runs 5 goroutines concurrently. Debug writes must be non-blocking (use buffered channel or separate goroutine for writes).
 
 **Warning signs:**
-- "package X is not in GOROOT" or "cannot find package" errors after moving files
-- Circular import errors introduced by incorrect reorganization
-- Tests fail to compile after reorganization
-- `go build ./...` fails with import path errors
+- C7 evaluation time increases by more than 2% with debug mode OFF
+- `go test -benchmem` shows new allocations in the metric execution hot path
+- Lock contention visible in `go test -race` output (new mutex for debug state)
+- CI timeout for C7 evaluation increases
 
-**Prevention:**
-1. Create the reorganization plan BEFORE moving any files:
-   - Map every import relationship (`go list -m -json all`)
-   - Identify which types need to be in a shared package
-   - Check for circular dependency risks
-2. Keep shared interfaces/types in `internal/analyzer/analyzer.go` or `internal/analyzer/types.go`
-3. Move files atomically in a single commit with all import updates
-4. Use `gopls rename` or IDE refactoring tools with care
-5. Run `go build ./...` and `go test ./...` after each logical move
-6. Keep the `pipeline.Analyzer` interface in `pipeline/` to avoid circular imports
-7. Consider a flat structure with naming conventions instead of subdirectories (e.g., `c1_go.go`, `c1_python.go` - which already exists!)
-
-**Alternative approach:** The existing naming convention (`c1_python.go`, `c1_typescript.go`) already provides language separation without import path changes. Consider keeping this flat structure and using only naming conventions.
-
-**Phase impact:** Phase 2 (code reorganization) - This is the highest-risk phase. Plan extensively before executing.
-
-**Sources:**
-- [Go modules documentation](https://go.dev/ref/mod)
-- Current codebase structure analysis
+**Phase to address:** Phase 1 (foundation) -- the debug logger interface must be zero-cost when disabled, established before any debug instrumentation is added.
 
 ---
 
-### 4. Removing Anthropic SDK Breaks C4 LLM Analysis
+### 3. Debug Mode Breaking in CI/Non-Interactive Environments
 
-**Risk:** The milestone states "REMOVING direct Anthropic SDK, switching to Claude Code CLI." However, C4 (documentation quality) in `internal/llm/client.go` uses the Anthropic SDK with features the CLI does not expose:
-- **Prompt caching:** `CacheControl: anthropic.NewCacheControlEphemeralParam()` for 90% cost reduction
-- **Token tracking:** `message.Usage.InputTokens`, `message.Usage.OutputTokens`
-- **Retry logic:** Custom exponential backoff with `isRetryableError()`
-- **Model selection:** `anthropic.ModelClaudeHaiku4_5` for cost-effective evaluation
+**What goes wrong:**
+Debug features that rely on TTY capabilities fail or produce garbage in CI pipelines. The existing codebase already handles this carefully:
 
-Claude Code CLI does not expose:
-- Prompt caching control (no equivalent flag)
-- Token usage statistics (not in JSON output)
-- Fine-grained retry behavior (CLI handles internally but not configurable)
-- Haiku model selection (CLI uses Sonnet by default, `--model` accepts limited options)
+- `C7Progress` checks `isatty.IsTerminal(w.Fd())` and skips rendering in non-TTY mode
+- `Spinner` does the same check and becomes a no-op
+- ANSI color codes are automatically suppressed by `fatih/color` when stdout is not a TTY
 
-Naively replacing SDK calls with CLI invocations will:
-- **Increase costs significantly** (no prompt caching = 10x more expensive for repeated evaluations)
-- **Lose cost tracking accuracy** (`metrics.LLMTokensUsed` and `metrics.LLMCostUSD` become estimates)
-- **Change error handling behavior** (429s handled differently)
-- **Lose model flexibility** (can't use Haiku for bulk evaluation)
+But debug mode introduces new TTY-dependent behaviors:
+1. ANSI escape codes in debug output (colors, cursor movement) produce raw escape sequences in CI logs
+2. Carriage return (`\r`) for progress overwriting creates garbled multi-line output in non-TTY mode
+3. Debug output width assumptions (the existing `%-130s` padding in `C7Progress.render()`) produce excessive whitespace in log files
+4. Interactive prompts or confirmations in debug mode block forever in CI
+
+**Why it happens:**
+Developers test debug mode locally in terminals where ANSI codes render correctly. CI environments (GitHub Actions, Jenkins, etc.) capture output as plain text. The `isatty` check that protects `Spinner` and `C7Progress` is not automatically inherited by new debug code.
+
+**How to avoid:**
+- The debug writer must detect non-TTY and strip ANSI codes automatically. Use the same `isatty` pattern already established in `progress.go` line 67: `isatty.IsTerminal(w.Fd()) || isatty.IsCygwinTerminal(w.Fd())`.
+- Debug output format must be plain text with line-based output (no `\r`, no cursor movement). Each debug line must be a complete, self-contained message ending with `\n`.
+- Never use interactive features (prompts, pagers) in debug mode. Debug mode is observe-only.
+- Add a CI test that runs `ars scan --enable-c7 --debug <dir>` in a non-TTY environment and verifies the output contains expected debug markers without ANSI artifacts.
 
 **Warning signs:**
-- C4 LLM costs increase 5-10x after migration
-- `metrics.LLMTokensUsed` and `metrics.LLMCostUSD` become zero or inaccurate
-- Rate limiting errors without proper backoff
-- C4 evaluations become noticeably slower
+- Debug output contains `\033[` or `\r` escape sequences when piped to a file
+- CI logs show garbled or overlapping lines when debug mode is enabled
+- Debug output width exceeds 200 characters per line (CI log viewers truncate)
+- Test `go test` output contains ANSI escape codes in debug assertions
 
-**Prevention:**
-1. **DECISION POINT: Should C4 keep using SDK for evaluation?**
-   - Option A: Keep SDK for C4 (cost-sensitive, many small calls), use CLI only for C7 (agent evaluation)
-   - Option B: Accept higher costs and reduced observability with CLI
-   - Option C: Use CLI with `--max-budget-usd` flag for cost control
-2. If keeping SDK for C4: document that `ANTHROPIC_API_KEY` is still required for `--enable-c4-llm`
-3. If migrating C4 to CLI:
-   - Implement token estimation based on input size (already exists in `c4_documentation.go`: `estimateTokens`)
-   - Use `--fallback-model` flag for rate limit resilience
-   - Remove prompt caching expectations from cost estimates
-   - Use `--max-budget-usd` to prevent cost overruns
-4. Document the cost implications clearly for users enabling `--enable-c4-llm`
-
-**Phase impact:** Phase 1 - Decide SDK vs CLI strategy before implementation. This affects architecture.
-
-**Sources:**
-- Current `internal/llm/client.go` implementation
-- Current `internal/analyzer/c4_documentation.go` LLM integration
-- [Claude Code CLI flags documentation](https://code.claude.com/docs/en/cli-reference)
+**Phase to address:** Phase 1 (foundation) -- non-TTY behavior must be a design constraint for the debug writer, not an afterthought.
 
 ---
 
-## Moderate Pitfalls
+### 4. Test Fixtures Diverging from Real Claude CLI Responses
 
-These mistakes cause delays or technical debt but are recoverable.
+**What goes wrong:**
+The C7 evaluation chain has three layers of response parsing, each with test fixtures:
 
-### 5. Shields.io Badge Network Dependency
+1. `executor.go` `parseJSONOutput()` -- parses `{"type":"result","session_id":"...","result":"..."}`
+2. `evaluator.go` `EvaluateContent()` -- parses `{"session_id":"...","result":"...","structured_output":{...}}`
+3. `metrics/m2_comprehension.go` `scoreComprehensionResponse()` -- heuristic scoring of free-text responses
 
-**Risk:** Generating badges using `https://img.shields.io/badge/...` URLs requires network access at report viewing time. This fails for:
-- Air-gapped environments
-- Offline documentation viewing
-- Badge CDN outages (shields.io processes 1.6B images/month - outages happen)
-- Corporate firewalls blocking external resources
+Test fixtures for these parsers (see `executor_test.go` lines 200-253) use hardcoded JSON strings. When the Claude CLI evolves (it has already changed `output_format` to `output_config.format` in late 2025), the test fixtures pass but production parsing breaks because:
+
+- Fixtures are static snapshots of a previous CLI version
+- No automated check compares fixture format against the current Claude CLI response format
+- The `CombinedOutput()` call in `executor.go` line 80 captures both stdout and stderr from the CLI subprocess -- if the CLI starts writing warnings to stderr, they pollute the JSON response and fixtures do not reflect this
+
+For the debug feature specifically: debug mode needs to capture and display these raw CLI responses. If the fixture responses in debug-mode tests differ from real CLI responses, the debug output will be misleading -- showing "expected" data that never actually occurs in production.
+
+**Why it happens:**
+Testing against a real Claude CLI is slow (120s+), expensive ($0.15+ per run), and non-deterministic. So developers write unit tests with static fixtures. Over time, the real response format drifts while fixtures remain frozen. The heuristic scorers in M2/M3/M4 (`scoreComprehensionResponse`, `scoreNavigationResponse`, `scoreIdentifierResponse`) are already tested against synthetic responses (see `metric_test.go` lines 329-487), not real agent output.
+
+**How to avoid:**
+- Record real CLI responses during manual testing and use them as "golden" fixtures. Tag each fixture with the Claude CLI version and date it was captured.
+- Create a `testdata/cli-responses/` directory with versioned response files. Debug-mode tests should use the same fixture files as parsing tests.
+- Add a CI job (weekly or on-demand) that runs one real CLI call and compares the response structure against the fixture schema. This is a contract test, not a functional test.
+- In debug mode, when displaying raw responses, always show the actual response alongside the parsed result. This makes fixture drift visible immediately when a developer uses debug mode on a real project.
 
 **Warning signs:**
-- Broken badge images in HTML reports opened offline
-- Badge loading delays in slow network environments
-- Users complaining about network requests from "local" HTML reports
-- Security reviews flagging external resource dependencies
+- `parseJSONOutput` tests pass but `--enable-c7` fails on real projects with JSON parse errors
+- Debug mode shows response structures that don't match what users see in raw CLI output
+- Heuristic scorer tests pass with synthetic responses but produce unexpected scores on real code
+- New fields appear in real CLI responses that are silently dropped by the parser
 
-**Prevention:**
-1. Use `badge-maker` npm package to generate SVG badges locally at report generation time:
-   ```javascript
-   const { makeBadge } = require('badge-maker');
-   const svg = makeBadge({
-     label: 'ARS Score',
-     message: '7.5',
-     color: 'brightgreen'
-   });
-   ```
-2. Since ARS is a Go tool, either:
-   - Embed a pre-built badge template SVG and parameterize it in Go
-   - Use `go:embed` to include a small badge-generation library
-   - Generate SVG strings directly in Go (SVG is just XML)
-3. Embed SVG directly in HTML rather than using `<img src="...">` URLs
-4. If using external URLs, provide a fallback `alt` text that shows the score
-5. Consider offering both modes: `--badge-mode=embedded` (default) vs `--badge-mode=shields.io`
-
-**Phase impact:** Phase 3 (badge generation) - Design for offline-first from the start.
-
-**Sources:**
-- [shields.io GitHub](https://github.com/badges/shields)
-- [badge-maker npm package](https://github.com/badges/shields/tree/master/badge-maker)
-- [Common Mistakes When Using Shields.io Badges](https://infinitejs.com/posts/common-mistakes-shields-io-badges/)
+**Phase to address:** Phase 2 (instrumentation) -- when adding debug capture of raw responses, simultaneously update test fixtures from real captured data.
 
 ---
 
-### 6. SVG Badge ID Collision in HTML Reports
+### 5. Over-Engineering Debug Infrastructure Beyond the Investigation Need
 
-**Risk:** When embedding multiple SVG badges inline in the same HTML document, element IDs can collide. SVG gradients, filters, and clip paths use IDs internally. Multiple badges will have:
-- `id="g"` for gradients
-- `id="s"` for shadows
-- CSS cross-contamination between badges
+**What goes wrong:**
+The debug mode is being added to investigate a specific bug: M2/M3/M4 scoring anomalies. But "debug infrastructure" naturally expands into:
 
-This causes badges to display incorrectly - wrong colors, missing elements, or visual artifacts.
+- Structured logging framework with configurable levels (DEBUG, TRACE, INFO)
+- Debug output formatting system with templates
+- Debug data persistence (writing to files, databases)
+- Debug UI (web dashboard for viewing debug data)
+- Configuration file for debug settings
+- Per-metric debug toggles
+- Debug data aggregation and analytics
+
+This scope expansion delays the actual investigation. The M2/M3/M4 bug may have a simple root cause (e.g., the heuristic scorers in `scoreComprehensionResponse` have threshold issues), but a 2-week debug infrastructure project obscures a 2-hour fix.
+
+**Why it happens:**
+Debug infrastructure feels like "investment" rather than "overhead." Developers think "while we're adding debug mode, we should also..." But ARS is a CLI tool with a specific evaluation pipeline, not a distributed system that needs production observability. The existing `--verbose` flag already provides expanded output for all categories.
+
+**How to avoid:**
+- Define the debug mode scope explicitly: "Show raw CLI prompts, raw CLI responses, sample selection details, and heuristic scoring breakdowns for C7 metrics." Nothing more.
+- Set a time box: if the debug infrastructure takes more than 1 phase to implement, it is over-engineered.
+- Ask "does this help investigate M2/M3/M4 scoring?" for every proposed debug feature. If the answer is "no, but it would be nice for future debugging," defer it.
+- Do not introduce a logging framework. Use `fmt.Fprintf(debugWriter, "[DEBUG] ...")` directly. A logging framework is warranted only if debug mode is used by end users in production, which is not the case here.
 
 **Warning signs:**
-- Badges display with wrong colors
-- Some badges appear invisible or clipped incorrectly
-- Browser console shows "duplicate ID" warnings
-- Second badge always looks like the first badge
+- Debug mode implementation requires changes to more than 5 files
+- A configuration system is being built for debug settings
+- Debug output has more than 3 verbosity levels
+- Debug infrastructure takes longer to build than the investigation it enables
+- Someone proposes storing debug data for later analysis (file persistence)
 
-**Prevention:**
-1. If using badge-maker, use the `idSuffix` parameter to ensure unique IDs per badge:
-   ```javascript
-   makeBadge({ ..., idSuffix: 'c1-score' })
-   ```
-2. If generating SVG in Go, post-process to add unique prefixes to all IDs:
-   ```go
-   svg = strings.ReplaceAll(svg, `id="`, fmt.Sprintf(`id="%s-`, uniqueID))
-   svg = strings.ReplaceAll(svg, `url(#`, fmt.Sprintf(`url(#%s-`, uniqueID))
-   ```
-3. Test HTML reports with ALL 7 category badges visible simultaneously
-4. Use CSS `isolation: isolate` on badge containers as defense-in-depth
-5. Consider using flat-style badges (no gradients) which have fewer ID-dependent elements
-
-**Phase impact:** Phase 3 (badge generation) - Must implement ID uniqueness from the start.
-
-**Sources:**
-- [badge-maker documentation](https://github.com/badges/shields/tree/master/badge-maker) - idSuffix parameter
+**Phase to address:** Phase 0 (requirements) -- scope must be locked before implementation begins. The requirements document should list exactly what debug mode shows and explicitly state what it does not show.
 
 ---
 
-### 7. Inline JavaScript Breaks Content Security Policy
+### 6. Debug State Leaking Between Concurrent Metric Executions
 
-**Risk:** Adding interactive elements to HTML reports (collapsible sections, charts, sorting tables) requires JavaScript. The current HTML report uses inline CSS (`template.CSS`) which works. But inline JavaScript (`<script>` blocks or `onclick` handlers) may be blocked by:
-- Browser CSP defaults for `file://` URLs
-- Corporate proxy CSP headers
-- User browser extensions (NoScript, uBlock Origin)
-- Email clients blocking scripts in attachments
+**What goes wrong:**
+C7 runs 5 metrics in parallel via `errgroup.Group` in `RunMetricsParallel` (`parallel.go`). Each metric goroutine calls `SelectSamples()` then `Execute()`, which makes multiple Claude CLI calls. If debug state is stored in shared structures, concurrent goroutines corrupt each other's debug context:
+
+- Metric M2's debug output shows M3's prompt because a shared debug buffer was overwritten
+- Debug timestamps are interleaved, making it impossible to trace a single metric's execution flow
+- Sample selection debug info for M4 appears under M1's heading because the debug context was not goroutine-local
+
+The existing `C7Progress` struct handles this correctly with a mutex and per-metric status (`metrics map[string]*MetricProgress`). But debug output is more verbose and higher-frequency than progress updates. A mutex around every debug log line would serialize the parallel execution, defeating the purpose.
+
+**Why it happens:**
+Adding debug logging to the metric execution path seems simple: `debug("M2: sending prompt: %s", prompt)`. But `debug()` writes to a shared writer. Without per-goroutine buffering, the output interleaves. With per-goroutine buffering, the output loses real-time visibility. This is the classic concurrent logging problem.
+
+**How to avoid:**
+- Prefix every debug line with the metric ID: `[M2] [sample 2/3] Sending prompt...`. This makes interleaved output readable without requiring serialization.
+- Use a `sync.Mutex`-protected writer for debug output (acceptable for debug mode since performance is secondary). The mutex is only held during the `Write()` call, not during format string evaluation.
+- Do NOT store debug state on the `Metric` interface implementations (`M2Comprehension`, etc.). They are shared singletons created in `registry.go`. Pass debug context through `Execute()` parameters or use a per-invocation callback.
+- Buffer each metric's debug output independently and flush in order after all metrics complete. This gives clean, per-metric output at the cost of delayed display. Offer both modes: `--debug` for buffered/clean output, `--debug-live` for real-time interleaved output (if needed at all).
 
 **Warning signs:**
-- Interactive features work locally but fail when report is shared
-- Browser console shows "Refused to execute inline script because it violates the following Content Security Policy directive"
-- Features work in Chrome but not Firefox/Safari/Edge
-- Reports work in browser but not in email/Slack previews
+- Debug output for one metric contains prompts or responses from a different metric
+- Debug output has inconsistent metric ID prefixes within a single line
+- Race detector (`go test -race`) reports data races on debug state
+- Debug output lines are truncated or garbled (concurrent writes without synchronization)
 
-**Prevention:**
-1. **Progressive enhancement:** HTML reports must be useful without JavaScript
-   - Tables should be readable without sorting
-   - All content should be visible without collapsing
-   - Scores and recommendations should be clear in static HTML
-2. **CSS-only alternatives:**
-   - Use `<details>/<summary>` for collapsible sections (native HTML5, no JS)
-   - Use CSS `:target` for navigation
-   - Use `<input type="checkbox">` + CSS for toggles
-3. **If JavaScript is necessary:**
-   - Put all JavaScript in external files and reference via `<script src>`
-   - Use nonce-based CSP and include the meta tag:
-     ```html
-     <meta http-equiv="Content-Security-Policy" content="script-src 'nonce-{random}'">
-     ```
-   - Use hash-based allowlisting for specific script blocks
-4. Test reports in "strict CSP" browser configurations
-5. Test reports opened from `file://` URLs
-
-**Phase impact:** Phase 4 (HTML enhancements) - Design interactive features with CSP compatibility in mind.
-
-**Sources:**
-- [MDN Content Security Policy](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/CSP)
-- [OWASP CSP Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Content_Security_Policy_Cheat_Sheet.html)
-- [web.dev: Strict CSP](https://web.dev/articles/strict-csp)
+**Phase to address:** Phase 1 (foundation) -- the debug writer must handle concurrent writes correctly from day one, since C7 is inherently parallel.
 
 ---
 
-### 8. Self-Contained HTML Grows Too Large
+### 7. Debug Flag Proliferation Cluttering the CLI Interface
 
-**Risk:** The HTML report is designed to be self-contained (embedded CSS, embedded charts via `embed.FS`). Adding:
-- Inline SVG badges (7 badges x ~2KB = 14KB)
-- Interactive JavaScript libraries
-- More detailed category breakdowns
-- Per-file metric tables
+**What goes wrong:**
+ARS already has 8 flags on the `scan` command: `--config`, `--threshold`, `--json`, `--no-llm`, `--enable-c7`, `--output-html`, `--baseline`, `--badge`. Plus the global `--verbose` flag. Adding debug flags expands this:
 
-Could push the HTML file from ~50KB to 500KB+, causing:
-- Slow loading from disk
-- Email attachment size limits exceeded (10MB is common limit)
-- Memory pressure when generating reports
-- Browser performance issues rendering large DOM
+- `--debug` (enable debug mode)
+- `--debug-c7` (debug only C7)
+- `--debug-metric M2` (debug specific metric)
+- `--debug-output /path/to/file` (write debug to file)
+- `--debug-level trace` (debug verbosity)
+
+This clutters the CLI, confuses users, and creates a combinatorial testing matrix (`--debug --json`, `--debug --output-html`, `--debug --verbose`, etc.).
+
+**Why it happens:**
+Each debug capability feels like it needs its own flag. "What if the user only wants to debug M2?" "What if they want debug output in a file?" These are legitimate needs, but individual flags for each are the wrong abstraction.
+
+**How to avoid:**
+- Add exactly ONE flag: `--debug`. No sub-flags, no verbosity levels, no per-metric toggles.
+- If per-metric filtering is needed, use an environment variable: `ARS_DEBUG_METRICS=M2,M3`. Environment variables are appropriate for developer-facing debug settings that should not be part of the public CLI contract.
+- Debug output always goes to stderr. If the user wants it in a file: `ars scan --enable-c7 --debug . 2>debug.log`. Shell redirection is more flexible than a `--debug-output` flag.
+- Test the combinatorial interactions: `--debug` must work correctly with every existing flag combination. At minimum: `--debug --json`, `--debug --output-html`, `--debug --verbose`, `--debug --no-llm`.
 
 **Warning signs:**
-- HTML report generation becomes slow (>1 second)
-- Reports fail to attach to emails
-- Memory usage spikes during report generation
-- Browser tab becomes sluggish when viewing report
-- `html.go` template execution takes noticeable time
+- More than one new flag added for debug functionality
+- Debug flag documentation is longer than the feature documentation
+- Test matrix grows by more than 4 test cases for flag interactions
+- Users ask "what's the difference between `--verbose` and `--debug`?"
 
-**Prevention:**
-1. **Set a budget:** HTML reports should stay under 200KB
-2. Minify embedded CSS/JS (the current `styles.css` is already embedded via `embed.FS`)
-3. Use SVG optimization on badges (remove metadata, minimize paths)
-4. Consider lazy-loading detail sections via CSS `content-visibility: auto`
-5. Offer a "compact" mode without verbose details
-6. **Track report size in tests:**
-   ```go
-   func TestHTMLReportSize(t *testing.T) {
-       var buf bytes.Buffer
-       generator.GenerateReport(&buf, scored, recs, nil)
-       if buf.Len() > 200*1024 {
-           t.Errorf("HTML report too large: %d bytes", buf.Len())
-       }
-   }
-   ```
-7. For very large repos, consider pagination or summary-only mode
-
-**Phase impact:** Phase 4 (HTML enhancements) - Monitor report size throughout development.
+**Phase to address:** Phase 0 (requirements) -- the flag design must be decided before implementation. Phase 2 (integration) -- test flag interactions.
 
 ---
 
-### 9. Inconsistent CLI Flag Parsing Between Claude CLI Versions
+## Technical Debt Patterns
 
-**Risk:** Different Claude CLI versions may:
-- Add new flags (breaking position-based argument parsing)
-- Remove deprecated flags
-- Change flag behavior silently
-- Change short-flag mappings
+Shortcuts that seem reasonable but create long-term problems.
 
-The current `executor.go` constructs commands as:
-```go
-args := []string{
-    "-p", task.Prompt,
-    "--output-format", "json",
-}
-if task.ToolsAllowed != "" {
-    args = append(args, "--allowedTools", task.ToolsAllowed)
-}
-```
+| Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
+|----------|-------------------|----------------|-----------------|
+| Using `fmt.Println` for debug output instead of a debug writer | Fast to implement, no new abstractions | Cannot be disabled without removing code; pollutes stdout | Never -- even a one-line `debugf()` wrapper is worth it |
+| Storing debug data in existing `MetricResult` struct | No new types needed | Bloats the struct for all users; breaks JSON serialization; shipped in non-debug builds | Never -- debug data should be separate from result data |
+| Skipping non-TTY testing for debug output | Saves 30 minutes of test writing | Debug mode breaks every CI pipeline that enables it | Never -- CI is a primary use environment for ARS |
+| Adding debug logging inside `scoreComprehensionResponse` heuristic directly | Directly instruments the suspected bug location | Tightly couples debug infrastructure to one scoring implementation; cannot reuse for M3/M4 | Acceptable for quick investigation only; must be replaced with callback pattern before merge |
+| Using `log.Printf` for debug output (matching `workspace.go` pattern) | Consistent with existing code | `log.Printf` cannot be easily captured in tests, has no gating mechanism, always writes to stderr | Acceptable as interim step in Phase 1 only if wrapped |
 
-The `-p` flag is short for `--print` but short flags can be ambiguous if new flags are added.
+## Integration Gotchas
 
-**Warning signs:**
-- "unknown flag" errors after user updates Claude CLI
-- Arguments interpreted incorrectly (prompt treated as flag value)
-- Silent behavioral changes in agent evaluation
-- Different behavior between macOS and Linux Claude CLI
+Common mistakes when connecting debug mode to existing ARS subsystems.
 
-**Prevention:**
-1. Always use long-form flags (`--print` not `-p`) for clarity and stability
-2. Quote prompt arguments to handle special characters
-3. Test against minimum supported Claude CLI version in CI
-4. Add runtime version detection:
-   ```go
-   func CheckClaudeCLIVersion() (string, error) {
-       out, err := exec.Command("claude", "--version").Output()
-       // Parse and validate version
-   }
-   ```
-5. Warn if version is unsupported or untested
-6. Handle flag deprecation warnings in stderr parsing
+| Integration | Common Mistake | Correct Approach |
+|-------------|----------------|------------------|
+| JSON output (`--json`) | Debug output interleaved with JSON, producing invalid output | Debug writes exclusively to stderr; JSON output is only on stdout; validate with `jq` in tests |
+| HTML report (`--output-html`) | Debug lines captured in HTML report template data | Debug output never flows through `io.Writer` parameter; HTML generator receives only result data |
+| Verbose mode (`--verbose`) | Confusing overlap: both `--verbose` and `--debug` show "more info" | Clear separation: `--verbose` shows expanded results (per-metric scores, per-file details); `--debug` shows execution internals (prompts, raw responses, timing) |
+| C7 Progress display | Debug output and progress spinner fight for stderr cursor position | Debug mode disables the interactive progress spinner (`C7Progress`); shows line-by-line progress instead (one line per event, no `\r` overwriting) |
+| Spinner (`pipeline.Spinner`) | Spinner animation interleaves with debug output | Stop spinner before debug output begins, or disable spinner entirely when `--debug` is active |
+| Color output (`fatih/color`) | Debug output uses colors that are unreadable in some terminals or garbled in CI | Debug output is always plain text, no color. Prefix with `[DEBUG]` for grep-ability instead |
 
-**Phase impact:** Phase 1 - Establish version checking and flag best practices early.
+## Performance Traps
 
-**Sources:**
-- [Claude Code CLI reference](https://code.claude.com/docs/en/cli-reference) - flag documentation
+Patterns that work during testing but degrade production performance.
 
----
+| Trap | Symptoms | Prevention | When It Breaks |
+|------|----------|------------|----------------|
+| Formatting debug strings unconditionally | 5-10% CPU overhead from `fmt.Sprintf` on every metric sample call, even with debug off | Use closure-based debug: `debugf(func() string { return fmt.Sprintf(...) })` -- closure is only evaluated when debug is on | At 5 metrics x 3 samples x 2 CLI calls each = 30 format operations per scan |
+| Capturing full CLI responses in memory for debug | Memory usage spikes by 50-100MB for large project scans | Only capture responses when debug mode is active; truncate to first 2000 chars for display | When scanning large monorepos with many files |
+| Synchronizing debug writes with mutex in parallel metric execution | C7 evaluation time increases 10-30% due to lock contention | Use per-goroutine buffering with a final flush, or accept interleaved output with metric ID prefixes | When 5 metrics run concurrently (always, in production C7 mode) |
+| Debug mode enabling additional CLI calls (e.g., re-running failed samples) | Doubles API cost and evaluation time | Debug mode must be observe-only: capture what happens, never add extra actions | Always -- debug mode must not change behavior |
 
-## Minor Pitfalls
+## UX Pitfalls
 
-These cause annoyance but are easily fixable.
+Common user experience mistakes when adding debug features to CLI tools.
 
-### 10. Badge Color Inconsistency Across Themes
+| Pitfall | User Impact | Better Approach |
+|---------|-------------|-----------------|
+| Debug output is an undifferentiated wall of text | Users cannot find the information they need; give up on debug mode | Structure debug output with clear sections: `=== M2: Code Behavior Comprehension ===`, then indented subsections for each sample |
+| Debug output does not include enough context to reproduce the issue | User sees "score: 3" but does not know what prompt produced it or what response was scored | Every debug block must include: (1) the prompt sent, (2) the raw response received, (3) the scoring breakdown, (4) the final score |
+| Debug mode changes scoring behavior | Users think debug mode reveals the bug, but actually debug mode causes different behavior (different timeouts, sequential vs parallel execution) | Debug mode must execute the exact same code path as normal mode. It only adds observation, never modifies execution |
+| No clear relationship between `--verbose` and `--debug` | Users do not know which flag to use | Document in `--help`: "`--verbose` shows detailed results; `--debug` shows execution internals for troubleshooting" |
+| Debug output has no machine-parseable structure | Users cannot pipe debug output to analysis tools | Use consistent prefix format: `[DEBUG] [M2] [sample:1/3] [phase:prompt] <message>` -- parseable with grep/awk |
 
-**Risk:** Badge colors that look good on light backgrounds may be invisible or hard to read on dark backgrounds (GitHub dark mode, VS Code dark theme, terminal dark themes). Default shields.io colors like `brightgreen` (#4c1) have fixed hex values that don't adapt.
+## "Looks Done But Isn't" Checklist
 
-**Warning signs:**
-- Users report badges are hard to read on dark mode
-- Screenshots show badges with poor contrast
-- Accessibility tools flag contrast issues (WCAG violations)
-- Badge text disappears against certain backgrounds
+Things that appear complete but are missing critical pieces.
 
-**Prevention:**
-1. Test badge visibility on both light and dark backgrounds
-2. Use colors with sufficient contrast ratio (WCAG 2.1 AA requires 4.5:1):
-   - Avoid light colors on potentially light backgrounds
-   - Consider dual-tone badges with contrasting label/message
-3. Test with color blindness simulators (deuteranopia affects red-green perception)
-4. Provide `alt` text with numeric score for screen readers
-5. Consider using badge styles that work universally:
-   - `flat-square` style has better contrast than `plastic`
-   - Avoid very light message backgrounds
+- [ ] **Debug flag added:** Often missing interaction test with `--json` mode -- verify JSON output is still valid with `jq` when `--debug` is active
+- [ ] **Debug output for prompts:** Often missing the system prompt -- only shows the user prompt, but the system prompt (rubric in `scorer.go`) is equally important for debugging scoring issues
+- [ ] **Debug output for scoring:** Often missing the heuristic breakdown -- shows final score but not which positive/negative indicators fired in `scoreComprehensionResponse` (the 13 positive and 7 negative indicators)
+- [ ] **Non-TTY testing:** Often missing -- verify debug output works when `os.Stderr` is not a terminal (pipe to file, run in Docker, run in GitHub Actions)
+- [ ] **Debug mode with `--enable-c7` disabled:** Often missing edge case -- what happens when someone passes `--debug` without `--enable-c7`? Should show "C7 not enabled, debug mode has nothing to show" rather than silently doing nothing
+- [ ] **Debug mode with `--no-llm`:** Often missing -- if LLM is disabled, C7 returns `Available: false`. Debug mode should explain WHY it is unavailable, not just silently skip
+- [ ] **Sample selection debugging:** Often missing -- shows which samples were evaluated but not which files were considered and rejected, making it impossible to debug "wrong file was picked for M2"
 
-**Phase impact:** Phase 3 - Test badge visibility across environments.
+## Recovery Strategies
 
----
+When pitfalls occur despite prevention, how to recover.
 
-### 11. Worktree Cleanup Race Condition
+| Pitfall | Recovery Cost | Recovery Steps |
+|---------|---------------|----------------|
+| Debug output polluting JSON | LOW | Move all debug `fmt.Fprintf` calls from `w` to `os.Stderr`; add `--json` + `--debug` integration test |
+| Performance regression with debug off | LOW | Profile with `go tool pprof`; replace `fmt.Sprintf` with closure-based debug; verify with benchmark |
+| CI/non-TTY breakage | LOW | Add `isatty` check to debug writer; strip ANSI codes; add non-TTY test |
+| Fixture drift from real responses | MEDIUM | Record new fixtures from real CLI run; update all tests; add weekly contract test CI job |
+| Over-engineered debug system | MEDIUM | Delete the framework; replace with `fmt.Fprintf(debugW, "[DEBUG] [%s] %s\n", metricID, msg)` directly in the 5 metric files |
+| Concurrent debug state corruption | LOW | Add metric ID prefix to all debug lines; wrap debug writer with `sync.Mutex`; run `go test -race` |
+| Flag proliferation | LOW-MEDIUM | Remove extra flags; consolidate to single `--debug`; move developer settings to environment variables |
 
-**Risk:** The `CreateWorkspace` function in `internal/agent/workspace.go` creates a git worktree and returns a cleanup function. If cleanup races with the executor (e.g., executor still writing files when cleanup starts), files may be left behind or cleanup may fail with "directory not empty."
+## Pitfall-to-Phase Mapping
 
-The current test shows this is already a known edge case:
-```go
-// TestCreateWorkspace_WithGitRepo
-if workDir != repoRoot {
-    if _, err := os.Stat(workDir); !os.IsNotExist(err) {
-        t.Errorf("worktree dir %q still exists after cleanup", workDir)
-    }
-}
-```
+How roadmap phases should address these pitfalls.
 
-**Warning signs:**
-- Occasional test failures with "directory not empty"
-- Leftover worktree directories in `/tmp`
-- Git complains about stale worktrees (`git worktree list` shows orphaned entries)
-- Disk space slowly consumed by abandoned worktrees
-
-**Prevention:**
-1. Ensure executor fully terminates before cleanup runs (wait for process, not just context cancel)
-2. Add a grace period after process termination before cleanup
-3. Use `git worktree remove --force` if normal removal fails
-4. Add retry logic to cleanup function with exponential backoff
-5. Log warnings (not errors) for cleanup failures to avoid masking real issues
-6. Periodically clean stale worktrees: `git worktree prune`
-
-**Phase impact:** Phase 1 - Improve cleanup robustness when enhancing CLI usage.
-
----
-
-### 12. Test Mocking Strategy for CLI Subprocess
-
-**Risk:** The existing tests skip when Claude CLI isn't installed:
-```go
-if _, err := exec.LookPath("claude"); err != nil {
-    t.Skip("claude CLI not installed, skipping availability test")
-}
-```
-
-This means:
-- CI environments without Claude CLI have no test coverage for executor logic
-- JSON parsing tests exist but not execution flow tests
-- Error paths are not exercised in CI
-
-**Warning signs:**
-- High test coverage locally (with Claude CLI), low in CI (without)
-- Bugs in executor logic discovered only in production
-- Difficulty reproducing user-reported issues
-- Changes to executor code have no test feedback in CI
-
-**Prevention:**
-1. Implement re-exec testing pattern for subprocess testing:
-   ```go
-   // In test, spawn test binary itself with special env var
-   if os.Getenv("TEST_MOCK_CLAUDE") == "1" {
-       // Act as mock claude CLI
-       fmt.Println(`{"type":"result","session_id":"test","result":"mocked"}`)
-       os.Exit(0)
-   }
-   ```
-2. Create a mock `claude` shell script for testing:
-   ```bash
-   #!/bin/bash
-   echo '{"type":"result","session_id":"mock","result":"test response"}'
-   ```
-3. Use environment variable to inject mock behavior: `CLAUDE_CLI_PATH`
-4. At minimum, test all error paths with mocked commands
-5. Consider using `httptest.Server` for SDK-based tests if keeping SDK for C4
-
-**Phase impact:** Phase 1 - Establish testable patterns before expanding CLI usage.
-
-**Sources:**
-- [Re-exec testing Go subprocesses](https://rednafi.com/go/test_subprocesses/)
-
----
-
-### 13. Breaking User Scripts That Parse JSON Output
-
-**Risk:** If ARS JSON output format (`--output json`) changes during this milestone (new fields, reorganized structure, removed fields), user scripts that parse the output will break. The JSON output is effectively a public API.
-
-**Warning signs:**
-- GitHub issues/complaints about broken CI pipelines after upgrade
-- User scripts fail with JSON parsing errors
-- Grep-based scripts stop working due to format changes
-
-**Prevention:**
-1. Treat JSON output as a public API contract
-2. Document JSON output schema as part of release notes
-3. **Additive changes only:** Add new fields without removing existing ones
-4. Version the JSON schema in the output itself:
-   ```json
-   {"version": "2", "composite": 7.5, ...}
-   ```
-5. Maintain backward compatibility for at least one major version
-6. Run integration tests against example user scripts
-7. Provide a `--output-format-version` flag to request specific schema version
-
-**Phase impact:** Phase 2 (if output structure changes) - Treat JSON output as public API.
-
----
-
-## Integration Pitfalls (Cross-Cutting)
-
-### 14. Circular Dependency Between Phases
-
-**Risk:** Phase dependencies create potential deadlocks:
-- Phase 2 (reorganization) may want CLI abstractions from Phase 1
-- Phase 3 (badges) needs scoring types that may move in Phase 2
-- Phase 4 (HTML) needs badge generation from Phase 3
-
-If phases aren't cleanly separated, merge conflicts and rework occur.
-
-**Warning signs:**
-- Phases can't be developed independently
-- Merge conflicts between feature branches
-- "I need to undo Phase 2 changes to finish Phase 1"
-- Features from later phases needed to complete earlier phases
-
-**Prevention:**
-1. Define stable interfaces BEFORE phases begin
-2. Phase 1 completes fully and merges before Phase 2 starts
-3. Create adapter/wrapper types to insulate between phases
-4. Use feature flags to enable new code paths incrementally
-5. Keep phase scope small and focused (don't let scope creep across phases)
-
-**Phase impact:** All phases - Plan phase boundaries carefully.
-
----
-
-### 15. SDK Removal Breaks Existing User Workflows
-
-**Risk:** Users currently using `--enable-c4-llm` with `ANTHROPIC_API_KEY` may find this breaks if SDK is removed without migration path. The CLI uses different authentication:
-- SDK: `ANTHROPIC_API_KEY` environment variable
-- CLI: OAuth or Claude Max subscription
-
-This creates a breaking change for existing users.
-
-**Warning signs:**
-- Documentation says "set ANTHROPIC_API_KEY" but it's no longer used
-- Users with API keys can't use LLM features
-- Different authentication requirements between C4 and C7
-- Users complain features worked in v0.0.2 but not v0.0.3
-
-**Prevention:**
-1. Document authentication requirements clearly in release notes
-2. Support BOTH SDK and CLI as backends during transition period
-3. Provide migration guide: "If using API key, do X; if using Claude CLI, do Y"
-4. Consider keeping SDK as optional dependency for users who prefer it
-5. Emit deprecation warnings before removing SDK support entirely:
-   ```
-   Warning: ANTHROPIC_API_KEY-based LLM analysis is deprecated.
-   Please install Claude CLI for LLM features. See: https://...
-   ```
-
-**Phase impact:** Phase 1 - Decide on authentication/SDK strategy before implementation.
-
----
-
-## Phase-Specific Risk Summary
-
-| Phase | Likely Pitfall | Mitigation |
-|-------|---------------|------------|
-| Phase 1: CLI Integration | JSON schema changes (#1), orphaned processes (#2), SDK removal breaks C4 (#4), flag inconsistency (#9) | Version checking, process groups, decide SDK strategy, use long-form flags |
-| Phase 2: Reorganization | Import breakage (#3), circular dependencies (#14), breaking JSON output (#13) | Plan imports before moving, use automation tools, version JSON schema |
-| Phase 3: Badges | Network dependency (#5), ID collision (#6), color contrast (#10) | Offline-first design, unique IDs, contrast testing |
-| Phase 4: HTML | CSP blocking JS (#7), report size (#8) | Progressive enhancement, CSS-only features, size budget |
-
----
-
-## Verification Checklist
-
-Before completing each phase, verify:
-
-### Phase 1: CLI Integration
-- [ ] Claude CLI version is detected and validated
-- [ ] Process groups are used for proper timeout handling
-- [ ] No orphaned processes after timeout (verified with `ps aux`)
-- [ ] C4 LLM functionality decision is documented (SDK vs CLI)
-- [ ] Long-form CLI flags used exclusively
-- [ ] Mock testing strategy implemented for CI
-
-### Phase 2: Reorganization
-- [ ] `go build ./...` passes after all moves
-- [ ] `go test ./...` passes after all moves
-- [ ] No circular imports introduced
-- [ ] JSON output schema is versioned
-- [ ] All import paths updated atomically
-
-### Phase 3: Badges
-- [ ] Badges work offline (no external URLs required)
-- [ ] SVG IDs are unique across multiple badges
-- [ ] Badges readable on both light and dark backgrounds
-- [ ] Badge generation adds <5KB to report size
-
-### Phase 4: HTML Enhancements
-- [ ] Report is useful without JavaScript enabled
-- [ ] Report works when opened from `file://` URL
-- [ ] Report size stays under 200KB for typical repos
-- [ ] CSP meta tag included if inline scripts used
-- [ ] All interactive features have CSS-only fallbacks
-
----
+| Pitfall | Prevention Phase | Verification |
+|---------|------------------|--------------|
+| Debug output polluting stdout | Phase 1: Debug writer foundation | Test: `ars scan --json --debug . 2>/dev/null \| jq .` succeeds |
+| Performance regression | Phase 1: Debug writer with zero-cost disabled path | Benchmark: no measurable regression with debug OFF |
+| CI/non-TTY breakage | Phase 1: Debug writer TTY detection | Test: run in non-TTY env, output has no ANSI codes |
+| Fixture divergence | Phase 2: Debug instrumentation with real response capture | Fixtures updated from real CLI responses; contract test exists |
+| Over-engineering | Phase 0: Requirements scoping | Requirements doc lists exactly what debug shows and what it does not |
+| Concurrent state corruption | Phase 1: Debug writer concurrency design | `go test -race` passes; debug output has correct metric prefixes |
+| Flag proliferation | Phase 0: CLI design decision | Single `--debug` flag; env var for advanced settings |
 
 ## Sources
 
-### Official Documentation
-- [Go exec package](https://pkg.go.dev/os/exec) - Subprocess management, WaitDelay, process groups
-- [Claude Code CLI reference](https://code.claude.com/docs/en/cli-reference) - CLI flags and output formats
-- [MDN Content Security Policy](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/CSP) - CSP for HTML
+- Codebase analysis: `internal/agent/progress.go` (TTY detection pattern), `internal/pipeline/pipeline.go` (output routing), `internal/agent/parallel.go` (concurrent execution), `internal/agent/metrics/m2_comprehension.go` (heuristic scoring), `cmd/scan.go` (flag definitions)
+- [Airflow PR: Print debug mode warning to stderr to avoid polluting stdout JSON output](http://www.mail-archive.com/commits@airflow.apache.org/msg486101.html) -- real-world example of this exact pitfall
+- [AWS CLI Issue #5187: --debug output is written to stderr instead of stdout](https://github.com/aws/aws-cli/issues/5187) -- precedent for debug-to-stderr pattern
+- [Orhun's Blog: Why stdout is faster than stderr?](https://blog.orhun.dev/stdout-vs-stderr/) -- performance implications of output channel choice
+- [Observability Anti-Patterns](https://observability-antipatterns.github.io/) -- over-instrumentation and noise patterns
+- [Honeybadger: Logging in Go](https://www.honeybadger.io/blog/golang-logging/) -- Go-specific logging best practices
+- [Julien Harbulot: How and when to use stdout and stderr](https://julienharbulot.com/python-cli-streams.html) -- stream separation best practices
 
-### GitHub Issues
-- [Go Issue #22485](https://github.com/golang/go/issues/22485) - CommandContext subprocess timeout
-- [Claude Code JSON Schema Compliance](https://github.com/anthropics/claude-code/issues/9058)
-- [Claude Code JSON Parse Error](https://github.com/anthropics/claude-code/issues/14442)
-- [shields.io GitHub](https://github.com/badges/shields) - Badge generation
-
-### Libraries and Tools
-- [badge-maker](https://github.com/badges/shields/tree/master/badge-maker) - Offline badge generation
-- [shields.io Static Badges](https://shields.io/docs/static-badges)
-
-### Community Resources
-- [Killing process descendants in Go](https://sigmoid.at/post/2023/08/kill_process_descendants_golang/)
-- [Re-exec testing Go subprocesses](https://rednafi.com/go/test_subprocesses/)
-- [Running External Programs in Go](https://medium.com/@caring_smitten_gerbil_914/running-external-programs-in-go-the-right-way-38b11d272cd1)
-- [Command PATH security in Go](https://go.dev/blog/path-security)
-- [Common Mistakes When Using Shields.io Badges](https://infinitejs.com/posts/common-mistakes-shields-io-badges/)
-- [OWASP CSP Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Content_Security_Policy_Cheat_Sheet.html)
-- [web.dev: Strict CSP](https://web.dev/articles/strict-csp)
+---
+*Pitfalls research for: ARS C7 Debug Infrastructure*
+*Researched: 2026-02-06*

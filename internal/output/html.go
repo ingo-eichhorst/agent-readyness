@@ -290,11 +290,16 @@ func metricDisplayName(name string) string {
 		"hotspot_concentration":     "Hotspot concentration",
 		"readme_word_count":         "README word count",
 		"comment_density":           "Comment density",
-		"api_doc_coverage":          "API doc coverage",
-		"changelog_present":         "CHANGELOG",
-		"examples_present":          "Examples",
-		"contributing_present":      "CONTRIBUTING",
-		"diagrams_present":          "Diagrams",
+		"api_doc_coverage":                 "API doc coverage",
+		"changelog_present":                "CHANGELOG",
+		"examples_present":                 "Examples",
+		"contributing_present":             "CONTRIBUTING",
+		"diagrams_present":                 "Diagrams",
+		"task_execution_consistency":       "Task Execution Consistency",
+		"code_behavior_comprehension":      "Code Behavior Comprehension",
+		"cross_file_navigation":            "Cross-File Navigation",
+		"identifier_interpretability":      "Identifier Interpretability",
+		"documentation_accuracy_detection": "Documentation Accuracy Detection",
 	}
 	if dn, ok := names[name]; ok {
 		return dn

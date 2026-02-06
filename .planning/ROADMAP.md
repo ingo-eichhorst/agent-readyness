@@ -32,7 +32,7 @@ This milestone fixes the M2/M3/M4 scoring bug (GitHub #55) and establishes debug
 **Plans**: 1 plan
 
 Plans:
-- [ ] 26-01-PLAN.md -- Wire --debug-c7 flag from CLI through Pipeline to C7Analyzer with debugWriter pattern and tests
+- [x] 26-01-PLAN.md -- Wire --debug-c7 flag from CLI through Pipeline to C7Analyzer with debugWriter pattern and tests
 
 ### Phase 27: Data Capture
 **Goal**: Debug mode preserves full prompts, responses, and score traces that flow through the pipeline for downstream rendering
@@ -43,11 +43,11 @@ Plans:
   2. When debug is active, each metric's SampleResult contains the full response received from Claude CLI
   3. When debug is active, C7MetricResult contains per-sample score traces showing which heuristic indicators matched and their individual contributions
   4. When debug is inactive, no additional allocations occur in the metric execution path
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 27-01: Extend SampleResult with Prompt field, populate in M1-M5 Execute() methods
-- [ ] 27-02: Add C7DebugSample type, extend C7MetricResult with DebugSamples, populate in buildMetrics()
+- [ ] 27-01-PLAN.md -- Extend SampleResult with Prompt + ScoreTrace fields, update M1-M5 scoring to produce traces
+- [ ] 27-02-PLAN.md -- Add C7DebugSample type, extend C7MetricResult with DebugSamples, populate in buildMetrics()
 
 ### Phase 28: Heuristic Tests & Scoring Fixes
 **Goal**: M2, M3, and M4 scoring functions produce accurate non-zero scores validated against real Claude CLI response fixtures

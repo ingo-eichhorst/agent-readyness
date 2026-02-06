@@ -198,9 +198,23 @@
     var arsModalBody = arsModal.querySelector('.ars-modal-body');
     var arsModalCloseBtn = arsModal.querySelector('.ars-modal-close');
 
+    function highlightTraceCode() {
+        arsModalBody.querySelectorAll('pre code').forEach(function(block) {
+            var html = block.innerHTML;
+            // Highlight JSON keys: "key":
+            html = html.replace(/(&quot;|")([^"]+?)(&quot;|")\s*:/g, '<span class="trace-json-key">"$2"</span>:');
+            // Highlight JSON string values: : "value"
+            html = html.replace(/:\s*(&quot;|")([^"]*?)(&quot;|")/g, ': <span class="trace-json-string">"$2"</span>');
+            // Highlight numbers after colons
+            html = html.replace(/:\s*(\d+\.?\d*)/g, ': <span class="trace-json-number">$1</span>');
+            block.innerHTML = html;
+        });
+    }
+
     function openModal(title, bodyHTML) {
         arsModalTitle.textContent = title;
         arsModalBody.innerHTML = bodyHTML;
+        highlightTraceCode();
         var scrollY = window.scrollY;
         document.body.dataset.scrollY = scrollY;
         document.body.style.position = 'fixed';

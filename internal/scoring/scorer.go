@@ -355,13 +355,23 @@ func extractC7(ar *types.AnalysisResult) (map[string]float64, map[string]bool) {
 
 	if !m.Available {
 		unavailable := map[string]bool{
-			"overall_score": true,
+			"overall_score":                    true,
+			"task_execution_consistency":       true,
+			"code_behavior_comprehension":      true,
+			"cross_file_navigation":            true,
+			"identifier_interpretability":      true,
+			"documentation_accuracy_detection": true,
 		}
 		return map[string]float64{}, unavailable
 	}
 
 	return map[string]float64{
-		"overall_score": m.OverallScore,
+		"overall_score":                    m.OverallScore,
+		"task_execution_consistency":       float64(m.TaskExecutionConsistency),
+		"code_behavior_comprehension":      float64(m.CodeBehaviorComprehension),
+		"cross_file_navigation":            float64(m.CrossFileNavigation),
+		"identifier_interpretability":      float64(m.IdentifierInterpretability),
+		"documentation_accuracy_detection": float64(m.DocumentationAccuracyDetection),
 	}, nil
 }
 

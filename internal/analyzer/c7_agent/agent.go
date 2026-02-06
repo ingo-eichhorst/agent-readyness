@@ -3,6 +3,7 @@ package c7
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"time"
 
@@ -13,19 +14,31 @@ import (
 
 // C7Analyzer implements the pipeline.Analyzer interface for C7: Agent Evaluation.
 type C7Analyzer struct {
-	evaluator *agent.Evaluator
-	enabled   bool // only runs if explicitly enabled
+	evaluator   *agent.Evaluator
+	enabled     bool      // only runs if explicitly enabled
+	debug       bool      // debug mode flag
+	debugWriter io.Writer // where debug output goes (io.Discard or os.Stderr)
 }
 
 // NewC7Analyzer creates a C7Analyzer. It's disabled by default.
+// debugWriter defaults to io.Discard to prevent nil writer if SetDebug is never called.
 func NewC7Analyzer() *C7Analyzer {
-	return &C7Analyzer{enabled: false}
+	return &C7Analyzer{
+		enabled:     false,
+		debugWriter: io.Discard,
+	}
 }
 
 // Enable activates C7 analysis with the given CLI evaluator.
 func (a *C7Analyzer) Enable(evaluator *agent.Evaluator) {
 	a.evaluator = evaluator
 	a.enabled = true
+}
+
+// SetDebug enables debug mode with the given writer for diagnostic output.
+func (a *C7Analyzer) SetDebug(enabled bool, w io.Writer) {
+	a.debug = enabled
+	a.debugWriter = w
 }
 
 // Name returns the analyzer display name.

@@ -21,6 +21,7 @@ var (
 	outputHTML   string // Path to output HTML file
 	baselinePath string // Path to previous JSON for trend comparison
 	badgeOutput  bool   // Generate shields.io badge markdown
+	debugC7      bool   // Enable C7 debug mode (implies --enable-c7)
 )
 
 var scanCmd = &cobra.Command{
@@ -86,6 +87,11 @@ No --lang flag needed.`,
 			}
 		}
 
+		// --debug-c7 auto-enables C7 evaluation
+		if debugC7 {
+			enableC7 = true
+		}
+
 		// Handle C7 agent evaluation if enabled
 		if enableC7 {
 			if !cliStatus.Available {
@@ -93,6 +99,11 @@ No --lang flag needed.`,
 				return fmt.Errorf("--enable-c7 requires Claude Code CLI to be installed\n%s", cliStatus.InstallHint)
 			}
 			p.SetC7Enabled()
+		}
+
+		// Enable C7 debug mode (threads debug state to Pipeline and C7Analyzer)
+		if debugC7 {
+			p.SetC7Debug(true)
 		}
 
 		// Configure HTML output if requested
@@ -130,6 +141,7 @@ func init() {
 	scanCmd.Flags().StringVar(&outputHTML, "output-html", "", "generate self-contained HTML report at specified path")
 	scanCmd.Flags().StringVar(&baselinePath, "baseline", "", "path to previous JSON output for trend comparison")
 	scanCmd.Flags().BoolVar(&badgeOutput, "badge", false, "generate shields.io badge markdown URL")
+	scanCmd.Flags().BoolVar(&debugC7, "debug-c7", false, "enable C7 debug mode (implies --enable-c7; debug output on stderr)")
 	rootCmd.AddCommand(scanCmd)
 }
 

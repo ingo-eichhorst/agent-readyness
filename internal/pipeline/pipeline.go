@@ -40,6 +40,8 @@ type Pipeline struct {
 	htmlOutput   string           // optional path for HTML report output
 	baselinePath string           // optional path to previous JSON for trend comparison
 	badgeOutput  bool             // generate shields.io badge markdown
+	debugC7      bool             // C7 debug mode enabled
+	debugWriter  io.Writer        // io.Discard (normal) or os.Stderr (debug)
 }
 
 // New creates a Pipeline with GoPackagesParser, all analyzers, and a scorer.
@@ -77,12 +79,13 @@ func New(w io.Writer, verbose bool, cfg *scoring.ScoringConfig, threshold float6
 	}
 
 	return &Pipeline{
-		verbose:    verbose,
-		writer:     w,
-		threshold:  threshold,
-		jsonOutput: jsonOutput,
-		onProgress: onProgress,
-		parser:     &parser.GoPackagesParser{},
+		verbose:     verbose,
+		writer:      w,
+		threshold:   threshold,
+		jsonOutput:  jsonOutput,
+		onProgress:  onProgress,
+		debugWriter: io.Discard,
+		parser:      &parser.GoPackagesParser{},
 		analyzers: []Analyzer{
 			analyzer.NewC1Analyzer(tsParser),
 			c2Analyzer,
@@ -134,6 +137,18 @@ func (p *Pipeline) SetHTMLOutput(htmlPath, baselinePath string) {
 // SetBadgeOutput enables shields.io badge markdown generation in output.
 func (p *Pipeline) SetBadgeOutput(enabled bool) {
 	p.badgeOutput = enabled
+}
+
+// SetC7Debug enables C7 debug mode. Debug output goes to stderr via debugWriter.
+// This also enables C7 evaluation if not already enabled.
+func (p *Pipeline) SetC7Debug(enabled bool) {
+	p.debugC7 = enabled
+	if enabled {
+		p.debugWriter = os.Stderr
+	}
+	if p.c7Analyzer != nil {
+		p.c7Analyzer.SetDebug(enabled, p.debugWriter)
+	}
 }
 
 // Run executes the full pipeline on the given directory.
@@ -375,12 +390,21 @@ func buildGoTargets(rootDir string, pkgs []*parser.ParsedPackage) []*types.Analy
 				class = types.ClassTest
 			}
 
-			files = append(files, types.SourceFile{
+			sf := types.SourceFile{
 				Path:     goFile,
 				RelPath:  relPath,
 				Language: types.LangGo,
 				Class:    class,
-			})
+			}
+
+			// Read file content and count lines (needed for C7 sample selection)
+			content, err := os.ReadFile(goFile)
+			if err == nil {
+				sf.Content = content
+				sf.Lines = countFileLines(content)
+			}
+
+			files = append(files, sf)
 		}
 	}
 

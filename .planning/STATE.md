@@ -5,22 +5,22 @@
 See: .planning/PROJECT.md (updated 2026-02-06)
 
 **Core value:** Accurate, evidence-based scoring that predicts agent success and identifies specific improvements teams should make before adopting AI coding agents.
-**Current focus:** Phase 30 - Evidence Data Flow (v0.0.6)
+**Current focus:** Phase 31 - HTML Evidence Display (v0.0.6)
 
 ## Current Position
 
 Phase: 30 of 34 (Evidence Data Flow)
-Plan: 2 of 3 in current phase
-Status: In progress
-Last activity: 2026-02-06 -- Completed 30-02-PLAN.md
+Plan: 3 of 3 in current phase
+Status: Phase complete
+Last activity: 2026-02-06 -- Completed 30-03-PLAN.md
 
-Progress: [##........] 15% (v0.0.6: 2/13 plans)
+Progress: [##........] 23% (v0.0.6: 3/13 plans)
 
 ## Performance Metrics
 
 **Velocity (all milestones):**
-- Total plans completed: 65
-- Phases completed: 29
+- Total plans completed: 66
+- Phases completed: 30
 - Total milestones shipped: 5
 
 **By Milestone:**
@@ -49,6 +49,7 @@ Recent decisions affecting current work:
 - [v0.0.6]: SubScore.Evidence uses json:"evidence" without omitempty (guarantees [] not null)
 - [v0.0.6]: MetricExtractor returns 3 values (rawValues, unavailable, evidence)
 - [v0.0.6]: sort-copy-limit-5 pattern for worst-offender evidence extraction
+- [v0.0.6]: JSON version bumped 1->2, sub_scores always present (verbose deprecated)
 
 ### Pending Todos
 
@@ -61,5 +62,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-06
-Stopped at: Completed 30-02-PLAN.md
+Stopped at: Completed 30-03-PLAN.md (Phase 30 complete)
 Resume file: None

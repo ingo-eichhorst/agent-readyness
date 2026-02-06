@@ -1,0 +1,7 @@
+The file `internal/agent/metrics/registry.go` has no explicit import statements. It relies on types defined within the same `metrics` package.
+
+- Imports: None (same-package references only)
+
+- Dependency Purpose: The file uses constructor functions `NewM1Consistency()`, `NewM2Comprehension()`, `NewM3Navigation()`, `NewM4Identifiers()`, and `NewM5Documentation()` which are defined in other files within the `metrics` package (m1_consistency.go, m2_comprehension.go, m3_navigation.go, m4_identifiers.go, m5_documentation.go). Each returns a struct implementing the `Metric` interface.
+
+- Data Flow Trace: `AllMetrics()` -> returns the `allMetrics` slice -> consumed by the C7 analyzer in `internal/analyzer/c7_agent/c7.go` which calls `metrics.AllMetrics()` to get the list of metrics to evaluate. `GetMetric(id)` -> linear scan of `allMetrics` -> returns matching `Metric` or nil.

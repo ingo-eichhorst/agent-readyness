@@ -1,0 +1,7 @@
+This file is a simple registry for C7 agent evaluation metrics.
+
+The `allMetrics` variable is a package-level slice that holds singleton instances of all five metrics: M1 (Consistency), M2 (Comprehension), M3 (Navigation), M4 (Identifiers), and M5 (Documentation). Each is created via its constructor function (`NewM1Consistency()`, `NewM2Comprehension()`, etc.).
+
+`AllMetrics()` returns the full slice. `GetMetric(id string)` iterates over `allMetrics` and returns the first metric whose `ID()` matches the given string, or nil if not found. There's no error handling for the nil case -- callers are expected to check the return value.
+
+The file has no complex control flow. It's a straightforward lookup pattern with a linear scan, which is fine for 5 elements.

@@ -1,0 +1,11 @@
+- Interpretation: The identifier `scoreMetrics` is likely a function that handles scoring of metrics. Based on the name, it probably takes some collection of metrics and computes scores for them. It could be a method on a scorer type or a standalone function. The domain is scoring or evaluation -- it processes raw metric data and produces numerical scores.
+
+- Verification: Looking at `internal/scoring/scorer.go` at line 372, I found:
+
+```go
+func scoreMetrics(catConfig CategoryConfig, rawValues map[string]float64, unavailable map[string]bool) ([]types.SubScore, float64) {
+```
+
+It's a package-level function (not a method) that takes a `CategoryConfig`, a map of raw metric values, and an unavailable set. It iterates over each metric in the category config, calls `Interpolate()` for available metrics, and returns both the individual `SubScore` slice and the weighted average via `CategoryScore()`.
+
+- Accuracy: My interpretation was partially correct. I got the general purpose right -- it scores metrics. However, I missed that it's specifically a per-category scoring helper (not a top-level entry point), and I didn't predict the unavailability handling or that it returns both sub-scores and a composite. The function is more specialized than my initial read of the name suggested.

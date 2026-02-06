@@ -1,0 +1,60 @@
+## Imports
+
+The file `internal/pipeline/pipeline.go` imports the following packages:
+
+**Standard library:**
+- `encoding/json` - JSON parsing for baseline loading
+- `fmt` - Formatted output and error wrapping
+- `io` - Writer interface for output abstraction
+- `os` - File I/O for HTML reports and file reading
+- `path/filepath` - Path manipulation (Base, Rel)
+- `sort` - Sorting analysis results by category
+- `sync` - Mutex for concurrent analyzer access
+- `time` - Timeout for evaluator
+
+**External:**
+- `golang.org/x/sync/errgroup` - Parallel goroutine management with error handling
+
+**Internal packages:**
+- `internal/agent` - CLI-based evaluator for LLM analysis (C4/C7)
+- `internal/analyzer` - Category analyzers (C1-C7)
+- `internal/discovery` - File system walker and language detection
+- `internal/output` - Terminal, JSON, and HTML rendering
+- `internal/parser` - Go packages parser and Tree-sitter parser
+- `internal/recommend` - Recommendation generation from scores
+- `internal/scoring` - Score computation with breakpoints and tiers
+- `pkg/types` - Shared types (AnalysisTarget, ScoredResult, etc.)
+
+## Dependency Purpose
+
+| Package | Provides |
+|---------|----------|
+| `internal/discovery` | `NewWalker()` returns a Walker that calls `Discover(dir)` to find source files. `DetectProjectLanguages(dir)` identifies Go/Python/TypeScript. |
+| `internal/parser` | `GoPackagesParser.Parse(dir)` returns `[]*ParsedPackage` with type-checked Go ASTs. `NewTreeSitterParser()` provides Python/TypeScript parsing. |
+| `internal/analyzer` | `NewC1Analyzer()` through `NewC7Analyzer()` create category analyzers implementing the `Analyzer` interface with `Analyze(targets)`. |
+| `internal/scoring` | `Scorer.Score(results)` converts `[]*AnalysisResult` into `*ScoredResult` with composite score and tier. |
+| `internal/recommend` | `Generate(scored, config)` produces improvement recommendations from scored results. |
+| `internal/output` | `RenderSummary()`, `RenderScores()`, `RenderRecommendations()`, `RenderJSON()`, `NewHTMLGenerator()` for all output formats. |
+| `internal/agent` | `GetCLIStatus()` detects Claude CLI availability. `NewEvaluator()` creates the LLM evaluator for C4 and C7. |
+
+## Data Flow Trace
+
+**Starting function:** `Pipeline.Run(dir string) error`
+
+The data flow through `Run()` proceeds through 5 stages:
+
+1. **Discover** -> `discovery.NewWalker().Discover(dir)` returns `*types.ScanResult` containing all classified files
+2. **Parse** -> `parser.GoPackagesParser.Parse(dir)` returns `[]*parser.ParsedPackage` with Go ASTs; `buildGoTargets()` and `buildNonGoTargets()` convert these into `[]*types.AnalysisTarget`
+3. **Analyze** -> Each analyzer runs in parallel via `errgroup.Group`. Each `a.Analyze(targets)` returns `*types.AnalysisResult`. Results are collected under a `sync.Mutex` and sorted by category name.
+4. **Score** -> `s.scorer.Score(p.results)` calls into `internal/scoring/scorer.go` which dispatches to extractors, calls `Interpolate()` per metric, and returns `*types.ScoredResult`
+5. **Output** -> Depending on `p.jsonOutput`, either `output.RenderJSON()` or `output.RenderSummary()` + `output.RenderScores()` + `output.RenderRecommendations()` writes to `p.writer`
+
+The flow branches at Stage 4.5 for HTML: `p.generateHTMLReport()` -> `output.NewHTMLGenerator().GenerateReport()` -> writes to file at `p.htmlOutput`.
+
+The flow also branches for baseline comparison: `loadBaseline()` -> `json.Unmarshal()` -> `output.JSONReport` -> converted to `*types.ScoredResult` for trend rendering.
+
+**Key data transformations:**
+- `ScanResult` -> `[]*AnalysisTarget` (via `buildGoTargets`/`buildNonGoTargets`)
+- `[]*AnalysisTarget` -> `[]*AnalysisResult` (via parallel analyzers)
+- `[]*AnalysisResult` -> `*ScoredResult` (via `Scorer.Score`)
+- `*ScoredResult` -> terminal/JSON/HTML output (via output package)

@@ -1,0 +1,41 @@
+The file `internal/scoring/scorer.go` implements the scoring engine for the Agent Readiness Score system. It converts raw analysis metrics into normalized 1-10 scores using piecewise linear interpolation, then computes a weighted composite score and classifies it into a tier.
+
+## Main Purpose and Behavior
+
+The `Scorer` struct holds a `ScoringConfig` and provides the central `Score()` method. This function takes a slice of `*types.AnalysisResult` (one per category C1-C7) and returns a `*types.ScoredResult` containing per-category scores, a composite score, and a tier classification.
+
+The `Interpolate()` function is the mathematical core. It takes a sorted slice of `Breakpoint` structs (each with a `Value` and `Score`) and a raw metric value, then performs piecewise linear interpolation. For example, if breakpoints define complexity_avg at value=5 mapping to score=8 and value=15 mapping to score=4, a raw value of 10 would interpolate to score=6.
+
+## Control Flow
+
+The `Score()` method iterates over each `AnalysisResult` and:
+1. Looks up the category config from `s.Config.Categories[ar.Category]`
+2. Finds a registered `MetricExtractor` from the `metricExtractors` map
+3. Calls the extractor to get raw values and an unavailable set
+4. Passes these to `scoreMetrics()` which handles per-metric interpolation
+
+The `scoreMetrics()` function loops over each metric in the category config, checks if it's in the unavailable set (marking `Available=false` if so), otherwise calls `Interpolate()` on the raw value. It then computes the weighted average via `CategoryScore()`.
+
+`computeComposite()` iterates over all category scores, skipping any with `Score < 0` (unavailable categories), and computes a weighted average normalized by the sum of active weights. This ensures a project scoring 10/10 on all active categories still gets a composite of 10.
+
+`classifyTier()` walks the tier definitions (sorted by MinScore descending) and returns the first tier where `score >= tier.MinScore`. If no tier matches, it returns "Agent-Hostile".
+
+## Error Handling and Edge Cases
+
+- `Interpolate()` handles empty breakpoints by returning 5.0 as a neutral passthrough
+- Values below the first breakpoint clamp to the first breakpoint's score
+- Values above the last breakpoint clamp to the last breakpoint's score
+- `computeComposite()` returns 0 if totalWeight is 0 (no active categories)
+- `CategoryScore()` returns 0.0 when no sub-scores are available, indicating a disabled category
+- Unknown categories in `Score()` are silently skipped (no error returned)
+- If an extractor returns nil rawValues, the category gets a zero score with no sub-scores
+
+## Return Values and Side Effects
+
+The `Score()` method returns `(*types.ScoredResult, error)` but currently never returns an error -- all failures are handled gracefully by skipping. The returned `ScoredResult` contains `Categories` (slice of `CategoryScore`), `Composite` (float64), and `Tier` (string).
+
+The `metricExtractors` map is a package-level variable that acts as a simple registry. `RegisterExtractor()` modifies this global state, which is a side effect. The individual extract functions (extractC1 through extractC7) perform type assertions on the `Metrics` map entries, returning nil if the expected type is not found.
+
+The `avgMapValues()` helper computes the mean of `map[string]int` values, returning 0 for nil or empty maps. It's used by `extractC1` for coupling metrics.
+
+Overall, the scoring module validates input defensively, handles missing data gracefully, and ensures the scoring pipeline never crashes even with partial or malformed analysis results.

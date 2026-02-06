@@ -2,11 +2,27 @@ package metrics
 
 import (
 	"context"
+	"os"
+	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
 	"github.com/ingo/agent-readyness/pkg/types"
 )
+
+// loadFixture reads a test fixture file from testdata/c7_responses/{subdir}/{name}.
+func loadFixture(t *testing.T, subdir, name string) string {
+	t.Helper()
+	_, thisFile, _, _ := runtime.Caller(0)
+	dir := filepath.Dir(thisFile)
+	path := filepath.Join(dir, "testdata", "c7_responses", subdir, name)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("loadFixture(%s/%s): %v", subdir, name, err)
+	}
+	return string(data)
+}
 
 // mockExecutor implements the Executor interface returning canned responses.
 type mockExecutor struct {
@@ -730,6 +746,133 @@ func errorResponse() Response { return Response{} }
 			}
 			if !foundPrompt {
 				t.Errorf("%s: no successful SampleResult has a non-empty Prompt", tc.name)
+			}
+		})
+	}
+}
+
+// --- Fixture-based scoring tests ---
+// These test scoring functions against real LLM response fixtures captured in 28-01.
+// Good responses should score 6-8, weaker responses should score 4-6.
+
+func TestM2_Score_Fixtures(t *testing.T) {
+	m := NewM2ComprehensionMetric()
+
+	tests := []struct {
+		name     string
+		fixture  string
+		minScore int
+		maxScore int
+	}{
+		{
+			name:     "good Go explanation",
+			fixture:  "good_go_explanation.txt",
+			minScore: 6,
+			maxScore: 8,
+		},
+		{
+			name:     "minimal explanation",
+			fixture:  "minimal_explanation.txt",
+			minScore: 4,
+			maxScore: 6,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			response := loadFixture(t, "m2_comprehension", tc.fixture)
+			score, trace := m.scoreComprehensionResponse(response)
+
+			if score < tc.minScore || score > tc.maxScore {
+				t.Errorf("scoreComprehensionResponse(%s) = %d, want %d-%d\nBaseScore=%d, matched indicators:",
+					tc.fixture, score, tc.minScore, tc.maxScore, trace.BaseScore)
+				for _, ind := range trace.Indicators {
+					if ind.Matched {
+						t.Errorf("  %s: delta=%+d", ind.Name, ind.Delta)
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestM3_Score_Fixtures(t *testing.T) {
+	m := NewM3NavigationMetric()
+
+	tests := []struct {
+		name     string
+		fixture  string
+		minScore int
+		maxScore int
+	}{
+		{
+			name:     "good dependency trace",
+			fixture:  "good_dependency_trace.txt",
+			minScore: 6,
+			maxScore: 8,
+		},
+		{
+			name:     "shallow trace",
+			fixture:  "shallow_trace.txt",
+			minScore: 4,
+			maxScore: 6,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			response := loadFixture(t, "m3_navigation", tc.fixture)
+			score, trace := m.scoreNavigationResponse(response)
+
+			if score < tc.minScore || score > tc.maxScore {
+				t.Errorf("scoreNavigationResponse(%s) = %d, want %d-%d\nBaseScore=%d, matched indicators:",
+					tc.fixture, score, tc.minScore, tc.maxScore, trace.BaseScore)
+				for _, ind := range trace.Indicators {
+					if ind.Matched {
+						t.Errorf("  %s: delta=%+d", ind.Name, ind.Delta)
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestM4_Score_Fixtures(t *testing.T) {
+	m := NewM4IdentifiersMetric()
+
+	tests := []struct {
+		name     string
+		fixture  string
+		minScore int
+		maxScore int
+	}{
+		{
+			name:     "accurate interpretation",
+			fixture:  "accurate_interpretation.txt",
+			minScore: 6,
+			maxScore: 8,
+		},
+		{
+			name:     "partial interpretation",
+			fixture:  "partial_interpretation.txt",
+			minScore: 4,
+			maxScore: 6,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			response := loadFixture(t, "m4_identifiers", tc.fixture)
+			score, trace := m.scoreIdentifierResponse(response)
+
+			if score < tc.minScore || score > tc.maxScore {
+				t.Errorf("scoreIdentifierResponse(%s) = %d, want %d-%d\nBaseScore=%d, matched indicators:",
+					tc.fixture, score, tc.minScore, tc.maxScore, trace.BaseScore)
+				for _, ind := range trace.Indicators {
+					if ind.Matched {
+						t.Errorf("  %s: delta=%+d", ind.Name, ind.Delta)
+					}
+				}
 			}
 		})
 	}

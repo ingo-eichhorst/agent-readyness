@@ -565,6 +565,25 @@ footer > p {
   text-align: center;
 }
 
+/* Modal trigger buttons (used by Phase 32/33 for View Trace / Improve) */
+.ars-modal-trigger {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--color-muted);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 0.25rem;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+
+.ars-modal-trigger:hover {
+  background: var(--color-border);
+  color: var(--color-text);
+}
+
 /* Modal dialog */
 .ars-modal {
   border: none;

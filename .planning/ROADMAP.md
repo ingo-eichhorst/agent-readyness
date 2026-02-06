@@ -76,12 +76,12 @@ Plans:
   3. Running `ars scan . --debug-c7 --debug-dir ./debug-out` a second time replays saved responses without executing Claude CLI (fast iteration)
   4. `ars scan --help` documents the `--debug-c7` and `--debug-dir` flags with clear usage descriptions
   5. GitHub issue #55 is updated with root cause analysis, fixes applied, and test results
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 29-01: Implement renderC7Debug in terminal.go, thread debugC7 through output rendering
-- [ ] 29-02: Implement --debug-dir flag, response persistence (save) and replay (load) modes
-- [ ] 29-03: Update CLI help, README/docs, and GitHub issue #55
+- [ ] 29-01-PLAN.md -- Implement RenderC7Debug in terminal.go, wire into pipeline for stderr debug output
+- [ ] 29-02-PLAN.md -- Implement --debug-dir flag, response persistence (save) and replay (load) via ReplayExecutor
+- [ ] 29-03-PLAN.md -- Update CLI help text, README debug section, and GitHub issue #55
 
 ## Progress
 

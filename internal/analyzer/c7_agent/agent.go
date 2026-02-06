@@ -131,9 +131,22 @@ func (a *C7Analyzer) buildMetrics(result agent.ParallelResult, startTime time.Ti
 			metricResult.Reasoning = mr.Error
 		}
 
-		// Extract sample descriptions
+		// Extract sample descriptions and optionally populate debug data
 		for _, s := range mr.Samples {
 			metricResult.Samples = append(metricResult.Samples, s.Sample.Description)
+
+			if a.debug {
+				metricResult.DebugSamples = append(metricResult.DebugSamples, types.C7DebugSample{
+					FilePath:    s.Sample.FilePath,
+					Description: s.Sample.Description,
+					Prompt:      s.Prompt,
+					Response:    s.Response,
+					Score:       s.Score,
+					Duration:    s.Duration.Seconds(),
+					ScoreTrace:  convertScoreTrace(s.ScoreTrace),
+					Error:       s.Error,
+				})
+			}
 		}
 
 		m.MetricResults = append(m.MetricResults, metricResult)
@@ -204,6 +217,22 @@ func (a *C7Analyzer) calculateWeightedScore(m *types.C7Metrics) float64 {
 		return 0.0
 	}
 	return weightedSum / totalWeight
+}
+
+// convertScoreTrace converts an internal metrics.ScoreTrace to the output types.C7ScoreTrace.
+func convertScoreTrace(st metrics.ScoreTrace) types.C7ScoreTrace {
+	trace := types.C7ScoreTrace{
+		BaseScore:  st.BaseScore,
+		FinalScore: st.FinalScore,
+	}
+	for _, ind := range st.Indicators {
+		trace.Indicators = append(trace.Indicators, types.C7IndicatorMatch{
+			Name:    ind.Name,
+			Matched: ind.Matched,
+			Delta:   ind.Delta,
+		})
+	}
+	return trace
 }
 
 // estimateResponseTokens estimates token count from response length.

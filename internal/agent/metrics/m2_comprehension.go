@@ -26,7 +26,7 @@ type M2Comprehension struct {
 func NewM2ComprehensionMetric() *M2Comprehension {
 	return &M2Comprehension{
 		sampleCount: 3,
-		timeout:     120 * time.Second,
+		timeout:     360 * time.Second,
 	}
 }
 

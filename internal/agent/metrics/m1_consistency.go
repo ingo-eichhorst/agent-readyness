@@ -26,7 +26,7 @@ type M1Consistency struct {
 func NewM1ConsistencyMetric() *M1Consistency {
 	return &M1Consistency{
 		sampleCount: 1,            // One file, run 3 times
-		timeout:     180 * time.Second, // 3 runs of 60s each
+		timeout:     540 * time.Second, // 3 runs of 180s each
 		runs:        3,
 	}
 }

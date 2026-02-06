@@ -25,7 +25,7 @@ type M5Documentation struct {
 func NewM5DocumentationMetric() *M5Documentation {
 	return &M5Documentation{
 		sampleCount: 3,
-		timeout:     60 * time.Second,
+		timeout:     180 * time.Second,
 	}
 }
 

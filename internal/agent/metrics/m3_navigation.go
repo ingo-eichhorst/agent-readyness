@@ -25,7 +25,7 @@ type M3Navigation struct {
 func NewM3NavigationMetric() *M3Navigation {
 	return &M3Navigation{
 		sampleCount: 2,
-		timeout:     120 * time.Second,
+		timeout:     360 * time.Second,
 	}
 }
 

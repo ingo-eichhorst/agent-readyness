@@ -25,7 +25,7 @@ type M4Identifiers struct {
 func NewM4IdentifiersMetric() *M4Identifiers {
 	return &M4Identifiers{
 		sampleCount: 5,
-		timeout:     60 * time.Second,
+		timeout:     180 * time.Second,
 	}
 }
 

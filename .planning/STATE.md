@@ -5,21 +5,21 @@
 See: .planning/PROJECT.md (updated 2026-02-06)
 
 **Core value:** Accurate, evidence-based scoring that predicts agent success and identifies specific improvements teams should make before adopting AI coding agents.
-**Current focus:** Phase 32 - Call Trace Modals (v0.0.6)
+**Current focus:** Phase 33 - Improvement Prompt Modals (v0.0.6)
 
 ## Current Position
 
-Phase: 32 of 34 (Call Trace Modals)
-Plan: 3 of 3 in current phase
-Status: Phase complete
-Last activity: 2026-02-06 -- Completed 32-03-PLAN.md
+Phase: 33 of 34 (Improvement Prompt Modals)
+Plan: 1 of 3 in current phase
+Status: In progress
+Last activity: 2026-02-07 -- Completed 33-01-PLAN.md
 
-Progress: [######....] 61% (v0.0.6: 8/13 plans)
+Progress: [######....] 69% (v0.0.6: 9/13 plans)
 
 ## Performance Metrics
 
 **Velocity (all milestones):**
-- Total plans completed: 71
+- Total plans completed: 72
 - Phases completed: 32
 - Total milestones shipped: 5
 
@@ -62,6 +62,10 @@ Recent decisions affecting current work:
 - [v0.0.6]: highlightTraceCode() regex-based JSON syntax highlighting in modal code blocks
 - [v0.0.6]: js-enabled class toggling + <details> fallback for progressive enhancement
 - [v0.0.6]: File size reported as informational output after HTML generation
+- [v0.0.6]: 4-section prompt structure: Context / Build & Test / Task / Verification
+- [v0.0.6]: nextTarget() reuses ascending detection from findCurrentBand()
+- [v0.0.6]: extractHowToImprove regex parses <li> items from Detailed HTML descriptions
+- [v0.0.6]: C7 metrics use score+2 target (no breakpoint-based targets)
 
 ### Pending Todos
 
@@ -73,6 +77,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-06
-Stopped at: Completed 32-03-PLAN.md (Phase 32 complete)
+Last session: 2026-02-07
+Stopped at: Completed 33-01-PLAN.md
 Resume file: None

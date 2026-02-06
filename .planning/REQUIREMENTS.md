@@ -74,13 +74,47 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| TBD | TBD | Pending |
+| EV-01 | Phase 30 | Pending |
+| EV-02 | Phase 30 | Pending |
+| EV-03 | Phase 30 | Pending |
+| EV-04 | Phase 30 | Pending |
+| EV-05 | Phase 30 | Pending |
+| UI-01 | Phase 31 | Pending |
+| UI-02 | Phase 31 | Pending |
+| UI-03 | Phase 31 | Pending |
+| UI-04 | Phase 31 | Pending |
+| UI-05 | Phase 31 | Pending |
+| UI-06 | Phase 31 | Pending |
+| UI-07 | Phase 31 | Pending |
+| TR-01 | Phase 32 | Pending |
+| TR-02 | Phase 32 | Pending |
+| TR-03 | Phase 32 | Pending |
+| TR-04 | Phase 32 | Pending |
+| TR-05 | Phase 32 | Pending |
+| TR-06 | Phase 32 | Pending |
+| TR-07 | Phase 32 | Pending |
+| TR-08 | Phase 32 | Pending |
+| PR-01 | Phase 33 | Pending |
+| PR-02 | Phase 33 | Pending |
+| PR-03 | Phase 33 | Pending |
+| PR-04 | Phase 33 | Pending |
+| PR-05 | Phase 33 | Pending |
+| PR-06 | Phase 33 | Pending |
+| PR-07 | Phase 33 | Pending |
+| PR-08 | Phase 33 | Pending |
+| PR-09 | Phase 33 | Pending |
+| TEST-01 | Phase 34 | Pending |
+| TEST-02 | Phase 34 | Pending |
+| TEST-03 | Phase 34 | Pending |
+| TEST-04 | Phase 34 | Pending |
+| TEST-05 | Phase 34 | Pending |
+| TEST-06 | Phase 34 | Pending |
 
 **Coverage:**
-- v0.0.6 requirements: 30 total
-- Mapped to phases: TBD
-- Unmapped: TBD
+- v0.0.6 requirements: 35 total
+- Mapped to phases: 35/35
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-06*
-*Last updated: 2026-02-06 after initial definition*
+*Last updated: 2026-02-06 after roadmap creation*

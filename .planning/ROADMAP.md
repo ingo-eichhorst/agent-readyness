@@ -1,8 +1,8 @@
-# Roadmap: ARS v0.0.5 - C7 Debug Infrastructure
+# Roadmap: ARS v0.0.6 - Interactive HTML Report Enhancements
 
 ## Overview
 
-This milestone fixes the M2/M3/M4 scoring bug (GitHub #55) and establishes debug infrastructure for ongoing C7 validation. The work flows from plumbing a debug flag through the pipeline, to capturing prompt/response data, to testing and fixing the heuristic scoring functions, to rendering debug output and enabling response replay for fast iteration. Four phases deliver the complete investigation-to-fix workflow.
+This milestone makes HTML reports transparent and actionable. Evidence data flows through the scoring pipeline to power two new interactive features: call trace modals (showing how each score was derived) and improvement prompt modals (providing copy-paste prompts to fix low-scoring areas). Five phases deliver the complete feature set, starting with the data foundation and shared UI, then building each modal type, and finishing with cross-cutting quality validation.
 
 ## Milestones
 
@@ -10,86 +10,109 @@ This milestone fixes the M2/M3/M4 scoring bug (GitHub #55) and establishes debug
 - [Archived] **v0.0.2 Complete Analysis Framework** - Phases 6-12 (shipped 2026-02-03)
 - [Archived] **v0.0.3 Simplification & Polish** - Phases 13-17 (shipped 2026-02-04)
 - [Archived] **v0.0.4 Metric Research & C7 Implementation** - Phases 18-25 (shipped 2026-02-05)
-- Active **v0.0.5 C7 Debug Infrastructure** - Phases 26-29 (in progress)
+- [Archived] **v0.0.5 C7 Debug Infrastructure** - Phases 26-29 (shipped 2026-02-06)
+- Active **v0.0.6 Interactive HTML Report Enhancements** - Phases 30-34 (in progress)
 
 ## Phases
 
-- [x] **Phase 26: Debug Foundation** - Flag plumbing and debug output channel
-- [x] **Phase 27: Data Capture** - Prompt/response storage and score trace infrastructure
-- [x] **Phase 28: Heuristic Tests & Scoring Fixes** - Real response fixtures, unit tests, and M2/M3/M4 bug fixes
-- [ ] **Phase 29: Debug Rendering & Replay** - Terminal/JSON debug output, response persistence, replay mode, documentation
+- [ ] **Phase 30: Evidence Data Flow** - Evidence types and extraction for all 7 categories
+- [ ] **Phase 31: Modal UI Infrastructure** - Native dialog component with accessibility and clipboard support
+- [ ] **Phase 32: Call Trace Modals** - Per-metric trace modals for C7 and C1-C6 scoring transparency
+- [ ] **Phase 33: Improvement Prompt Modals** - Per-metric prompt modals with copy-to-clipboard
+- [ ] **Phase 34: Testing & Quality** - Cross-cutting tests for evidence, size budget, schema, prompts, and accessibility
 
 ## Phase Details
 
-### Phase 26: Debug Foundation
-**Goal**: Users can activate C7 debug mode via a single CLI flag that routes diagnostic output to stderr without affecting normal operation
+### Phase 30: Evidence Data Flow
+**Goal**: Every scored metric carries its top-5 worst offenders through the pipeline, visible in JSON output
 **Depends on**: Nothing (first phase of milestone)
-**Requirements**: DBG-01, DBG-02, DBG-03
+**Requirements**: EV-01, EV-02, EV-03, EV-04, EV-05
 **Success Criteria** (what must be TRUE):
-  1. Running `ars scan . --debug-c7` activates C7 evaluation automatically (no need to also pass `--enable-c7`)
-  2. Debug output appears exclusively on stderr; `ars scan . --debug-c7 --json 2>/dev/null | jq` produces valid JSON on stdout
-  3. Running `ars scan .` without `--debug-c7` produces identical output and performance to current behavior (zero-cost when disabled)
-**Plans**: 1 plan
+  1. Running `ars scan . --json | jq '.categories[0].sub_scores[0].evidence'` returns an array of evidence items with file_path, line, value, and description fields
+  2. All 7 extractCx functions return evidence data (not empty arrays) for metrics that have offenders
+  3. Running `ars scan . --json` with a baseline file from v0.0.5 still produces a valid comparison (no schema breakage)
+  4. Running `ars scan .` without --json produces identical terminal output to v0.0.5 (evidence is invisible unless consumed)
+**Plans**: TBD
 
 Plans:
-- [x] 26-01-PLAN.md -- Wire --debug-c7 flag from CLI through Pipeline to C7Analyzer with debugWriter pattern and tests
+- [ ] 30-01: Define EvidenceItem type, add Evidence field to SubScore, extend MetricExtractor signature
+- [ ] 30-02: Update all 7 extractCx functions to populate evidence from existing CxMetrics data
+- [ ] 30-03: Wire evidence into JSON output with omitempty, validate backward compatibility
 
-### Phase 27: Data Capture
-**Goal**: Debug mode preserves full prompts, responses, and score traces that flow through the pipeline for downstream rendering
-**Depends on**: Phase 26 (debug flag and writer must exist)
-**Requirements**: DBG-04, DBG-05, DBG-06
+### Phase 31: Modal UI Infrastructure
+**Goal**: HTML reports contain a reusable modal component that opens, scrolls, and closes correctly on desktop and mobile
+**Depends on**: Nothing (can run in parallel with Phase 30)
+**Requirements**: UI-01, UI-02, UI-03, UI-04, UI-05, UI-06, UI-07
 **Success Criteria** (what must be TRUE):
-  1. When debug is active, each metric's SampleResult contains the full prompt that was sent to Claude CLI
-  2. When debug is active, each metric's SampleResult contains the full response received from Claude CLI
-  3. When debug is active, C7MetricResult contains per-sample score traces showing which heuristic indicators matched and their individual contributions
-  4. When debug is inactive, no additional allocations occur in the metric execution path
-**Plans**: 2 plans
+  1. Opening a modal via a button in the HTML report displays a centered dialog with backdrop overlay
+  2. Modal closes via Escape key, X button, or clicking the backdrop (all three methods work)
+  3. Tab key cycles focus within the modal (does not escape to page behind)
+  4. Modal content scrolls independently when content exceeds viewport height
+  5. On mobile viewports (375px wide), the modal fills available width without horizontal overflow
+**Plans**: TBD
 
 Plans:
-- [x] 27-01-PLAN.md -- Extend SampleResult with Prompt + ScoreTrace fields, update M1-M5 scoring to produce traces
-- [x] 27-02-PLAN.md -- Add C7DebugSample type, extend C7MetricResult with DebugSamples, populate in buildMetrics()
+- [ ] 31-01: Implement native dialog element with showModal/close JS, responsive CSS, and iOS scroll lock
+- [ ] 31-02: Add progressive enhancement fallback (details/summary) and ARIA attributes
 
-### Phase 28: Heuristic Tests & Scoring Fixes
-**Goal**: M2, M3, and M4 scoring functions produce accurate non-zero scores validated against real Claude CLI response fixtures
-**Depends on**: Nothing (test development is independent of CLI debug infrastructure)
-**Requirements**: TEST-01, TEST-02, TEST-03, TEST-04, TEST-05, FIX-01, FIX-02, FIX-03, FIX-04
+### Phase 32: Call Trace Modals
+**Goal**: Users can click "View Trace" on any metric to see exactly how the score was derived
+**Depends on**: Phase 30 (evidence data), Phase 31 (modal component)
+**Requirements**: TR-01, TR-02, TR-03, TR-04, TR-05, TR-06, TR-07, TR-08
 **Success Criteria** (what must be TRUE):
-  1. `testdata/c7_responses/` contains real captured Claude CLI responses for M2, M3, and M4 metrics (not fabricated strings)
-  2. `go test ./internal/agent/metrics/ -run TestM2_Score -v` passes with documented expected scores for each fixture
-  3. `go test ./internal/agent/metrics/ -run TestM3_Score -v` passes with documented expected scores for each fixture
-  4. `go test ./internal/agent/metrics/ -run TestM4_Score -v` passes with documented expected scores for each fixture
-  5. Running `ars scan . --enable-c7` produces non-zero scores for M2, M3, and M4 on a real codebase (the bug is fixed)
-**Plans**: 3 plans
+  1. Every metric row in the HTML report has a "View Trace" button that opens a modal
+  2. C7 trace modal displays the full prompt sent to Claude, the full response received, and the score breakdown with matched indicators
+  3. C1-C6 trace modal displays the current raw value, scoring breakpoints with where the value falls, and the top-5 worst offending files/functions
+  4. JSON and shell command content in trace modals has syntax highlighting (distinct colors for keys, values, strings)
+  5. Generated HTML report with C7 trace data embedded stays under 500KB total file size
+**Plans**: TBD
 
 Plans:
-- [x] 28-01-PLAN.md -- Capture real Claude CLI response fixtures into testdata/c7_responses/ directory
-- [x] 28-02-PLAN.md -- Fix extractC7 to return M1-M5 metric scores in formal scoring pipeline
-- [x] 28-03-PLAN.md -- Fixture-based unit tests for M2/M3/M4 + fix scoring saturation with grouped indicators
+- [ ] 32-01: Add "View Trace" buttons and C7 trace modal rendering (prompts, responses, score breakdown)
+- [ ] 32-02: Add C1-C6 scoring explanation trace (breakpoints, worst offenders) with syntax highlighting
+- [ ] 32-03: Implement progressive enhancement fallback and enforce 500KB file size budget with truncation
 
-### Phase 29: Debug Rendering & Replay
-**Goal**: Users can inspect C7 debug data in terminal output, persist responses to disk for offline analysis, and replay saved responses without re-executing Claude CLI
-**Depends on**: Phase 26 (debug channel), Phase 27 (debug data), Phase 28 (working scoring)
-**Requirements**: RPL-01, RPL-02, RPL-03, RPL-04, DOC-01, DOC-02, DOC-03, DOC-04
+### Phase 33: Improvement Prompt Modals
+**Goal**: Users can click "Improve" on any metric to get a research-backed, project-specific prompt they can paste into an AI agent
+**Depends on**: Phase 30 (evidence data for interpolation), Phase 31 (modal component)
+**Requirements**: PR-01, PR-02, PR-03, PR-04, PR-05, PR-06, PR-07, PR-08, PR-09
 **Success Criteria** (what must be TRUE):
-  1. Running `ars scan . --debug-c7` displays per-metric per-sample prompts, responses (truncated), scores, and durations on stderr
-  2. Running `ars scan . --debug-c7 --debug-dir ./debug-out` saves captured responses as JSON files in the specified directory
-  3. Running `ars scan . --debug-c7 --debug-dir ./debug-out` a second time replays saved responses without executing Claude CLI (fast iteration)
-  4. `ars scan --help` documents the `--debug-c7` and `--debug-dir` flags with clear usage descriptions
-  5. GitHub issue #55 is updated with root cause analysis, fixes applied, and test results
-**Plans**: 3 plans
+  1. Every metric row in the HTML report has an "Improve" button that opens a modal with a prompt
+  2. The prompt contains the metric's current score, a target score, and specific file/function names from the evidence data
+  3. Clicking "Copy" places the full prompt text on the clipboard, and a "Copied!" confirmation appears
+  4. On file:// protocol (local HTML files), copy still works via the execCommand fallback or shows a selectable pre block
+  5. All 7 categories (C1-C7) have prompt templates with the structure: Context, Build/Test Commands, Task, Verification
+**Plans**: TBD
 
 Plans:
-- [ ] 29-01-PLAN.md -- Implement RenderC7Debug in terminal.go, wire into pipeline for stderr debug output
-- [ ] 29-02-PLAN.md -- Implement --debug-dir flag, response persistence (save) and replay (load) via ReplayExecutor
-- [ ] 29-03-PLAN.md -- Update CLI help text, README debug section, and GitHub issue #55
+- [ ] 33-01: Create 7 category-level prompt templates with Context/Build/Task/Verification structure
+- [ ] 33-02: Implement prompt interpolation with evidence data and GeneratePrompts() in recommend package
+- [ ] 33-03: Render "Improve" buttons, prompt modals, copy-to-clipboard with fallback chain, and progressive enhancement
+
+### Phase 34: Testing & Quality
+**Goal**: Automated tests validate evidence extraction, file size budget, JSON compatibility, prompt coverage, accessibility, and responsive layout
+**Depends on**: Phase 30, Phase 31, Phase 32, Phase 33 (tests validate all prior work)
+**Requirements**: TEST-01, TEST-02, TEST-03, TEST-04, TEST-05, TEST-06
+**Success Criteria** (what must be TRUE):
+  1. `go test ./...` includes tests that verify evidence extraction produces non-empty results for all 7 categories
+  2. A test generates an HTML report with C7 data and asserts file size is under 500KB
+  3. A test loads a v0.0.5-era JSON baseline and verifies backward-compatible comparison still works
+  4. A test verifies all 38 metrics (across 7 categories) map to a category-level prompt template
+  5. A test validates ARIA attributes and keyboard navigation patterns in generated HTML
+**Plans**: TBD
+
+Plans:
+- [ ] 34-01: Evidence extraction tests for all categories and JSON schema backward compatibility test
+- [ ] 34-02: HTML file size budget test, prompt template coverage test, and accessibility validation test
 
 ## Progress
 
-**Execution Order:** 26 -> 27 -> 28 -> 29 (Phase 28 can start in parallel with 26-27)
+**Execution Order:** 30 and 31 can run in parallel, then 32 and 33 (both depend on 30+31), then 34
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 26. Debug Foundation | 1/1 | ✓ Complete | 2026-02-06 |
-| 27. Data Capture | 2/2 | ✓ Complete | 2026-02-06 |
-| 28. Heuristic Tests & Scoring Fixes | 3/3 | ✓ Complete | 2026-02-06 |
-| 29. Debug Rendering & Replay | 3/3 | ✓ Complete | 2026-02-06 |
+| 30. Evidence Data Flow | 0/3 | Not started | - |
+| 31. Modal UI Infrastructure | 0/2 | Not started | - |
+| 32. Call Trace Modals | 0/3 | Not started | - |
+| 33. Improvement Prompt Modals | 0/3 | Not started | - |
+| 34. Testing & Quality | 0/2 | Not started | - |

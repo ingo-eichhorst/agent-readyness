@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"sort"
+	"strings"
 
 	"github.com/fatih/color"
 
@@ -814,4 +815,112 @@ func RenderBadge(w io.Writer, scored *types.ScoredResult) {
 	bold.Fprintln(w, "Badge")
 	fmt.Fprintln(w, "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500")
 	fmt.Fprintln(w, badge.Markdown)
+}
+
+// RenderC7Debug renders detailed C7 debug data (prompts, responses, scores, traces)
+// to the provided writer. This is called only when --debug-c7 is active. The writer
+// is typically os.Stderr so debug output never mixes with normal stdout output.
+func RenderC7Debug(w io.Writer, analysisResults []*types.AnalysisResult) {
+	// Find the C7 result
+	var c7Result *types.AnalysisResult
+	for _, ar := range analysisResults {
+		if ar.Category == "C7" {
+			c7Result = ar
+			break
+		}
+	}
+	if c7Result == nil {
+		return
+	}
+
+	raw, ok := c7Result.Metrics["c7"]
+	if !ok {
+		return
+	}
+	m, ok := raw.(*types.C7Metrics)
+	if !ok || !m.Available {
+		return
+	}
+	if len(m.MetricResults) == 0 {
+		return
+	}
+
+	bold := color.New(color.Bold)
+	dim := color.New(color.FgHiBlack)
+	red := color.New(color.FgRed)
+
+	// Header
+	fmt.Fprintln(w)
+	bold.Fprintln(w, "C7 Debug: Agent Evaluation Details")
+	fmt.Fprintln(w, strings.Repeat("=", 60))
+
+	for _, mr := range m.MetricResults {
+		fmt.Fprintln(w)
+		bold.Fprintf(w, "[%s] %s  score=%d/10  (%.1fs)\n", mr.MetricID, mr.MetricName, mr.Score, mr.Duration)
+		fmt.Fprintln(w, strings.Repeat("-", 50))
+
+		if len(mr.DebugSamples) == 0 {
+			dim.Fprintln(w, "  No debug samples captured")
+			continue
+		}
+
+		for i, ds := range mr.DebugSamples {
+			fmt.Fprintf(w, "  Sample %d: %s\n", i+1, ds.Description)
+			fmt.Fprintf(w, "  File:     %s\n", ds.FilePath)
+			fmt.Fprintf(w, "  Score:    %d/10  Duration: %.1fs\n", ds.Score, ds.Duration)
+
+			// Prompt (truncated, dim)
+			prompt := truncateString(ds.Prompt, 200)
+			dim.Fprintf(w, "  Prompt:   %s\n", prompt)
+
+			// Response (truncated)
+			response := truncateString(ds.Response, 500)
+			fmt.Fprintf(w, "  Response: %s\n", response)
+
+			// Score trace
+			renderScoreTrace(w, ds.ScoreTrace)
+
+			// Error (red, if present)
+			if ds.Error != "" {
+				red.Fprintf(w, "  Error: %s\n", ds.Error)
+			}
+
+			// Blank line between samples (but not after the last)
+			if i < len(mr.DebugSamples)-1 {
+				fmt.Fprintln(w)
+			}
+		}
+	}
+}
+
+// renderScoreTrace prints the score trace breakdown for a single debug sample.
+func renderScoreTrace(w io.Writer, trace types.C7ScoreTrace) {
+	var parts []string
+	for _, ind := range trace.Indicators {
+		if ind.Matched {
+			sign := "+"
+			if ind.Delta < 0 {
+				sign = ""
+			}
+			parts = append(parts, fmt.Sprintf("%s(%s%d)", ind.Name, sign, ind.Delta))
+		}
+	}
+	indicators := strings.Join(parts, " ")
+	if indicators != "" {
+		indicators = " " + indicators + " "
+	} else {
+		indicators = " "
+	}
+	fmt.Fprintf(w, "  Trace:    base=%d%s-> final=%d\n", trace.BaseScore, indicators, trace.FinalScore)
+}
+
+// truncateString truncates s to maxLen characters, appending "..." if truncated.
+func truncateString(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	if maxLen <= 3 {
+		return s[:maxLen]
+	}
+	return s[:maxLen-3] + "..."
 }

@@ -183,6 +183,31 @@ header h1 {
   margin-bottom: 0.5rem;
 }
 
+.references-header {
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.references-chevron::before {
+  content: "\25B6";
+  font-size: 0.6rem;
+  color: var(--color-muted);
+  transition: transform 0.15s;
+  display: inline-block;
+}
+
+.category-citations.references-expanded .references-chevron::before {
+  transform: rotate(90deg);
+}
+
+.references-list {
+  list-style: none;
+  font-size: 0.8rem;
+}
+
 .category-citations ul {
   list-style: none;
   font-size: 0.8rem;
@@ -513,6 +538,10 @@ footer > p {
 
   .recommendation {
     break-inside: avoid;
+  }
+
+  .references-list {
+    display: block !important;
   }
 }
 

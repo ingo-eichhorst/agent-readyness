@@ -38,8 +38,8 @@
 
     <section class="categories">
         <div class="expand-controls">
-            <button onclick="document.querySelectorAll('.metric-row').forEach(r => { r.classList.add('expanded'); r.nextElementSibling.style.display = 'table-row'; })">Expand All</button>
-            <button onclick="document.querySelectorAll('.metric-row').forEach(r => { r.classList.remove('expanded'); r.nextElementSibling.style.display = 'none'; })">Collapse All</button>
+            <button onclick="document.querySelectorAll('.metric-row').forEach(r => { r.classList.add('expanded'); r.nextElementSibling.style.display = 'table-row'; }); document.querySelectorAll('.category-citations').forEach(c => { c.classList.add('references-expanded'); const list = c.querySelector('.references-list'); if (list) list.style.display = 'block'; });">Expand All</button>
+            <button onclick="document.querySelectorAll('.metric-row').forEach(r => { r.classList.remove('expanded'); r.nextElementSibling.style.display = 'none'; }); document.querySelectorAll('.category-citations').forEach(c => { c.classList.remove('references-expanded'); const list = c.querySelector('.references-list'); if (list) list.style.display = 'none'; });">Collapse All</button>
         </div>
         {{range .Categories}}
         <div class="category">
@@ -82,8 +82,11 @@
             {{if .ImpactDescription}}<p class="impact">{{.ImpactDescription}}</p>{{end}}
             {{if .Citations}}
             <div class="category-citations">
-                <h4>References</h4>
-                <ul>
+                <h4 class="references-header">
+                    <span class="references-chevron"></span>
+                    References
+                </h4>
+                <ul class="references-list" style="display: none;">
                     {{range .Citations}}
                     <li><a href="{{.URL}}" target="_blank" rel="noopener">{{.Title}}</a> ({{.Authors}}, {{.Year}}) - {{.Description}}</li>
                     {{end}}
@@ -133,6 +136,23 @@
             } else {
                 row.classList.add('expanded');
                 detailsRow.style.display = 'table-row';
+            }
+        });
+    });
+
+    // References expansion toggle
+    document.querySelectorAll('.references-header').forEach(header => {
+        header.addEventListener('click', () => {
+            const citationsDiv = header.parentElement;
+            const referencesList = citationsDiv.querySelector('.references-list');
+            const isExpanded = citationsDiv.classList.contains('references-expanded');
+
+            if (isExpanded) {
+                citationsDiv.classList.remove('references-expanded');
+                referencesList.style.display = 'none';
+            } else {
+                citationsDiv.classList.add('references-expanded');
+                referencesList.style.display = 'block';
             }
         });
     });

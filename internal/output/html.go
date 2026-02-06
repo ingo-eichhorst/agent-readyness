@@ -198,6 +198,11 @@ func buildHTMLSubScores(subScores []types.SubScore) []HTMLSubScore {
 	result := make([]HTMLSubScore, 0, len(subScores))
 
 	for _, ss := range subScores {
+		// Skip metrics with zero weight (e.g., deprecated overall_score in C7)
+		if ss.Weight == 0.0 {
+			continue
+		}
+
 		desc := getMetricDescription(ss.MetricName)
 		hss := HTMLSubScore{
 			Key:                 ss.MetricName,
@@ -338,6 +343,7 @@ func categoryImpact(name string) string {
 		"C4": "Quality documentation helps agents understand project context and API contracts.",
 		"C5": "Stable, low-churn code reduces agent merge conflicts and increases change confidence.",
 		"C6": "Comprehensive tests let agents verify their changes don't break existing functionality.",
+		"C7": "Direct measurement of how well AI agents perform real-world coding tasks in your codebase.",
 	}
 	return impacts[name]
 }

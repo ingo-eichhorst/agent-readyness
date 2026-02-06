@@ -862,14 +862,13 @@ func TestExtractC7_ReturnsAllMetrics(t *testing.T) {
 		},
 	}
 
-	rawValues, unavailable := extractC7(ar)
+	rawValues, unavailable, _ := extractC7(ar)
 
 	if unavailable != nil {
 		t.Errorf("expected no unavailable metrics, got %v", unavailable)
 	}
 
 	expectedKeys := []string{
-		"overall_score",
 		"task_execution_consistency",
 		"code_behavior_comprehension",
 		"cross_file_navigation",
@@ -883,15 +882,12 @@ func TestExtractC7_ReturnsAllMetrics(t *testing.T) {
 			t.Errorf("missing key %q in rawValues", key)
 			continue
 		}
-		if key != "overall_score" && val == 0 {
+		if val == 0 {
 			t.Errorf("key %q has value 0, expected non-zero", key)
 		}
 	}
 
 	// Verify specific values
-	if rawValues["overall_score"] != 75.0 {
-		t.Errorf("overall_score = %v, want 75.0", rawValues["overall_score"])
-	}
 	if rawValues["code_behavior_comprehension"] != 7.0 {
 		t.Errorf("code_behavior_comprehension = %v, want 7.0", rawValues["code_behavior_comprehension"])
 	}
@@ -908,9 +904,9 @@ func TestExtractC7_ReturnsAllMetrics(t *testing.T) {
 		t.Errorf("documentation_accuracy_detection = %v, want 5.0", rawValues["documentation_accuracy_detection"])
 	}
 
-	// Verify count: exactly 6 keys
-	if len(rawValues) != 6 {
-		t.Errorf("expected 6 keys, got %d", len(rawValues))
+	// Verify count: exactly 5 keys
+	if len(rawValues) != 5 {
+		t.Errorf("expected 5 keys, got %d", len(rawValues))
 	}
 }
 
@@ -923,10 +919,9 @@ func TestExtractC7_UnavailableMarksAllMetrics(t *testing.T) {
 		},
 	}
 
-	_, unavailable := extractC7(ar)
+	_, unavailable, _ := extractC7(ar)
 
 	expectedUnavailable := []string{
-		"overall_score",
 		"task_execution_consistency",
 		"code_behavior_comprehension",
 		"cross_file_navigation",
@@ -940,9 +935,9 @@ func TestExtractC7_UnavailableMarksAllMetrics(t *testing.T) {
 		}
 	}
 
-	// Verify count: exactly 6 unavailable
-	if len(unavailable) != 6 {
-		t.Errorf("expected 6 unavailable metrics, got %d", len(unavailable))
+	// Verify count: exactly 5 unavailable
+	if len(unavailable) != 5 {
+		t.Errorf("expected 5 unavailable metrics, got %d", len(unavailable))
 	}
 }
 
@@ -971,20 +966,19 @@ func TestScoreC7_NonZeroSubScores(t *testing.T) {
 	if got.Weight != 0.10 {
 		t.Errorf("weight = %v, want 0.10", got.Weight)
 	}
-	if len(got.SubScores) != 6 {
-		t.Fatalf("subscore count = %d, want 6", len(got.SubScores))
+	if len(got.SubScores) != 5 {
+		t.Fatalf("subscore count = %d, want 5", len(got.SubScores))
 	}
 
-	// The MECE metrics (non-zero weight) should produce non-zero scores
-	// overall_score has weight 0.0 so doesn't affect category score
-	meceNonZero := 0
+	// All 5 MECE metrics should produce non-zero scores
+	nonZero := 0
 	for _, ss := range got.SubScores {
-		if ss.MetricName != "overall_score" && ss.Score > 0 {
-			meceNonZero++
+		if ss.Score > 0 {
+			nonZero++
 		}
 	}
-	if meceNonZero != 5 {
-		t.Errorf("expected 5 non-zero MECE sub-scores, got %d", meceNonZero)
+	if nonZero != 5 {
+		t.Errorf("expected 5 non-zero sub-scores, got %d", nonZero)
 	}
 
 	// Category score should be non-zero (this was the original bug)

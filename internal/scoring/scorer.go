@@ -10,8 +10,12 @@ type Scorer struct {
 }
 
 // MetricExtractor extracts raw metric values from an AnalysisResult.
-// Returns raw values and a set of unavailable metrics.
-type MetricExtractor func(ar *types.AnalysisResult) (rawValues map[string]float64, unavailable map[string]bool)
+// Returns raw values, a set of unavailable metrics, and per-metric evidence items.
+type MetricExtractor func(ar *types.AnalysisResult) (
+	rawValues map[string]float64,
+	unavailable map[string]bool,
+	evidence map[string][]types.EvidenceItem,
+)
 
 // metricExtractors maps category name to a function that extracts raw metric values.
 var metricExtractors = map[string]MetricExtractor{
@@ -143,7 +147,7 @@ func (s *Scorer) Score(results []*types.AnalysisResult) (*types.ScoredResult, er
 			continue
 		}
 
-		rawValues, unavailable := extractor(ar)
+		rawValues, unavailable, evidence := extractor(ar)
 		if rawValues == nil {
 			// Extractor returned nil -- metrics not found
 			categories = append(categories, types.CategoryScore{
@@ -153,7 +157,7 @@ func (s *Scorer) Score(results []*types.AnalysisResult) (*types.ScoredResult, er
 			continue
 		}
 
-		subScores, score := scoreMetrics(catConfig, rawValues, unavailable)
+		subScores, score := scoreMetrics(catConfig, rawValues, unavailable, evidence)
 		categories = append(categories, types.CategoryScore{
 			Name:      ar.Category,
 			Score:     score,
@@ -173,14 +177,14 @@ func (s *Scorer) Score(results []*types.AnalysisResult) (*types.ScoredResult, er
 }
 
 // extractC1 extracts C1 (Code Health) metrics from an AnalysisResult.
-func extractC1(ar *types.AnalysisResult) (map[string]float64, map[string]bool) {
+func extractC1(ar *types.AnalysisResult) (map[string]float64, map[string]bool, map[string][]types.EvidenceItem) {
 	raw, ok := ar.Metrics["c1"]
 	if !ok {
-		return nil, nil
+		return nil, nil, nil
 	}
 	m, ok := raw.(*types.C1Metrics)
 	if !ok {
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	return map[string]float64{
@@ -190,22 +194,22 @@ func extractC1(ar *types.AnalysisResult) (map[string]float64, map[string]bool) {
 		"afferent_coupling_avg": avgMapValues(m.AfferentCoupling),
 		"efferent_coupling_avg": avgMapValues(m.EfferentCoupling),
 		"duplication_rate":      m.DuplicationRate,
-	}, nil
+	}, nil, make(map[string][]types.EvidenceItem)
 }
 
 // extractC2 extracts C2 (Semantic Explicitness) metrics from an AnalysisResult.
-func extractC2(ar *types.AnalysisResult) (map[string]float64, map[string]bool) {
+func extractC2(ar *types.AnalysisResult) (map[string]float64, map[string]bool, map[string][]types.EvidenceItem) {
 	raw, ok := ar.Metrics["c2"]
 	if !ok {
-		return nil, nil
+		return nil, nil, nil
 	}
 	m, ok := raw.(*types.C2Metrics)
 	if !ok {
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	if m.Aggregate == nil {
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	return map[string]float64{
@@ -214,18 +218,18 @@ func extractC2(ar *types.AnalysisResult) (map[string]float64, map[string]bool) {
 		"magic_number_ratio":       m.Aggregate.MagicNumberRatio,
 		"type_strictness":          m.Aggregate.TypeStrictness,
 		"null_safety":              m.Aggregate.NullSafety,
-	}, nil
+	}, nil, make(map[string][]types.EvidenceItem)
 }
 
 // extractC3 extracts C3 (Architecture) metrics from an AnalysisResult.
-func extractC3(ar *types.AnalysisResult) (map[string]float64, map[string]bool) {
+func extractC3(ar *types.AnalysisResult) (map[string]float64, map[string]bool, map[string][]types.EvidenceItem) {
 	raw, ok := ar.Metrics["c3"]
 	if !ok {
-		return nil, nil
+		return nil, nil, nil
 	}
 	m, ok := raw.(*types.C3Metrics)
 	if !ok {
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	return map[string]float64{
@@ -234,18 +238,18 @@ func extractC3(ar *types.AnalysisResult) (map[string]float64, map[string]bool) {
 		"circular_deps":        float64(len(m.CircularDeps)),
 		"import_complexity_avg": m.ImportComplexity.Avg,
 		"dead_exports":          float64(len(m.DeadExports)),
-	}, nil
+	}, nil, make(map[string][]types.EvidenceItem)
 }
 
 // extractC4 extracts C4 (Documentation Quality) metrics from an AnalysisResult.
-func extractC4(ar *types.AnalysisResult) (map[string]float64, map[string]bool) {
+func extractC4(ar *types.AnalysisResult) (map[string]float64, map[string]bool, map[string][]types.EvidenceItem) {
 	raw, ok := ar.Metrics["c4"]
 	if !ok {
-		return nil, nil
+		return nil, nil, nil
 	}
 	m, ok := raw.(*types.C4Metrics)
 	if !ok {
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	// Convert boolean presence to 0/1 for scoring
@@ -274,18 +278,18 @@ func extractC4(ar *types.AnalysisResult) (map[string]float64, map[string]bool) {
 		"examples_present":      examplesVal,
 		"contributing_present":  contributingVal,
 		"diagrams_present":      diagramsVal,
-	}, nil
+	}, nil, make(map[string][]types.EvidenceItem)
 }
 
 // extractC6 extracts C6 (Testing) metrics from an AnalysisResult.
-func extractC6(ar *types.AnalysisResult) (map[string]float64, map[string]bool) {
+func extractC6(ar *types.AnalysisResult) (map[string]float64, map[string]bool, map[string][]types.EvidenceItem) {
 	raw, ok := ar.Metrics["c6"]
 	if !ok {
-		return nil, nil
+		return nil, nil, nil
 	}
 	m, ok := raw.(*types.C6Metrics)
 	if !ok {
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	// Compute test_file_ratio with zero-division guard
@@ -308,18 +312,18 @@ func extractC6(ar *types.AnalysisResult) (map[string]float64, map[string]bool) {
 		unavailable["coverage_percent"] = true
 	}
 
-	return rawValues, unavailable
+	return rawValues, unavailable, make(map[string][]types.EvidenceItem)
 }
 
 // extractC5 extracts C5 (Temporal Dynamics) metrics from an AnalysisResult.
-func extractC5(ar *types.AnalysisResult) (map[string]float64, map[string]bool) {
+func extractC5(ar *types.AnalysisResult) (map[string]float64, map[string]bool, map[string][]types.EvidenceItem) {
 	raw, ok := ar.Metrics["c5"]
 	if !ok {
-		return nil, nil
+		return nil, nil, nil
 	}
 	m, ok := raw.(*types.C5Metrics)
 	if !ok {
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	if !m.Available {
@@ -330,7 +334,7 @@ func extractC5(ar *types.AnalysisResult) (map[string]float64, map[string]bool) {
 			"commit_stability":      true,
 			"hotspot_concentration": true,
 		}
-		return map[string]float64{}, unavailable
+		return map[string]float64{}, unavailable, nil
 	}
 
 	return map[string]float64{
@@ -339,56 +343,60 @@ func extractC5(ar *types.AnalysisResult) (map[string]float64, map[string]bool) {
 		"author_fragmentation":  m.AuthorFragmentation,
 		"commit_stability":      m.CommitStability,
 		"hotspot_concentration": m.HotspotConcentration,
-	}, nil
+	}, nil, make(map[string][]types.EvidenceItem)
 }
 
 // extractC7 extracts C7 (Agent Evaluation) metrics from an AnalysisResult.
-func extractC7(ar *types.AnalysisResult) (map[string]float64, map[string]bool) {
+func extractC7(ar *types.AnalysisResult) (map[string]float64, map[string]bool, map[string][]types.EvidenceItem) {
 	raw, ok := ar.Metrics["c7"]
 	if !ok {
-		return nil, nil
+		return nil, nil, nil
 	}
 	m, ok := raw.(*types.C7Metrics)
 	if !ok {
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	if !m.Available {
 		unavailable := map[string]bool{
-			"overall_score":                    true,
 			"task_execution_consistency":       true,
 			"code_behavior_comprehension":      true,
 			"cross_file_navigation":            true,
 			"identifier_interpretability":      true,
 			"documentation_accuracy_detection": true,
 		}
-		return map[string]float64{}, unavailable
+		return map[string]float64{}, unavailable, nil
 	}
 
 	return map[string]float64{
-		"overall_score":                    m.OverallScore,
 		"task_execution_consistency":       float64(m.TaskExecutionConsistency),
 		"code_behavior_comprehension":      float64(m.CodeBehaviorComprehension),
 		"cross_file_navigation":            float64(m.CrossFileNavigation),
 		"identifier_interpretability":      float64(m.IdentifierInterpretability),
 		"documentation_accuracy_detection": float64(m.DocumentationAccuracyDetection),
-	}, nil
+	}, nil, make(map[string][]types.EvidenceItem)
 }
 
 // scoreMetrics is a generic scoring helper for any category.
 // It iterates over the category's metric configs, looks up raw values by name,
 // interpolates scores, and computes the weighted average. Metrics in the
 // unavailable set are marked Available=false and excluded from the average.
-func scoreMetrics(catConfig CategoryConfig, rawValues map[string]float64, unavailable map[string]bool) ([]types.SubScore, float64) {
+// Evidence items are attached to each SubScore, with nil maps treated as empty.
+func scoreMetrics(catConfig CategoryConfig, rawValues map[string]float64, unavailable map[string]bool, evidence map[string][]types.EvidenceItem) ([]types.SubScore, float64) {
 	var subScores []types.SubScore
 
 	for _, mt := range catConfig.Metrics {
 		rv := rawValues[mt.Name]
+		ev := evidence[mt.Name]
+		if ev == nil {
+			ev = make([]types.EvidenceItem, 0)
+		}
 		ss := types.SubScore{
 			MetricName: mt.Name,
 			RawValue:   rv,
 			Weight:     mt.Weight,
 			Available:  true,
+			Evidence:   ev,
 		}
 
 		if unavailable[mt.Name] {

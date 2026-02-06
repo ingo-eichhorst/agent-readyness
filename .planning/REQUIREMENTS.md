@@ -9,9 +9,9 @@ Requirements for investigating and fixing M2/M3/M4 scoring anomalies.
 
 ### Debug Foundation
 
-- [ ] **DBG-01**: CLI accepts `--debug-c7` flag to enable C7 debug mode
-- [ ] **DBG-02**: Debug mode auto-enables C7 evaluation if not already enabled
-- [ ] **DBG-03**: Debug output writes exclusively to stderr (preserves stdout for JSON/HTML)
+- [x] **DBG-01**: CLI accepts `--debug-c7` flag to enable C7 debug mode
+- [x] **DBG-02**: Debug mode auto-enables C7 evaluation if not already enabled
+- [x] **DBG-03**: Debug output writes exclusively to stderr (preserves stdout for JSON/HTML)
 - [ ] **DBG-04**: Debug mode captures full prompts sent to each metric
 - [ ] **DBG-05**: Debug mode captures full Claude CLI responses for each sample
 - [ ] **DBG-06**: Debug mode displays score traces showing heuristic indicator contributions
@@ -64,9 +64,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DBG-01 | Phase 26 | Pending |
-| DBG-02 | Phase 26 | Pending |
-| DBG-03 | Phase 26 | Pending |
+| DBG-01 | Phase 26 | Complete |
+| DBG-02 | Phase 26 | Complete |
+| DBG-03 | Phase 26 | Complete |
 | DBG-04 | Phase 27 | Pending |
 | DBG-05 | Phase 27 | Pending |
 | DBG-06 | Phase 27 | Pending |

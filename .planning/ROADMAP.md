@@ -14,7 +14,7 @@ This milestone fixes the M2/M3/M4 scoring bug (GitHub #55) and establishes debug
 
 ## Phases
 
-- [ ] **Phase 26: Debug Foundation** - Flag plumbing and debug output channel
+- [x] **Phase 26: Debug Foundation** - Flag plumbing and debug output channel
 - [ ] **Phase 27: Data Capture** - Prompt/response storage and score trace infrastructure
 - [ ] **Phase 28: Heuristic Tests & Scoring Fixes** - Real response fixtures, unit tests, and M2/M3/M4 bug fixes
 - [ ] **Phase 29: Debug Rendering & Replay** - Terminal/JSON debug output, response persistence, replay mode, documentation
@@ -89,7 +89,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 26. Debug Foundation | 0/1 | Not started | - |
+| 26. Debug Foundation | 1/1 | ✓ Complete | 2026-02-06 |
 | 27. Data Capture | 0/2 | Not started | - |
 | 28. Heuristic Tests & Scoring Fixes | 0/3 | Not started | - |
 | 29. Debug Rendering & Replay | 0/3 | Not started | - |

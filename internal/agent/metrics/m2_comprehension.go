@@ -186,39 +186,50 @@ Be specific and reference actual code elements.`, sample.FilePath)
 	return result
 }
 
-// scoreComprehensionResponse uses heuristics to score the comprehension explanation.
+// scoreComprehensionResponse uses grouped heuristics to score the comprehension explanation.
 // The ScoreTrace is the source of truth: FinalScore = BaseScore + sum(Deltas), clamped.
+//
+// Scoring uses thematic groups: each group contributes +1 if ANY member matches.
+// This prevents saturation where many overlapping indicators all score individually.
 func (m *M2Comprehension) scoreComprehensionResponse(response string) (int, ScoreTrace) {
 	responseLower := strings.ToLower(response)
 
-	trace := ScoreTrace{BaseScore: 5}
+	trace := ScoreTrace{BaseScore: 2}
 
-	// Positive indicators (depth of understanding)
-	positiveIndicators := []string{
-		"returns", "return value", "returns the",
-		"error", "handles", "handling",
-		"if ", "when ", "condition",
-		"loop", "iterate", "for each",
-		"edge case", "corner case", "boundary",
-		"side effect", "modifies", "updates",
-		"validates", "checks", "ensures",
+	// Thematic indicator groups: each group +1 if ANY member matches.
+	type indicatorGroup struct {
+		name    string
+		members []string
+	}
+	groups := []indicatorGroup{
+		{"behavior_understanding", []string{"returns", "return value", "returns the"}},
+		{"error_handling", []string{"error", "handles", "handling"}},
+		{"control_flow", []string{"if ", "when ", "condition"}},
+		{"edge_awareness", []string{"edge case", "corner case", "boundary"}},
+		{"side_effects", []string{"side effect", "modifies", "updates"}},
+		{"validation", []string{"validates", "checks", "ensures"}},
 	}
 
-	for _, indicator := range positiveIndicators {
-		matched := strings.Contains(responseLower, indicator)
+	for _, group := range groups {
+		groupMatched := false
+		for _, member := range group.members {
+			if strings.Contains(responseLower, member) {
+				groupMatched = true
+				break
+			}
+		}
 		delta := 0
-		if matched {
+		if groupMatched {
 			delta = 1
 		}
 		trace.Indicators = append(trace.Indicators, IndicatorMatch{
-			Name: "positive:" + indicator, Matched: matched, Delta: delta,
+			Name: "group:" + group.name, Matched: groupMatched, Delta: delta,
 		})
 	}
 
-	// Negative indicators (superficial or wrong)
+	// Negative indicators (superficial or wrong) - individual penalties
 	negativeIndicators := []string{
 		"i don't know", "unclear", "cannot determine",
-		"might", "probably", "seems to",
 		"not sure", "unsure",
 	}
 
@@ -233,25 +244,21 @@ func (m *M2Comprehension) scoreComprehensionResponse(response string) (int, Scor
 		})
 	}
 
-	// Length bonus (detailed explanations are better, up to a point)
-	wordCount := len(strings.Fields(response))
-
-	matched100 := wordCount > 100
-	delta100 := 0
-	if matched100 {
-		delta100 = 1
+	// Hedging penalty group: suggests uncertainty about the explanation
+	hedgingIndicators := []string{"might", "probably", "seems to"}
+	hedgingMatched := false
+	for _, indicator := range hedgingIndicators {
+		if strings.Contains(responseLower, indicator) {
+			hedgingMatched = true
+			break
+		}
+	}
+	hedgingDelta := 0
+	if hedgingMatched {
+		hedgingDelta = -1
 	}
 	trace.Indicators = append(trace.Indicators, IndicatorMatch{
-		Name: "length>100_words", Matched: matched100, Delta: delta100,
-	})
-
-	matched200 := wordCount > 200
-	delta200 := 0
-	if matched200 {
-		delta200 = 1
-	}
-	trace.Indicators = append(trace.Indicators, IndicatorMatch{
-		Name: "length>200_words", Matched: matched200, Delta: delta200,
+		Name: "group:hedging_language", Matched: hedgingMatched, Delta: hedgingDelta,
 	})
 
 	// Compute final score from trace

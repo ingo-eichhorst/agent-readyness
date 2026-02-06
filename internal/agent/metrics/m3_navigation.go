@@ -178,69 +178,69 @@ Reference actual file paths and function names from the codebase.`, sample.FileP
 	return result
 }
 
-// scoreNavigationResponse uses heuristics to score the navigation trace.
+// scoreNavigationResponse uses grouped heuristics to score the navigation trace.
 // The ScoreTrace is the source of truth: FinalScore = BaseScore + sum(Deltas), clamped.
+//
+// Scoring uses thematic groups: each group contributes +1 if ANY member matches.
+// This prevents saturation where many overlapping indicators all score individually.
 func (m *M3Navigation) scoreNavigationResponse(response string) (int, ScoreTrace) {
 	responseLower := strings.ToLower(response)
 
-	trace := ScoreTrace{BaseScore: 5}
+	trace := ScoreTrace{BaseScore: 2}
 
-	// Positive indicators (cross-file understanding)
-	positiveIndicators := []struct {
-		pattern string
-		weight  int
-	}{
-		{"import", 1},
-		{"from", 1},
-		{"->", 2}, // Data flow arrows
-		{"calls", 1},
-		{"returns", 1},
-		{".go", 1}, // File references
-		{".py", 1},
-		{".ts", 1},
-		{".js", 1},
-		{"package", 1},
-		{"module", 1},
-		{"function", 1},
-		{"exports", 1},
-		{"provides", 1},
-		{"dependency", 1},
-		{"flow", 1},
+	// Thematic indicator groups: each group +1 if ANY member matches.
+	type indicatorGroup struct {
+		name    string
+		members []string
+	}
+	groups := []indicatorGroup{
+		{"import_awareness", []string{"import", "from"}},
+		{"cross_file_refs", []string{".go", ".py", ".ts", ".js"}},
+		{"data_flow", []string{"->", "flow"}},
+		{"purpose_mapping", []string{"module", "provides", "exports", "purpose"}},
 	}
 
-	for _, ind := range positiveIndicators {
-		matched := strings.Contains(responseLower, ind.pattern)
+	for _, group := range groups {
+		groupMatched := false
+		for _, member := range group.members {
+			if strings.Contains(responseLower, member) {
+				groupMatched = true
+				break
+			}
+		}
 		delta := 0
-		if matched {
-			delta = ind.weight
+		if groupMatched {
+			delta = 1
 		}
 		trace.Indicators = append(trace.Indicators, IndicatorMatch{
-			Name: "positive:" + ind.pattern, Matched: matched, Delta: delta,
+			Name: "group:" + group.name, Matched: groupMatched, Delta: delta,
 		})
 	}
 
-	// Count file path references (indicates multi-file navigation)
+	// Depth group: based on file path reference count
 	pathCount := strings.Count(response, "/")
 
-	matchedPath3 := pathCount > 3
-	deltaPath3 := 0
-	if matchedPath3 {
-		deltaPath3 = 1
+	matchedDepth := pathCount > 6
+	deltaDepth := 0
+	if matchedDepth {
+		deltaDepth = 1
 	}
 	trace.Indicators = append(trace.Indicators, IndicatorMatch{
-		Name: "pathCount>3", Matched: matchedPath3, Delta: deltaPath3,
+		Name: "group:depth", Matched: matchedDepth, Delta: deltaDepth,
 	})
 
-	matchedPath6 := pathCount > 6
-	deltaPath6 := 0
-	if matchedPath6 {
-		deltaPath6 = 1
+	// Extensive depth group: lengthy response with many paths
+	wordCount := len(strings.Fields(response))
+	matchedExtensive := wordCount > 200
+	deltaExtensive := 0
+	if matchedExtensive {
+		deltaExtensive = 1
 	}
 	trace.Indicators = append(trace.Indicators, IndicatorMatch{
-		Name: "pathCount>6", Matched: matchedPath6, Delta: deltaPath6,
+		Name: "group:extensive_depth", Matched: matchedExtensive, Delta: deltaExtensive,
 	})
 
-	// Negative indicators
+	// Negative indicators - individual penalties
 	negativeIndicators := []string{
 		"cannot find", "not found", "no file",
 		"unable to", "cannot trace", "unknown",
@@ -256,27 +256,6 @@ func (m *M3Navigation) scoreNavigationResponse(response string) (int, ScoreTrace
 			Name: "negative:" + indicator, Matched: matched, Delta: delta,
 		})
 	}
-
-	// Length check (navigation should be detailed)
-	wordCount := len(strings.Fields(response))
-
-	matchedShort := wordCount < 50
-	deltaShort := 0
-	if matchedShort {
-		deltaShort = -1
-	}
-	trace.Indicators = append(trace.Indicators, IndicatorMatch{
-		Name: "length<50_words", Matched: matchedShort, Delta: deltaShort,
-	})
-
-	matchedLong := wordCount > 150
-	deltaLong := 0
-	if matchedLong {
-		deltaLong = 1
-	}
-	trace.Indicators = append(trace.Indicators, IndicatorMatch{
-		Name: "length>150_words", Matched: matchedLong, Delta: deltaLong,
-	})
 
 	// Compute final score from trace
 	score := trace.BaseScore

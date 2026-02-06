@@ -209,91 +209,98 @@ If all documentation appears accurate, state that clearly.`, sample.FilePath)
 	return result
 }
 
-// scoreDocumentationResponse uses heuristics to score the documentation analysis.
+// scoreDocumentationResponse uses grouped heuristics to score the documentation analysis.
 // The ScoreTrace is the source of truth: FinalScore = BaseScore + sum(Deltas), clamped.
+//
+// Scoring uses thematic groups: each group contributes +1 if ANY member matches.
+// This prevents saturation where many overlapping indicators all score individually.
 func (m *M5Documentation) scoreDocumentationResponse(response string) (int, ScoreTrace) {
 	responseLower := strings.ToLower(response)
 
-	trace := ScoreTrace{BaseScore: 5}
+	trace := ScoreTrace{BaseScore: 3}
 
-	// Check for structured response (indicates thorough analysis)
+	// Thematic indicator groups: each group +1 if ANY member matches.
+
+	// Structure summary group: response has a summary section
 	matchedSummary := strings.Contains(responseLower, "## summary")
 	deltaSummary := 0
 	if matchedSummary {
 		deltaSummary = 1
 	}
 	trace.Indicators = append(trace.Indicators, IndicatorMatch{
-		Name: "structure:## summary", Matched: matchedSummary, Delta: deltaSummary,
+		Name: "group:structure_summary", Matched: matchedSummary, Delta: deltaSummary,
 	})
 
-	matchedAccDoc := strings.Contains(responseLower, "accurate documentation") || strings.Contains(responseLower, "## accurate")
-	deltaAccDoc := 0
-	if matchedAccDoc {
-		deltaAccDoc = 1
+	// Accurate section group: response documents accurate items
+	matchedAccurate := strings.Contains(responseLower, "accurate documentation") ||
+		strings.Contains(responseLower, "## accurate")
+	deltaAccurate := 0
+	if matchedAccurate {
+		deltaAccurate = 1
 	}
 	trace.Indicators = append(trace.Indicators, IndicatorMatch{
-		Name: "structure:accurate_documentation/## accurate", Matched: matchedAccDoc, Delta: deltaAccDoc,
+		Name: "group:accurate_section", Matched: matchedAccurate, Delta: deltaAccurate,
 	})
 
-	matchedPotential := strings.Contains(responseLower, "potential mismatch") || strings.Contains(responseLower, "## potential")
-	deltaPotential := 0
-	if matchedPotential {
-		deltaPotential = 1
+	// Mismatch section group: response documents potential mismatches
+	matchedMismatch := strings.Contains(responseLower, "potential mismatch") ||
+		strings.Contains(responseLower, "## potential")
+	deltaMismatch := 0
+	if matchedMismatch {
+		deltaMismatch = 1
 	}
 	trace.Indicators = append(trace.Indicators, IndicatorMatch{
-		Name: "structure:potential_mismatch/## potential", Matched: matchedPotential, Delta: deltaPotential,
+		Name: "group:mismatch_section", Matched: matchedMismatch, Delta: deltaMismatch,
 	})
 
-	// Positive indicators (detailed analysis)
-	positiveIndicators := []struct {
-		pattern string
-		weight  int
-	}{
-		{"location:", 1},
-		{"line", 1},
-		{"comment says", 1},
-		{"code does", 1},
-		{"issue:", 1},
-		{"accurate", 1},
-		{"correctly", 1},
-		{"describes", 1},
-		{"matches", 1},
-		{"documentation", 1},
-	}
-
-	for _, ind := range positiveIndicators {
-		matched := strings.Contains(responseLower, ind.pattern)
-		delta := 0
-		if matched {
-			delta = ind.weight
+	// Specific analysis group: response references specific locations and details
+	specificIndicators := []string{"location:", "comment says", "code does", "issue:"}
+	matchedSpecific := false
+	for _, indicator := range specificIndicators {
+		if strings.Contains(responseLower, indicator) {
+			matchedSpecific = true
+			break
 		}
-		trace.Indicators = append(trace.Indicators, IndicatorMatch{
-			Name: "positive:" + ind.pattern, Matched: matched, Delta: delta,
-		})
 	}
+	deltaSpecific := 0
+	if matchedSpecific {
+		deltaSpecific = 1
+	}
+	trace.Indicators = append(trace.Indicators, IndicatorMatch{
+		Name: "group:specific_analysis", Matched: matchedSpecific, Delta: deltaSpecific,
+	})
 
-	// Check for clear conclusion
+	// Quality language group: uses accuracy-related terminology
+	qualityIndicators := []string{"accurate", "correctly", "describes", "matches", "documentation"}
+	matchedQuality := false
+	for _, indicator := range qualityIndicators {
+		if strings.Contains(responseLower, indicator) {
+			matchedQuality = true
+			break
+		}
+	}
+	deltaQuality := 0
+	if matchedQuality {
+		deltaQuality = 1
+	}
+	trace.Indicators = append(trace.Indicators, IndicatorMatch{
+		Name: "group:quality_language", Matched: matchedQuality, Delta: deltaQuality,
+	})
+
+	// Conclusion group: provides a clear conclusion about documentation accuracy
 	matchedConclusion := strings.Contains(responseLower, "all documentation appears accurate") ||
 		strings.Contains(responseLower, "no mismatches found") ||
-		strings.Contains(responseLower, "documentation is accurate")
+		strings.Contains(responseLower, "documentation is accurate") ||
+		(strings.Contains(responseLower, "mismatch") && strings.Contains(responseLower, "line"))
 	deltaConclusion := 0
 	if matchedConclusion {
 		deltaConclusion = 1
 	}
 	trace.Indicators = append(trace.Indicators, IndicatorMatch{
-		Name: "conclusion:accurate", Matched: matchedConclusion, Delta: deltaConclusion,
+		Name: "group:conclusion", Matched: matchedConclusion, Delta: deltaConclusion,
 	})
 
-	matchedMismatchLine := strings.Contains(responseLower, "mismatch") && strings.Contains(responseLower, "line")
-	deltaMismatchLine := 0
-	if matchedMismatchLine {
-		deltaMismatchLine = 1
-	}
-	trace.Indicators = append(trace.Indicators, IndicatorMatch{
-		Name: "conclusion:mismatch+line", Matched: matchedMismatchLine, Delta: deltaMismatchLine,
-	})
-
-	// Negative indicators
+	// Negative indicators - individual penalties
 	negativeIndicators := []string{
 		"cannot analyze", "unable to", "error reading",
 		"no comments", "file not found",
@@ -309,27 +316,6 @@ func (m *M5Documentation) scoreDocumentationResponse(response string) (int, Scor
 			Name: "negative:" + indicator, Matched: matched, Delta: delta,
 		})
 	}
-
-	// Length check (thorough analysis should be detailed)
-	wordCount := len(strings.Fields(response))
-
-	matchedShort := wordCount < 50
-	deltaShort := 0
-	if matchedShort {
-		deltaShort = -1
-	}
-	trace.Indicators = append(trace.Indicators, IndicatorMatch{
-		Name: "length<50_words", Matched: matchedShort, Delta: deltaShort,
-	})
-
-	matchedLong := wordCount > 100
-	deltaLong := 0
-	if matchedLong {
-		deltaLong = 1
-	}
-	trace.Indicators = append(trace.Indicators, IndicatorMatch{
-		Name: "length>100_words", Matched: matchedLong, Delta: deltaLong,
-	})
 
 	// Compute final score from trace
 	score := trace.BaseScore

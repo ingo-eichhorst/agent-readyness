@@ -264,76 +264,98 @@ Format:
 	return result
 }
 
-// scoreIdentifierResponse uses heuristics to score the identifier interpretation.
+// scoreIdentifierResponse uses grouped heuristics to score the identifier interpretation.
 // The ScoreTrace is the source of truth: FinalScore = BaseScore + sum(Deltas), clamped.
+//
+// Scoring uses thematic groups with variable weights. Self-report groups have
+// higher impact (+2/-2) since the agent's own accuracy assessment is a strong signal.
 func (m *M4Identifiers) scoreIdentifierResponse(response string) (int, ScoreTrace) {
 	responseLower := strings.ToLower(response)
 
-	trace := ScoreTrace{BaseScore: 5}
+	trace := ScoreTrace{BaseScore: 1}
 
-	// Check for self-reported accuracy (agent verifies its own interpretation)
-	matchedAccurate := strings.Contains(responseLower, "accurate") || strings.Contains(responseLower, "correct")
-	deltaAccurate := 0
-	if matchedAccurate {
-		deltaAccurate = 2
+	// Self-report positive group (+2): agent confirms its interpretation was right
+	// Uses "accurate" rather than "correct" to avoid false positive on "partially correct"
+	matchedPositive := strings.Contains(responseLower, "accurate")
+	deltaPositive := 0
+	if matchedPositive {
+		deltaPositive = 2
 	}
 	trace.Indicators = append(trace.Indicators, IndicatorMatch{
-		Name: "self_report:accurate/correct", Matched: matchedAccurate, Delta: deltaAccurate,
+		Name: "group:self_report_positive", Matched: matchedPositive, Delta: deltaPositive,
 	})
 
+	// Self-report partial group (+1): agent says interpretation was partially right
 	matchedPartial := strings.Contains(responseLower, "mostly correct") || strings.Contains(responseLower, "partially")
 	deltaPartial := 0
 	if matchedPartial {
 		deltaPartial = 1
 	}
 	trace.Indicators = append(trace.Indicators, IndicatorMatch{
-		Name: "self_report:mostly_correct/partially", Matched: matchedPartial, Delta: deltaPartial,
+		Name: "group:self_report_partial", Matched: matchedPartial, Delta: deltaPartial,
 	})
 
-	matchedWrong := strings.Contains(responseLower, "incorrect") || strings.Contains(responseLower, "wrong") || strings.Contains(responseLower, "misunderstood")
-	deltaWrong := 0
-	if matchedWrong {
-		deltaWrong = -2
+	// Self-report negative group (-2): agent says interpretation was wrong
+	matchedNegative := strings.Contains(responseLower, "incorrect") ||
+		strings.Contains(responseLower, "wrong") ||
+		strings.Contains(responseLower, "misunderstood")
+	deltaNegative := 0
+	if matchedNegative {
+		deltaNegative = -2
 	}
 	trace.Indicators = append(trace.Indicators, IndicatorMatch{
-		Name: "self_report:incorrect/wrong/misunderstood", Matched: matchedWrong, Delta: deltaWrong,
+		Name: "group:self_report_negative", Matched: matchedNegative, Delta: deltaNegative,
 	})
 
-	// Positive indicators (detailed interpretation)
-	positiveIndicators := []string{
-		"interpretation:", "purpose:", "function", "type",
+	// Detailed interpretation group (+1): agent provided structured interpretation
+	matchedInterpretation := strings.Contains(responseLower, "interpretation:") ||
+		strings.Contains(responseLower, "purpose:")
+	deltaInterpretation := 0
+	if matchedInterpretation {
+		deltaInterpretation = 1
+	}
+	trace.Indicators = append(trace.Indicators, IndicatorMatch{
+		Name: "group:detailed_interpretation", Matched: matchedInterpretation, Delta: deltaInterpretation,
+	})
+
+	// Action words group (+1): agent uses specific action verbs showing understanding
+	actionWords := []string{
 		"handles", "manages", "creates", "processes",
 		"returns", "validates", "converts", "parses",
 	}
-
-	for _, indicator := range positiveIndicators {
-		matched := strings.Contains(responseLower, indicator)
-		delta := 0
-		if matched {
-			delta = 1
+	matchedAction := false
+	for _, word := range actionWords {
+		if strings.Contains(responseLower, word) {
+			matchedAction = true
+			break
 		}
-		trace.Indicators = append(trace.Indicators, IndicatorMatch{
-			Name: "positive:" + indicator, Matched: matched, Delta: delta,
-		})
 	}
+	deltaAction := 0
+	if matchedAction {
+		deltaAction = 1
+	}
+	trace.Indicators = append(trace.Indicators, IndicatorMatch{
+		Name: "group:action_words", Matched: matchedAction, Delta: deltaAction,
+	})
 
-	// Structure check (response has expected sections)
+	// Structure verification group (+1): response has verification section
 	matchedVerification := strings.Contains(responseLower, "verification:")
 	deltaVerification := 0
 	if matchedVerification {
 		deltaVerification = 1
 	}
 	trace.Indicators = append(trace.Indicators, IndicatorMatch{
-		Name: "structure:verification", Matched: matchedVerification, Delta: deltaVerification,
+		Name: "group:structure_verification", Matched: matchedVerification, Delta: deltaVerification,
 	})
 
-	matchedAccuracySection := strings.Contains(responseLower, "accuracy:")
-	deltaAccuracySection := 0
-	if matchedAccuracySection {
-		deltaAccuracySection = 1
+	// Structure accuracy group (+1): response has accuracy section
+	matchedAccuracy := strings.Contains(responseLower, "accuracy:")
+	deltaAccuracy := 0
+	if matchedAccuracy {
+		deltaAccuracy = 1
 	}
 	trace.Indicators = append(trace.Indicators, IndicatorMatch{
-		Name: "structure:accuracy", Matched: matchedAccuracySection, Delta: deltaAccuracySection,
+		Name: "group:structure_accuracy", Matched: matchedAccuracy, Delta: deltaAccuracy,
 	})
 
 	// Compute final score from trace

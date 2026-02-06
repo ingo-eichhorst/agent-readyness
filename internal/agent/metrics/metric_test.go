@@ -564,13 +564,29 @@ func TestScoreTrace_SumsCorrectly(t *testing.T) {
 		},
 	}
 
+	// Expected base scores after grouped indicator refactor
+	expectedBase := map[string]int{
+		"M2 good response":  2,
+		"M2 empty response": 2,
+		"M3 good response":  2,
+		"M3 empty response": 2,
+		"M4 good response":  1,
+		"M4 empty response": 1,
+		"M5 good response":  3,
+		"M5 empty response": 3,
+	}
+
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			score, trace := tc.scoreFn(tc.response)
 
-			// Verify base score is 5 for M2-M5
-			if trace.BaseScore != 5 {
-				t.Errorf("BaseScore = %d, want 5", trace.BaseScore)
+			// Verify base score matches expected for this metric
+			wantBase, ok := expectedBase[tc.name]
+			if !ok {
+				t.Fatalf("no expected base score for %q", tc.name)
+			}
+			if trace.BaseScore != wantBase {
+				t.Errorf("BaseScore = %d, want %d", trace.BaseScore, wantBase)
 			}
 
 			// Verify that indicators exist

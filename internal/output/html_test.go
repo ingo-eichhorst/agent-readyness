@@ -103,6 +103,56 @@ func TestHTMLGenerator_GenerateReport(t *testing.T) {
 	}
 }
 
+func TestHTMLReport_ContainsModalComponent(t *testing.T) {
+	gen, err := NewHTMLGenerator()
+	if err != nil {
+		t.Fatalf("NewHTMLGenerator() error = %v", err)
+	}
+
+	scored := &types.ScoredResult{
+		ProjectName: "modal-test",
+		Composite:   7.0,
+		Tier:        "Agent-Assisted",
+		Categories: []types.CategoryScore{
+			{
+				Name:   "C1",
+				Score:  7.0,
+				Weight: 0.20,
+				SubScores: []types.SubScore{
+					{MetricName: "complexity_avg", RawValue: 8.0, Score: 7.0, Weight: 0.30, Available: true},
+				},
+			},
+		},
+	}
+
+	var buf bytes.Buffer
+	err = gen.GenerateReport(&buf, scored, nil, nil)
+	if err != nil {
+		t.Fatalf("GenerateReport() error = %v", err)
+	}
+
+	html := buf.String()
+
+	checks := []struct {
+		substring string
+		desc      string
+	}{
+		{`<dialog id="ars-modal"`, "generated HTML should contain dialog element"},
+		{`class="ars-modal-close"`, "generated HTML should contain modal close button"},
+		{"openModal", "generated HTML should define openModal function"},
+		{"closeModal", "generated HTML should define closeModal function"},
+		{"showModal()", "generated HTML should use showModal() for native dialog"},
+		{"<noscript>", "generated HTML should contain noscript progressive enhancement"},
+		{"ars-modal-trigger", "generated HTML should contain modal trigger button styles"},
+	}
+
+	for _, c := range checks {
+		if !strings.Contains(html, c.substring) {
+			t.Errorf("%s (missing %q)", c.desc, c.substring)
+		}
+	}
+}
+
 func TestHTMLGenerator_XSSPrevention(t *testing.T) {
 	gen, err := NewHTMLGenerator()
 	if err != nil {

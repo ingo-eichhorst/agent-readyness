@@ -10,16 +10,16 @@ See: .planning/PROJECT.md (updated 2026-02-06)
 ## Current Position
 
 Phase: 29 of 29 (Debug Rendering & Replay)
-Plan: 1 of 3 in current phase
+Plan: 2 of 3 in current phase
 Status: In progress
-Last activity: 2026-02-06 — Completed 29-01-PLAN.md
+Last activity: 2026-02-06 — Completed 29-02-PLAN.md
 
-Progress: [######....] 43% (v0.0.5)
+Progress: [######....] 44% (v0.0.5)
 
 ## Performance Metrics
 
 **Velocity (all milestones):**
-- Total plans completed: 61
+- Total plans completed: 62
 - Phases completed: 28
 - Total milestones shipped: 4
 
@@ -64,6 +64,10 @@ Recent decisions affecting current work:
 - [28-03]: M4 uses "accurate" not "correct" for self_report_positive to avoid false-positive on "partially correct"
 - [29-01]: Prompt truncated to 200 chars, response to 500 chars in debug output for readability
 - [29-01]: Only matched indicators shown in score trace line (unmatched omitted for brevity)
+- [29-02]: Prompt-based metric identification over passing metricID through Executor interface
+- [29-02]: Nil executor parameter over separate function for RunMetricsParallel
+- [29-02]: --debug-dir implies --debug-c7 for single flag convenience
+- [29-02]: Capture/replay mode auto-detected from directory contents
 
 ### Pending Todos
 
@@ -76,5 +80,5 @@ None - M2/M3/M4 scoring issues fully resolved (Bug 1: extractC7 in 28-02, Bug 2:
 ## Session Continuity
 
 Last session: 2026-02-06
-Stopped at: Completed 29-01-PLAN.md
+Stopped at: Completed 29-02-PLAN.md
 Resume file: None

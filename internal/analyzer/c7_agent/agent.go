@@ -158,22 +158,21 @@ func (a *C7Analyzer) buildMetrics(result agent.ParallelResult, startTime time.Ti
 			metricResult.Reasoning = mr.Error
 		}
 
-		// Extract sample descriptions and optionally populate debug data
+		// Extract sample descriptions and always populate debug data
+		// (debug flag only controls terminal output, not data capture)
 		for _, s := range mr.Samples {
 			metricResult.Samples = append(metricResult.Samples, s.Sample.Description)
 
-			if a.debug {
-				metricResult.DebugSamples = append(metricResult.DebugSamples, types.C7DebugSample{
-					FilePath:    s.Sample.FilePath,
-					Description: s.Sample.Description,
-					Prompt:      s.Prompt,
-					Response:    s.Response,
-					Score:       s.Score,
-					Duration:    s.Duration.Seconds(),
-					ScoreTrace:  convertScoreTrace(s.ScoreTrace),
-					Error:       s.Error,
-				})
-			}
+			metricResult.DebugSamples = append(metricResult.DebugSamples, types.C7DebugSample{
+				FilePath:    s.Sample.FilePath,
+				Description: s.Sample.Description,
+				Prompt:      s.Prompt,
+				Response:    s.Response,
+				Score:       s.Score,
+				Duration:    s.Duration.Seconds(),
+				ScoreTrace:  convertScoreTrace(s.ScoreTrace),
+				Error:       s.Error,
+			})
 		}
 
 		m.MetricResults = append(m.MetricResults, metricResult)

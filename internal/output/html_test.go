@@ -72,7 +72,7 @@ func TestHTMLGenerator_GenerateReport(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	err = gen.GenerateReport(&buf, scored, recs, nil)
+	err = gen.GenerateReport(&buf, scored, recs, nil, nil)
 	if err != nil {
 		t.Fatalf("GenerateReport() error = %v", err)
 	}
@@ -126,7 +126,7 @@ func TestHTMLReport_ContainsModalComponent(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	err = gen.GenerateReport(&buf, scored, nil, nil)
+	err = gen.GenerateReport(&buf, scored, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("GenerateReport() error = %v", err)
 	}
@@ -172,7 +172,7 @@ func TestHTMLGenerator_XSSPrevention(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	err = gen.GenerateReport(&buf, scored, nil, nil)
+	err = gen.GenerateReport(&buf, scored, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("GenerateReport() error = %v", err)
 	}
@@ -219,7 +219,7 @@ func TestHTMLGenerator_WithBaseline(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	err = gen.GenerateReport(&buf, current, nil, baseline)
+	err = gen.GenerateReport(&buf, current, nil, baseline, nil)
 	if err != nil {
 		t.Fatalf("GenerateReport() error = %v", err)
 	}
@@ -345,7 +345,7 @@ func TestHTMLGenerator_SelfContained(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	err = gen.GenerateReport(&buf, scored, nil, nil)
+	err = gen.GenerateReport(&buf, scored, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("GenerateReport() error = %v", err)
 	}

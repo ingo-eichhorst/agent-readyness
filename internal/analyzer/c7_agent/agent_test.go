@@ -187,9 +187,10 @@ func mockParallelResult() agent.ParallelResult {
 	}
 }
 
-func TestBuildMetrics_DebugOff_NoDebugSamples(t *testing.T) {
+func TestBuildMetrics_AlwaysPopulatesDebugSamples(t *testing.T) {
 	a := NewC7Analyzer()
-	// debug is false by default
+	// debug is false by default -- DebugSamples should still be populated
+	// (debug flag only controls terminal output, not data capture)
 
 	result := a.buildMetrics(mockParallelResult(), time.Now())
 
@@ -201,11 +202,14 @@ func TestBuildMetrics_DebugOff_NoDebugSamples(t *testing.T) {
 	if len(mr.Samples) != 2 {
 		t.Errorf("expected 2 sample descriptions, got %d", len(mr.Samples))
 	}
-	if mr.DebugSamples != nil {
-		t.Errorf("expected DebugSamples to be nil when debug off, got %d items", len(mr.DebugSamples))
+	if len(mr.DebugSamples) != 2 {
+		t.Errorf("expected 2 DebugSamples even when debug off, got %d", len(mr.DebugSamples))
 	}
 }
 
+// TestBuildMetrics_DebugOn_PopulatesDebugSamples verifies debug samples are populated
+// when debug is on. Note: debug flag now only controls terminal output, not data capture.
+// DebugSamples are always populated regardless of debug flag.
 func TestBuildMetrics_DebugOn_PopulatesDebugSamples(t *testing.T) {
 	a := NewC7Analyzer()
 	a.SetDebug(true, io.Discard)

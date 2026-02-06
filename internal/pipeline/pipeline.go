@@ -342,8 +342,14 @@ func (p *Pipeline) generateHTMLReport(recs []recommend.Recommendation) error {
 	}
 	defer f.Close()
 
+	// Build trace data for modal rendering
+	traceData := &output.TraceData{
+		ScoringConfig:   p.scorer.Config,
+		AnalysisResults: p.results,
+	}
+
 	// Generate report
-	if err := gen.GenerateReport(f, p.scored, recs, baseline); err != nil {
+	if err := gen.GenerateReport(f, p.scored, recs, baseline, traceData); err != nil {
 		return fmt.Errorf("generate report: %w", err)
 	}
 

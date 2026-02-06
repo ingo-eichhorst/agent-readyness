@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/ingo/agent-readyness/internal/recommend"
+	"github.com/ingo/agent-readyness/internal/scoring"
 	"github.com/ingo/agent-readyness/pkg/types"
 	"github.com/ingo/agent-readyness/pkg/version"
 )
@@ -65,6 +66,15 @@ type HTMLSubScore struct {
 	BriefDescription    string        // Always visible, 1-2 sentences
 	DetailedDescription template.HTML // Expandable content with sections
 	ShouldExpand        bool          // true if score below threshold
+	TraceHTML           template.HTML // Pre-rendered modal body content
+	HasTrace            bool          // Whether trace data is available
+}
+
+// TraceData holds analysis data needed for rendering call trace modals.
+// Passed to GenerateReport; can be nil when trace rendering is not needed.
+type TraceData struct {
+	ScoringConfig   *scoring.ScoringConfig
+	AnalysisResults []*types.AnalysisResult
 }
 
 // HTMLRecommendation represents a recommendation for HTML display.
@@ -91,7 +101,8 @@ func NewHTMLGenerator() (*HTMLGenerator, error) {
 }
 
 // GenerateReport renders an HTML report to the provided writer.
-func (g *HTMLGenerator) GenerateReport(w io.Writer, scored *types.ScoredResult, recs []recommend.Recommendation, baseline *types.ScoredResult) error {
+// trace can be nil when trace rendering is not needed (backward compatible).
+func (g *HTMLGenerator) GenerateReport(w io.Writer, scored *types.ScoredResult, recs []recommend.Recommendation, baseline *types.ScoredResult, trace *TraceData) error {
 	// Load CSS
 	cssBytes, err := templateFS.ReadFile("templates/styles.css")
 	if err != nil {
@@ -126,7 +137,7 @@ func (g *HTMLGenerator) GenerateReport(w io.Writer, scored *types.ScoredResult, 
 		RadarChartSVG:   template.HTML(radarSVG), // Safe: we generated it
 		TrendChartSVG:   template.HTML(trendSVG), // Safe: we generated it
 		HasTrend:        baseline != nil && trendSVG != "",
-		Categories:      buildHTMLCategories(scored.Categories, researchCitations),
+		Categories:      buildHTMLCategories(scored.Categories, researchCitations, trace),
 		Recommendations: buildHTMLRecommendations(recs),
 		Citations:       researchCitations,
 		InlineCSS:       template.CSS(string(cssBytes)), // Safe: from our template
@@ -163,7 +174,7 @@ func scoreToClass(score float64) string {
 }
 
 // buildHTMLCategories converts scored categories to HTML display format.
-func buildHTMLCategories(categories []types.CategoryScore, citations []Citation) []HTMLCategory {
+func buildHTMLCategories(categories []types.CategoryScore, citations []Citation, trace *TraceData) []HTMLCategory {
 	result := make([]HTMLCategory, 0, len(categories))
 
 	for _, cat := range categories {
@@ -172,7 +183,7 @@ func buildHTMLCategories(categories []types.CategoryScore, citations []Citation)
 			DisplayName:       categoryDisplayName(cat.Name),
 			Score:             cat.Score,
 			ScoreClass:        scoreToClass(cat.Score),
-			SubScores:         buildHTMLSubScores(cat.SubScores),
+			SubScores:         buildHTMLSubScores(cat.Name, cat.SubScores, trace),
 			ImpactDescription: categoryImpact(cat.Name),
 			Citations:         filterCitationsByCategory(citations, cat.Name),
 		}
@@ -194,8 +205,23 @@ func filterCitationsByCategory(citations []Citation, categoryName string) []Cita
 }
 
 // buildHTMLSubScores converts sub-scores to HTML display format.
-func buildHTMLSubScores(subScores []types.SubScore) []HTMLSubScore {
+func buildHTMLSubScores(categoryName string, subScores []types.SubScore, trace *TraceData) []HTMLSubScore {
 	result := make([]HTMLSubScore, 0, len(subScores))
+
+	// Extract C7 metric results if this is the C7 category and trace data is available
+	var c7MetricResults []types.C7MetricResult
+	if categoryName == "C7" && trace != nil && trace.AnalysisResults != nil {
+		for _, ar := range trace.AnalysisResults {
+			if ar.Category == "C7" {
+				if c7Raw, ok := ar.Metrics["c7"]; ok {
+					if c7m, ok := c7Raw.(*types.C7Metrics); ok {
+						c7MetricResults = c7m.MetricResults
+					}
+				}
+				break
+			}
+		}
+	}
 
 	for _, ss := range subScores {
 		// Skip metrics with zero weight (e.g., deprecated overall_score in C7)
@@ -218,6 +244,16 @@ func buildHTMLSubScores(subScores []types.SubScore) []HTMLSubScore {
 			DetailedDescription: desc.Detailed,
 			ShouldExpand:        ss.Score < desc.Threshold,
 		}
+
+		// Populate C7 trace data if available
+		if categoryName == "C7" && len(c7MetricResults) > 0 {
+			traceHTML := renderC7Trace(ss.MetricName, c7MetricResults)
+			if traceHTML != "" {
+				hss.TraceHTML = template.HTML(traceHTML)
+				hss.HasTrace = true
+			}
+		}
+
 		result = append(result, hss)
 	}
 

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/ingo/agent-readyness/internal/recommend"
+	"github.com/ingo/agent-readyness/internal/scoring"
 	"github.com/ingo/agent-readyness/pkg/types"
 )
 
@@ -368,5 +369,168 @@ func TestHTMLGenerator_SelfContained(t *testing.T) {
 	// CSS should be substantial (contains actual styles)
 	if !strings.Contains(html, "--color-green") {
 		t.Error("Report should have CSS custom properties")
+	}
+}
+
+// buildPromptTestEvidence returns sample evidence items for testing.
+func buildPromptTestEvidence() []types.EvidenceItem {
+	return []types.EvidenceItem{
+		{FilePath: "internal/foo.go", Line: 42, Value: 15.0, Description: "high complexity"},
+		{FilePath: "internal/bar.go", Line: 10, Value: 12.0, Description: "long function"},
+	}
+}
+
+// buildAllCategoriesScoredResult creates a ScoredResult with all 7 categories,
+// each having at least one metric with the given score value.
+func buildAllCategoriesScoredResult(score float64) *types.ScoredResult {
+	evidence := buildPromptTestEvidence()
+	return &types.ScoredResult{
+		ProjectName: "prompt-test",
+		Composite:   score,
+		Tier:        "Agent-Assisted",
+		Categories: []types.CategoryScore{
+			{
+				Name: "C1", Score: score, Weight: 0.25,
+				SubScores: []types.SubScore{
+					{MetricName: "complexity_avg", RawValue: 15.0, Score: score, Weight: 0.25, Available: true, Evidence: evidence},
+					{MetricName: "func_length_avg", RawValue: 30.0, Score: score, Weight: 0.20, Available: true, Evidence: evidence},
+				},
+			},
+			{
+				Name: "C2", Score: score, Weight: 0.10,
+				SubScores: []types.SubScore{
+					{MetricName: "type_annotation_coverage", RawValue: 60.0, Score: score, Weight: 0.30, Available: true, Evidence: evidence},
+				},
+			},
+			{
+				Name: "C3", Score: score, Weight: 0.20,
+				SubScores: []types.SubScore{
+					{MetricName: "max_dir_depth", RawValue: 5.0, Score: score, Weight: 0.20, Available: true, Evidence: evidence},
+				},
+			},
+			{
+				Name: "C4", Score: score, Weight: 0.15,
+				SubScores: []types.SubScore{
+					{MetricName: "comment_density", RawValue: 8.0, Score: score, Weight: 0.20, Available: true, Evidence: evidence},
+				},
+			},
+			{
+				Name: "C5", Score: score, Weight: 0.10,
+				SubScores: []types.SubScore{
+					{MetricName: "churn_rate", RawValue: 200.0, Score: score, Weight: 0.20, Available: true, Evidence: evidence},
+				},
+			},
+			{
+				Name: "C6", Score: score, Weight: 0.15,
+				SubScores: []types.SubScore{
+					{MetricName: "coverage_percent", RawValue: 45.0, Score: score, Weight: 0.30, Available: true, Evidence: evidence},
+				},
+			},
+			{
+				Name: "C7", Score: score, Weight: 0.10,
+				SubScores: []types.SubScore{
+					{MetricName: "task_execution_consistency", RawValue: 5.0, Score: score, Weight: 0.20, Available: true, Evidence: evidence},
+				},
+			},
+		},
+	}
+}
+
+func TestHTMLGenerator_PromptModals(t *testing.T) {
+	gen, err := NewHTMLGenerator()
+	if err != nil {
+		t.Fatalf("NewHTMLGenerator() error = %v", err)
+	}
+
+	scored := buildAllCategoriesScoredResult(5.0)
+	trace := &TraceData{
+		ScoringConfig: scoring.DefaultConfig(),
+		Languages:     []string{"go"},
+	}
+
+	var buf bytes.Buffer
+	err = gen.GenerateReport(&buf, scored, nil, nil, trace)
+	if err != nil {
+		t.Fatalf("GenerateReport() error = %v", err)
+	}
+
+	html := buf.String()
+
+	checks := []struct {
+		substring string
+		desc      string
+	}{
+		{"Improve", "output should contain Improve button text"},
+		{"prompt-copy-container", "output should contain prompt copy container class"},
+		{"copyPromptText", "output should contain copyPromptText function"},
+		{"## Context", "output should contain Context prompt section header"},
+		{"## Build", "output should contain Build &amp; Test section header"},
+		{"## Task", "output should contain Task prompt section header"},
+		{"## Verification", "output should contain Verification prompt section header"},
+		{`<template id="prompt-complexity_avg">`, "output should contain prompt template element for complexity_avg"},
+	}
+
+	for _, c := range checks {
+		if !strings.Contains(html, c.substring) {
+			t.Errorf("%s (missing %q)", c.desc, c.substring)
+		}
+	}
+}
+
+func TestHTMLGenerator_PromptModals_HighScore(t *testing.T) {
+	gen, err := NewHTMLGenerator()
+	if err != nil {
+		t.Fatalf("NewHTMLGenerator() error = %v", err)
+	}
+
+	scored := buildAllCategoriesScoredResult(9.5)
+	trace := &TraceData{
+		ScoringConfig: scoring.DefaultConfig(),
+		Languages:     []string{"go"},
+	}
+
+	var buf bytes.Buffer
+	err = gen.GenerateReport(&buf, scored, nil, nil, trace)
+	if err != nil {
+		t.Fatalf("GenerateReport() error = %v", err)
+	}
+
+	html := buf.String()
+
+	if strings.Contains(html, `<template id="prompt-`) {
+		t.Error("high-scoring metrics (>= 9.0) should not have prompt templates")
+	}
+	// The prompt-copy-container class appears in CSS, but should not appear
+	// in any <template> element content when all scores are high.
+	if strings.Contains(html, `<template id="prompt-`) {
+		t.Error("high-scoring metrics should not generate prompt template elements")
+	}
+}
+
+func TestHTMLGenerator_PromptModals_AllCategories(t *testing.T) {
+	gen, err := NewHTMLGenerator()
+	if err != nil {
+		t.Fatalf("NewHTMLGenerator() error = %v", err)
+	}
+
+	scored := buildAllCategoriesScoredResult(5.0)
+	trace := &TraceData{
+		ScoringConfig: scoring.DefaultConfig(),
+		Languages:     []string{"go"},
+	}
+
+	var buf bytes.Buffer
+	err = gen.GenerateReport(&buf, scored, nil, nil, trace)
+	if err != nil {
+		t.Fatalf("GenerateReport() error = %v", err)
+	}
+
+	html := buf.String()
+
+	// Count prompt template elements -- should have at least 7 (one per category,
+	// since each category has at least one metric with score 5.0)
+	count := strings.Count(html, `<template id="prompt-`)
+	if count < 7 {
+		t.Errorf("expected at least 7 prompt template elements (one per category), got %d", count)
 	}
 }

@@ -86,7 +86,7 @@
                         <td>{{.FormattedValue}}</td>
                         <td class="score-cell score-{{.ScoreClass}}">{{printf "%.1f" .Score}}</td>
                         <td>{{printf "%.0f" .WeightPct}}%</td>
-                        <td class="trace-cell">{{if .HasTrace}}<button class="ars-modal-trigger" onclick="openModal('{{.DisplayName}} Trace', document.getElementById('trace-{{.Key}}').innerHTML)">View Trace</button>{{end}}</td>
+                        <td class="trace-cell">{{if .HasTrace}}<button class="ars-modal-trigger" onclick="openModal('{{.DisplayName}} Trace', document.getElementById('trace-{{.Key}}').innerHTML)">View Trace</button>{{end}}{{if .HasPrompt}}<button class="ars-modal-trigger prompt-btn" onclick="openModal('Improve {{.DisplayName}}', document.getElementById('prompt-{{.Key}}').innerHTML)">Improve</button>{{end}}</td>
                     </tr>
                     <tr class="metric-details-row" data-for="{{.Key}}"{{if not .ShouldExpand}} style="display: none;"{{end}}>
                         <td></td>
@@ -103,12 +103,19 @@
                                 <div class="trace-fallback-content">{{.TraceHTML}}</div>
                             </details>
                             {{end}}
+                            {{if .HasPrompt}}
+                            <details class="trace-fallback">
+                                <summary>Improvement Prompt</summary>
+                                <div class="trace-fallback-content">{{.PromptHTML}}</div>
+                            </details>
+                            {{end}}
                         </td>
                     </tr>
                     {{end}}
                 </tbody>
             </table>
             {{range .SubScores}}{{if .HasTrace}}<template id="trace-{{.Key}}">{{.TraceHTML}}</template>{{end}}{{end}}
+            {{range .SubScores}}{{if .HasPrompt}}<template id="prompt-{{.Key}}">{{.PromptHTML}}</template>{{end}}{{end}}
             {{if .ImpactDescription}}<p class="impact">{{.ImpactDescription}}</p>{{end}}
             {{if .Citations}}
             <div class="category-citations">
@@ -256,6 +263,53 @@
         document.body.style.right = '';
         window.scrollTo(0, parseInt(scrollY));
     });
+
+    // Clipboard copy with fallback chain for improvement prompts
+    function copyPromptText(buttonEl) {
+        var codeEl = buttonEl.closest('.prompt-copy-container').querySelector('code');
+        var text = codeEl.textContent;
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(function() {
+                showCopied(buttonEl);
+            }).catch(function() {
+                fallbackCopy(text, buttonEl, codeEl);
+            });
+        } else {
+            fallbackCopy(text, buttonEl, codeEl);
+        }
+    }
+
+    function fallbackCopy(text, buttonEl, codeEl) {
+        var textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        var ok = false;
+        try { ok = document.execCommand('copy'); } catch(e) {}
+        document.body.removeChild(textarea);
+        if (ok) {
+            showCopied(buttonEl);
+        } else {
+            var pre = codeEl.parentElement;
+            pre.classList.add('prompt-select-fallback');
+            buttonEl.textContent = 'Select All & Copy';
+            buttonEl.onclick = function() {
+                var range = document.createRange();
+                range.selectNodeContents(pre);
+                window.getSelection().removeAllRanges();
+                window.getSelection().addRange(range);
+            };
+        }
+    }
+
+    function showCopied(btn) {
+        var orig = btn.textContent;
+        btn.textContent = 'Copied!';
+        setTimeout(function() { btn.textContent = orig; }, 1500);
+    }
     </script>
 </body>
 </html>

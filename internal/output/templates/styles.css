@@ -898,3 +898,43 @@ footer > p {
     height: 100%;
   }
 }
+
+/* Improvement Prompt Styles */
+.prompt-copy-container {
+  position: relative;
+}
+
+.prompt-copy-container pre {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 1rem;
+  padding-top: 2.5rem;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.prompt-copy-container .trace-copy-btn {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  z-index: 1;
+}
+
+.prompt-select-fallback {
+  user-select: all;
+  cursor: text;
+}
+
+.prompt-btn {
+  background-color: #6366f1;
+}
+
+.prompt-btn:hover {
+  background-color: #4f46e5;
+}

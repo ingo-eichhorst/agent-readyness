@@ -15,7 +15,7 @@ This milestone fixes the M2/M3/M4 scoring bug (GitHub #55) and establishes debug
 ## Phases
 
 - [x] **Phase 26: Debug Foundation** - Flag plumbing and debug output channel
-- [ ] **Phase 27: Data Capture** - Prompt/response storage and score trace infrastructure
+- [x] **Phase 27: Data Capture** - Prompt/response storage and score trace infrastructure
 - [ ] **Phase 28: Heuristic Tests & Scoring Fixes** - Real response fixtures, unit tests, and M2/M3/M4 bug fixes
 - [ ] **Phase 29: Debug Rendering & Replay** - Terminal/JSON debug output, response persistence, replay mode, documentation
 
@@ -46,8 +46,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 27-01-PLAN.md -- Extend SampleResult with Prompt + ScoreTrace fields, update M1-M5 scoring to produce traces
-- [ ] 27-02-PLAN.md -- Add C7DebugSample type, extend C7MetricResult with DebugSamples, populate in buildMetrics()
+- [x] 27-01-PLAN.md -- Extend SampleResult with Prompt + ScoreTrace fields, update M1-M5 scoring to produce traces
+- [x] 27-02-PLAN.md -- Add C7DebugSample type, extend C7MetricResult with DebugSamples, populate in buildMetrics()
 
 ### Phase 28: Heuristic Tests & Scoring Fixes
 **Goal**: M2, M3, and M4 scoring functions produce accurate non-zero scores validated against real Claude CLI response fixtures
@@ -59,12 +59,12 @@ Plans:
   3. `go test ./internal/agent/metrics/ -run TestM3_Score -v` passes with documented expected scores for each fixture
   4. `go test ./internal/agent/metrics/ -run TestM4_Score -v` passes with documented expected scores for each fixture
   5. Running `ars scan . --enable-c7` produces non-zero scores for M2, M3, and M4 on a real codebase (the bug is fixed)
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 28-01: Capture real response fixtures, create testdata/c7_responses/ directory structure
-- [ ] 28-02: Unit tests for M2/M3/M4 scoring functions with fixture responses
-- [ ] 28-03: Fix M2/M3/M4 heuristic scoring, document rationale in code comments
+- [ ] 28-01-PLAN.md -- Capture real Claude CLI response fixtures into testdata/c7_responses/ directory
+- [ ] 28-02-PLAN.md -- Fix extractC7 to return M1-M5 metric scores in formal scoring pipeline
+- [ ] 28-03-PLAN.md -- Fixture-based unit tests for M2/M3/M4 + fix scoring saturation with grouped indicators
 
 ### Phase 29: Debug Rendering & Replay
 **Goal**: Users can inspect C7 debug data in terminal output, persist responses to disk for offline analysis, and replay saved responses without re-executing Claude CLI

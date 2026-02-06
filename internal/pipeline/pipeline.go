@@ -259,6 +259,11 @@ func (p *Pipeline) Run(dir string) error {
 		recs = recommend.Generate(p.scored, p.scorer.Config)
 	}
 
+	// Stage 3.7: C7 debug rendering (after analysis, before normal output)
+	if p.debugC7 && p.results != nil {
+		output.RenderC7Debug(p.debugWriter, p.results)
+	}
+
 	// Stage 4: Render output
 	p.onProgress("render", "Generating output...")
 	if p.jsonOutput {

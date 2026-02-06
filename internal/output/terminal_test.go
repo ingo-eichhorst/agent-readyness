@@ -477,3 +477,126 @@ func TestRenderC4Unavailable(t *testing.T) {
 		t.Error("unavailable C4 should not show metric details")
 	}
 }
+
+func TestRenderC7Debug(t *testing.T) {
+	var buf bytes.Buffer
+
+	results := []*types.AnalysisResult{
+		{
+			Name:     "C7: Agent Evaluation",
+			Category: "C7",
+			Metrics: map[string]interface{}{
+				"c7": &types.C7Metrics{
+					Available: true,
+					MetricResults: []types.C7MetricResult{
+						{
+							MetricID:   "code_behavior_comprehension",
+							MetricName: "Code Behavior Comprehension",
+							Score:      7,
+							Status:     "completed",
+							Duration:   12.5,
+							DebugSamples: []types.C7DebugSample{
+								{
+									FilePath:    "test.go",
+									Description: "test sample",
+									Prompt:      "Explain this code that processes input data",
+									Response:    "The code implements a data processing pipeline",
+									Score:       7,
+									Duration:    12.5,
+									ScoreTrace: types.C7ScoreTrace{
+										BaseScore: 2,
+										Indicators: []types.C7IndicatorMatch{
+											{Name: "positive:returns", Matched: true, Delta: 2},
+											{Name: "negative:unclear", Matched: false, Delta: 0},
+										},
+										FinalScore: 7,
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	RenderC7Debug(&buf, results)
+	out := buf.String()
+
+	checks := []string{
+		"C7 Debug: Agent Evaluation Details",
+		"code_behavior_comprehension",
+		"score=7/10",
+		"Sample 1: test sample",
+		"File:     test.go",
+		"base=2",
+		"final=7",
+		"positive:returns",
+		"Explain this code",
+		"The code implements",
+	}
+	for _, check := range checks {
+		if !strings.Contains(out, check) {
+			t.Errorf("output missing %q\nGot:\n%s", check, out)
+		}
+	}
+}
+
+func TestRenderC7Debug_NoDebugSamples(t *testing.T) {
+	var buf bytes.Buffer
+
+	results := []*types.AnalysisResult{
+		{
+			Name:     "C7: Agent Evaluation",
+			Category: "C7",
+			Metrics: map[string]interface{}{
+				"c7": &types.C7Metrics{
+					Available: true,
+					MetricResults: []types.C7MetricResult{
+						{
+							MetricID:     "code_behavior_comprehension",
+							MetricName:   "Code Behavior Comprehension",
+							Score:        5,
+							Duration:     8.0,
+							DebugSamples: nil, // no debug samples
+						},
+					},
+				},
+			},
+		},
+	}
+
+	// Should not panic
+	RenderC7Debug(&buf, results)
+	out := buf.String()
+
+	// Should still render the metric header
+	if !strings.Contains(out, "code_behavior_comprehension") {
+		t.Errorf("output should contain metric header\nGot:\n%s", out)
+	}
+	if !strings.Contains(out, "No debug samples captured") {
+		t.Errorf("output should indicate no debug samples\nGot:\n%s", out)
+	}
+}
+
+func TestRenderC7Debug_NoC7Result(t *testing.T) {
+	var buf bytes.Buffer
+
+	// No C7 in the results at all
+	results := []*types.AnalysisResult{
+		{
+			Name:     "C1: Code Health",
+			Category: "C1",
+			Metrics:  map[string]interface{}{},
+		},
+	}
+
+	// Should not panic
+	RenderC7Debug(&buf, results)
+	out := buf.String()
+
+	// Should produce no output
+	if out != "" {
+		t.Errorf("expected empty output when no C7 result, got:\n%s", out)
+	}
+}

@@ -32,12 +32,12 @@ This milestone makes HTML reports transparent and actionable. Evidence data flow
   2. All 7 extractCx functions return evidence data (not empty arrays) for metrics that have offenders
   3. Running `ars scan . --json` with a baseline file from v0.0.5 still produces a valid comparison (no schema breakage)
   4. Running `ars scan .` without --json produces identical terminal output to v0.0.5 (evidence is invisible unless consumed)
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 30-01: Define EvidenceItem type, add Evidence field to SubScore, extend MetricExtractor signature
-- [ ] 30-02: Update all 7 extractCx functions to populate evidence from existing CxMetrics data
-- [ ] 30-03: Wire evidence into JSON output with omitempty, validate backward compatibility
+- [ ] 30-01-PLAN.md -- Define EvidenceItem type, update SubScore and MetricExtractor, remove C7 overall_score
+- [ ] 30-02-PLAN.md -- Populate evidence in all 7 extractCx functions from existing CxMetrics data
+- [ ] 30-03-PLAN.md -- Wire evidence into JSON output with sub_scores field, validate backward compatibility
 
 ### Phase 31: Modal UI Infrastructure
 **Goal**: HTML reports contain a reusable modal component that opens, scrolls, and closes correctly on desktop and mobile

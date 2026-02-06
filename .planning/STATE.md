@@ -9,17 +9,17 @@ See: .planning/PROJECT.md (updated 2026-02-06)
 
 ## Current Position
 
-Phase: 30 of 34 (Evidence Data Flow)
-Plan: 3 of 3 in current phase
-Status: Phase complete
-Last activity: 2026-02-06 -- Completed 30-03-PLAN.md
+Phase: 31 of 34 (Modal UI Infrastructure)
+Plan: 1 of 2 in current phase
+Status: In progress
+Last activity: 2026-02-06 -- Completed 31-01-PLAN.md
 
-Progress: [##........] 23% (v0.0.6: 3/13 plans)
+Progress: [###.......] 31% (v0.0.6: 4/13 plans)
 
 ## Performance Metrics
 
 **Velocity (all milestones):**
-- Total plans completed: 66
+- Total plans completed: 67
 - Phases completed: 30
 - Total milestones shipped: 5
 
@@ -50,6 +50,8 @@ Recent decisions affecting current work:
 - [v0.0.6]: MetricExtractor returns 3 values (rawValues, unavailable, evidence)
 - [v0.0.6]: sort-copy-limit-5 pattern for worst-offender evidence extraction
 - [v0.0.6]: JSON version bumped 1->2, sub_scores always present (verbose deprecated)
+- [v0.0.6]: Native <dialog> with showModal() for modal dialogs (no library)
+- [v0.0.6]: openModal(title, bodyHTML) / closeModal() as shared modal API
 
 ### Pending Todos
 
@@ -62,5 +64,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-06
-Stopped at: Completed 30-03-PLAN.md (Phase 30 complete)
+Stopped at: Completed 31-01-PLAN.md
 Resume file: None

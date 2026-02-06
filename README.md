@@ -79,14 +79,46 @@ ars scan . --threshold 6.0
 # Compare against baseline
 ars scan . --baseline previous.json
 
-# Enable LLM-based documentation analysis (requires ANTHROPIC_API_KEY)
-ars scan . --enable-c4-llm
+# Disable LLM features (enabled automatically when Claude CLI is detected)
+ars scan . --no-llm
 
-# Enable agent evaluation (requires claude CLI)
+# Enable C7 agent evaluation (requires claude CLI)
 ars scan . --enable-c7
 ```
 
 **Supported languages:** Go, Python, TypeScript (auto-detected)
+
+### LLM Features
+
+ARS includes optional LLM-powered analysis for documentation quality (C4) and agent evaluation (C7). These features use the [Claude Code CLI](https://docs.claude.ai/docs/claude-code-overview) and are **automatically enabled** when the CLI is detected:
+
+```bash
+# LLM features auto-enabled when Claude CLI is available
+ars scan .
+# Output: "Claude CLI detected (claude 2.x.x) - LLM features enabled"
+
+# Explicitly disable LLM features
+ars scan . --no-llm
+# Output: "LLM features disabled (--no-llm flag)"
+
+# CLI not installed
+ars scan .
+# Output: "Claude CLI not found - LLM features disabled"
+```
+
+**Install Claude Code CLI:**
+```bash
+# macOS/Linux
+curl -fsSL https://claude.ai/install.sh | bash
+
+# Or via Homebrew
+brew install --cask claude-code
+
+# Or via npm
+npm install -g @anthropic-ai/claude-code
+```
+
+No API key configuration needed - the CLI handles authentication.
 
 ### C7 Debug Mode
 
@@ -118,6 +150,26 @@ The `--debug-dir` flag enables response persistence:
 - Replay mode enables fast iteration on heuristic scoring without API costs
 
 Debug output goes exclusively to stderr, so JSON output (`--json`) remains valid on stdout.
+
+## Contributing
+
+We welcome contributions from both humans and AI agents! 🤝
+
+**For human contributors:**
+- Read [CONTRIBUTING.md](CONTRIBUTING.md) for setup, workflow, and guidelines
+- Check [Issues](https://github.com/ingo-eichhorst/agent-readyness/issues) for tasks labeled `good first issue`
+- Join discussions in [GitHub Discussions](https://github.com/ingo-eichhorst/agent-readyness/discussions)
+
+**For AI coding agents:**
+- Read [AGENTS.md](AGENTS.md) for precise technical instructions
+- Follow the exact commands, code patterns, and boundaries specified
+- Complement this with [CLAUDE.md](CLAUDE.md) for detailed architecture
+
+All contributions must:
+- Include tests that pass (`go test ./...`)
+- Follow Go conventions (`gofmt`)
+- Use [Conventional Commits](https://www.conventionalcommits.org/) format
+- Maintain code quality standards
 
 ## Test
 

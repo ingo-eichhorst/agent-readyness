@@ -29,6 +29,12 @@ go test ./internal/analyzer/...
 # Run single test
 go test ./internal/analyzer -run TestC1Analyzer
 
+# Debug C7 metrics with verbose output
+go run . scan . --debug-c7
+
+# Save C7 responses for replay (avoids Claude CLI on subsequent runs)
+go run . scan . --debug-c7 --debug-dir ./debug-out
+
 # Tidy modules
 go mod tidy
 ```
@@ -68,6 +74,9 @@ Language-specific implementations follow the pattern `{language}.go` within each
 - `types.SourceFile` - Single file with path, language, classification, and content
 - `types.ScoredResult` - Final output with composite score, tier, and per-category breakdowns
 - `scoring.ScoringConfig` - Configurable breakpoints and weights for scoring
+- `types.EvidenceItem` - Proof of metric findings (file path, line, value, description)
+
+**MetricExtractor signature:** All extractCx functions return 3 values: `(raw float64, score float64, evidence []EvidenceItem)`
 
 ### Scoring System
 
@@ -92,10 +101,43 @@ Test files are colocated with implementation (`*_test.go`). Use `testdata/` dire
 - `testdata/valid-go-project/` - Standard Go project for discovery tests
 - `testdata/complexity/` - High-complexity code for C1 tests
 - `testdata/polyglot-project/` - Multi-language project
+- `testdata/c7_responses/` - Real Claude responses for C7 metric heuristic tests
+
+When adding test fixtures: validate both structure AND empty array behavior (`[]` vs `null` in JSON assertions)
+
+## HTML Report System
+
+HTML output uses Go embedded templates (`//go:embed`) in `internal/output/templates/`:
+- `report.html` - Main template with expand/collapse JavaScript
+- `styles.css` - All styling (inlined at render time)
+
+Key helper functions in `internal/output/html.go` that must be updated when adding categories/metrics:
+- `categoryImpact()` - Short description per category
+- `categoryDisplayName()` - Display name mapping
+- `metricDisplayName()` - Per-metric display names
+
+Per-metric content:
+- `internal/output/descriptions.go` - Brief/detailed descriptions with `MetricDescription` structs
+- `internal/output/citations.go` - Research citations filtered by category
+
+## Gotchas
+
+- Zero-weight metrics in `internal/scoring/config.go` (e.g., C7 `overall_score`) are deprecated but kept for backward compatibility. Output renderers must filter `ss.Weight == 0.0`.
+- Full repo scans are slow (>30s). For quick HTML testing: `./ars scan internal/analyzer --output-html /tmp/test.html`
+- Evidence arrays must be `[]` not `null` in JSON - convert `nil` to `make([]EvidenceItem, 0)` before returning
+- JSON schema version bumps (internal/output/json.go) required for breaking changes to output format
 
 ## Optional Features
 
-- `--enable-c4-llm` - LLM-based documentation quality analysis (requires ANTHROPIC_API_KEY)
+- C4 LLM analysis - Auto-enabled when Claude CLI is detected; use `--no-llm` to disable
 - `--enable-c7` - Live agent evaluation using Claude CLI (requires `claude` installed)
 - `--output-html` - Generate self-contained HTML report with charts
 - `--baseline` - Compare against previous JSON output for trend analysis
+- `--no-llm` - Disable LLM features even when Claude CLI is available
+
+## Development Workflow
+
+Project uses GSD (Get Stuff Done) methodology with phase-based development:
+- `.planning/PROJECT.md` - Project overview and validated requirements
+- `.planning/phases/*/` - Phase plans, research, and verification docs
+- `.planning/ROADMAP.md` - Current milestone with phase breakdown

@@ -52,8 +52,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 31-01-PLAN.md -- Native dialog element with showModal/close JS, responsive CSS, and iOS scroll lock
-- [ ] 31-02-PLAN.md -- Progressive enhancement fallback, trigger button styling, and modal presence test
+- [x] 31-01-PLAN.md -- Native dialog element with showModal/close JS, responsive CSS, and iOS scroll lock
+- [x] 31-02-PLAN.md -- Progressive enhancement fallback, trigger button styling, and modal presence test
 
 ### Phase 32: Call Trace Modals
 **Goal**: Users can click "View Trace" on any metric to see exactly how the score was derived
@@ -112,7 +112,7 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 30. Evidence Data Flow | 3/3 | ✓ Complete | 2026-02-06 |
-| 31. Modal UI Infrastructure | 0/2 | Not started | - |
+| 31. Modal UI Infrastructure | 2/2 | ✓ Complete | 2026-02-06 |
 | 32. Call Trace Modals | 0/3 | Not started | - |
 | 33. Improvement Prompt Modals | 0/3 | Not started | - |
 | 34. Testing & Quality | 0/2 | Not started | - |

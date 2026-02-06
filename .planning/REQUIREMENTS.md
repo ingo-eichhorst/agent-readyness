@@ -74,18 +74,18 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| EV-01 | Phase 30 | Pending |
-| EV-02 | Phase 30 | Pending |
-| EV-03 | Phase 30 | Pending |
-| EV-04 | Phase 30 | Pending |
-| EV-05 | Phase 30 | Pending |
-| UI-01 | Phase 31 | Pending |
-| UI-02 | Phase 31 | Pending |
-| UI-03 | Phase 31 | Pending |
-| UI-04 | Phase 31 | Pending |
-| UI-05 | Phase 31 | Pending |
-| UI-06 | Phase 31 | Pending |
-| UI-07 | Phase 31 | Pending |
+| EV-01 | Phase 30 | Complete |
+| EV-02 | Phase 30 | Complete |
+| EV-03 | Phase 30 | Complete |
+| EV-04 | Phase 30 | Complete |
+| EV-05 | Phase 30 | Complete |
+| UI-01 | Phase 31 | Complete |
+| UI-02 | Phase 31 | Complete |
+| UI-03 | Phase 31 | Complete |
+| UI-04 | Phase 31 | Complete |
+| UI-05 | Phase 31 | Complete |
+| UI-06 | Phase 31 | Complete |
+| UI-07 | Phase 31 | Complete |
 | TR-01 | Phase 32 | Pending |
 | TR-02 | Phase 32 | Pending |
 | TR-03 | Phase 32 | Pending |

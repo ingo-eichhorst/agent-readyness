@@ -5,21 +5,21 @@
 See: .planning/PROJECT.md (updated 2026-02-06)
 
 **Core value:** Accurate, evidence-based scoring that predicts agent success and identifies specific improvements teams should make before adopting AI coding agents.
-**Current focus:** Phase 26 - Debug Foundation
+**Current focus:** Phase 27 - Data Capture
 
 ## Current Position
 
-Phase: 26 of 29 (Debug Foundation)
-Plan: 1 of 1 in current phase
-Status: Phase complete
-Last activity: 2026-02-06 — Completed 26-01-PLAN.md
+Phase: 27 of 29 (Data Capture)
+Plan: 1 of 2 in current phase
+Status: In progress
+Last activity: 2026-02-06 — Completed 27-01-PLAN.md
 
-Progress: [#.........] 11% (v0.0.5)
+Progress: [##........] 22% (v0.0.5)
 
 ## Performance Metrics
 
 **Velocity (all milestones):**
-- Total plans completed: 55
+- Total plans completed: 56
 - Phases completed: 26
 - Total milestones shipped: 4
 
@@ -53,6 +53,8 @@ Recent decisions affecting current work:
 - [25-01]: Heuristic disclaimer notes on all C7 thresholds - nascent field lacks validation
 - [26-01]: io.Writer debug pattern (io.Discard/os.Stderr) over log.Logger for zero-cost debug
 - [26-01]: Method-based debug threading (SetC7Debug -> SetDebug) over global state
+- [27-01]: ScoreTrace as source of truth - score computed from trace indicators, not duplicated
+- [27-01]: All indicators tracked (matched and unmatched) with Delta=0 for unmatched
 
 ### Pending Todos
 
@@ -65,5 +67,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-06
-Stopped at: Completed 26-01-PLAN.md (Phase 26 complete)
+Stopped at: Completed 27-01-PLAN.md
 Resume file: None

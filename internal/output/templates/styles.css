@@ -813,6 +813,26 @@ footer > p {
 .trace-json-string { color: #0a3069; }
 .trace-json-number { color: #953800; }
 
+/* Progressive enhancement: trace fallback for no-JS environments */
+.trace-fallback {
+  margin-top: 0.75rem;
+}
+
+.trace-fallback summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.8125rem;
+  color: var(--color-muted);
+}
+
+.trace-fallback-content {
+  padding: 0.75rem 0;
+}
+
+.js-enabled .trace-fallback {
+  display: none;
+}
+
 /* Print styles */
 @media print {
   body {

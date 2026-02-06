@@ -9,6 +9,7 @@
     <noscript><style>.ars-modal-trigger { display: none; }</style></noscript>
 </head>
 <body>
+    <script>document.body.classList.add('js-enabled');</script>
     <header>
         <h1>Agent Readiness Score</h1>
         <p class="project-name">{{.ProjectName}}</p>
@@ -95,6 +96,12 @@
                             {{end}}
                             {{if .DetailedDescription}}
                             <div class="metric-detailed">{{.DetailedDescription}}</div>
+                            {{end}}
+                            {{if .HasTrace}}
+                            <details class="trace-fallback">
+                                <summary>Scoring Trace</summary>
+                                <div class="trace-fallback-content">{{.TraceHTML}}</div>
+                            </details>
                             {{end}}
                         </td>
                     </tr>

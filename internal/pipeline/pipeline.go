@@ -353,6 +353,14 @@ func (p *Pipeline) generateHTMLReport(recs []recommend.Recommendation) error {
 		return fmt.Errorf("generate report: %w", err)
 	}
 
+	// Report file size
+	if err := f.Sync(); err == nil {
+		if fi, err := f.Stat(); err == nil {
+			sizeKB := fi.Size() / 1024
+			fmt.Fprintf(p.writer, "HTML report: %s (%d KB)\n", p.htmlOutput, sizeKB)
+		}
+	}
+
 	return nil
 }
 

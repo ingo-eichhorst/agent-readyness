@@ -64,35 +64,35 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DBG-01 | TBD | Pending |
-| DBG-02 | TBD | Pending |
-| DBG-03 | TBD | Pending |
-| DBG-04 | TBD | Pending |
-| DBG-05 | TBD | Pending |
-| DBG-06 | TBD | Pending |
-| TEST-01 | TBD | Pending |
-| TEST-02 | TBD | Pending |
-| TEST-03 | TBD | Pending |
-| TEST-04 | TBD | Pending |
-| TEST-05 | TBD | Pending |
-| RPL-01 | TBD | Pending |
-| RPL-02 | TBD | Pending |
-| RPL-03 | TBD | Pending |
-| RPL-04 | TBD | Pending |
-| FIX-01 | TBD | Pending |
-| FIX-02 | TBD | Pending |
-| FIX-03 | TBD | Pending |
-| FIX-04 | TBD | Pending |
-| DOC-01 | TBD | Pending |
-| DOC-02 | TBD | Pending |
-| DOC-03 | TBD | Pending |
-| DOC-04 | TBD | Pending |
+| DBG-01 | Phase 26 | Pending |
+| DBG-02 | Phase 26 | Pending |
+| DBG-03 | Phase 26 | Pending |
+| DBG-04 | Phase 27 | Pending |
+| DBG-05 | Phase 27 | Pending |
+| DBG-06 | Phase 27 | Pending |
+| TEST-01 | Phase 28 | Pending |
+| TEST-02 | Phase 28 | Pending |
+| TEST-03 | Phase 28 | Pending |
+| TEST-04 | Phase 28 | Pending |
+| TEST-05 | Phase 28 | Pending |
+| FIX-01 | Phase 28 | Pending |
+| FIX-02 | Phase 28 | Pending |
+| FIX-03 | Phase 28 | Pending |
+| FIX-04 | Phase 28 | Pending |
+| RPL-01 | Phase 29 | Pending |
+| RPL-02 | Phase 29 | Pending |
+| RPL-03 | Phase 29 | Pending |
+| RPL-04 | Phase 29 | Pending |
+| DOC-01 | Phase 29 | Pending |
+| DOC-02 | Phase 29 | Pending |
+| DOC-03 | Phase 29 | Pending |
+| DOC-04 | Phase 29 | Pending |
 
 **Coverage:**
 - v0.0.5 requirements: 23 total
-- Mapped to phases: 0 (roadmap not yet created)
-- Unmapped: 23 ⚠️
+- Mapped to phases: 23/23
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-06*
-*Last updated: 2026-02-06 after initial definition*
+*Last updated: 2026-02-06 after roadmap creation*

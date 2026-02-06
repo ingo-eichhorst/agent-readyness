@@ -62,13 +62,15 @@ Accurate, evidence-based scoring that predicts agent success and identifies spec
 
 ### Active
 
-**v0.0.5 requirements (C7 M2/M3/M4 Bug Fix):**
-- [ ] C7 M2 (Code Behavior Comprehension) calculates non-zero scores
-- [ ] C7 M3 (Cross-File Navigation) calculates non-zero scores
-- [ ] C7 M4 (Identifier Interpretability) calculates non-zero scores
-- [ ] `--debug-c7` flag enables response inspection for all metrics
-- [ ] Unit tests for M2/M3/M4 scoring heuristics with realistic agent responses
-- [ ] GitHub #55 updated with root cause analysis and resolution
+**v0.0.6 requirements (Interactive HTML Report):**
+- [ ] Call trace infrastructure captures commands, outputs, prompts/responses in all analyzers
+- [ ] Modal UI component (open/close, scrollable, backdrop, syntax highlighting)
+- [ ] Per-metric "View Trace" buttons in HTML report
+- [ ] Call trace modal displays chronological execution steps with formatted outputs
+- [ ] Template system with 38 research-backed improvement prompts (one per metric)
+- [ ] Per-metric "Improve" buttons in HTML report
+- [ ] Improvement prompt modal with copy-to-clipboard functionality
+- [ ] JSON output includes trace data for programmatic access
 
 ### Out of Scope
 
@@ -84,7 +86,7 @@ Accurate, evidence-based scoring that predicts agent success and identifies spec
 
 ## Context
 
-**Current State (v0.0.4 shipped 2026-02-05):**
+**Current State (v0.0.5 shipped 2026-02-06):**
 - 26,372 LOC Go (+3,748 from v0.0.3)
 - Tech stack: Go 1.24, cobra CLI, Tree-sitter (Python/TypeScript), Claude Code CLI (LLM features), go-charts (HTML reports)
 - 100+ tests passing across 11 packages, 72%+ coverage
@@ -145,15 +147,24 @@ Internal tooling to identify which repositories need investment before agent ado
 | shared/ subpackage for analyzer utilities (v0.0.3) | Resolve import cycles when reorganizing analyzers | ✓ Good - Clean architecture, no cycles |
 | HTML5 details/summary for expandables (v0.0.3) | CSS-only expand/collapse, progressive enhancement | ✓ Good - Works without JavaScript |
 
-## Current Milestone: v0.0.5 C7 Scoring Bug Fix
+## Current Milestone: v0.0.6 Interactive HTML Report Enhancements
 
-**Goal:** Fix M2, M3, M4 metrics returning 0/10 and establish debug infrastructure for C7 validation.
+**Goal:** Make HTML reports transparent (show how scores were derived) and actionable (provide copy-paste improvement prompts).
 
-**Target deliverables:**
-- Working M2/M3/M4 scoring (non-zero scores for valid responses)
-- Debug mode for response inspection
-- Test coverage for scoring heuristics
-- Documented root cause and resolution
+**Target features:**
+- Full call trace capture for all metrics (commands, outputs, C7 prompts/responses)
+- Interactive modal UI component (scrollable, closeable, syntax highlighting)
+- Per-metric "View Trace" buttons showing chronological execution steps
+- Template-based improvement prompts (38 research-backed prompts, one per metric)
+- Per-metric "Improve" buttons with copy-to-clipboard functionality
+- Trace data in JSON output for programmatic access
+
+**v0.0.5 requirements (66 total):**
+- ✓ C7 debug infrastructure (`--debug-c7` flag, stderr output, prompt/response capture) — v0.0.5
+- ✓ Heuristic scoring tests with real Claude CLI fixtures — v0.0.5
+- ✓ M2/M3/M4 scoring bug fixes (grouped indicators, proper BaseScore) — v0.0.5
+- ✓ Response persistence and replay mode (`--debug-dir` flag) — v0.0.5
+- ✓ CLI help text and README debug section — v0.0.5
 
 ---
-*Last updated: 2026-02-06 after v0.0.5 milestone started*
+*Last updated: 2026-02-06 after v0.0.6 milestone started*

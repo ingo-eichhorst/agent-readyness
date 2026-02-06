@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-06)
 
 **Core value:** Accurate, evidence-based scoring that predicts agent success and identifies specific improvements teams should make before adopting AI coding agents.
-**Current focus:** v0.0.5 complete - Debug Rendering & Replay
+**Current focus:** v0.0.6 - Interactive HTML Report Enhancements
 
 ## Current Position
 
-Phase: 29 of 29 (Debug Rendering & Replay)
-Plan: 3 of 3 in current phase
-Status: Phase complete -- v0.0.5 milestone shipped
-Last activity: 2026-02-06 — Completed 29-03-PLAN.md
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements for v0.0.6
+Last activity: 2026-02-06 — Milestone v0.0.6 started
 
-Progress: [##########] 100% (v0.0.5)
+Progress: [          ] 0% (v0.0.6)
 
 ## Performance Metrics
 
@@ -32,6 +32,7 @@ Progress: [##########] 100% (v0.0.5)
 | v0.0.3 | 5 | 7 | 2 |
 | v0.0.4 | 8 | 14 | 5 |
 | v0.0.5 | 4 | 9 | 1 |
+| v0.0.6 | - | - | - |
 
 *Updated after each plan completion*
 

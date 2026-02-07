@@ -86,7 +86,17 @@
                         <td>{{.FormattedValue}}</td>
                         <td class="score-cell score-{{.ScoreClass}}">{{printf "%.1f" .Score}}</td>
                         <td>{{printf "%.0f" .WeightPct}}%</td>
-                        <td class="trace-cell">{{if .HasTrace}}<button class="ars-modal-trigger" onclick="openModal('{{.DisplayName}} Trace', document.getElementById('trace-{{.Key}}').innerHTML)">View Trace</button>{{end}}{{if .HasPrompt}}<button class="ars-modal-trigger prompt-btn" onclick="openModal('Improve {{.DisplayName}}', document.getElementById('prompt-{{.Key}}').innerHTML)">Improve</button>{{end}}</td>
+                        <td class="trace-cell">
+                            <button class="ars-icon-btn trace-btn"
+                                    onclick="openModal('{{.DisplayName}} Trace', document.getElementById('trace-{{.Key}}').innerHTML)"
+                                    title="View scoring trace"
+                                    aria-label="View trace for {{.DisplayName}}">ⓘ</button>
+                            <button class="ars-icon-btn improve-btn{{if not .HasPrompt}} disabled{{end}}"
+                                    {{if not .HasPrompt}}disabled{{end}}
+                                    onclick="{{if .HasPrompt}}openModal('Improve {{.DisplayName}}', document.getElementById('prompt-{{.Key}}').innerHTML){{end}}"
+                                    title="{{if .HasPrompt}}View improvement prompt{{else}}Score is already high ({{printf "%.1f" .Score}}/10){{end}}"
+                                    aria-label="{{if .HasPrompt}}Improve {{.DisplayName}}{{else}}No improvement needed{{end}}">✎</button>
+                        </td>
                     </tr>
                     <tr class="metric-details-row" data-for="{{.Key}}"{{if not .ShouldExpand}} style="display: none;"{{end}}>
                         <td></td>

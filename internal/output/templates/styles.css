@@ -653,23 +653,66 @@ footer > p {
   color: var(--color-text);
 }
 
-/* Modal trigger buttons (used by Phase 32/33 for View Trace / Improve) */
-.ars-modal-trigger {
-  padding: 0.25rem 0.5rem;
-  font-size: 0.7rem;
-  font-weight: 500;
+/* Icon-only button base */
+.ars-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  font-size: 1rem;
+  line-height: 1;
   color: var(--color-muted);
   background: var(--color-bg);
   border: 1px solid var(--color-border);
   border-radius: 0.25rem;
   cursor: pointer;
-  transition: background 0.15s, color 0.15s;
-  white-space: nowrap;
+  transition: all 0.15s;
+  margin-right: 0.25rem;
 }
 
-.ars-modal-trigger:hover {
+.ars-icon-btn:last-child {
+  margin-right: 0;
+}
+
+.ars-icon-btn:hover:not(:disabled) {
   background: var(--color-border);
   color: var(--color-text);
+  transform: scale(1.05);
+}
+
+/* Trace button - info icon */
+.trace-btn {
+  /* Uses base ars-icon-btn styles */
+}
+
+/* Improve button - pencil icon */
+.improve-btn:not(:disabled) {
+  background-color: #6366f1;
+  color: white;
+  border-color: #6366f1;
+}
+
+.improve-btn:not(:disabled):hover {
+  background-color: #4f46e5;
+  border-color: #4f46e5;
+}
+
+/* Disabled state for improve button */
+.ars-icon-btn:disabled,
+.ars-icon-btn.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  background: var(--color-bg);
+  color: var(--color-muted);
+  border-color: var(--color-border);
+}
+
+.ars-icon-btn:disabled:hover,
+.ars-icon-btn.disabled:hover {
+  transform: none;
+  background: var(--color-bg);
 }
 
 /* Modal dialog */
@@ -931,10 +974,4 @@ footer > p {
   cursor: text;
 }
 
-.prompt-btn {
-  background-color: #6366f1;
-}
-
-.prompt-btn:hover {
-  background-color: #4f46e5;
-}
+/* Legacy prompt-btn styles removed - now using ars-icon-btn */

@@ -56,7 +56,7 @@ var metricDescriptions = map[string]MetricDescription{
 	},
 
 	"func_length_avg": {
-		Brief:     "Average lines per function. Shorter functions (under 25 lines) are easier for agents to understand atomically <span class=\"citation\">(Chowdhury et al., 2022)</span>.",
+		Brief:     "Average lines per function. Shorter functions (under 25 lines) are easier for agents to understand atomically (Chowdhury et al., 2022).",
 		Threshold: 6.0,
 		Detailed: `<h4>Definition</h4>
 <p>Measures the average number of lines of code per function across the codebase. Includes all executable statements, comments within functions, and blank lines within function bodies.</p>
@@ -86,7 +86,7 @@ var metricDescriptions = map[string]MetricDescription{
 	},
 
 	"file_size_avg": {
-		Brief:     "Average lines per file. Smaller files (under 300 lines) help agents navigate and understand module scope <span class=\"citation\">(Parnas, 1972)</span>.",
+		Brief:     "Average lines per file. Smaller files (under 300 lines) help agents navigate and understand module scope (Parnas, 1972).",
 		Threshold: 6.0,
 		Detailed: `<h4>Definition</h4>
 <p>The average number of lines per source file in the codebase, including code, comments, and blank lines. Measures overall file organization and module granularity.</p>
@@ -116,7 +116,7 @@ var metricDescriptions = map[string]MetricDescription{
 	},
 
 	"afferent_coupling_avg": {
-		Brief:     "Incoming dependencies per module (Ca). Lower coupling means modules can be modified more safely <span class=\"citation\">(Martin, 2003)</span>.",
+		Brief:     "Incoming dependencies per module (Ca). Lower coupling means modules can be modified more safely (Martin, 2003).",
 		Threshold: 6.0,
 		Detailed: `<h4>Definition</h4>
 <p>Afferent coupling (Ca) counts how many other modules depend on a given module. High afferent coupling means the module is heavily used throughout the codebase, making changes to it potentially far-reaching.</p>
@@ -146,7 +146,7 @@ var metricDescriptions = map[string]MetricDescription{
 	},
 
 	"efferent_coupling_avg": {
-		Brief:     "Outgoing dependencies per module (Ce). Modules depending on too many others become fragile <span class=\"citation\">(Martin, 2003)</span>.",
+		Brief:     "Outgoing dependencies per module (Ce). Modules depending on too many others become fragile (Martin, 2003).",
 		Threshold: 6.0,
 		Detailed: `<h4>Definition</h4>
 <p>Efferent coupling (Ce) counts how many other modules a given module depends on. High efferent coupling means the module relies on many external components, making it vulnerable to changes elsewhere.</p>
@@ -176,7 +176,7 @@ var metricDescriptions = map[string]MetricDescription{
 	},
 
 	"duplication_rate": {
-		Brief:     "Percentage of duplicated code. Less duplication means fewer places to update when agents make changes <span class=\"citation\">(Fowler et al., 1999)</span>.",
+		Brief:     "Percentage of duplicated code. Less duplication means fewer places to update when agents make changes (Fowler et al., 1999).",
 		Threshold: 6.0,
 		Detailed: `<h4>Definition</h4>
 <p>The percentage of code that appears multiple times in the codebase, typically measured as duplicate sequences of 6+ lines or tokens. Includes exact duplicates and near-duplicates with minor variations.</p>
@@ -209,7 +209,7 @@ var metricDescriptions = map[string]MetricDescription{
 	// C2: Semantic Explicitness Metrics
 	// ============================================================================
 	"type_annotation_coverage": {
-		Brief:     "Percentage of values with explicit type annotations. Type annotations catch 15% of bugs <span class=\"citation\">(Gao et al., 2017)</span>.",
+		Brief:     "Percentage of values with explicit type annotations. Type annotations catch 15% of bugs (Gao et al., 2017).",
 		Threshold: 6.0,
 		Detailed: `<h4>Definition</h4>
 <p>The percentage of function parameters, return values, and variables that have explicit type annotations. In Go, this is inherent; in TypeScript and Python, it measures type hint usage.</p>
@@ -239,7 +239,7 @@ var metricDescriptions = map[string]MetricDescription{
 	},
 
 	"naming_consistency": {
-		Brief:     "Adherence to naming conventions. Flawed identifiers correlate with low-quality code <span class=\"citation\">(Butler et al., 2009)</span>.",
+		Brief:     "Adherence to naming conventions. Flawed identifiers correlate with low-quality code (Butler et al., 2009).",
 		Threshold: 6.0,
 		Detailed: `<h4>Definition</h4>
 <p>Measures how consistently the codebase follows naming conventions: camelCase for functions and variables, PascalCase for types and classes, UPPER_SNAKE_CASE for constants. Also checks for descriptive names over abbreviations.</p>
@@ -269,7 +269,7 @@ var metricDescriptions = map[string]MetricDescription{
 	},
 
 	"magic_number_ratio": {
-		Brief:     "Unexplained numeric literals per 1,000 lines. Magic Number is a classic code smell <span class=\"citation\">(Fowler et al., 1999)</span>.",
+		Brief:     "Unexplained numeric literals per 1,000 lines. Magic Number is a classic code smell (Fowler et al., 1999).",
 		Threshold: 6.0,
 		Detailed: `<h4>Definition</h4>
 <p>Counts numeric literals in code (excluding 0, 1, and common values) that are not defined as named constants. Reported as occurrences per 1,000 lines of code. Magic numbers are unexplained values embedded directly in logic.</p>
@@ -299,7 +299,7 @@ var metricDescriptions = map[string]MetricDescription{
 	},
 
 	"type_strictness": {
-		Brief:     "Use of strict type checking features. Type systems rule out untrapped errors <span class=\"citation\">(Cardelli, 1996)</span>.",
+		Brief:     "Use of strict type checking features. Type systems rule out untrapped errors (Cardelli, 1996).",
 		Threshold: 6.0,
 		Detailed: `<h4>Definition</h4>
 <p>Measures whether the codebase uses strict type checking features: strict mode in TypeScript, strict mypy settings in Python, or equivalent. A binary metric (enabled or not) that significantly impacts type safety.</p>
@@ -327,7 +327,7 @@ var metricDescriptions = map[string]MetricDescription{
 	},
 
 	"null_safety": {
-		Brief:     "Handling of null/undefined values. Null references were called a \"billion-dollar mistake\" <span class=\"citation\">(Hoare, 2009)</span>.",
+		Brief:     "Handling of null/undefined values. Null references were called a \"billion-dollar mistake\" (Hoare, 2009).",
 		Threshold: 6.0,
 		Detailed: `<h4>Definition</h4>
 <p>Measures usage of null-safe patterns: optional chaining (?.), nullish coalescing (??), null assertions, and proper Optional/Maybe types. Also detects unsafe patterns like unchecked null dereferences.</p>
@@ -360,7 +360,7 @@ var metricDescriptions = map[string]MetricDescription{
 	// C3: Architecture Metrics
 	// ============================================================================
 	"max_dir_depth": {
-		Brief:     "Deepest directory nesting level. Clear module boundaries and shallow hierarchies improve comprehensibility <span class=\"citation\">(Parnas, 1972)</span>.",
+		Brief:     "Deepest directory nesting level. Clear module boundaries and shallow hierarchies improve comprehensibility (Parnas, 1972).",
 		Threshold: 6.0,
 		Detailed: `<h4>Definition</h4>
 <p>The maximum depth of directory nesting in the source tree, counting from the project root. Measures how deeply files are organized into subdirectories (e.g., src/api/v2/handlers/auth/utils.go = depth 6).</p>
@@ -391,7 +391,7 @@ var metricDescriptions = map[string]MetricDescription{
 	},
 
 	"module_fanout_avg": {
-		Brief:     "Average imports per module. High coupling is detrimental to modular design <span class=\"citation\">(Stevens et al., 1974)</span>.",
+		Brief:     "Average imports per module. High coupling is detrimental to modular design (Stevens et al., 1974).",
 		Threshold: 6.0,
 		Detailed: `<h4>Definition</h4>
 <p>The average number of imports per source file. Counts both internal and external dependencies, measuring how widely each module reaches into the rest of the codebase or ecosystem.</p>
@@ -423,7 +423,7 @@ var metricDescriptions = map[string]MetricDescription{
 	},
 
 	"circular_deps": {
-		Brief:     "Number of circular dependencies. Acyclic dependency structures are easier to understand, test, and maintain <span class=\"citation\">(Lakos, 1996)</span>.",
+		Brief:     "Number of circular dependencies. Acyclic dependency structures are easier to understand, test, and maintain (Lakos, 1996).",
 		Threshold: 7.0,
 		Detailed: `<h4>Definition</h4>
 <p>Counts the number of circular dependency chains where module A imports B which imports A (directly or transitively). Circular dependencies create ordering problems and make it impossible to understand modules in isolation.</p>
@@ -456,7 +456,7 @@ var metricDescriptions = map[string]MetricDescription{
 	},
 
 	"import_complexity_avg": {
-		Brief:     "Average complexity of import statements. Dependency structure impacts maintainability <span class=\"citation\">(Sangal et al., 2005)</span>.",
+		Brief:     "Average complexity of import statements. Dependency structure impacts maintainability (Sangal et al., 2005).",
 		Threshold: 6.0,
 		Detailed: `<h4>Definition</h4>
 <p>Measures the complexity of import patterns: deep submodule imports, aliased imports, re-exports, and barrel files. Higher scores indicate more complex import structures that are harder to trace and understand.</p>
@@ -488,7 +488,7 @@ var metricDescriptions = map[string]MetricDescription{
 	},
 
 	"dead_exports": {
-		Brief:     "Exported symbols not used elsewhere. Dead Code is an established code smell that harms comprehensibility <span class=\"citation\">(Fowler et al., 1999)</span>.",
+		Brief:     "Exported symbols not used elsewhere. Dead Code is an established code smell that harms comprehensibility (Fowler et al., 1999).",
 		Threshold: 6.0,
 		Detailed: `<h4>Definition</h4>
 <p>Counts exported/public symbols (functions, types, constants) that are never imported or used outside their defining module. These create noise in the public API without providing value.</p>
@@ -522,7 +522,7 @@ var metricDescriptions = map[string]MetricDescription{
 	// C4: Documentation Quality Metrics
 	// ============================================================================
 	"readme_word_count": {
-		Brief:     "README length in words. README organization and maintenance correlate with project success <span class=\"citation\">(Prana et al., 2019)</span>.",
+		Brief:     "README length in words. README organization and maintenance correlate with project success (Prana et al., 2019).",
 		Threshold: 6.0,
 		Detailed: `<h4>Definition</h4>
 <p>The word count of the project's README file. Measures documentation completeness for the primary entry point that developers (and agents) encounter when exploring a project.</p>
@@ -552,7 +552,7 @@ var metricDescriptions = map[string]MetricDescription{
 	},
 
 	"comment_density": {
-		Brief:     "Percentage of lines that are comments. Comment quality matters more than quantity <span class=\"citation\">(Rani et al., 2022)</span>.",
+		Brief:     "Percentage of lines that are comments. Comment quality matters more than quantity (Rani et al., 2022).",
 		Threshold: 5.0,
 		Detailed: `<h4>Definition</h4>
 <p>The percentage of source lines that are comments. Measures how much inline documentation exists to explain code purpose, assumptions, and non-obvious behavior.</p>
@@ -583,7 +583,7 @@ var metricDescriptions = map[string]MetricDescription{
 	},
 
 	"api_doc_coverage": {
-		Brief:     "Percentage of public APIs with documentation. Incomplete API documentation is a major obstacle to effective code reuse <span class=\"citation\">(Robillard, 2011)</span>.",
+		Brief:     "Percentage of public APIs with documentation. Incomplete API documentation is a major obstacle to effective code reuse (Robillard, 2011).",
 		Threshold: 6.0,
 		Detailed: `<h4>Definition</h4>
 <p>The percentage of public functions, methods, classes, and types that have documentation comments (doc strings, JSDoc, GoDoc). Measures formal API documentation coverage.</p>
@@ -614,7 +614,7 @@ var metricDescriptions = map[string]MetricDescription{
 	},
 
 	"changelog_present": {
-		Brief:     "Whether a CHANGELOG exists. Release note content varies by system but serves critical communication function <span class=\"citation\">(Abebe et al., 2016)</span>.",
+		Brief:     "Whether a CHANGELOG exists. Release note content varies by system but serves critical communication function (Abebe et al., 2016).",
 		Threshold: 5.0,
 		Detailed: `<h4>Definition</h4>
 <p>Binary metric indicating whether the project has a CHANGELOG file documenting version history, notable changes, and migration guides. Common formats include CHANGELOG.md, HISTORY.md, or NEWS.</p>
@@ -643,7 +643,7 @@ var metricDescriptions = map[string]MetricDescription{
 	},
 
 	"examples_present": {
-		Brief:     "Whether example code exists. Examples are critical for API learning and reduce developer mistakes <span class=\"citation\">(Robillard, 2011)</span>.",
+		Brief:     "Whether example code exists. Examples are critical for API learning and reduce developer mistakes (Robillard, 2011).",
 		Threshold: 5.0,
 		Detailed: `<h4>Definition</h4>
 <p>Binary metric indicating whether the project includes example code in an examples/, demo/, or similar directory, or inline examples in documentation. Also counts example functions in tests (ExampleXxx in Go).</p>
@@ -672,7 +672,7 @@ var metricDescriptions = map[string]MetricDescription{
 	},
 
 	"contributing_present": {
-		Brief:     "Whether CONTRIBUTING guide exists. Contribution guidelines are one of eight essential README categories <span class=\"citation\">(Prana et al., 2019)</span>.",
+		Brief:     "Whether CONTRIBUTING guide exists. Contribution guidelines are one of eight essential README categories (Prana et al., 2019).",
 		Threshold: 5.0,
 		Detailed: `<h4>Definition</h4>
 <p>Binary metric indicating whether the project has a CONTRIBUTING file explaining how to contribute: code style, testing requirements, pull request process, and development setup.</p>
@@ -701,7 +701,7 @@ var metricDescriptions = map[string]MetricDescription{
 	},
 
 	"diagrams_present": {
-		Brief:     "Whether architecture diagrams exist. Visual notation aids comprehension of object-oriented designs <span class=\"citation\">(Gamma et al., 1994)</span>.",
+		Brief:     "Whether architecture diagrams exist. Visual notation aids comprehension of object-oriented designs (Gamma et al., 1994).",
 		Threshold: 5.0,
 		Detailed: `<h4>Definition</h4>
 <p>Binary metric indicating whether the project includes architecture diagrams, flow charts, or other visual documentation. Detects common formats: .svg, .png, .mermaid in docs/, or diagram blocks in markdown.</p>
@@ -733,7 +733,7 @@ var metricDescriptions = map[string]MetricDescription{
 	// C5: Temporal Dynamics Metrics
 	// ============================================================================
 	"churn_rate": {
-		Brief:     "Average code changes per file over time. Code churn strongly predicts defect-prone areas <span class=\"citation\">(Kim et al., 2007)</span>.",
+		Brief:     "Average code changes per file over time. Code churn strongly predicts defect-prone areas (Kim et al., 2007).",
 		Threshold: 6.0,
 		Detailed: `<h4>Definition</h4>
 <p>Measures how frequently code changes over time, calculated from git history. High churn indicates files that are modified often, potentially due to instability, evolving requirements, or maintenance burden.</p>
@@ -764,7 +764,7 @@ var metricDescriptions = map[string]MetricDescription{
 	},
 
 	"temporal_coupling_pct": {
-		Brief:     "Files that change together. Temporal coupling reveals hidden dependencies not visible in code structure <span class=\"citation\">(Gall et al., 1998)</span>.",
+		Brief:     "Files that change together. Temporal coupling reveals hidden dependencies not visible in code structure (Gall et al., 1998).",
 		Threshold: 6.0,
 		Detailed: `<h4>Definition</h4>
 <p>Percentage of file pairs that frequently change together in commits but have no direct import relationship. Indicates hidden coupling not visible in code structure but present in change patterns.</p>
@@ -795,7 +795,7 @@ var metricDescriptions = map[string]MetricDescription{
 	},
 
 	"author_fragmentation": {
-		Brief:     "Number of distinct authors per file. Ownership fragmentation increases defect rates <span class=\"citation\">(Bird et al., 2011)</span>.",
+		Brief:     "Number of distinct authors per file. Ownership fragmentation increases defect rates (Bird et al., 2011).",
 		Threshold: 6.0,
 		Detailed: `<h4>Definition</h4>
 <p>Average number of distinct commit authors per file, measured from git history. High fragmentation indicates code touched by many developers without clear ownership.</p>
@@ -826,7 +826,7 @@ var metricDescriptions = map[string]MetricDescription{
 	},
 
 	"commit_stability": {
-		Brief:     "Ratio of additions to modifications. Code decay manifests through increasing modification patterns <span class=\"citation\">(Eick et al., 2001)</span>.",
+		Brief:     "Ratio of additions to modifications. Code decay manifests through increasing modification patterns (Eick et al., 2001).",
 		Threshold: 6.0,
 		Detailed: `<h4>Definition</h4>
 <p>Measures the balance between new code additions and modifications to existing code. High stability indicates more additive development; low stability suggests significant rework or refactoring.</p>
@@ -857,7 +857,7 @@ var metricDescriptions = map[string]MetricDescription{
 	},
 
 	"hotspot_concentration": {
-		Brief:     "How concentrated changes are in a few files. Churn concentration identifies high-defect-density components <span class=\"citation\">(Nagappan & Ball, 2005)</span>.",
+		Brief:     "How concentrated changes are in a few files. Churn concentration identifies high-defect-density components (Nagappan & Ball, 2005).",
 		Threshold: 6.0,
 		Detailed: `<h4>Definition</h4>
 <p>Measures how concentrated code changes are in a small number of "hotspot" files. High concentration means most changes happen in few files; low concentration indicates changes are distributed evenly.</p>
@@ -891,7 +891,7 @@ var metricDescriptions = map[string]MetricDescription{
 	// C6: Testing Metrics
 	// ============================================================================
 	"test_to_code_ratio": {
-		Brief:     "Ratio of test code to production code. TDD teams see 40-90% fewer defects with comprehensive testing <span class=\"citation\">(Nagappan et al., 2008)</span>.",
+		Brief:     "Ratio of test code to production code. TDD teams see 40-90% fewer defects with comprehensive testing (Nagappan et al., 2008).",
 		Threshold: 6.0,
 		Detailed: `<h4>Definition</h4>
 <p>The ratio of test lines of code to production lines of code. A ratio of 1.0 means equal amounts of test and production code. Higher ratios indicate more comprehensive testing.</p>
@@ -921,7 +921,7 @@ var metricDescriptions = map[string]MetricDescription{
 	},
 
 	"coverage_percent": {
-		Brief:     "Percentage of code covered by tests. Coverage correlates with fewer field defects <span class=\"citation\">(Mockus et al., 2009)</span>, though effect size is debated <span class=\"citation\">(Inozemtseva & Holmes, 2014)</span>.",
+		Brief:     "Percentage of code covered by tests. Coverage correlates with fewer field defects (Mockus et al., 2009), though effect size is debated (Inozemtseva & Holmes, 2014).",
 		Threshold: 6.0,
 		Detailed: `<h4>Definition</h4>
 <p>The percentage of code statements executed during test runs. Measures how much of the codebase has test verification. Can include line coverage, branch coverage, or combined metrics.</p>
@@ -951,7 +951,7 @@ var metricDescriptions = map[string]MetricDescription{
 	},
 
 	"test_isolation": {
-		Brief:     "Independence of tests from external state. Test doubles isolate the system under test from dependencies <span class=\"citation\">(Meszaros, 2007)</span>.",
+		Brief:     "Independence of tests from external state. Test doubles isolate the system under test from dependencies (Meszaros, 2007).",
 		Threshold: 6.0,
 		Detailed: `<h4>Definition</h4>
 <p>Measures how well tests are isolated from external dependencies: databases, file systems, network services, and global state. Isolated tests use mocks, stubs, or in-memory implementations.</p>
@@ -981,7 +981,7 @@ var metricDescriptions = map[string]MetricDescription{
 	},
 
 	"assertion_density_avg": {
-		Brief:     "Assertions per test. Assertion density negatively correlates with fault density in production code <span class=\"citation\">(Kudrjavets et al., 2006)</span>.",
+		Brief:     "Assertions per test. Assertion density negatively correlates with fault density in production code (Kudrjavets et al., 2006).",
 		Threshold: 6.0,
 		Detailed: `<h4>Definition</h4>
 <p>The average number of assertions per test function. Measures how thoroughly tests verify expected behavior versus simply executing code paths.</p>
@@ -1011,7 +1011,7 @@ var metricDescriptions = map[string]MetricDescription{
 	},
 
 	"test_file_ratio": {
-		Brief:     "Ratio of test files to source files. Systematic test organization follows TDD structure <span class=\"citation\">(Meszaros, 2007)</span>.",
+		Brief:     "Ratio of test files to source files. Systematic test organization follows TDD structure (Meszaros, 2007).",
 		Threshold: 6.0,
 		Detailed: `<h4>Definition</h4>
 <p>The ratio of test files to production source files. Measures whether tests are systematically organized to cover the codebase. A ratio of 1.0 means one test file per source file.</p>
@@ -1044,7 +1044,7 @@ var metricDescriptions = map[string]MetricDescription{
 	// C7: Agent Evaluation Metrics
 	// ============================================================================
 	"task_execution_consistency": {
-		Brief:     "Reproducibility of agent task completion. Agent benchmarks show 13% typical variance <span class=\"citation\">(Kapoor et al., 2024)</span>.",
+		Brief:     "Reproducibility of agent task completion. Agent benchmarks show 13% typical variance (Kapoor et al., 2024).",
 		Threshold: 6.0,
 		Detailed: `<h4>Definition</h4>
 <p>Measures whether an agent produces consistent results when executing the same task multiple times. Runs the same simple task 3 times and measures variance in completion quality.</p>
@@ -1074,7 +1074,7 @@ var metricDescriptions = map[string]MetricDescription{
 	},
 
 	"code_behavior_comprehension": {
-		Brief:     "Agent understanding of code semantics. LLMs fail on 78% of bugs after semantic-preserving mutations <span class=\"citation\">(Haroon et al., 2025)</span>.",
+		Brief:     "Agent understanding of code semantics. LLMs fail on 78% of bugs after semantic-preserving mutations (Haroon et al., 2025).",
 		Threshold: 6.0,
 		Detailed: `<h4>Definition</h4>
 <p>Measures how well agents understand code behavior beyond surface-level patterns. Tests whether agents can correctly predict behavior changes when code is modified in semantically meaningful ways.</p>
@@ -1105,7 +1105,7 @@ var metricDescriptions = map[string]MetricDescription{
 	},
 
 	"cross_file_navigation": {
-		Brief:     "Ability to trace dependencies across files. Repository-level understanding improves agent performance by 32.8% <span class=\"citation\">(Ouyang et al., 2025)</span>.",
+		Brief:     "Ability to trace dependencies across files. Repository-level understanding improves agent performance by 32.8% (Ouyang et al., 2025).",
 		Threshold: 6.0,
 		Detailed: `<h4>Definition</h4>
 <p>Measures the agent's ability to trace imports and data flow across multiple files. Tests whether agents can navigate beyond single-file context to understand repository structure and follow dependency chains.</p>
@@ -1136,7 +1136,7 @@ var metricDescriptions = map[string]MetricDescription{
 	},
 
 	"identifier_interpretability": {
-		Brief:     "Clarity of identifier names for AI comprehension. Identifier quality correlates with code quality <span class=\"citation\">(Butler et al., 2009)</span>.",
+		Brief:     "Clarity of identifier names for AI comprehension. Identifier quality correlates with code quality (Butler et al., 2009).",
 		Threshold: 6.0,
 		Detailed: `<h4>Definition</h4>
 <p>Measures how interpretable identifier names (variables, functions, classes) are to AI agents. Evaluates naming consistency, descriptiveness, and adherence to domain conventions that aid machine understanding.</p>
@@ -1167,7 +1167,7 @@ var metricDescriptions = map[string]MetricDescription{
 	},
 
 	"documentation_accuracy_detection": {
-		Brief:     "Agent ability to identify code-comment inconsistencies. A study found 13 inconsistency types from 1.3B AST changes <span class=\"citation\">(Wen et al., 2019)</span>.",
+		Brief:     "Agent ability to identify code-comment inconsistencies. A study found 13 inconsistency types from 1.3B AST changes (Wen et al., 2019).",
 		Threshold: 6.0,
 		Detailed: `<h4>Definition</h4>
 <p>Measures whether agents can detect when documentation (comments, docstrings) no longer accurately describes the code. Tests the agent's ability to identify code-comment inconsistencies that arise from code evolution.</p>

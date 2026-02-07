@@ -30,7 +30,10 @@ func generateRadarChart(categories []types.CategoryScore) (string, error) {
 	p, err := charts.RadarRender(
 		values,
 		charts.SVGTypeOption(),
-		charts.TitleTextOptionFunc("Agent Readiness Score"),
+		charts.TitleOptionFunc(charts.TitleOption{
+			Text: "Agent Readiness Score",
+			Left: "center",
+		}),
 		charts.RadarIndicatorOptionFunc(names, maxValues),
 		charts.ThemeOptionFunc("light"),
 		charts.WidthOptionFunc(450),

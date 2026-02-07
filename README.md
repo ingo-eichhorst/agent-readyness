@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🤖 Agent Readiness Score (ARS)
+# Agent Readiness Score (ARS)
 
 ### *Measure how ready your codebase is for AI agents*
 
@@ -34,10 +34,10 @@ You could spend $10M/year on the best LLM API credits. Or you could refactor you
 
 The research is clear:
 
-✅ Clean code reduces agent break rates by 7-15 percentage points
-✅ Modular architecture enables 4.5x better context retrieval
-✅ Documentation boosts success rates by 32.8%
-✅ Test-driven workflows achieve 82.8% task completion
+- ✅ Clean code reduces agent break rates by 7-15 percentage points
+- ✅ Modular architecture enables 4.5x better context retrieval
+- ✅ Documentation boosts success rates by 32.8%
+- ✅ Test-driven workflows achieve 82.8% task completion
 
 Agent Readiness isn't a nice-to-have—it's the difference between an agent that ships code and one that creates busywork.
 
@@ -58,17 +58,17 @@ Make sure `$GOPATH/bin` (usually `~/go/bin`) is in your PATH.
 ### Run Your First Scan
 
 ```bash
-# Scan current directory
+# Scan current directory (C4 & C7 auto-enabled if Claude CLI detected)
 ars scan .
 
 # Generate beautiful HTML report
 ars scan . --output-html report.html
 
-# Enable full AI agent evaluation (requires Claude CLI)
-ars scan . --enable-c7
+# Disable LLM features for faster scans (CI/CD)
+ars scan . --no-llm
 ```
 
-**That's it!** 🎉 You'll get a comprehensive analysis of your codebase's agent-readiness across 7 research-backed categories.
+**That's it!** You'll get a comprehensive analysis of your codebase's agent-readiness across 7 research-backed categories.
 
 ---
 
@@ -105,11 +105,11 @@ Track progress over time by comparing against previous scans
 
 ---
 
-## 📋 Prerequisites
+## Prerequisites
 
 ### Required
 
-- **[Go](https://go.dev/doc/install) 1.21+** - The programming language runtime
+- **[Go](https://go.dev/doc/install) 1.25+** - The programming language runtime
 
   <details>
   <summary>📦 Install Go</summary>
@@ -220,14 +220,11 @@ ARS includes **optional AI-powered analysis** that automatically enables when Cl
 # LLM features auto-enabled when Claude CLI is available
 ars scan .
 # Output: "Claude CLI detected (claude 2.x.x) - LLM features enabled"
+# Both C4 (documentation analysis) and C7 (agent evaluation) run automatically
 
-# Explicitly disable LLM features
+# Explicitly disable LLM features for faster scans (CI/CD)
 ars scan . --no-llm
 # Output: "LLM features disabled (--no-llm flag)"
-
-# Enable C7 agent evaluation (requires Claude CLI)
-ars scan . --enable-c7
-# Performs live agent tasks to measure real-world performance
 ```
 
 ### Debug Mode
@@ -236,13 +233,13 @@ When investigating C7 Agent Evaluation scores, use debug mode:
 
 ```bash
 # Show debug output (prompts, responses, scoring traces)
-ars scan . --debug-c7
+ars scan . --debug
 
 # Save responses for offline analysis (no Claude CLI calls on replay)
-ars scan . --debug-c7 --debug-dir ./c7-debug
+ars scan . --debug --debug-dir ./c7-debug
 
 # Pipe output to files
-ars scan . --debug-c7 --json > results.json 2>debug.log
+ars scan . --debug --json > results.json 2>debug.log
 ```
 
 ---

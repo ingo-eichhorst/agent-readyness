@@ -28,7 +28,7 @@ type Pipeline struct {
 	writer       io.Writer
 	parser       Parser
 	analyzers    []Analyzer
-	c7Analyzer   *analyzer.C7Analyzer // separate for explicit enable control
+	c7Analyzer   *analyzer.C7Analyzer // separate for debug features
 	scorer       *scoring.Scorer
 	results      []*types.AnalysisResult
 	scored       *types.ScoredResult
@@ -78,6 +78,7 @@ func New(w io.Writer, verbose bool, cfg *scoring.ScoringConfig, threshold float6
 	if cliStatus.Available {
 		evaluator = agent.NewEvaluator(60 * time.Second)
 		c4Analyzer.SetEvaluator(evaluator)
+		c7Analyzer.SetEvaluator(evaluator) // Auto-enable C7 when CLI available
 	}
 
 	return &Pipeline{
@@ -95,7 +96,7 @@ func New(w io.Writer, verbose bool, cfg *scoring.ScoringConfig, threshold float6
 			c4Analyzer,
 			analyzer.NewC5Analyzer(), // No tsParser needed - git-based analysis
 			analyzer.NewC6Analyzer(tsParser),
-			c7Analyzer, // C7 runs but returns Available:false unless enabled
+			c7Analyzer, // C7 runs but returns Available:false if LLM disabled
 		},
 		c7Analyzer: c7Analyzer,
 		scorer:     &scoring.Scorer{Config: cfg},
@@ -113,6 +114,10 @@ func (p *Pipeline) DisableLLM() {
 		if c4, ok := a.(*analyzer.C4Analyzer); ok {
 			c4.SetEvaluator(nil)
 		}
+	}
+	// Also disable C7
+	if p.c7Analyzer != nil {
+		p.c7Analyzer.SetEvaluator(nil)
 	}
 }
 

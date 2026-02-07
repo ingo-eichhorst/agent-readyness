@@ -455,7 +455,7 @@ func renderC4(w io.Writer, ar *types.AnalysisResult, verbose bool) {
 		cr.Fprintf(w, "    Cross-ref coherence: %d/10\n", m.CrossRefCoherence)
 		fmt.Fprintf(w, "    LLM cost:            $%.4f (%d tokens)\n", m.LLMCostUSD, m.LLMTokensUsed)
 	} else {
-		color.New(color.FgHiBlack).Fprintln(w, "    README clarity:      n/a (--enable-c4-llm)")
+		color.New(color.FgHiBlack).Fprintln(w, "    README clarity:      n/a (Claude CLI not detected)")
 		color.New(color.FgHiBlack).Fprintln(w, "    Example quality:     n/a")
 		color.New(color.FgHiBlack).Fprintln(w, "    Completeness:        n/a")
 		color.New(color.FgHiBlack).Fprintln(w, "    Cross-ref coherence: n/a")

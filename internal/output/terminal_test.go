@@ -448,7 +448,7 @@ func TestRenderC4WithLLM(t *testing.T) {
 	}
 
 	// Should NOT contain n/a when LLM enabled
-	if strings.Contains(out, "n/a (--enable-c4-llm)") {
+	if strings.Contains(out, "n/a (Claude CLI not detected)") {
 		t.Error("LLM-enabled C4 should not show n/a")
 	}
 }

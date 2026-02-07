@@ -235,8 +235,8 @@ func TestCategoryScore_SkipUnavailable(t *testing.T) {
 
 func TestCategoryScore_Empty(t *testing.T) {
 	got := CategoryScore(nil)
-	if got != 0.0 {
-		t.Errorf("CategoryScore(nil) = %v, want 0.0", got)
+	if got != -1.0 {
+		t.Errorf("CategoryScore(nil) = %v, want -1.0", got)
 	}
 }
 
@@ -246,8 +246,8 @@ func TestCategoryScore_AllUnavailable(t *testing.T) {
 		{MetricName: "b", Score: 0, Weight: 0.5, Available: false},
 	}
 	got := CategoryScore(subs)
-	if got != 0.0 {
-		t.Errorf("CategoryScore(all unavailable) = %v, want 0.0", got)
+	if got != -1.0 {
+		t.Errorf("CategoryScore(all unavailable) = %v, want -1.0", got)
 	}
 }
 

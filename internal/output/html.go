@@ -47,6 +47,7 @@ type HTMLCategory struct {
 	DisplayName       string
 	Score             float64
 	ScoreClass        string // "ready", "assisted", "limited"
+	Available         bool   // whether category data is available
 	SubScores         []HTMLSubScore
 	ImpactDescription string
 	Citations         []Citation // Per-category citations
@@ -186,6 +187,7 @@ func buildHTMLCategories(categories []types.CategoryScore, citations []Citation,
 			DisplayName:       categoryDisplayName(cat.Name),
 			Score:             cat.Score,
 			ScoreClass:        scoreToClass(cat.Score),
+			Available:         cat.Score >= 0, // Infer from score
 			SubScores:         buildHTMLSubScores(cat.Name, cat.SubScores, trace),
 			ImpactDescription: categoryImpact(cat.Name),
 			Citations:         filterCitationsByCategory(citations, cat.Name),

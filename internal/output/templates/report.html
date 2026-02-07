@@ -64,7 +64,7 @@
         </div>
         {{range .Categories}}
         <div class="category">
-            <h2>{{.DisplayName}} <span class="cat-score score-{{.ScoreClass}}">{{printf "%.1f" .Score}}/10</span></h2>
+            <h2>{{.DisplayName}} {{if .Available}}<span class="cat-score score-{{.ScoreClass}}">{{printf "%.1f" .Score}}/10</span>{{else}}<span class="cat-score unavailable">n/a</span>{{end}}</h2>
             <table class="metric-table">
                 <thead>
                     <tr>

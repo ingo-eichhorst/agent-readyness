@@ -12,42 +12,6 @@ import (
 	"github.com/ingo/agent-readyness/pkg/types"
 )
 
-// tsFilterSourceFiles filters to source-only TypeScript files (not test files).
-func tsFilterSourceFiles(files []*parser.ParsedTreeSitterFile) []*parser.ParsedTreeSitterFile {
-	var result []*parser.ParsedTreeSitterFile
-	for _, f := range files {
-		if tsIsTestFile(f.RelPath) {
-			continue
-		}
-		result = append(result, f)
-	}
-	return result
-}
-
-// tsIsTestFile checks if a TypeScript file path indicates a test file.
-func tsIsTestFile(path string) bool {
-	lower := strings.ToLower(path)
-	base := lower
-	parts := strings.Split(lower, "/")
-	if len(parts) > 0 {
-		base = parts[len(parts)-1]
-	}
-
-	// Check __tests__ directory
-	for _, p := range parts {
-		if p == "__tests__" {
-			return true
-		}
-	}
-
-	return strings.HasSuffix(base, ".test.ts") ||
-		strings.HasSuffix(base, ".spec.ts") ||
-		strings.HasSuffix(base, ".test.tsx") ||
-		strings.HasSuffix(base, ".spec.tsx") ||
-		strings.HasSuffix(base, ".test.js") ||
-		strings.HasSuffix(base, ".spec.js")
-}
-
 // tsBuildImportGraph builds an import graph from TypeScript files.
 // It tracks intra-project imports only (skips node_modules/third-party).
 func tsBuildImportGraph(files []*parser.ParsedTreeSitterFile) *shared.ImportGraph {
@@ -78,7 +42,7 @@ func tsBuildImportGraph(files []*parser.ParsedTreeSitterFile) *shared.ImportGrap
 				// ESM: import { foo } from "./bar"
 				src := node.ChildByFieldName("source")
 				if src != nil {
-					modulePath = tsStripQuotes(shared.NodeText(src, f.Content))
+					modulePath = shared.TsStripQuotes(shared.NodeText(src, f.Content))
 				}
 
 			case "call_expression":
@@ -98,7 +62,7 @@ func tsBuildImportGraph(files []*parser.ParsedTreeSitterFile) *shared.ImportGrap
 				for i := uint(0); i < args.ChildCount(); i++ {
 					child := args.Child(i)
 					if child != nil && child.Kind() == "string" {
-						modulePath = tsStripQuotes(shared.NodeText(child, f.Content))
+						modulePath = shared.TsStripQuotes(shared.NodeText(child, f.Content))
 						break
 					}
 				}
@@ -148,16 +112,6 @@ func tsNormalizePath(p string) string {
 	return p
 }
 
-// tsStripQuotes removes surrounding quotes from a string literal.
-func tsStripQuotes(s string) string {
-	if len(s) >= 2 {
-		if (s[0] == '"' && s[len(s)-1] == '"') || (s[0] == '\'' && s[len(s)-1] == '\'') || (s[0] == '`' && s[len(s)-1] == '`') {
-			return s[1 : len(s)-1]
-		}
-	}
-	return s
-}
-
 // tsDetectDeadCode finds exported symbols not imported by other project files.
 func tsDetectDeadCode(files []*parser.ParsedTreeSitterFile) []types.DeadExport {
 	if len(files) <= 1 {
@@ -167,7 +121,7 @@ func tsDetectDeadCode(files []*parser.ParsedTreeSitterFile) []types.DeadExport {
 	var defs []tsExportDef
 
 	for _, f := range files {
-		if tsIsTestFile(f.RelPath) {
+		if shared.TsIsTestFile(f.RelPath) {
 			continue
 		}
 		root := f.Tree.RootNode()

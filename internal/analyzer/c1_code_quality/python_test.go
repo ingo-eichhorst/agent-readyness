@@ -4,6 +4,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/ingo/agent-readyness/internal/analyzer/shared"
 	"github.com/ingo/agent-readyness/internal/parser"
 	"github.com/ingo/agent-readyness/pkg/types"
 )
@@ -261,9 +262,9 @@ func TestPyIsTestFileByPath(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.path, func(t *testing.T) {
-			got := isTestFileByPath(tt.path)
+			got := shared.IsTestFileByPath(tt.path)
 			if got != tt.want {
-				t.Errorf("isTestFileByPath(%q) = %v, want %v", tt.path, got, tt.want)
+				t.Errorf("shared.IsTestFileByPath(%q) = %v, want %v", tt.path, got, tt.want)
 			}
 		})
 	}

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"hash"
 	"os"
-	"strings"
 
 	tree_sitter "github.com/tree-sitter/go-tree-sitter"
 
@@ -12,42 +11,6 @@ import (
 	"github.com/ingo/agent-readyness/internal/parser"
 	"github.com/ingo/agent-readyness/pkg/types"
 )
-
-// tsFilterSourceFiles filters to source-only TypeScript files (not test files).
-func tsFilterSourceFiles(files []*parser.ParsedTreeSitterFile) []*parser.ParsedTreeSitterFile {
-	var result []*parser.ParsedTreeSitterFile
-	for _, f := range files {
-		if tsIsTestFile(f.RelPath) {
-			continue
-		}
-		result = append(result, f)
-	}
-	return result
-}
-
-// tsIsTestFile checks if a TypeScript file path indicates a test file.
-func tsIsTestFile(path string) bool {
-	lower := strings.ToLower(path)
-	base := lower
-	parts := strings.Split(lower, "/")
-	if len(parts) > 0 {
-		base = parts[len(parts)-1]
-	}
-
-	// Check __tests__ directory
-	for _, p := range parts {
-		if p == "__tests__" {
-			return true
-		}
-	}
-
-	return strings.HasSuffix(base, ".test.ts") ||
-		strings.HasSuffix(base, ".spec.ts") ||
-		strings.HasSuffix(base, ".test.tsx") ||
-		strings.HasSuffix(base, ".spec.tsx") ||
-		strings.HasSuffix(base, ".test.js") ||
-		strings.HasSuffix(base, ".spec.js")
-}
 
 // tsAnalyzeFunctions extracts per-function complexity and line count from TypeScript files.
 func tsAnalyzeFunctions(files []*parser.ParsedTreeSitterFile) []types.FunctionMetric {

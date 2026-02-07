@@ -3,8 +3,6 @@ package c1
 import (
 	"fmt"
 	"hash"
-	"os"
-	"strings"
 
 	tree_sitter "github.com/tree-sitter/go-tree-sitter"
 
@@ -220,31 +218,3 @@ func pyHashNodeStructure(h hash.Hash64, node *tree_sitter.Node, depth int) {
 	}
 }
 
-// pyFilterSourceFiles filters to source-only Python files (not test files).
-func pyFilterSourceFiles(files []*parser.ParsedTreeSitterFile) []*parser.ParsedTreeSitterFile {
-	var result []*parser.ParsedTreeSitterFile
-	for _, f := range files {
-		if isTestFileByPath(f.RelPath) {
-			continue
-		}
-		result = append(result, f)
-	}
-	return result
-}
-
-// isTestFileByPath checks if a file path indicates a test file.
-func isTestFileByPath(path string) bool {
-	base := strings.ToLower(path)
-	parts := strings.Split(base, string(os.PathSeparator))
-	if len(parts) > 0 {
-		base = parts[len(parts)-1]
-	}
-	slashParts := strings.Split(base, "/")
-	if len(slashParts) > 0 {
-		base = slashParts[len(slashParts)-1]
-	}
-
-	return strings.HasPrefix(base, "test_") ||
-		strings.HasSuffix(base, "_test.py") ||
-		base == "conftest.py"
-}

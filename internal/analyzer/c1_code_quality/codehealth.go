@@ -87,7 +87,7 @@ func (a *C1Analyzer) Analyze(targets []*types.AnalysisTarget) (*types.AnalysisRe
 			}
 			defer parser.CloseAll(parsed)
 
-			srcFiles := pyFilterSourceFiles(parsed)
+			srcFiles := shared.PyFilterSourceFiles(parsed)
 			pyFunctions := pyAnalyzeFunctions(srcFiles)
 			allFunctions = append(allFunctions, pyFunctions...)
 
@@ -111,7 +111,7 @@ func (a *C1Analyzer) Analyze(targets []*types.AnalysisTarget) (*types.AnalysisRe
 			}
 			defer parser.CloseAll(parsed)
 
-			srcFiles := tsFilterSourceFiles(parsed)
+			srcFiles := shared.TsFilterSourceFiles(parsed)
 			tsFunctions := tsAnalyzeFunctions(srcFiles)
 			allFunctions = append(allFunctions, tsFunctions...)
 

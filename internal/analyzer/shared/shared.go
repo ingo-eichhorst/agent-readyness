@@ -4,6 +4,7 @@
 package shared
 
 import (
+	"os"
 	"strings"
 
 	tree_sitter "github.com/tree-sitter/go-tree-sitter"
@@ -77,9 +78,15 @@ func CountLines(content []byte) int {
 // Used by C6 testing analyzer.
 func IsTestFileByPath(path string) bool {
 	base := strings.ToLower(path)
-	parts := strings.Split(base, "/")
+
+	// Handle both OS separator and forward slash for cross-platform compatibility
+	parts := strings.Split(base, string(os.PathSeparator))
 	if len(parts) > 0 {
 		base = parts[len(parts)-1]
+	}
+	slashParts := strings.Split(base, "/")
+	if len(slashParts) > 0 {
+		base = slashParts[len(slashParts)-1]
 	}
 
 	return strings.HasPrefix(base, "test_") ||
@@ -121,4 +128,30 @@ func TsStripQuotes(s string) string {
 		}
 	}
 	return s
+}
+
+// PyFilterSourceFiles filters to source-only Python files (not test files).
+// Used by C1 code quality and C3 architecture analyzers.
+func PyFilterSourceFiles(files []*parser.ParsedTreeSitterFile) []*parser.ParsedTreeSitterFile {
+	var result []*parser.ParsedTreeSitterFile
+	for _, f := range files {
+		if IsTestFileByPath(f.RelPath) {
+			continue
+		}
+		result = append(result, f)
+	}
+	return result
+}
+
+// TsFilterSourceFiles filters to source-only TypeScript files (not test files).
+// Used by C1 code quality and C3 architecture analyzers.
+func TsFilterSourceFiles(files []*parser.ParsedTreeSitterFile) []*parser.ParsedTreeSitterFile {
+	var result []*parser.ParsedTreeSitterFile
+	for _, f := range files {
+		if TsIsTestFile(f.RelPath) {
+			continue
+		}
+		result = append(result, f)
+	}
+	return result
 }

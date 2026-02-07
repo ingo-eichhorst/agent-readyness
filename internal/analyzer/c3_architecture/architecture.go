@@ -52,7 +52,7 @@ func (a *C3Analyzer) Analyze(targets []*arstypes.AnalysisTarget) (*arstypes.Anal
 		case arstypes.LangPython:
 			analysis, err = a.analyzeLanguageTarget(
 				target,
-				pyFilterSourceFiles,
+				shared.PyFilterSourceFiles,
 				pyBuildImportGraph,
 				pyDetectDeadCode,
 				pyAnalyzeDirectoryDepth,
@@ -60,7 +60,7 @@ func (a *C3Analyzer) Analyze(targets []*arstypes.AnalysisTarget) (*arstypes.Anal
 		case arstypes.LangTypeScript:
 			analysis, err = a.analyzeLanguageTarget(
 				target,
-				tsFilterSourceFiles,
+				shared.TsFilterSourceFiles,
 				tsBuildImportGraph,
 				tsDetectDeadCode,
 				tsAnalyzeDirectoryDepth,

@@ -1,0 +1,151 @@
+classDiagram
+    class AnalysisTarget {
+        +Language Language
+        +Files []SourceFile
+        +Packages []ParsedPackage
+    }
+
+    class SourceFile {
+        +Path string
+        +Language Language
+        +Class FileClass
+        +Content []byte
+        +Size int64
+        +Lines int
+        +IsTest bool
+        +IsGenerated bool
+    }
+
+    class ParsedPackage {
+        +PkgPath string
+        +Name string
+        +Files []string
+        +Imports []string
+        +Package *packages.Package
+    }
+
+    class Language {
+        <<enumeration>>
+        Go
+        Python
+        TypeScript
+        Unknown
+    }
+
+    class FileClass {
+        <<enumeration>>
+        Source
+        Test
+        Generated
+        Documentation
+        Configuration
+        Excluded
+    }
+
+    class AnalysisResult {
+        +Category string
+        +Metrics map~string~interface{}
+        +Evidence []EvidenceItem
+        +Subcategories []SubcategoryMetrics
+    }
+
+    class EvidenceItem {
+        +File string
+        +Line int
+        +Column int
+        +Severity string
+        +Message string
+        +Value interface{}
+    }
+
+    class SubcategoryMetrics {
+        +Name string
+        +RawValue float64
+        +Score float64
+        +Evidence []EvidenceItem
+    }
+
+    class ScoredResult {
+        +Timestamp string
+        +ProjectName string
+        +ProjectPath string
+        +Language string
+        +Composite float64
+        +Tier string
+        +Categories []CategoryScore
+        +Recommendations []Recommendation
+    }
+
+    class CategoryScore {
+        +Name string
+        +Score float64
+        +Weight float64
+        +Impact string
+        +Subcategories []SubcategoryScore
+    }
+
+    class SubcategoryScore {
+        +Name string
+        +Score float64
+        +Value interface{}
+        +Weight float64
+        +Evidence []EvidenceItem
+    }
+
+    class Recommendation {
+        +Category string
+        +Priority string
+        +Title string
+        +Description string
+        +Impact string
+    }
+
+    class ScoringConfig {
+        +Version string
+        +Categories map~string~CategoryConfig
+        +Thresholds TierThresholds
+    }
+
+    class CategoryConfig {
+        +Weight float64
+        +Subcategories map~string~SubcategoryConfig
+    }
+
+    class SubcategoryConfig {
+        +Weight float64
+        +Breakpoints []Breakpoint
+        +InvertScore bool
+    }
+
+    class Breakpoint {
+        +Value float64
+        +Score float64
+    }
+
+    class TierThresholds {
+        +AgentReady float64
+        +AgentAssisted float64
+        +AgentLimited float64
+    }
+
+    AnalysisTarget --> SourceFile : contains
+    AnalysisTarget --> ParsedPackage : contains
+    SourceFile --> Language : typed by
+    SourceFile --> FileClass : classified as
+
+    AnalysisResult --> EvidenceItem : collects
+    AnalysisResult --> SubcategoryMetrics : groups
+
+    ScoredResult --> CategoryScore : aggregates
+    ScoredResult --> Recommendation : suggests
+    CategoryScore --> SubcategoryScore : breaks down
+    SubcategoryScore --> EvidenceItem : provides proof
+
+    ScoringConfig --> CategoryConfig : defines
+    CategoryConfig --> SubcategoryConfig : contains
+    SubcategoryConfig --> Breakpoint : maps via
+
+    note for AnalysisTarget "Input to analyzers\nOne per language detected"
+    note for AnalysisResult "Raw output from analyzers\nOne per category (C1-C7)"
+    note for ScoredResult "Final output after scoring\nOne per scan execution"
+    note for ScoringConfig "Loaded from .arsrc.yml\nor defaults from code"

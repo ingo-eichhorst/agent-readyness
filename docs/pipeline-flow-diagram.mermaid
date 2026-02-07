@@ -1,0 +1,81 @@
+sequenceDiagram
+    participant CLI as CLI<br/>(cmd/ars)
+    participant Pipeline as Pipeline<br/>(Orchestrator)
+    participant Discovery as Discovery<br/>(File Scanner)
+    participant Parser as Parser<br/>(AST Parser)
+    participant Analyzers as Analyzers<br/>(C1-C7)
+    participant Scoring as Scoring<br/>(Metrics)
+    participant Output as Output<br/>(Renderer)
+
+    CLI->>Pipeline: scan(directory)
+    activate Pipeline
+
+    Note over Pipeline: Stage 1: Discovery
+    Pipeline->>Discovery: Discover files
+    activate Discovery
+    Discovery->>Discovery: Walk filesystem<br/>Respect .gitignore<br/>Classify files
+    Discovery-->>Pipeline: SourceFiles[]<br/>Languages detected
+    deactivate Discovery
+
+    Note over Pipeline: Stage 2: Parse
+    Pipeline->>Parser: Parse Go packages
+    activate Parser
+    Parser->>Parser: go/packages loader<br/>Type-checked AST
+    Parser-->>Pipeline: ParsedPackages
+    deactivate Parser
+
+    Pipeline->>Parser: Parse Python/TS files
+    activate Parser
+    Parser->>Parser: Tree-sitter parsing
+    Parser-->>Pipeline: AST nodes
+    deactivate Parser
+
+    Note over Pipeline: Stage 3: Analyze (Parallel)
+    Pipeline->>Analyzers: Run C1-C7 in parallel
+    activate Analyzers
+
+    par C1: Code Quality
+        Analyzers->>Analyzers: Complexity<br/>Function length<br/>File size
+    and C2: Semantics
+        Analyzers->>Analyzers: Type annotations<br/>Naming consistency
+    and C3: Architecture
+        Analyzers->>Analyzers: Directory depth<br/>Module fanout<br/>Circular deps
+    and C4: Documentation
+        Analyzers->>Analyzers: README quality<br/>Comments<br/>API docs
+    and C5: Temporal
+        Analyzers->>Analyzers: Git churn<br/>Temporal coupling
+    and C6: Testing
+        Analyzers->>Analyzers: Test ratio<br/>Coverage<br/>Isolation
+    and C7: Agent (Optional)
+        Analyzers->>Analyzers: Live agent eval<br/>via Claude CLI
+    end
+
+    Analyzers-->>Pipeline: AnalysisResults<br/>Raw metrics + Evidence
+    deactivate Analyzers
+
+    Note over Pipeline: Stage 4: Score
+    Pipeline->>Scoring: Calculate scores
+    activate Scoring
+    Scoring->>Scoring: Apply breakpoints<br/>Weighted composite<br/>Tier assignment
+    Scoring-->>Pipeline: ScoredResult
+    deactivate Scoring
+
+    Note over Pipeline: Stage 5: Output
+    Pipeline->>Output: Render results
+    activate Output
+
+    alt Terminal Output
+        Output->>Output: Colored text<br/>Progress bars
+        Output-->>CLI: Display to console
+    else JSON Output
+        Output->>Output: Structured data<br/>Schema v1.0
+        Output-->>CLI: Write to file
+    else HTML Output
+        Output->>Output: Embedded templates<br/>Interactive charts
+        Output-->>CLI: Write to file
+    end
+
+    deactivate Output
+    deactivate Pipeline
+
+    CLI-->>CLI: Exit with code

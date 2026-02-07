@@ -1,0 +1,37 @@
+graph TB
+    CLI[cmd/ars<br/>CLI Entry Point] --> Pipeline[internal/pipeline<br/>Orchestrator]
+
+    Pipeline --> Discovery[internal/discovery<br/>File Scanner]
+    Pipeline --> Parser[internal/parser<br/>AST Parser]
+    Pipeline --> Analyzer[internal/analyzer<br/>Category Analyzers]
+    Pipeline --> Scoring[internal/scoring<br/>Metric Scorer]
+    Pipeline --> Output[internal/output<br/>Renderer]
+
+    Discovery --> |SourceFiles<br/>Language Detection| Parser
+    Parser --> |Parsed AST<br/>Type Info| Analyzer
+    Analyzer --> |Raw Metrics<br/>Evidence| Scoring
+    Scoring --> |Scored Results<br/>Tiers| Output
+
+    Parser -.-> |Go Analysis| GoPackages[go/packages<br/>Go Standard Library]
+    Parser -.-> |Python/TS Parsing| TreeSitter[Tree-sitter<br/>Language Grammars]
+
+    Analyzer --> C1[C1: Code Quality<br/>Complexity, Length]
+    Analyzer --> C2[C2: Semantics<br/>Types, Naming]
+    Analyzer --> C3[C3: Architecture<br/>Structure, Deps]
+    Analyzer --> C4[C4: Documentation<br/>README, Comments]
+    Analyzer --> C5[C5: Temporal<br/>Git History]
+    Analyzer --> C6[C6: Testing<br/>Coverage, Isolation]
+    Analyzer --> C7[C7: Agent Eval<br/>Live Testing]
+
+    C4 -.-> |Optional LLM| ClaudeCLI[Claude CLI<br/>LLM Analysis]
+    C7 -.-> |Optional| ClaudeCLI
+
+    Output --> Terminal[Terminal<br/>Colored Text]
+    Output --> JSON[JSON<br/>Structured Data]
+    Output --> HTML[HTML Report<br/>Interactive]
+
+    style CLI fill:#e1f5ff
+    style Pipeline fill:#fff4e1
+    style Analyzer fill:#ffe1f5
+    style Output fill:#e1ffe1
+    style ClaudeCLI fill:#f0f0f0,stroke-dasharray: 5 5

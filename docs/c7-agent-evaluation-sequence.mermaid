@@ -1,0 +1,106 @@
+sequenceDiagram
+    participant Analyzer as C7 Analyzer
+    participant Workspace as Isolated Workspace
+    participant Sampler as Sample Selector
+    participant Parallel as Parallel Executor
+    participant CLI as Claude CLI
+    participant Heuristic as Scoring Heuristic
+    participant Debugger as Debug System
+
+    Note over Analyzer: User runs: ars scan --enable-c7
+
+    Analyzer->>Workspace: Create temporary directory
+    activate Workspace
+    Workspace->>Workspace: Copy project files<br/>Preserve structure
+    Workspace-->>Analyzer: tmpDir path
+    deactivate Workspace
+
+    Analyzer->>Sampler: Select sample files
+    activate Sampler
+    Sampler->>Sampler: Pick 3-5 source files<br/>Representative of project
+    Sampler-->>Analyzer: Sample paths
+    deactivate Sampler
+
+    Note over Analyzer,CLI: Launch 5 MECE metrics in parallel
+
+    Analyzer->>Parallel: Execute M1-M5
+    activate Parallel
+
+    par M1: Navigate
+        Parallel->>CLI: Task: Find function by description
+        activate CLI
+        CLI->>CLI: Search codebase<br/>Parse files
+        CLI-->>Parallel: Response + transcript
+        deactivate CLI
+        Parallel->>Heuristic: Analyze M1 response
+        activate Heuristic
+        Heuristic->>Heuristic: Check success indicators:<br/>- Found target file?<br/>- Correct line number?<br/>- Used proper tools?
+        Heuristic-->>Parallel: M1 score (0-10)
+        deactivate Heuristic
+
+    and M2: Comprehend
+        Parallel->>CLI: Task: Explain code snippet
+        activate CLI
+        CLI->>CLI: Read files<br/>Analyze logic
+        CLI-->>Parallel: Response + transcript
+        deactivate CLI
+        Parallel->>Heuristic: Analyze M2 response
+        activate Heuristic
+        Heuristic->>Heuristic: Check understanding:<br/>- Accurate explanation?<br/>- Referenced right files?<br/>- Correct data flow?
+        Heuristic-->>Parallel: M2 score (0-10)
+        deactivate Heuristic
+
+    and M3: Modify
+        Parallel->>CLI: Task: Refactor code
+        activate CLI
+        CLI->>CLI: Read → Edit → Verify
+        CLI-->>Parallel: Response + transcript
+        deactivate CLI
+        Parallel->>Heuristic: Analyze M3 response
+        activate Heuristic
+        Heuristic->>Heuristic: Check modifications:<br/>- Correct file edited?<br/>- Preserved behavior?<br/>- Clean changes?
+        Heuristic-->>Parallel: M3 score (0-10)
+        deactivate Heuristic
+
+    and M4: Test
+        Parallel->>CLI: Task: Write test case
+        activate CLI
+        CLI->>CLI: Analyze code<br/>Create test
+        CLI-->>Parallel: Response + transcript
+        deactivate CLI
+        Parallel->>Heuristic: Analyze M4 response
+        activate Heuristic
+        Heuristic->>Heuristic: Check test quality:<br/>- Correct test file?<br/>- Valid assertions?<br/>- Proper setup?
+        Heuristic-->>Parallel: M4 score (0-10)
+        deactivate Heuristic
+
+    and M5: Debug
+        Parallel->>CLI: Task: Fix planted bug
+        activate CLI
+        CLI->>CLI: Analyze error<br/>Find root cause<br/>Apply fix
+        CLI-->>Parallel: Response + transcript
+        deactivate CLI
+        Parallel->>Heuristic: Analyze M5 response
+        activate Heuristic
+        Heuristic->>Heuristic: Check debugging:<br/>- Identified bug?<br/>- Correct fix?<br/>- Verified solution?
+        Heuristic-->>Parallel: M5 score (0-10)
+        deactivate Heuristic
+    end
+
+    Parallel-->>Analyzer: M1-M5 scores + evidence
+    deactivate Parallel
+
+    opt Debug Mode Enabled
+        Analyzer->>Debugger: Save transcripts
+        activate Debugger
+        Debugger->>Debugger: Write JSON files<br/>to debug-dir
+        Debugger-->>Analyzer: Saved for replay
+        deactivate Debugger
+    end
+
+    Analyzer->>Analyzer: Calculate composite:<br/>weighted average of M1-M5
+    Analyzer->>Analyzer: Generate evidence items
+
+    Note over Analyzer: Overall score = avg(M1-M5)<br/>Raw metrics stored separately
+
+    Analyzer-->>Analyzer: Return C7 AnalysisResult

@@ -1,0 +1,125 @@
+classDiagram
+    class Analyzer {
+        <<interface>>
+        +Name() string
+        +Analyze(targets []AnalysisTarget) AnalysisResult
+    }
+
+    class GoAwareAnalyzer {
+        <<interface>>
+        +SetGoPackages(pkgs []*packages.Package)
+    }
+
+    class AnalysisTarget {
+        +Language Language
+        +Files []SourceFile
+        +Packages []ParsedPackage
+    }
+
+    class AnalysisResult {
+        +Category string
+        +Metrics map~string~interface{}
+        +Evidence []EvidenceItem
+    }
+
+    Analyzer <|-- C1CodeQualityAnalyzer
+    Analyzer <|-- C2SemanticsAnalyzer
+    Analyzer <|-- C3ArchitectureAnalyzer
+    Analyzer <|-- C4DocumentationAnalyzer
+    Analyzer <|-- C5TemporalAnalyzer
+    Analyzer <|-- C6TestingAnalyzer
+    Analyzer <|-- C7AgentAnalyzer
+
+    GoAwareAnalyzer <|-- C1CodeQualityAnalyzer
+    GoAwareAnalyzer <|-- C2SemanticsAnalyzer
+    GoAwareAnalyzer <|-- C3ArchitectureAnalyzer
+
+    class C1CodeQualityAnalyzer {
+        +Average Cyclomatic Complexity
+        +Average Function Length
+        +Average File Size
+        +Coupling Ratio
+        +Duplication Rate
+        ---
+        Language-specific:
+        - Go: AST walker
+        - Python: Tree-sitter
+        - TypeScript: Tree-sitter
+    }
+
+    class C2SemanticsAnalyzer {
+        +Type Annotation Coverage
+        +Naming Consistency Score
+        +Magic Number Ratio
+        ---
+        Language-specific:
+        - Go: Type checker
+        - Python: AST analysis
+        - TypeScript: Type nodes
+    }
+
+    class C3ArchitectureAnalyzer {
+        +Average Directory Depth
+        +Module Fanout
+        +Circular Dependencies
+        +Dead Exports Ratio
+        ---
+        Depends on:
+        - File tree structure
+        - Import graph analysis
+    }
+
+    class C4DocumentationAnalyzer {
+        +README Quality Score
+        +Comment Density
+        +API Documentation Coverage
+        +Example Code Presence
+        +Diagrams Present
+        ---
+        Optional LLM features:
+        - Semantic README analysis
+        - Documentation relevance
+    }
+
+    class C5TemporalAnalyzer {
+        +Average Churn Rate
+        +Temporal Coupling Score
+        +Hotspot Concentration
+        ---
+        Depends on:
+        - Git repository history
+        - Commit analysis
+    }
+
+    class C6TestingAnalyzer {
+        +Test to Source Ratio
+        +Test Coverage
+        +Test Isolation Score
+        +Average Assertions
+        ---
+        Language-specific:
+        - Go: *_test.go detection
+        - Python: test_*.py pattern
+        - TypeScript: *.test.ts
+    }
+
+    class C7AgentAnalyzer {
+        +M1: Navigate (find code)
+        +M2: Comprehend (explain)
+        +M3: Modify (refactor)
+        +M4: Test (write tests)
+        +M5: Debug (fix bugs)
+        +Overall Score (composite)
+        ---
+        Requires:
+        - Claude CLI installed
+        - Isolated workspace
+        - Heuristic scoring
+    }
+
+    Analyzer ..> AnalysisTarget : analyzes
+    Analyzer ..> AnalysisResult : produces
+
+    note for C1CodeQualityAnalyzer "Uses go/packages for Go,\nTree-sitter for Python/TS"
+    note for C7AgentAnalyzer "Optional: enabled with\n--enable-c7 flag"
+    note for C4DocumentationAnalyzer "LLM features auto-enabled\nwhen Claude CLI detected"

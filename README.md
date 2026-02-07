@@ -105,6 +105,20 @@ Track progress over time by comparing against previous scans
 
 ---
 
+## 📐 Architecture
+
+Agent Readiness Score follows a pipeline architecture with pluggable analyzers. For detailed architecture documentation:
+
+- **[System Architecture Overview](docs/architecture-overview.mermaid)** - High-level component diagram
+- **[Pipeline Flow](docs/pipeline-flow-diagram.mermaid)** - Execution flow from scan to output
+- **[Analyzer Architecture](docs/analyzer-architecture.mermaid)** - Category analyzers and language support
+- **[C7 Agent Evaluation](docs/c7-agent-evaluation-sequence.mermaid)** - Live agent testing workflow
+- **[Data Model](docs/data-model-class-diagram.mermaid)** - Core types and structures
+
+For AI agents and detailed implementation guidance, see [CLAUDE.md](CLAUDE.md) and [agent.md](agent.md).
+
+---
+
 ## Prerequisites
 
 ### Required

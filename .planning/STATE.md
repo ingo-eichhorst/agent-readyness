@@ -5,7 +5,7 @@
 See: .planning/PROJECT.md (updated 2026-02-06)
 
 **Core value:** Accurate, evidence-based scoring that predicts agent success and identifies specific improvements teams should make before adopting AI coding agents.
-**Current focus:** Phase 34 - Testing & Quality (v0.0.6)
+**Current focus:** v0.0.6 milestone complete - ready to audit
 
 ## Current Position
 
@@ -32,7 +32,7 @@ Progress: [##########] 100% (v0.0.6: 13/13 plans)
 | v0.0.3 | 5 | 7 | 2 |
 | v0.0.4 | 8 | 14 | 5 |
 | v0.0.5 | 4 | 9 | 1 |
-| v0.0.6 | 5 | 13 | - |
+| v0.0.6 | 5 | 13 | 1 |
 
 *Updated after each plan completion*
 

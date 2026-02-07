@@ -992,6 +992,273 @@ func TestScoreC7_NonZeroSubScores(t *testing.T) {
 	}
 }
 
+// --- Evidence extraction tests ---
+
+func TestExtractEvidence_AllCategories(t *testing.T) {
+	tests := []struct {
+		name     string
+		category string
+		ar       *types.AnalysisResult
+		// metrics that should have non-empty evidence (file-level violations)
+		nonEmptyMetrics []string
+		// metrics that should have empty (but non-nil) evidence
+		emptyMetrics []string
+		// total expected metric keys in evidence map
+		totalKeys int
+	}{
+		{
+			name:     "C1 - Code Health with violations",
+			category: "C1",
+			ar: &types.AnalysisResult{
+				Name:     "code-health",
+				Category: "C1",
+				Metrics: map[string]interface{}{
+					"c1": &types.C1Metrics{
+						CyclomaticComplexity: types.MetricSummary{Avg: 30.0, Max: 50, MaxEntity: "pkg/big.go"},
+						FunctionLength:       types.MetricSummary{Avg: 100.0, Max: 300, MaxEntity: "pkg/big.go"},
+						FileSize:             types.MetricSummary{Avg: 800.0, Max: 2000, MaxEntity: "pkg/huge.go"},
+						AfferentCoupling:     map[string]int{"pkg/core": 10, "pkg/util": 5},
+						EfferentCoupling:     map[string]int{"pkg/core": 8, "pkg/db": 12},
+						DuplicationRate:      15.0,
+						DuplicatedBlocks: []types.DuplicateBlock{
+							{FileA: "a.go", StartA: 10, EndA: 20, FileB: "b.go", StartB: 30, EndB: 40, LineCount: 10},
+						},
+						Functions: []types.FunctionMetric{
+							{Name: "bigFunc", File: "pkg/big.go", Line: 1, Complexity: 30, LineCount: 100},
+							{Name: "anotherFunc", File: "pkg/other.go", Line: 50, Complexity: 20, LineCount: 80},
+						},
+					},
+				},
+			},
+			nonEmptyMetrics: []string{"complexity_avg", "func_length_avg", "file_size_avg", "afferent_coupling_avg", "efferent_coupling_avg", "duplication_rate"},
+			emptyMetrics:    []string{},
+			totalKeys:       6,
+		},
+		{
+			name:     "C2 - Semantic Explicitness with aggregate",
+			category: "C2",
+			ar: &types.AnalysisResult{
+				Name:     "semantic-explicitness",
+				Category: "C2",
+				Metrics: map[string]interface{}{
+					"c2": &types.C2Metrics{
+						Aggregate: &types.C2LanguageMetrics{
+							TypeAnnotationCoverage: 50.0,
+							NamingConsistency:      60.0,
+							MagicNumberRatio:       15.0,
+							TypeStrictness:         0,
+							NullSafety:             30.0,
+						},
+					},
+				},
+			},
+			// C2 currently returns empty evidence for all metrics (no file-level detail)
+			nonEmptyMetrics: []string{},
+			emptyMetrics:    []string{"type_annotation_coverage", "naming_consistency", "magic_number_ratio", "type_strictness", "null_safety"},
+			totalKeys:       5,
+		},
+		{
+			name:     "C3 - Architecture with violations",
+			category: "C3",
+			ar: &types.AnalysisResult{
+				Name:     "architecture",
+				Category: "C3",
+				Metrics: map[string]interface{}{
+					"c3": &types.C3Metrics{
+						MaxDirectoryDepth: 8,
+						ModuleFanout:      types.MetricSummary{Avg: 10.0, Max: 25, MaxEntity: "pkg/hub"},
+						CircularDeps:      [][]string{{"a", "b", "a"}, {"c", "d", "c"}},
+						ImportComplexity:  types.MetricSummary{Avg: 5.0, Max: 12, MaxEntity: "pkg/deep/nested"},
+						DeadExports: []types.DeadExport{
+							{Name: "UnusedFunc", File: "pkg/unused.go", Line: 10, Kind: "func"},
+							{Name: "UnusedType", File: "pkg/unused.go", Line: 20, Kind: "type"},
+						},
+					},
+				},
+			},
+			nonEmptyMetrics: []string{"module_fanout_avg", "circular_deps", "import_complexity_avg", "dead_exports"},
+			emptyMetrics:    []string{"max_dir_depth"},
+			totalKeys:       5,
+		},
+		{
+			name:     "C4 - Documentation (binary metrics produce empty evidence)",
+			category: "C4",
+			ar: &types.AnalysisResult{
+				Name:     "documentation",
+				Category: "C4",
+				Metrics: map[string]interface{}{
+					"c4": &types.C4Metrics{
+						ReadmeWordCount:     200,
+						CommentDensity:      10.0,
+						APIDocCoverage:      50.0,
+						ChangelogPresent:    true,
+						ExamplesPresent:     false,
+						ContributingPresent: true,
+						DiagramsPresent:     false,
+					},
+				},
+			},
+			// C4 has all empty evidence -- binary/count metrics, no file-level detail
+			nonEmptyMetrics: []string{},
+			emptyMetrics:    []string{"readme_word_count", "comment_density", "api_doc_coverage", "changelog_present", "examples_present", "contributing_present", "diagrams_present"},
+			totalKeys:       7,
+		},
+		{
+			name:     "C5 - Temporal Dynamics with hotspots",
+			category: "C5",
+			ar: &types.AnalysisResult{
+				Name:     "temporal",
+				Category: "C5",
+				Metrics: map[string]interface{}{
+					"c5": &types.C5Metrics{
+						Available:            true,
+						ChurnRate:            50.0,
+						TemporalCouplingPct:  10.0,
+						AuthorFragmentation:  3.0,
+						CommitStability:      5.0,
+						HotspotConcentration: 40.0,
+						TopHotspots: []types.FileChurn{
+							{Path: "pkg/hot.go", TotalChanges: 100, CommitCount: 50, AuthorCount: 5},
+							{Path: "pkg/warm.go", TotalChanges: 60, CommitCount: 30, AuthorCount: 3},
+						},
+						CoupledPairs: []types.CoupledPair{
+							{FileA: "pkg/a.go", FileB: "pkg/b.go", Coupling: 85.0, SharedCommits: 20},
+						},
+					},
+				},
+			},
+			nonEmptyMetrics: []string{"churn_rate", "temporal_coupling_pct", "author_fragmentation", "hotspot_concentration"},
+			emptyMetrics:    []string{"commit_stability"},
+			totalKeys:       5,
+		},
+		{
+			name:     "C6 - Testing with violations",
+			category: "C6",
+			ar: &types.AnalysisResult{
+				Name:     "testing",
+				Category: "C6",
+				Metrics: map[string]interface{}{
+					"c6": &types.C6Metrics{
+						TestFileCount:    5,
+						SourceFileCount:  20,
+						TestToCodeRatio:  0.3,
+						CoveragePercent:  30.0,
+						TestIsolation:    50.0,
+						AssertionDensity: types.MetricSummary{Avg: 1.0},
+						TestFunctions: []types.TestFunctionMetric{
+							{Name: "TestA", File: "pkg/a_test.go", Line: 10, AssertionCount: 0, HasExternalDep: true},
+							{Name: "TestB", File: "pkg/b_test.go", Line: 20, AssertionCount: 1, HasExternalDep: false},
+						},
+					},
+				},
+			},
+			nonEmptyMetrics: []string{"test_isolation", "assertion_density_avg"},
+			emptyMetrics:    []string{"test_to_code_ratio", "coverage_percent", "test_file_ratio"},
+			totalKeys:       5,
+		},
+		{
+			name:     "C7 - Agent Evaluation (score-based, no file-level evidence)",
+			category: "C7",
+			ar: &types.AnalysisResult{
+				Name:     "agent-evaluation",
+				Category: "C7",
+				Metrics: map[string]interface{}{
+					"c7": &types.C7Metrics{
+						Available:                      true,
+						TaskExecutionConsistency:       7,
+						CodeBehaviorComprehension:      6,
+						CrossFileNavigation:            5,
+						IdentifierInterpretability:     8,
+						DocumentationAccuracyDetection: 4,
+					},
+				},
+			},
+			// C7 is score-based: all evidence arrays are present but empty
+			nonEmptyMetrics: []string{},
+			emptyMetrics:    []string{"task_execution_consistency", "code_behavior_comprehension", "cross_file_navigation", "identifier_interpretability", "documentation_accuracy_detection"},
+			totalKeys:       5,
+		},
+	}
+
+	extractors := map[string]MetricExtractor{
+		"C1": extractC1,
+		"C2": extractC2,
+		"C3": extractC3,
+		"C4": extractC4,
+		"C5": extractC5,
+		"C6": extractC6,
+		"C7": extractC7,
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			extractor := extractors[tt.category]
+			_, _, evidence := extractor(tt.ar)
+
+			// Evidence map must be non-nil
+			if evidence == nil {
+				t.Fatal("evidence map must not be nil")
+			}
+
+			// Verify total number of metric keys
+			if len(evidence) != tt.totalKeys {
+				t.Errorf("evidence map has %d keys, want %d; keys: %v", len(evidence), tt.totalKeys, evidenceKeys(evidence))
+			}
+
+			// Verify non-empty evidence metrics
+			for _, metricKey := range tt.nonEmptyMetrics {
+				items, ok := evidence[metricKey]
+				if !ok {
+					t.Errorf("evidence missing key %q", metricKey)
+					continue
+				}
+				if items == nil {
+					t.Errorf("evidence[%q] is nil, want non-nil slice", metricKey)
+					continue
+				}
+				if len(items) == 0 {
+					t.Errorf("evidence[%q] is empty, want non-empty for violated metric", metricKey)
+					continue
+				}
+				// Validate each evidence item has required fields
+				for i, item := range items {
+					if item.FilePath == "" {
+						t.Errorf("evidence[%q][%d].FilePath is empty", metricKey, i)
+					}
+					if item.Description == "" {
+						t.Errorf("evidence[%q][%d].Description is empty", metricKey, i)
+					}
+				}
+			}
+
+			// Verify empty evidence metrics: non-nil but len == 0
+			for _, metricKey := range tt.emptyMetrics {
+				items, ok := evidence[metricKey]
+				if !ok {
+					t.Errorf("evidence missing key %q", metricKey)
+					continue
+				}
+				if items == nil {
+					t.Errorf("evidence[%q] is nil, want empty slice []EvidenceItem{}", metricKey)
+					continue
+				}
+				if len(items) != 0 {
+					t.Errorf("evidence[%q] has %d items, want 0 for metric without file-level violations", metricKey, len(items))
+				}
+			}
+		})
+	}
+}
+
+// evidenceKeys returns the keys of an evidence map for diagnostic output.
+func evidenceKeys(evidence map[string][]types.EvidenceItem) []string {
+	keys := make([]string, 0, len(evidence))
+	for k := range evidence {
+		keys = append(keys, k)
+	}
+	return keys
+}
+
 // --- Custom config test ---
 
 func TestScoreC1_CustomConfig(t *testing.T) {

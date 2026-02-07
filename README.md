@@ -8,44 +8,164 @@
 
 ---
 
-## Why Agent Readiness?
+## 🎯 Why This Matters
 
-AI agents are already writing, refactoring, and debugging code at scale. But they don't fail gracefully like human developers—they **fail catastrophically**. The properties that make code "AI-friendly" are similar to those that make it "human-friendly," but **agents have zero tolerance for deviation** ([Borg et al., 2026](https://arxiv.org/abs/2601.02200)).
+AI agents are already writing, refactoring, and debugging code at scale. But unlike human developers who slow down when confused, **agents break catastrophically** when encountering poor code quality.
 
-Humans compensate for bad code with intuition, tribal knowledge, and pattern recognition. Agents cannot. Where a senior developer slows down, an agent **breaks**.
+The bottom line is simple:
 
-**The bottom line:** Code quality isn't just about maintainability anymore—it's about whether AI agents can function in your codebase at all.
+> **Code quality isn't just about maintainability anymore—it's about whether AI agents can function in your codebase at all.**
 
-**[→ Read the detailed research evidence](RESEARCH.md)**
-
----
-
-## The Bottom Line
-
-**Investing in code quality is the highest-leverage action you can take to enable AI agent productivity.**
-
-You could spend $10M/year on the best LLM API credits. Or you could refactor your God Classes, add architecture docs, and improve test coverage—and get **better results with cheaper models**.
-
-The research is clear:
+### The Research is Clear
 
 - ✅ Clean code reduces agent break rates by **7-15 percentage points**
 - ✅ Modular architecture enables **4.5x better context retrieval**
 - ✅ Documentation boosts success rates by **32.8%**
 - ✅ Test-driven workflows achieve **82.8% task completion**
 
-**Agent Readiness isn't a nice-to-have—it's the difference between an agent that ships code and one that creates busywork.**
+**You could spend $10M/year on the best LLM API credits, or you could refactor your God Classes, add architecture docs, and improve test coverage—and get better results with cheaper models.**
+
+📖 **[Read the detailed research evidence →](RESEARCH.md)**
 
 ---
 
-## What's Next?
+## 🚀 Quick Start
 
-This repository provides:
+### One-Line Install
 
-1. **The Agent Readiness Score (ARS)** — a research-backed metric for measuring codebase AI-readiness
-2. **Actionable improvement patterns** — concrete refactoring strategies with before/after examples
-3. **Measurement tools** — scripts to calculate ARS for your codebase
+**macOS / Linux:**
+```bash
+curl -fsSL https://raw.githubusercontent.com/ingo-eichhorst/agent-readyness/main/install.sh | bash
+```
 
-## Installation
+**Windows (PowerShell):**
+```powershell
+irm https://raw.githubusercontent.com/ingo-eichhorst/agent-readyness/main/install.ps1 | iex
+```
+
+**Or via Go:**
+```bash
+go install github.com/ingo-eichhorst/agent-readyness@latest
+```
+
+### Run Your First Scan
+
+```bash
+# Scan current directory
+ars scan .
+
+# Generate beautiful HTML report
+ars scan . --output-html report.html
+
+# Enable full AI agent evaluation (requires Claude CLI)
+ars scan . --enable-c7
+```
+
+**That's it!** 🎉 You'll get a comprehensive analysis of your codebase's agent-readiness across 7 research-backed categories.
+
+---
+
+## ✨ Features
+
+<table>
+<tr>
+<td width="50%">
+
+### 📊 **Research-Backed Analysis**
+7 categories, 38+ metrics, all grounded in peer-reviewed research with inline citations
+
+### 🎨 **Beautiful Reports**
+Interactive HTML reports with charts, expandable sections, and mobile-responsive design
+
+### 🧠 **AI-Powered Insights**
+Optional LLM analysis for documentation quality and live agent evaluation
+
+</td>
+<td width="50%">
+
+### 🌍 **Multi-Language Support**
+Auto-detects and analyzes Go, Python, and TypeScript codebases
+
+### 🎯 **Actionable Recommendations**
+Ranked improvement suggestions with impact scores and effort estimates
+
+### 📈 **Baseline Comparison**
+Track progress over time by comparing against previous scans
+
+</td>
+</tr>
+</table>
+
+---
+
+## 📋 Prerequisites
+
+### Required
+
+- **[Go](https://go.dev/doc/install) 1.21+** - The programming language runtime
+
+  <details>
+  <summary>📦 Install Go</summary>
+
+  **macOS:**
+  ```bash
+  brew install go
+  # OR download from: https://go.dev/dl/
+  ```
+
+  **Linux:**
+  ```bash
+  wget https://go.dev/dl/go1.22.5.linux-amd64.tar.gz
+  sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf go1.22.5.linux-amd64.tar.gz
+  export PATH=$PATH:/usr/local/go/bin
+  ```
+
+  **Windows:**
+  ```powershell
+  # Download and run installer from: https://go.dev/dl/
+  # Or via Chocolatey:
+  choco install golang
+  ```
+
+  Verify installation: `go version`
+
+  </details>
+
+### Optional (for LLM Features)
+
+- **[Claude Code CLI](https://code.claude.com/docs/en/quickstart)** - For advanced documentation analysis (C4) and live agent evaluation (C7)
+
+  <details>
+  <summary>🤖 Install Claude Code CLI</summary>
+
+  **macOS / Linux:**
+  ```bash
+  curl -fsSL https://claude.ai/install.sh | bash
+  ```
+
+  **Windows (PowerShell):**
+  ```powershell
+  irm https://claude.ai/install.ps1 | iex
+  ```
+
+  **Setup:**
+  ```bash
+  # Complete one-time OAuth authentication
+  claude auth login
+
+  # Verify installation
+  claude --version
+  ```
+
+  **Note:** No API key configuration needed - the CLI handles authentication automatically.
+
+  </details>
+
+---
+
+## 📥 Installation
+
+### Method 1: Go Install (Recommended)
 
 ```bash
 go install github.com/ingo-eichhorst/agent-readyness@latest

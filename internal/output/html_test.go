@@ -2,6 +2,7 @@ package output
 
 import (
 	"bytes"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -533,4 +534,233 @@ func TestHTMLGenerator_PromptModals_AllCategories(t *testing.T) {
 	if count < 7 {
 		t.Errorf("expected at least 7 prompt template elements (one per category), got %d", count)
 	}
+}
+
+// buildFullScoredResult creates a ScoredResult with ALL non-zero-weight metrics
+// from scoring.DefaultConfig(). Each metric gets the given score, a realistic
+// raw value, and sample evidence. This is the "maximally loaded" result for
+// testing file size budget and prompt template coverage.
+func buildFullScoredResult(score float64) *types.ScoredResult {
+	cfg := scoring.DefaultConfig()
+	evidence := []types.EvidenceItem{
+		{FilePath: "internal/analyzer/c1_code_quality/go.go", Line: 42, Value: 15.0, Description: "high cyclomatic complexity in processFile"},
+		{FilePath: "internal/output/html.go", Line: 108, Value: 12.0, Description: "long function GenerateReport"},
+		{FilePath: "pkg/types/types.go", Line: 5, Value: 8.0, Description: "large struct definition"},
+	}
+
+	categoryOrder := []string{"C1", "C2", "C3", "C4", "C5", "C6", "C7"}
+	var categories []types.CategoryScore
+
+	for _, catName := range categoryOrder {
+		catCfg, ok := cfg.Categories[catName]
+		if !ok {
+			continue
+		}
+
+		var subScores []types.SubScore
+		for _, mt := range catCfg.Metrics {
+			if mt.Weight == 0.0 {
+				continue
+			}
+			subScores = append(subScores, types.SubScore{
+				MetricName: mt.Name,
+				RawValue:   15.0,
+				Score:      score,
+				Weight:     mt.Weight,
+				Available:  true,
+				Evidence:   evidence,
+			})
+		}
+
+		categories = append(categories, types.CategoryScore{
+			Name:      catName,
+			Score:     score,
+			Weight:    catCfg.Weight,
+			SubScores: subScores,
+		})
+	}
+
+	tier := "Agent-Assisted"
+	if score >= 8.0 {
+		tier = "Agent-Ready"
+	} else if score < 6.0 {
+		tier = "Agent-Limited"
+	}
+
+	return &types.ScoredResult{
+		ProjectName: "full-test-project",
+		Composite:   score,
+		Tier:        tier,
+		Categories:  categories,
+	}
+}
+
+func TestHTMLFileSizeBudget(t *testing.T) {
+	gen, err := NewHTMLGenerator()
+	if err != nil {
+		t.Fatalf("NewHTMLGenerator() error = %v", err)
+	}
+
+	scored := buildFullScoredResult(5.0)
+
+	// Build C7 analysis results with DebugSamples to simulate worst-case size
+	c7Metrics := &types.C7Metrics{
+		Available: true,
+		MetricResults: []types.C7MetricResult{
+			{
+				MetricID:     "task_execution_consistency",
+				MetricName:   "Task Execution Consistency",
+				Score:        5,
+				Status:       "completed",
+				Duration:     12.5,
+				Reasoning:    "Moderate consistency across runs with some variance in output format.",
+				DebugSamples: buildC7DebugSamples(3),
+			},
+			{
+				MetricID:     "code_behavior_comprehension",
+				MetricName:   "Code Behavior Comprehension",
+				Score:        5,
+				Status:       "completed",
+				Duration:     15.0,
+				Reasoning:    "Partial understanding of code semantics.",
+				DebugSamples: buildC7DebugSamples(3),
+			},
+			{
+				MetricID:     "cross_file_navigation",
+				MetricName:   "Cross-File Navigation",
+				Score:        5,
+				Status:       "completed",
+				Duration:     10.0,
+				Reasoning:    "Traces direct dependencies but misses transitive ones.",
+				DebugSamples: buildC7DebugSamples(3),
+			},
+			{
+				MetricID:     "identifier_interpretability",
+				MetricName:   "Identifier Interpretability",
+				Score:        5,
+				Status:       "completed",
+				Duration:     8.0,
+				Reasoning:    "Needs surrounding context to interpret names correctly.",
+				DebugSamples: buildC7DebugSamples(3),
+			},
+			{
+				MetricID:     "documentation_accuracy_detection",
+				MetricName:   "Documentation Accuracy Detection",
+				Score:        5,
+				Status:       "completed",
+				Duration:     9.0,
+				Reasoning:    "Detects obvious mismatches only.",
+				DebugSamples: buildC7DebugSamples(3),
+			},
+		},
+	}
+
+	analysisResults := []*types.AnalysisResult{
+		{
+			Name:     "c7_agent",
+			Category: "C7",
+			Metrics:  map[string]interface{}{"c7": c7Metrics},
+		},
+	}
+
+	trace := &TraceData{
+		ScoringConfig:   scoring.DefaultConfig(),
+		AnalysisResults: analysisResults,
+		Languages:       []string{"go"},
+	}
+
+	recs := []recommend.Recommendation{
+		{Rank: 1, Summary: "Reduce average complexity", ScoreImprovement: 0.8, Effort: "Medium", Action: "Refactor complex functions into smaller units"},
+		{Rank: 2, Summary: "Increase test coverage", ScoreImprovement: 0.6, Effort: "High", Action: "Add unit tests for uncovered modules"},
+		{Rank: 3, Summary: "Add type annotations", ScoreImprovement: 0.4, Effort: "Low", Action: "Add type hints to public API functions"},
+	}
+
+	baseline := buildFullScoredResult(4.0)
+
+	var buf bytes.Buffer
+	err = gen.GenerateReport(&buf, scored, recs, baseline, trace)
+	if err != nil {
+		t.Fatalf("GenerateReport() error = %v", err)
+	}
+
+	t.Logf("HTML report size: %d bytes (%.1f KB)", buf.Len(), float64(buf.Len())/1024)
+
+	maxSize := 500 * 1024 // 500KB
+	if buf.Len() > maxSize {
+		t.Errorf("HTML report size %d bytes exceeds 500KB budget (%d bytes)", buf.Len(), maxSize)
+	}
+}
+
+// buildC7DebugSamples creates n C7DebugSample entries with realistic-length
+// prompt/response strings (500+ chars each) to simulate worst-case HTML size.
+func buildC7DebugSamples(n int) []types.C7DebugSample {
+	samples := make([]types.C7DebugSample, n)
+	for i := 0; i < n; i++ {
+		samples[i] = types.C7DebugSample{
+			FilePath:    fmt.Sprintf("internal/analyzer/c%d_test/sample_%d.go", i+1, i),
+			Description: fmt.Sprintf("Evaluate code behavior in sample file %d with complex control flow", i),
+			Prompt:      strings.Repeat("Analyze the following Go code and determine its behavior. Consider edge cases and error handling patterns. ", 5),
+			Response:    strings.Repeat("The code implements a pipeline pattern with error propagation and context cancellation handling. ", 6),
+			Score:       5,
+			Duration:    3.5,
+			ScoreTrace: types.C7ScoreTrace{
+				BaseScore: 5,
+				Indicators: []types.C7IndicatorMatch{
+					{Name: "positive:returns", Matched: true, Delta: 1},
+					{Name: "negative:unclear", Matched: false, Delta: 0},
+					{Name: "positive:error_handling", Matched: true, Delta: 1},
+				},
+				FinalScore: 5,
+			},
+		}
+	}
+	return samples
+}
+
+func TestPromptTemplateCoverage_AllMetrics(t *testing.T) {
+	gen, err := NewHTMLGenerator()
+	if err != nil {
+		t.Fatalf("NewHTMLGenerator() error = %v", err)
+	}
+
+	scored := buildFullScoredResult(5.0)
+	trace := &TraceData{
+		ScoringConfig: scoring.DefaultConfig(),
+		Languages:     []string{"go"},
+	}
+
+	var buf bytes.Buffer
+	err = gen.GenerateReport(&buf, scored, nil, nil, trace)
+	if err != nil {
+		t.Fatalf("GenerateReport() error = %v", err)
+	}
+
+	html := buf.String()
+
+	cfg := scoring.DefaultConfig()
+	expectedCount := 0
+	var missing []string
+
+	for catName, catCfg := range cfg.Categories {
+		for _, mt := range catCfg.Metrics {
+			if mt.Weight == 0.0 {
+				continue
+			}
+			expectedCount++
+			templateID := fmt.Sprintf(`<template id="prompt-%s">`, mt.Name)
+			if !strings.Contains(html, templateID) {
+				missing = append(missing, fmt.Sprintf("%s/%s", catName, mt.Name))
+			}
+		}
+	}
+
+	if len(missing) > 0 {
+		t.Errorf("missing prompt templates for %d metrics: %v", len(missing), missing)
+	}
+
+	actualCount := strings.Count(html, `<template id="prompt-`)
+	if actualCount != expectedCount {
+		t.Errorf("prompt template count mismatch: got %d, want %d", actualCount, expectedCount)
+	}
+	t.Logf("prompt template coverage: %d/%d metrics", actualCount, expectedCount)
 }

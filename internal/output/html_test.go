@@ -804,3 +804,41 @@ func TestHTMLAccessibilityAttributes(t *testing.T) {
 		}
 	}
 }
+
+func TestHTMLResponsiveLayout(t *testing.T) {
+	gen, err := NewHTMLGenerator()
+	if err != nil {
+		t.Fatalf("NewHTMLGenerator() error = %v", err)
+	}
+
+	scored := buildAllCategoriesScoredResult(5.0)
+	trace := &TraceData{
+		ScoringConfig: scoring.DefaultConfig(),
+		Languages:     []string{"go"},
+	}
+
+	var buf bytes.Buffer
+	err = gen.GenerateReport(&buf, scored, nil, nil, trace)
+	if err != nil {
+		t.Fatalf("GenerateReport() error = %v", err)
+	}
+
+	html := buf.String()
+
+	checks := []struct {
+		substring string
+		desc      string
+	}{
+		{"@media (max-width: 640px)", "CSS should contain mobile breakpoint media query"},
+		{"@media print", "CSS should contain print styles media query"},
+		{`<meta name="viewport" content="width=device-width, initial-scale=1.0">`, "HTML should contain responsive viewport meta tag"},
+		{"min(90vw", "modal should use responsive width with min() function"},
+		{"--color-", "CSS should use custom properties for theming system"},
+	}
+
+	for _, c := range checks {
+		if !strings.Contains(html, c.substring) {
+			t.Errorf("%s (missing %q)", c.desc, c.substring)
+		}
+	}
+}

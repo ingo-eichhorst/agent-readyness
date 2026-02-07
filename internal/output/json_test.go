@@ -388,3 +388,106 @@ func TestJSONBaselineBackwardCompatibility(t *testing.T) {
 		t.Errorf("composite = %v, want 7.5", report.CompositeScore)
 	}
 }
+
+func TestJSONBaselineV1FullRoundTrip(t *testing.T) {
+	// Complete v1-era JSON with all 7 categories using old "metrics" field name
+	v1JSON := `{
+		"version": "1",
+		"composite_score": 6.8,
+		"tier": "Agent-Assisted",
+		"categories": [
+			{"name": "C1", "score": 7.5, "weight": 0.25, "metrics": [
+				{"name": "complexity_avg", "raw_value": 5.0, "score": 8.0, "weight": 0.30, "available": true}
+			]},
+			{"name": "C2", "score": 6.0, "weight": 0.10, "metrics": [
+				{"name": "type_annotation_coverage", "raw_value": 80.0, "score": 7.0, "weight": 0.25, "available": true}
+			]},
+			{"name": "C3", "score": 7.0, "weight": 0.20, "metrics": [
+				{"name": "max_dir_depth", "raw_value": 4.0, "score": 7.5, "weight": 0.20, "available": true}
+			]},
+			{"name": "C4", "score": 5.5, "weight": 0.10, "metrics": [
+				{"name": "readme_word_count", "raw_value": 300.0, "score": 6.0, "weight": 0.15, "available": true}
+			]},
+			{"name": "C5", "score": 6.2, "weight": 0.10, "metrics": [
+				{"name": "churn_rate", "raw_value": 45.0, "score": 6.5, "weight": 0.25, "available": true}
+			]},
+			{"name": "C6", "score": 7.8, "weight": 0.15, "metrics": [
+				{"name": "coverage_percent", "raw_value": 70.0, "score": 8.0, "weight": 0.30, "available": true}
+			]},
+			{"name": "C7", "score": 6.5, "weight": 0.10, "metrics": [
+				{"name": "task_execution_consistency", "raw_value": 7.0, "score": 7.0, "weight": 0.20, "available": true}
+			]}
+		]
+	}`
+
+	var report JSONReport
+	if err := json.Unmarshal([]byte(v1JSON), &report); err != nil {
+		t.Fatalf("unmarshal v1 JSON with all 7 categories: %v", err)
+	}
+
+	// Verify top-level fields
+	if report.Version != "1" {
+		t.Errorf("version = %q, want %q", report.Version, "1")
+	}
+	if report.CompositeScore != 6.8 {
+		t.Errorf("composite_score = %v, want 6.8", report.CompositeScore)
+	}
+	if report.Tier != "Agent-Assisted" {
+		t.Errorf("tier = %q, want %q", report.Tier, "Agent-Assisted")
+	}
+
+	// Verify all 7 categories loaded
+	if len(report.Categories) != 7 {
+		t.Fatalf("categories count = %d, want 7", len(report.Categories))
+	}
+
+	expectedCats := []struct {
+		name   string
+		score  float64
+		weight float64
+	}{
+		{"C1", 7.5, 0.25},
+		{"C2", 6.0, 0.10},
+		{"C3", 7.0, 0.20},
+		{"C4", 5.5, 0.10},
+		{"C5", 6.2, 0.10},
+		{"C6", 7.8, 0.15},
+		{"C7", 6.5, 0.10},
+	}
+
+	for i, want := range expectedCats {
+		got := report.Categories[i]
+		if got.Name != want.name {
+			t.Errorf("categories[%d].name = %q, want %q", i, got.Name, want.name)
+		}
+		if got.Score != want.score {
+			t.Errorf("categories[%d].score = %v, want %v", i, got.Score, want.score)
+		}
+		if got.Weight != want.weight {
+			t.Errorf("categories[%d].weight = %v, want %v", i, got.Weight, want.weight)
+		}
+		// SubScores must be empty (old "metrics" tag doesn't match new "sub_scores")
+		// This is expected -- baseline loading only reads category-level scores
+		if len(got.SubScores) != 0 {
+			t.Errorf("categories[%d].sub_scores should be empty for v1 JSON (old 'metrics' tag), got %d", i, len(got.SubScores))
+		}
+	}
+
+	// Verify v2 marshal uses "sub_scores" not "metrics"
+	t.Run("v2 output uses sub_scores", func(t *testing.T) {
+		scored := newTestScoredResult()
+		report := BuildJSONReport(scored, nil, false, false)
+
+		var buf bytes.Buffer
+		if err := RenderJSON(&buf, report); err != nil {
+			t.Fatalf("RenderJSON error: %v", err)
+		}
+		out := buf.String()
+		if !strings.Contains(out, `"sub_scores"`) {
+			t.Error("v2 JSON should use 'sub_scores' field name")
+		}
+		if strings.Contains(out, `"metrics"`) {
+			t.Error("v2 JSON should NOT use 'metrics' field name")
+		}
+	})
+}

@@ -16,13 +16,12 @@ var (
 	configPath   string
 	threshold    float64
 	jsonOutput   bool
-	noLLM        bool   // Disable LLM features even when CLI available
-	enableC7     bool   // Enable C7 agent evaluation
+	noLLM        bool   // Disable LLM features (C4 + C7)
+	debug        bool   // Enable debug output (initially C7 only, future: all categories)
 	outputHTML   string // Path to output HTML file
 	baselinePath string // Path to previous JSON for trend comparison
 	badgeOutput  bool   // Generate shields.io badge markdown
-	debugC7      bool   // Enable C7 debug mode (implies --enable-c7)
-	debugDir     string // Directory for C7 response persistence and replay
+	debugDir     string // C7 response persistence directory
 )
 
 var scanCmd = &cobra.Command{
@@ -34,9 +33,8 @@ Supported languages: Go, Python, TypeScript
 Languages are auto-detected from project files (go.mod, pyproject.toml, tsconfig.json, etc.)
 No --lang flag needed.
 
-Debug mode:
-  --debug-c7            Show detailed C7 agent evaluation diagnostics on stderr
-  --debug-c7 --debug-dir DIR  Save responses to DIR for offline analysis and replay`,
+LLM features (C4 documentation analysis and C7 agent evaluation) are auto-enabled when
+Claude CLI is detected. Use --no-llm to disable all LLM features.`,
 	Args:  cobra.ExactArgs(1),
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -49,9 +47,9 @@ Debug mode:
 			return err
 		}
 
-		// --debug-dir implies --debug-c7
+		// --debug-dir implies --debug
 		if debugDir != "" {
-			debugC7 = true
+			debug = true
 			absDir, absErr := filepath.Abs(debugDir)
 			if absErr != nil {
 				return fmt.Errorf("invalid debug-dir path: %w", absErr)
@@ -102,28 +100,17 @@ Debug mode:
 			}
 		}
 
-		// --debug-c7 auto-enables C7 evaluation
-		if debugC7 {
-			enableC7 = true
-		}
-
-		// Handle C7 agent evaluation if enabled
-		if enableC7 {
-			if !cliStatus.Available {
-				spinner.Stop("")
-				return fmt.Errorf("--enable-c7 requires Claude Code CLI to be installed\n%s", cliStatus.InstallHint)
-			}
-			p.SetC7Enabled()
-		}
-
-		// Enable C7 debug mode (threads debug state to Pipeline and C7Analyzer)
-		if debugC7 {
+		// Configure debug output
+		if debug {
 			p.SetC7Debug(true)
 		}
 
-		// Configure debug directory for response persistence and replay
+		// Configure C7 response persistence/replay
 		if debugDir != "" {
-			p.SetDebugDir(debugDir)
+			// Silently ignore if --no-llm is set
+			if !noLLM {
+				p.SetDebugDir(debugDir)
+			}
 		}
 
 		// Configure HTML output if requested
@@ -156,13 +143,12 @@ func init() {
 	scanCmd.Flags().StringVar(&configPath, "config", "", "path to .arsrc.yml project config file")
 	scanCmd.Flags().Float64Var(&threshold, "threshold", 0, "minimum composite score (exit code 2 if below)")
 	scanCmd.Flags().BoolVar(&jsonOutput, "json", false, "output results as JSON")
-	scanCmd.Flags().BoolVar(&noLLM, "no-llm", false, "disable LLM features even when Claude CLI is available")
-	scanCmd.Flags().BoolVar(&enableC7, "enable-c7", false, "enable C7 agent evaluation using Claude Code CLI (requires claude CLI installed)")
+	scanCmd.Flags().BoolVar(&noLLM, "no-llm", false, "disable LLM features (C4 documentation analysis and C7 agent evaluation)")
+	scanCmd.Flags().BoolVar(&debug, "debug", false, "enable verbose debug output")
 	scanCmd.Flags().StringVar(&outputHTML, "output-html", "", "generate self-contained HTML report at specified path")
 	scanCmd.Flags().StringVar(&baselinePath, "baseline", "", "path to previous JSON output for trend comparison")
 	scanCmd.Flags().BoolVar(&badgeOutput, "badge", false, "generate shields.io badge markdown URL")
-	scanCmd.Flags().BoolVar(&debugC7, "debug-c7", false, "enable C7 debug mode: show per-metric prompts, responses, scores, and indicator traces on stderr (implies --enable-c7)")
-	scanCmd.Flags().StringVar(&debugDir, "debug-dir", "", "directory for C7 response persistence and replay; saves responses on first run, replays from saved files on subsequent runs (implies --debug-c7)")
+	scanCmd.Flags().StringVar(&debugDir, "debug-dir", "", "directory for C7 response persistence and replay")
 	rootCmd.AddCommand(scanCmd)
 }
 

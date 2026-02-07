@@ -546,7 +546,7 @@ func renderC7(w io.Writer, ar *types.AnalysisResult, verbose bool) {
 	fmt.Fprintln(w, "────────────────────────────────────────")
 
 	if !m.Available {
-		fmt.Fprintln(w, "  Not available (--enable-c7 not specified)")
+		fmt.Fprintln(w, "  Not available (LLM features disabled)")
 		return
 	}
 

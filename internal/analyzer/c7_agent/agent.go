@@ -36,6 +36,18 @@ func (a *C7Analyzer) Enable(evaluator *agent.Evaluator) {
 	a.enabled = true
 }
 
+// SetEvaluator sets the evaluator for C7 analysis.
+// Setting a non-nil evaluator auto-enables C7; setting nil disables it.
+// This method matches C4's pattern for LLM control.
+func (a *C7Analyzer) SetEvaluator(eval *agent.Evaluator) {
+	a.evaluator = eval
+	if eval != nil {
+		a.enabled = true
+	} else {
+		a.enabled = false
+	}
+}
+
 // SetDebug enables debug mode with the given writer for diagnostic output.
 func (a *C7Analyzer) SetDebug(enabled bool, w io.Writer) {
 	a.debug = enabled
@@ -54,7 +66,8 @@ func (a *C7Analyzer) Name() string {
 
 // Analyze runs C7 agent evaluation using 5 MECE metrics in parallel.
 func (a *C7Analyzer) Analyze(targets []*types.AnalysisTarget) (*types.AnalysisResult, error) {
-	if !a.enabled {
+	// Check if LLM features are disabled (evaluator is nil)
+	if a.evaluator == nil {
 		return a.disabledResult(), nil
 	}
 

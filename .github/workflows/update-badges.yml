@@ -1,0 +1,86 @@
+name: Update Badges
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '**.go'
+      - 'go.mod'
+      - 'go.sum'
+  workflow_dispatch:
+
+jobs:
+  update-badges:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+          cache: true
+
+      - name: Run tests with coverage
+        run: |
+          go test ./... -coverprofile=cover.out
+          COVERAGE=$(go tool cover -func=cover.out | grep total | awk '{print $3}')
+          echo "COVERAGE_PCT=$COVERAGE" >> $GITHUB_ENV
+          echo "Coverage: $COVERAGE"
+
+      - name: Run ARS scan with badge output
+        run: |
+          go run . scan . --badge --output-html report.html --no-llm > ars-output.txt 2>&1 || true
+          cat ars-output.txt
+
+      - name: Extract badge markdown
+        run: |
+          # Extract ARS badge from output
+          ARS_BADGE=$(grep -A2 "Badge" ars-output.txt | grep "img.shields.io/badge/ARS" | head -1 || echo "")
+          echo "ARS_BADGE=$ARS_BADGE" >> $GITHUB_ENV
+          echo "ARS Badge: $ARS_BADGE"
+
+      - name: Update README badges
+        run: |
+          # Determine coverage color
+          COV_NUM=$(echo $COVERAGE_PCT | sed 's/%//')
+          if (( $(echo "$COV_NUM >= 80" | bc -l) )); then
+            COV_COLOR="brightgreen"
+          elif (( $(echo "$COV_NUM >= 60" | bc -l) )); then
+            COV_COLOR="green"
+          elif (( $(echo "$COV_NUM >= 40" | bc -l) )); then
+            COV_COLOR="yellow"
+          else
+            COV_COLOR="red"
+          fi
+
+          # Update coverage badge (line 9)
+          sed -i "s|coverage-[0-9.]*%25-[a-z]*|coverage-${COVERAGE_PCT}25-${COV_COLOR}|g" README.md
+
+          # Update ARS badge if extracted successfully
+          if [ ! -z "$ARS_BADGE" ]; then
+            # Extract the badge URL from the markdown using sed
+            ARS_URL=$(echo "$ARS_BADGE" | sed 's/.*(\(https:\/\/img\.shields\.io\/badge\/ARS[^)]*\)).*/\1/' || echo "")
+            if [ ! -z "$ARS_URL" ]; then
+              # Replace the ARS badge URL (line 12)
+              sed -i "s|https://img.shields.io/badge/ARS-[^)]*|${ARS_URL}|g" README.md
+            fi
+          fi
+
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add README.md
+          if git diff --staged --quiet; then
+            echo "No badge changes to commit"
+          else
+            git commit -m "chore: update badges [skip ci]"
+            git push
+          fi

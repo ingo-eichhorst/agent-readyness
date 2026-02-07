@@ -1,3 +1,7 @@
 ars
 report.html
 coverage/
+cover*.out
+
+# Workflow artifacts
+ars-output.txt

@@ -112,8 +112,8 @@ func (s *Scorer) classifyTier(score float64) string {
 
 // CategoryScore computes the weighted average of sub-scores within a category.
 // Sub-scores where Available == false are excluded, and their weight is
-// redistributed among the remaining sub-scores. Returns 0.0 if no sub-scores
-// are available (indicating a disabled/unavailable category).
+// redistributed among the remaining sub-scores. Returns -1.0 if no sub-scores
+// are available, signaling the category should be excluded from composite scoring.
 func CategoryScore(subScores []types.SubScore) float64 {
 	totalWeight := 0.0
 	weightedSum := 0.0
@@ -127,7 +127,7 @@ func CategoryScore(subScores []types.SubScore) float64 {
 	}
 
 	if totalWeight == 0 {
-		return 0.0 // Disabled capabilities show 0/10
+		return -1.0 // Mark category as unavailable (excluded from composite)
 	}
 	return weightedSum / totalWeight
 }

@@ -22,8 +22,9 @@ type JSONReport struct {
 // JSONCategory represents a scoring category in JSON output.
 type JSONCategory struct {
 	Name      string       `json:"name"`
-	Score     float64      `json:"score"`
+	Score     float64      `json:"score"`     // -1.0 when unavailable
 	Weight    float64      `json:"weight"`
+	Available bool         `json:"available"` // whether category is available
 	SubScores []JSONMetric `json:"sub_scores"`
 }
 
@@ -56,7 +57,7 @@ type JSONRecommendation struct {
 // When includeBadge is true, badge URL and markdown are included.
 func BuildJSONReport(scored *types.ScoredResult, recs []recommend.Recommendation, verbose bool, includeBadge bool) *JSONReport {
 	report := &JSONReport{
-		Version:        "2",
+		Version:        "3",
 		CompositeScore: scored.Composite,
 		Tier:           scored.Tier,
 	}
@@ -66,6 +67,7 @@ func BuildJSONReport(scored *types.ScoredResult, recs []recommend.Recommendation
 			Name:      cat.Name,
 			Score:     cat.Score,
 			Weight:    cat.Weight,
+			Available: cat.Score >= 0, // Infer from score
 			SubScores: make([]JSONMetric, 0, len(cat.SubScores)),
 		}
 

@@ -682,6 +682,12 @@ func RenderScores(w io.Writer, scored *types.ScoredResult, verbose bool) {
 		}
 		label := fmt.Sprintf("%s: %-20s", cat.Name, displayName)
 
+		// Check for unavailable category
+		if cat.Score < 0 {
+			color.New(color.FgHiBlack).Fprintf(w, "  %sn/a\n", label)
+			continue
+		}
+
 		sc := scoreColor(cat.Score)
 		sc.Fprintf(w, "  %s%.1f / 10\n", label, cat.Score)
 

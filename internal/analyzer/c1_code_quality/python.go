@@ -1,13 +1,9 @@
 package c1
 
 import (
-	"bytes"
 	"fmt"
 	"hash"
-	"hash/fnv"
-	"math"
 	"os"
-	"sort"
 	"strings"
 
 	tree_sitter "github.com/tree-sitter/go-tree-sitter"
@@ -180,188 +176,16 @@ func pyComputeComplexity(funcNode *tree_sitter.Node) int {
 
 // pyAnalyzeFileSizes computes file size metrics for Python files.
 func pyAnalyzeFileSizes(files []*parser.ParsedTreeSitterFile) types.MetricSummary {
-	if len(files) == 0 {
-		return types.MetricSummary{}
-	}
-
-	var sizes []int
-	maxVal := 0
-	maxEntity := ""
-
-	for _, f := range files {
-		lines := bytes.Count(f.Content, []byte("\n")) + 1
-		sizes = append(sizes, lines)
-		if lines > maxVal {
-			maxVal = lines
-			maxEntity = f.RelPath
-		}
-	}
-
-	sum := 0
-	for _, s := range sizes {
-		sum += s
-	}
-
-	// Compute P90 (for future use)
-	if len(sizes) > 0 {
-		sorted := make([]int, len(sizes))
-		copy(sorted, sizes)
-		sort.Ints(sorted)
-		idx := int(math.Ceil(float64(len(sorted))*0.9)) - 1
-		if idx < 0 {
-			idx = 0
-		}
-		if idx >= len(sorted) {
-			idx = len(sorted) - 1
-		}
-		_ = sorted[idx]
-	}
-
-	return types.MetricSummary{
-		Avg:       float64(sum) / float64(len(sizes)),
-		Max:       maxVal,
-		MaxEntity: maxEntity,
-	}
+	return analyzeTSFileSizes(files)
 }
-
-// pyDupSeq represents a hashed statement sequence for duplication detection.
-type pyDupSeq struct {
-	hash      uint64
-	file      string
-	startLine int
-	endLine   int
-}
-
 // pyAnalyzeDuplication detects duplicate code blocks in Python using statement-sequence hashing.
 func pyAnalyzeDuplication(files []*parser.ParsedTreeSitterFile) ([]types.DuplicateBlock, float64) {
-	const minStatements = 3
-	const minLines = 6
-
-	var sequences []pyDupSeq
-	totalLines := 0
-
-	for _, f := range files {
-		totalLines += bytes.Count(f.Content, []byte("\n")) + 1
-		root := f.Tree.RootNode()
-		pyCollectDupSequences(root, f.RelPath, f.Content, minStatements, minLines, &sequences)
+	cfg := dupConfig{
+		blockKinds: []string{"block", "module"},
+		skipKinds:  []string{"comment", "newline", ""},
+		hashNode:   pyHashNodeStructure,
 	}
-
-	// Group by hash
-	groups := make(map[uint64][]pyDupSeq)
-	for _, seq := range sequences {
-		groups[seq.hash] = append(groups[seq.hash], seq)
-	}
-
-	var blocks []types.DuplicateBlock
-	duplicatedLines := make(map[string]map[int]bool)
-
-	for _, group := range groups {
-		if len(group) < 2 {
-			continue
-		}
-
-		for i := 0; i < len(group); i++ {
-			for j := i + 1; j < len(group); j++ {
-				a, b := group[i], group[j]
-
-				if a.file == b.file && a.startLine < b.endLine && b.startLine < a.endLine {
-					continue
-				}
-
-				blocks = append(blocks, types.DuplicateBlock{
-					FileA:     a.file,
-					StartA:    a.startLine,
-					EndA:      a.endLine,
-					FileB:     b.file,
-					StartB:    b.startLine,
-					EndB:      b.endLine,
-					LineCount: a.endLine - a.startLine + 1,
-				})
-
-				for _, s := range []pyDupSeq{a, b} {
-					if duplicatedLines[s.file] == nil {
-						duplicatedLines[s.file] = make(map[int]bool)
-					}
-					for l := s.startLine; l <= s.endLine; l++ {
-						duplicatedLines[s.file][l] = true
-					}
-				}
-			}
-		}
-	}
-
-	dupLineCount := 0
-	for _, lines := range duplicatedLines {
-		dupLineCount += len(lines)
-	}
-
-	var rate float64
-	if totalLines > 0 {
-		rate = float64(dupLineCount) / float64(totalLines) * 100
-	}
-
-	return blocks, rate
-}
-
-// pyCollectDupSequences walks the AST collecting hashed statement sequences from block nodes.
-func pyCollectDupSequences(node *tree_sitter.Node, file string, content []byte, minStmts, minLines int, seqs *[]pyDupSeq) {
-	if node == nil {
-		return
-	}
-
-	kind := node.Kind()
-
-	if kind == "block" || kind == "module" {
-		var stmts []*tree_sitter.Node
-		for i := uint(0); i < node.ChildCount(); i++ {
-			child := node.Child(i)
-			if child == nil {
-				continue
-			}
-			ck := child.Kind()
-			if ck == "comment" || ck == "newline" || ck == "" {
-				continue
-			}
-			stmts = append(stmts, child)
-		}
-
-		for i := 0; i <= len(stmts)-minStmts; i++ {
-			for windowSize := minStmts; windowSize <= len(stmts)-i; windowSize++ {
-				window := stmts[i : i+windowSize]
-				startLine := int(window[0].StartPosition().Row) + 1
-				endLine := int(window[len(window)-1].EndPosition().Row) + 1
-				lineSpan := endLine - startLine + 1
-
-				if lineSpan < minLines {
-					continue
-				}
-
-				h := pyHashStmtSequence(window)
-				*seqs = append(*seqs, pyDupSeq{
-					hash:      h,
-					file:      file,
-					startLine: startLine,
-					endLine:   endLine,
-				})
-			}
-		}
-	}
-
-	for i := uint(0); i < node.ChildCount(); i++ {
-		child := node.Child(i)
-		if child != nil {
-			pyCollectDupSequences(child, file, content, minStmts, minLines, seqs)
-		}
-	}
-}
-
-// pyHashStmtSequence computes an FNV hash of a sequence of Python AST nodes.
-func pyHashStmtSequence(stmts []*tree_sitter.Node) uint64 {
-	h := fnv.New64a()
-	for _, stmt := range stmts {
-		pyHashNodeStructure(h, stmt, 0)
-	}
-	return h.Sum64()
+	return analyzeTSDuplication(files, cfg)
 }
 
 // pyHashNodeStructure writes a structural representation of a Python AST node to the hasher.

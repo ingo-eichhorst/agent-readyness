@@ -45,117 +45,30 @@ func (a *C3Analyzer) Analyze(targets []*arstypes.AnalysisTarget) (*arstypes.Anal
 
 	// Python/TypeScript analysis via targets
 	for _, target := range targets {
+		var analysis *languageAnalysis
+		var err error
+
 		switch target.Language {
 		case arstypes.LangPython:
-			if a.tsParser == nil {
-				continue
-			}
-			parsed, err := a.tsParser.ParseTargetFiles(target)
-			if err != nil {
-				continue
-			}
-			defer parser.CloseAll(parsed)
-
-			srcFiles := pyFilterSourceFiles(parsed)
-
-			pyGraph := pyBuildImportGraph(parsed)
-			pyDead := pyDetectDeadCode(parsed)
-			pyMaxDepth, pyAvgDepth := pyAnalyzeDirectoryDepth(parsed, target.RootDir)
-
-			// Merge Python results into metrics
-			if pyMaxDepth > metrics.MaxDirectoryDepth {
-				metrics.MaxDirectoryDepth = pyMaxDepth
-			}
-			if pyAvgDepth > metrics.AvgDirectoryDepth {
-				metrics.AvgDirectoryDepth = pyAvgDepth
-			}
-
-			// Import graph metrics
-			pyCycles := detectCircularDeps(pyGraph)
-			metrics.CircularDeps = append(metrics.CircularDeps, pyCycles...)
-
-			// Module fanout from Python import graph
-			if len(srcFiles) > 0 {
-				totalFanout := 0
-				maxFanout := 0
-				maxEntity := ""
-				for file, deps := range pyGraph.Forward {
-					fanout := len(deps)
-					totalFanout += fanout
-					if fanout > maxFanout {
-						maxFanout = fanout
-						maxEntity = file
-					}
-				}
-				if len(pyGraph.Forward) > 0 {
-					pyFanout := arstypes.MetricSummary{
-						Avg:       float64(totalFanout) / float64(len(pyGraph.Forward)),
-						Max:       maxFanout,
-						MaxEntity: maxEntity,
-					}
-					// Merge: if Go had fanout, pick higher max
-					if pyFanout.Max > metrics.ModuleFanout.Max {
-						metrics.ModuleFanout = pyFanout
-					}
-				}
-			}
-
-			metrics.DeadExports = append(metrics.DeadExports, pyDead...)
-
+			analysis, err = a.analyzeLanguageTarget(
+				target,
+				pyFilterSourceFiles,
+				pyBuildImportGraph,
+				pyDetectDeadCode,
+				pyAnalyzeDirectoryDepth,
+			)
 		case arstypes.LangTypeScript:
-			if a.tsParser == nil {
-				continue
-			}
-			parsed, err := a.tsParser.ParseTargetFiles(target)
-			if err != nil {
-				continue
-			}
-			defer parser.CloseAll(parsed)
+			analysis, err = a.analyzeLanguageTarget(
+				target,
+				tsFilterSourceFiles,
+				tsBuildImportGraph,
+				tsDetectDeadCode,
+				tsAnalyzeDirectoryDepth,
+			)
+		}
 
-			srcFiles := tsFilterSourceFiles(parsed)
-
-			tsGraph := tsBuildImportGraph(parsed)
-			tsDead := tsDetectDeadCode(parsed)
-			tsMaxDepth, tsAvgDepth := tsAnalyzeDirectoryDepth(parsed, target.RootDir)
-
-			// Merge TypeScript results into metrics
-			if tsMaxDepth > metrics.MaxDirectoryDepth {
-				metrics.MaxDirectoryDepth = tsMaxDepth
-			}
-			if tsAvgDepth > metrics.AvgDirectoryDepth {
-				metrics.AvgDirectoryDepth = tsAvgDepth
-			}
-
-			// Import graph metrics
-			tsCycles := detectCircularDeps(tsGraph)
-			metrics.CircularDeps = append(metrics.CircularDeps, tsCycles...)
-
-			// Module fanout from TypeScript import graph
-			if len(srcFiles) > 0 {
-				totalFanout := 0
-				maxFanout := 0
-				maxEntity := ""
-				for file, deps := range tsGraph.Forward {
-					fanout := len(deps)
-					totalFanout += fanout
-					if fanout > maxFanout {
-						maxFanout = fanout
-						maxEntity = file
-					}
-				}
-				if len(tsGraph.Forward) > 0 {
-					tsFanout := arstypes.MetricSummary{
-						Avg:       float64(totalFanout) / float64(len(tsGraph.Forward)),
-						Max:       maxFanout,
-						MaxEntity: maxEntity,
-					}
-					if tsFanout.Max > metrics.ModuleFanout.Max {
-						metrics.ModuleFanout = tsFanout
-					}
-				}
-			}
-
-			metrics.DeadExports = append(metrics.DeadExports, tsDead...)
+		if err == nil {
+			mergeLanguageAnalysis(metrics, analysis)
 		}
 	}
 

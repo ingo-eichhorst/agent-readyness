@@ -1,13 +1,9 @@
 package c1
 
 import (
-	"bytes"
 	"fmt"
 	"hash"
-	"hash/fnv"
-	"math"
 	"os"
-	"sort"
 	"strings"
 
 	tree_sitter "github.com/tree-sitter/go-tree-sitter"
@@ -245,188 +241,16 @@ func tsComputeComplexity(funcNode *tree_sitter.Node, content []byte) int {
 
 // tsAnalyzeFileSizes computes file size metrics for TypeScript files.
 func tsAnalyzeFileSizes(files []*parser.ParsedTreeSitterFile) types.MetricSummary {
-	if len(files) == 0 {
-		return types.MetricSummary{}
-	}
-
-	var sizes []int
-	maxVal := 0
-	maxEntity := ""
-
-	for _, f := range files {
-		lines := bytes.Count(f.Content, []byte("\n")) + 1
-		sizes = append(sizes, lines)
-		if lines > maxVal {
-			maxVal = lines
-			maxEntity = f.RelPath
-		}
-	}
-
-	sum := 0
-	for _, s := range sizes {
-		sum += s
-	}
-
-	// Compute P90 (for future use)
-	if len(sizes) > 0 {
-		sorted := make([]int, len(sizes))
-		copy(sorted, sizes)
-		sort.Ints(sorted)
-		idx := int(math.Ceil(float64(len(sorted))*0.9)) - 1
-		if idx < 0 {
-			idx = 0
-		}
-		if idx >= len(sorted) {
-			idx = len(sorted) - 1
-		}
-		_ = sorted[idx]
-	}
-
-	return types.MetricSummary{
-		Avg:       float64(sum) / float64(len(sizes)),
-		Max:       maxVal,
-		MaxEntity: maxEntity,
-	}
+	return analyzeTSFileSizes(files)
 }
-
-// tsDupSeq represents a hashed statement sequence for duplication detection.
-type tsDupSeq struct {
-	hash      uint64
-	file      string
-	startLine int
-	endLine   int
-}
-
 // tsAnalyzeDuplication detects duplicate code blocks in TypeScript using statement-sequence hashing.
 func tsAnalyzeDuplication(files []*parser.ParsedTreeSitterFile) ([]types.DuplicateBlock, float64) {
-	const minStatements = 3
-	const minLines = 6
-
-	var sequences []tsDupSeq
-	totalLines := 0
-
-	for _, f := range files {
-		totalLines += bytes.Count(f.Content, []byte("\n")) + 1
-		root := f.Tree.RootNode()
-		tsCollectDupSequences(root, f.RelPath, f.Content, minStatements, minLines, &sequences)
+	cfg := dupConfig{
+		blockKinds: []string{"statement_block", "program"},
+		skipKinds:  []string{"comment", "", "{", "}"},
+		hashNode:   tsHashNodeStructure,
 	}
-
-	// Group by hash
-	groups := make(map[uint64][]tsDupSeq)
-	for _, seq := range sequences {
-		groups[seq.hash] = append(groups[seq.hash], seq)
-	}
-
-	var blocks []types.DuplicateBlock
-	duplicatedLines := make(map[string]map[int]bool)
-
-	for _, group := range groups {
-		if len(group) < 2 {
-			continue
-		}
-
-		for i := 0; i < len(group); i++ {
-			for j := i + 1; j < len(group); j++ {
-				a, b := group[i], group[j]
-
-				if a.file == b.file && a.startLine < b.endLine && b.startLine < a.endLine {
-					continue
-				}
-
-				blocks = append(blocks, types.DuplicateBlock{
-					FileA:     a.file,
-					StartA:    a.startLine,
-					EndA:      a.endLine,
-					FileB:     b.file,
-					StartB:    b.startLine,
-					EndB:      b.endLine,
-					LineCount: a.endLine - a.startLine + 1,
-				})
-
-				for _, s := range []tsDupSeq{a, b} {
-					if duplicatedLines[s.file] == nil {
-						duplicatedLines[s.file] = make(map[int]bool)
-					}
-					for l := s.startLine; l <= s.endLine; l++ {
-						duplicatedLines[s.file][l] = true
-					}
-				}
-			}
-		}
-	}
-
-	dupLineCount := 0
-	for _, lines := range duplicatedLines {
-		dupLineCount += len(lines)
-	}
-
-	var rate float64
-	if totalLines > 0 {
-		rate = float64(dupLineCount) / float64(totalLines) * 100
-	}
-
-	return blocks, rate
-}
-
-// tsCollectDupSequences walks the AST collecting hashed statement sequences from statement_block nodes.
-func tsCollectDupSequences(node *tree_sitter.Node, file string, content []byte, minStmts, minLines int, seqs *[]tsDupSeq) {
-	if node == nil {
-		return
-	}
-
-	kind := node.Kind()
-
-	if kind == "statement_block" || kind == "program" {
-		var stmts []*tree_sitter.Node
-		for i := uint(0); i < node.ChildCount(); i++ {
-			child := node.Child(i)
-			if child == nil {
-				continue
-			}
-			ck := child.Kind()
-			if ck == "comment" || ck == "" || ck == "{" || ck == "}" {
-				continue
-			}
-			stmts = append(stmts, child)
-		}
-
-		for i := 0; i <= len(stmts)-minStmts; i++ {
-			for windowSize := minStmts; windowSize <= len(stmts)-i; windowSize++ {
-				window := stmts[i : i+windowSize]
-				startLine := int(window[0].StartPosition().Row) + 1
-				endLine := int(window[len(window)-1].EndPosition().Row) + 1
-				lineSpan := endLine - startLine + 1
-
-				if lineSpan < minLines {
-					continue
-				}
-
-				h := tsHashStmtSequence(window)
-				*seqs = append(*seqs, tsDupSeq{
-					hash:      h,
-					file:      file,
-					startLine: startLine,
-					endLine:   endLine,
-				})
-			}
-		}
-	}
-
-	for i := uint(0); i < node.ChildCount(); i++ {
-		child := node.Child(i)
-		if child != nil {
-			tsCollectDupSequences(child, file, content, minStmts, minLines, seqs)
-		}
-	}
-}
-
-// tsHashStmtSequence computes an FNV hash of a sequence of TypeScript AST nodes.
-func tsHashStmtSequence(stmts []*tree_sitter.Node) uint64 {
-	h := fnv.New64a()
-	for _, stmt := range stmts {
-		tsHashNodeStructure(h, stmt, 0)
-	}
-	return h.Sum64()
+	return analyzeTSDuplication(files, cfg)
 }
 
 // tsHashNodeStructure writes a structural representation of a TypeScript AST node to the hasher.

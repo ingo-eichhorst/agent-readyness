@@ -7,16 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.6] - 2026-02-07
+
 ### Added
-- Evidence data flow for all 7 categories with top-5 worst offenders per metric
-- Evidence items now include file paths, line numbers, values, and descriptions in JSON output
-- Modal UI infrastructure with native dialog component for HTML reports
-- Responsive modal design with accessibility support (keyboard navigation, focus trapping)
-- Copy-to-clipboard functionality for modal content
+- **Call Trace Modals** - Interactive transparency for all metric scores
+  - "View Trace" button on every metric in HTML reports
+  - C7 metrics show full Claude prompt, response, and indicator breakdown
+  - C1-C6 metrics show raw values, scoring breakpoints, and top-5 worst offenders
+  - Syntax highlighting for JSON and shell commands in trace content
+  - Progressive enhancement with `<details>` fallback for non-JS environments
+- **Improvement Prompt Modals** - AI-ready prompts for every metric
+  - "Improve" button generates copy-paste prompts for AI agents
+  - Research-backed 4-section structure: Context, Build/Test Commands, Task, Verification
+  - Project-specific interpolation with evidence data (files, functions, scores)
+  - Copy-to-clipboard with fallback for file:// protocol
+  - All 7 categories (C1-C7) covered with tailored prompt templates
+- **Evidence Data Flow** - Top-5 worst offenders for every metric
+  - Evidence items with file paths, line numbers, values, and descriptions
+  - Flows through entire pipeline from extraction to JSON output
+  - Visible in JSON with `sub_scores[].evidence` field
+  - Powers both trace modals and improvement prompts
+- **Modal UI Infrastructure** - Native dialog component for HTML reports
+  - Responsive design with mobile viewport support (375px+)
+  - Accessibility support: keyboard navigation, focus trapping, ARIA attributes
+  - Three close methods: Escape key, X button, backdrop click
+  - Independent scrolling for long content
+  - iOS scroll lock and progressive enhancement
+
+### Fixed
+- C5 ChurnRate test bound increased from 100k to 500k lines/commit
+  - Accommodates legitimate bulk changes (documentation, refactoring)
+  - Aligns with scoring config (tops out at 1,000 for score=1)
+  - Still catches pathological cases (parser bugs, data corruption)
+- CI workflow Go version upgraded from 1.21 to 1.25
+  - Matches go.mod requirement (1.25.1)
+  - Eliminates "go: no such tool 'covdata'" errors
+  - Fixes coverage profiling for packages without test files
 
 ### Changed
-- Evidence data now flows through entire pipeline from extraction to JSON output
-- HTML reports now support interactive modals with proper mobile viewport handling
+- HTML report file size with C7 data stays under 500KB budget
+- All 38 metrics now map to category-level improvement prompt templates
+- JSON backward compatibility maintained with v0.0.5 baseline format
 
 ## [0.0.5] - 2026-02-06
 
@@ -215,7 +246,8 @@ Initial release of Agent Readiness Score (ARS) - a CLI tool that measures codeba
   - Effort level classification (Low/Medium/High)
   - Agent-readiness framing
 
-[Unreleased]: https://github.com/ingo-eichhorst/agent-readyness/compare/v0.0.5...HEAD
+[Unreleased]: https://github.com/ingo-eichhorst/agent-readyness/compare/v0.0.6...HEAD
+[0.0.6]: https://github.com/ingo-eichhorst/agent-readyness/compare/v0.0.5...v0.0.6
 [0.0.5]: https://github.com/ingo-eichhorst/agent-readyness/compare/v0.0.4...v0.0.5
 [0.0.4]: https://github.com/ingo-eichhorst/agent-readyness/compare/v0.0.3...v0.0.4
 [0.0.3]: https://github.com/ingo-eichhorst/agent-readyness/compare/v0.0.2...v0.0.3

@@ -764,3 +764,43 @@ func TestPromptTemplateCoverage_AllMetrics(t *testing.T) {
 	}
 	t.Logf("prompt template coverage: %d/%d metrics", actualCount, expectedCount)
 }
+
+func TestHTMLAccessibilityAttributes(t *testing.T) {
+	gen, err := NewHTMLGenerator()
+	if err != nil {
+		t.Fatalf("NewHTMLGenerator() error = %v", err)
+	}
+
+	scored := buildAllCategoriesScoredResult(5.0)
+	trace := &TraceData{
+		ScoringConfig: scoring.DefaultConfig(),
+		Languages:     []string{"go"},
+	}
+
+	var buf bytes.Buffer
+	err = gen.GenerateReport(&buf, scored, nil, nil, trace)
+	if err != nil {
+		t.Fatalf("GenerateReport() error = %v", err)
+	}
+
+	html := buf.String()
+
+	checks := []struct {
+		substring string
+		desc      string
+	}{
+		{`lang="en"`, "HTML document should declare language attribute"},
+		{`aria-label="Close"`, "modal close button should have aria-label for accessibility"},
+		{`<dialog id="ars-modal"`, "report should use native dialog element for built-in focus trapping"},
+		{"showModal()", "report should use showModal API for native focus trapping"},
+		{"<noscript>", "report should have noscript fallback for progressive enhancement"},
+		{"autofocus", "modal close button should have autofocus for keyboard navigation"},
+		{`<meta name="viewport"`, "report should include viewport meta for mobile accessibility"},
+	}
+
+	for _, c := range checks {
+		if !strings.Contains(html, c.substring) {
+			t.Errorf("%s (missing %q)", c.desc, c.substring)
+		}
+	}
+}

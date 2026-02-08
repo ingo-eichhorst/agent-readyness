@@ -17,32 +17,32 @@ func BuildImportGraph(pkgs []*parser.ParsedPackage, modulePath string) *ImportGr
 	return shared.BuildImportGraph(pkgs, modulePath)
 }
 
-// WalkTree re-exports the shared utility.
-func WalkTree(node *tree_sitter.Node, fn func(*tree_sitter.Node)) {
+// walkTree re-exports the shared utility.
+func walkTree(node *tree_sitter.Node, fn func(*tree_sitter.Node)) {
 	shared.WalkTree(node, fn)
 }
 
-// NodeText re-exports the shared utility.
-func NodeText(node *tree_sitter.Node, content []byte) string {
+// nodeText re-exports the shared utility.
+func nodeText(node *tree_sitter.Node, content []byte) string {
 	return shared.NodeText(node, content)
 }
 
-// CountLines re-exports the shared utility.
-func CountLines(content []byte) int {
+// countLines re-exports the shared utility.
+func countLines(content []byte) int {
 	return shared.CountLines(content)
 }
 
-// IsTestFileByPath re-exports the shared utility.
-func IsTestFileByPath(path string) bool {
+// isTestFileByPath re-exports the shared utility.
+func isTestFileByPath(path string) bool {
 	return shared.IsTestFileByPath(path)
 }
 
-// TsIsTestFile re-exports the shared utility.
-func TsIsTestFile(path string) bool {
+// tsIsTestFile re-exports the shared utility.
+func tsIsTestFile(path string) bool {
 	return shared.TsIsTestFile(path)
 }
 
-// TsStripQuotes re-exports the shared utility.
-func TsStripQuotes(s string) string {
+// tsStripQuotes re-exports the shared utility.
+func tsStripQuotes(s string) string {
 	return shared.TsStripQuotes(s)
 }

@@ -107,13 +107,3 @@ func (c *ProjectConfig) ApplyToScoringConfig(sc *scoring.ScoringConfig) {
 		}
 	}
 }
-
-// DefaultProjectConfig returns a ProjectConfig with sensible defaults.
-func DefaultProjectConfig() *ProjectConfig {
-	return &ProjectConfig{
-		Version: 1,
-		Scoring: ScoringOverrides{
-			Weights: map[string]float64{},
-		},
-	}
-}

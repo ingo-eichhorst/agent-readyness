@@ -13,23 +13,23 @@ type JSONReport struct {
 	Version         string               `json:"version"`
 	CompositeScore  float64              `json:"composite_score"`
 	Tier            string               `json:"tier"`
-	Categories      []JSONCategory       `json:"categories"`
+	Categories      []jsonCategory       `json:"categories"`
 	Recommendations []JSONRecommendation `json:"recommendations"`
 	BadgeURL        string               `json:"badge_url,omitempty"`
 	BadgeMarkdown   string               `json:"badge_markdown,omitempty"`
 }
 
-// JSONCategory represents a scoring category in JSON output.
-type JSONCategory struct {
+// jsonCategory represents a scoring category in JSON output.
+type jsonCategory struct {
 	Name      string       `json:"name"`
 	Score     float64      `json:"score"`     // -1.0 when unavailable
 	Weight    float64      `json:"weight"`
 	Available bool         `json:"available"` // whether category is available
-	SubScores []JSONMetric `json:"sub_scores"`
+	SubScores []jsonMetric `json:"sub_scores"`
 }
 
-// JSONMetric represents a single metric within a category in JSON output.
-type JSONMetric struct {
+// jsonMetric represents a single metric within a category in JSON output.
+type jsonMetric struct {
 	Name      string               `json:"name"`
 	RawValue  float64              `json:"raw_value"`
 	Score     float64              `json:"score"`
@@ -63,12 +63,12 @@ func BuildJSONReport(scored *types.ScoredResult, recs []recommend.Recommendation
 	}
 
 	for _, cat := range scored.Categories {
-		jc := JSONCategory{
+		jc := jsonCategory{
 			Name:      cat.Name,
 			Score:     cat.Score,
 			Weight:    cat.Weight,
 			Available: cat.Score >= 0, // Infer from score
-			SubScores: make([]JSONMetric, 0, len(cat.SubScores)),
+			SubScores: make([]jsonMetric, 0, len(cat.SubScores)),
 		}
 
 		for _, ss := range cat.SubScores {
@@ -76,7 +76,7 @@ func BuildJSONReport(scored *types.ScoredResult, recs []recommend.Recommendation
 			if ev == nil {
 				ev = make([]types.EvidenceItem, 0)
 			}
-			jc.SubScores = append(jc.SubScores, JSONMetric{
+			jc.SubScores = append(jc.SubScores, jsonMetric{
 				Name:      ss.MetricName,
 				RawValue:  ss.RawValue,
 				Score:     ss.Score,

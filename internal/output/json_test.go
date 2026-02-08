@@ -123,8 +123,8 @@ func TestJSONVersion(t *testing.T) {
 		t.Fatalf("unmarshal error: %v", err)
 	}
 
-	if parsed.Version != "2" {
-		t.Errorf("version = %q, want %q", parsed.Version, "2")
+	if parsed.Version != "3" {
+		t.Errorf("version = %q, want %q", parsed.Version, "3")
 	}
 }
 

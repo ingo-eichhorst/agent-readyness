@@ -22,8 +22,8 @@ type HTMLGenerator struct {
 	tmpl *template.Template
 }
 
-// HTMLReportData holds all data for HTML report rendering.
-type HTMLReportData struct {
+// htmlReportData holds all data for HTML report rendering.
+type htmlReportData struct {
 	ProjectName     string
 	Composite       float64
 	Tier            string
@@ -33,28 +33,28 @@ type HTMLReportData struct {
 	RadarChartSVG   template.HTML // Safe: we generate this
 	TrendChartSVG   template.HTML // Safe: we generate this
 	HasTrend        bool
-	Categories      []HTMLCategory
-	Recommendations []HTMLRecommendation
+	Categories      []htmlCategory
+	Recommendations []htmlRecommendation
 	Citations       []Citation
 	InlineCSS       template.CSS // Safe: from our template
 	BadgeMarkdown   string       // Badge markdown for copy section
 	BadgeURL        string       // Badge URL for preview
 }
 
-// HTMLCategory represents a category for HTML display.
-type HTMLCategory struct {
+// htmlCategory represents a category for HTML display.
+type htmlCategory struct {
 	Name              string
 	DisplayName       string
 	Score             float64
 	ScoreClass        string // "ready", "assisted", "limited"
 	Available         bool   // whether category data is available
-	SubScores         []HTMLSubScore
+	SubScores         []htmlSubScore
 	ImpactDescription string
 	Citations         []Citation // Per-category citations
 }
 
-// HTMLSubScore represents a metric sub-score for HTML display.
-type HTMLSubScore struct {
+// htmlSubScore represents a metric sub-score for HTML display.
+type htmlSubScore struct {
 	Key                 string        // Unique key like "complexity_avg"
 	MetricName          string
 	DisplayName         string
@@ -81,8 +81,8 @@ type TraceData struct {
 	Languages       []string // Detected project languages for build/test commands
 }
 
-// HTMLRecommendation represents a recommendation for HTML display.
-type HTMLRecommendation struct {
+// htmlRecommendation represents a recommendation for HTML display.
+type htmlRecommendation struct{
 	Rank             int
 	Summary          string
 	ScoreImprovement float64
@@ -131,7 +131,7 @@ func (g *HTMLGenerator) GenerateReport(w io.Writer, scored *types.ScoredResult, 
 	badge := GenerateBadge(scored)
 
 	// Build template data
-	data := HTMLReportData{
+	data := htmlReportData{
 		ProjectName:     scored.ProjectName,
 		Composite:       scored.Composite,
 		Tier:            scored.Tier,
@@ -178,11 +178,11 @@ func scoreToClass(score float64) string {
 }
 
 // buildHTMLCategories converts scored categories to HTML display format.
-func buildHTMLCategories(categories []types.CategoryScore, citations []Citation, trace *TraceData) []HTMLCategory {
-	result := make([]HTMLCategory, 0, len(categories))
+func buildHTMLCategories(categories []types.CategoryScore, citations []Citation, trace *TraceData) []htmlCategory {
+	result := make([]htmlCategory, 0, len(categories))
 
 	for _, cat := range categories {
-		hc := HTMLCategory{
+		hc := htmlCategory{
 			Name:              cat.Name,
 			DisplayName:       categoryDisplayName(cat.Name),
 			Score:             cat.Score,
@@ -210,8 +210,8 @@ func filterCitationsByCategory(citations []Citation, categoryName string) []Cita
 }
 
 // buildHTMLSubScores converts sub-scores to HTML display format.
-func buildHTMLSubScores(categoryName string, subScores []types.SubScore, trace *TraceData) []HTMLSubScore {
-	result := make([]HTMLSubScore, 0, len(subScores))
+func buildHTMLSubScores(categoryName string, subScores []types.SubScore, trace *TraceData) []htmlSubScore {
+	result := make([]htmlSubScore, 0, len(subScores))
 
 	// Extract C7 metric results if this is the C7 category and trace data is available
 	var c7MetricResults []types.C7MetricResult
@@ -235,7 +235,7 @@ func buildHTMLSubScores(categoryName string, subScores []types.SubScore, trace *
 		}
 
 		desc := getMetricDescription(ss.MetricName)
-		hss := HTMLSubScore{
+		hss := htmlSubScore{
 			Key:                 ss.MetricName,
 			MetricName:          ss.MetricName,
 			DisplayName:         metricDisplayName(ss.MetricName),
@@ -326,11 +326,11 @@ func buildHTMLSubScores(categoryName string, subScores []types.SubScore, trace *
 }
 
 // buildHTMLRecommendations converts recommendations to HTML display format.
-func buildHTMLRecommendations(recs []recommend.Recommendation) []HTMLRecommendation {
-	result := make([]HTMLRecommendation, 0, len(recs))
+func buildHTMLRecommendations(recs []recommend.Recommendation) []htmlRecommendation {
+	result := make([]htmlRecommendation, 0, len(recs))
 
 	for _, rec := range recs {
-		hr := HTMLRecommendation{
+		hr := htmlRecommendation{
 			Rank:             rec.Rank,
 			Summary:          rec.Summary,
 			ScoreImprovement: rec.ScoreImprovement,

@@ -144,7 +144,7 @@ func (w *Walker) Discover(rootDir string) (*types.ScanResult, error) {
 
 		// Check if generated (Go only)
 		if lang == types.LangGo {
-			generated, err := IsGeneratedFile(path)
+			generated, err := isGeneratedFile(path)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "warning: skipping %s: failed to check generated status: %v\n", relPath, err)
 				result.SkippedCount++
@@ -164,9 +164,9 @@ func (w *Walker) Discover(rootDir string) (*types.ScanResult, error) {
 		case types.LangGo:
 			file.Class = ClassifyGoFile(name)
 		case types.LangPython:
-			file.Class = ClassifyPythonFile(name)
+			file.Class = classifyPythonFile(name)
 		case types.LangTypeScript:
-			file.Class = ClassifyTypeScriptFile(name)
+			file.Class = classifyTypeScriptFile(name)
 		}
 
 		result.Files = append(result.Files, file)

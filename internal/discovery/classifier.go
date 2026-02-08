@@ -25,9 +25,9 @@ func ClassifyGoFile(name string) types.FileClass {
 	return types.ClassSource
 }
 
-// ClassifyPythonFile classifies a Python file by its filename.
+// classifyPythonFile classifies a Python file by its filename.
 // Test files match test_*.py or *_test.py patterns.
-func ClassifyPythonFile(name string) types.FileClass {
+func classifyPythonFile(name string) types.FileClass {
 	base := strings.TrimSuffix(name, ".py")
 	if strings.HasPrefix(base, "test_") || strings.HasSuffix(base, "_test") {
 		return types.ClassTest
@@ -38,9 +38,9 @@ func ClassifyPythonFile(name string) types.FileClass {
 	return types.ClassSource
 }
 
-// ClassifyTypeScriptFile classifies a TypeScript file by its filename.
+// classifyTypeScriptFile classifies a TypeScript file by its filename.
 // Test files match *.test.ts, *.spec.ts, *.test.tsx, *.spec.tsx patterns.
-func ClassifyTypeScriptFile(name string) types.FileClass {
+func classifyTypeScriptFile(name string) types.FileClass {
 	lower := strings.ToLower(name)
 	if strings.HasSuffix(lower, ".test.ts") || strings.HasSuffix(lower, ".spec.ts") ||
 		strings.HasSuffix(lower, ".test.tsx") || strings.HasSuffix(lower, ".spec.tsx") {
@@ -52,10 +52,10 @@ func ClassifyTypeScriptFile(name string) types.FileClass {
 	return types.ClassSource
 }
 
-// IsGeneratedFile checks whether a Go file contains a generated code comment
+// isGeneratedFile checks whether a Go file contains a generated code comment
 // before the package declaration. This handles files that have copyright headers
 // before the generated comment (a common pattern with tools like stringer).
-func IsGeneratedFile(path string) (bool, error) {
+func isGeneratedFile(path string) (bool, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return false, err

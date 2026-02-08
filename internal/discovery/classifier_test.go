@@ -50,9 +50,9 @@ func TestClassifyPythonFile(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := ClassifyPythonFile(tt.filename)
+			got := classifyPythonFile(tt.filename)
 			if got != tt.want {
-				t.Errorf("ClassifyPythonFile(%q) = %v, want %v", tt.filename, got, tt.want)
+				t.Errorf("classifyPythonFile(%q) = %v, want %v", tt.filename, got, tt.want)
 			}
 		})
 	}
@@ -76,9 +76,9 @@ func TestClassifyTypeScriptFile(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := ClassifyTypeScriptFile(tt.filename)
+			got := classifyTypeScriptFile(tt.filename)
 			if got != tt.want {
-				t.Errorf("ClassifyTypeScriptFile(%q) = %v, want %v", tt.filename, got, tt.want)
+				t.Errorf("classifyTypeScriptFile(%q) = %v, want %v", tt.filename, got, tt.want)
 			}
 		})
 	}
@@ -134,12 +134,12 @@ func main() {}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := IsGeneratedFile(tt.path)
+			got, err := isGeneratedFile(tt.path)
 			if err != nil {
-				t.Fatalf("IsGeneratedFile(%q) unexpected error: %v", tt.path, err)
+				t.Fatalf("isGeneratedFile(%q) unexpected error: %v", tt.path, err)
 			}
 			if got != tt.want {
-				t.Errorf("IsGeneratedFile(%q) = %v, want %v", tt.path, got, tt.want)
+				t.Errorf("isGeneratedFile(%q) = %v, want %v", tt.path, got, tt.want)
 			}
 		})
 	}

@@ -26,20 +26,3 @@ type GoAwareAnalyzer interface {
 	Analyzer
 	SetGoPackages(pkgs []*parser.ParsedPackage)
 }
-
-// StubAnalyzer is a no-op analyzer that returns an empty result.
-// Used as a placeholder when no real analyzers are configured.
-type StubAnalyzer struct{}
-
-// Name returns the analyzer name.
-func (s *StubAnalyzer) Name() string {
-	return "stub"
-}
-
-// Analyze returns an empty AnalysisResult.
-func (s *StubAnalyzer) Analyze(_ []*types.AnalysisTarget) (*types.AnalysisResult, error) {
-	return &types.AnalysisResult{
-		Name:    "stub",
-		Metrics: make(map[string]interface{}),
-	}, nil
-}

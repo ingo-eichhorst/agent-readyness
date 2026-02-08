@@ -13,6 +13,20 @@ import (
 	"github.com/ingo/agent-readyness/pkg/types"
 )
 
+// stubAnalyzer is a test helper that returns an empty result.
+type stubAnalyzer struct{}
+
+func (s *stubAnalyzer) Name() string {
+	return "stub"
+}
+
+func (s *stubAnalyzer) Analyze(_ []*types.AnalysisTarget) (*types.AnalysisResult, error) {
+	return &types.AnalysisResult{
+		Name:    "stub",
+		Metrics: make(map[string]interface{}),
+	}, nil
+}
+
 func TestPipelineRun(t *testing.T) {
 	root, err := filepath.Abs("../../testdata/valid-go-project")
 	if err != nil {
@@ -89,14 +103,14 @@ func TestPipelineRunVerbose(t *testing.T) {
 }
 
 func TestStubAnalyzerReturnsEmpty(t *testing.T) {
-	a := &StubAnalyzer{}
+	a := &stubAnalyzer{}
 	if a.Name() != "stub" {
 		t.Errorf("expected name 'stub', got %q", a.Name())
 	}
 
 	result, err := a.Analyze(nil)
 	if err != nil {
-		t.Fatalf("StubAnalyzer.Analyze() returned error: %v", err)
+		t.Fatalf("stubAnalyzer.Analyze() returned error: %v", err)
 	}
 
 	if result.Name != "stub" {
@@ -116,7 +130,7 @@ func TestPipelineAnalyzerErrorContinues(t *testing.T) {
 	// Replace analyzers with one that errors and one stub
 	p.analyzers = []Analyzer{
 		&errorAnalyzer{},
-		&StubAnalyzer{},
+		&stubAnalyzer{},
 	}
 
 	if err := p.Run(root); err != nil {

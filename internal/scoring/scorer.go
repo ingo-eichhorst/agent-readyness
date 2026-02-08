@@ -13,16 +13,16 @@ type Scorer struct {
 	Config *ScoringConfig
 }
 
-// MetricExtractor extracts raw metric values from an AnalysisResult.
+// metricExtractor extracts raw metric values from an AnalysisResult.
 // Returns raw values, a set of unavailable metrics, and per-metric evidence items.
-type MetricExtractor func(ar *types.AnalysisResult) (
+type metricExtractor func(ar *types.AnalysisResult) (
 	rawValues map[string]float64,
 	unavailable map[string]bool,
 	evidence map[string][]types.EvidenceItem,
 )
 
 // metricExtractors maps category name to a function that extracts raw metric values.
-var metricExtractors = map[string]MetricExtractor{
+var metricExtractors = map[string]metricExtractor{
 	"C1": extractC1,
 	"C2": extractC2,
 	"C3": extractC3,
@@ -30,12 +30,6 @@ var metricExtractors = map[string]MetricExtractor{
 	"C5": extractC5,
 	"C6": extractC6,
 	"C7": extractC7,
-}
-
-// RegisterExtractor registers a metric extractor for a category.
-// This allows new categories to be added without modifying the scorer.
-func RegisterExtractor(category string, extractor MetricExtractor) {
-	metricExtractors[category] = extractor
 }
 
 // Interpolate computes the score for a given raw value using piecewise linear

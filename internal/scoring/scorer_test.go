@@ -1180,7 +1180,7 @@ func TestExtractEvidence_AllCategories(t *testing.T) {
 		},
 	}
 
-	extractors := map[string]MetricExtractor{
+	extractors := map[string]metricExtractor{
 		"C1": extractC1,
 		"C2": extractC2,
 		"C3": extractC3,

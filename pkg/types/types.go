@@ -62,13 +62,6 @@ type DiscoveredFile struct {
 	Language      Language  // Programming language of the file
 }
 
-// ParsedFile represents a file after AST parsing (Phase 2).
-type ParsedFile struct {
-	Path    string    // Absolute path to the file
-	RelPath string    // Path relative to project root
-	Class   FileClass // Classification of the file
-}
-
 // ScanResult holds the output of the file discovery phase.
 type ScanResult struct {
 	RootDir        string              // Absolute path to project root

@@ -13,19 +13,19 @@ import (
 	"github.com/ingo/agent-readyness/pkg/types"
 )
 
-// C2TypeScriptAnalyzer computes C2 (Semantic Explicitness) metrics for TypeScript code
+// c2TypeScriptAnalyzer computes C2 (Semantic Explicitness) metrics for TypeScript code
 // using Tree-sitter for parsing.
-type C2TypeScriptAnalyzer struct {
+type c2TypeScriptAnalyzer struct{
 	tsParser *parser.TreeSitterParser
 }
 
-// NewC2TypeScriptAnalyzer creates a TypeScript C2 analyzer with the given Tree-sitter parser.
-func NewC2TypeScriptAnalyzer(p *parser.TreeSitterParser) *C2TypeScriptAnalyzer {
-	return &C2TypeScriptAnalyzer{tsParser: p}
+// Newc2TypeScriptAnalyzer creates a TypeScript C2 analyzer with the given Tree-sitter parser.
+func newC2TypeScriptAnalyzer(p *parser.TreeSitterParser) *c2TypeScriptAnalyzer {
+	return &c2TypeScriptAnalyzer{tsParser: p}
 }
 
 // Analyze computes C2 metrics for a TypeScript AnalysisTarget.
-func (a *C2TypeScriptAnalyzer) Analyze(target *types.AnalysisTarget) (*types.C2LanguageMetrics, error) {
+func (a *c2TypeScriptAnalyzer) Analyze(target *types.AnalysisTarget) (*types.C2LanguageMetrics, error) {
 	metrics := &types.C2LanguageMetrics{}
 
 	// Filter to source files only (skip test files)

@@ -10,13 +10,13 @@ import (
 	"github.com/ingo/agent-readyness/pkg/types"
 )
 
-// C2GoAnalyzer computes C2 (Semantic Explicitness) metrics for Go code using go/ast.
-type C2GoAnalyzer struct {
+// c2GoAnalyzer computes C2 (Semantic Explicitness) metrics for Go code using go/ast.
+type c2GoAnalyzer struct {
 	pkgs []*parser.ParsedPackage
 }
 
 // Analyze computes C2 metrics for a Go AnalysisTarget.
-func (a *C2GoAnalyzer) Analyze(target *types.AnalysisTarget) (*types.C2LanguageMetrics, error) {
+func (a *c2GoAnalyzer) Analyze(target *types.AnalysisTarget) (*types.C2LanguageMetrics, error) {
 	// Filter to source packages only (skip test packages)
 	var srcPkgs []*parser.ParsedPackage
 	for _, pkg := range a.pkgs {

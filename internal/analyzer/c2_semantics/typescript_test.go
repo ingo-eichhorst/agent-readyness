@@ -16,7 +16,7 @@ func TestC2TypeScriptAnalyzer_ValidProject(t *testing.T) {
 	}
 	defer tsParser.Close()
 
-	analyzer := NewC2TypeScriptAnalyzer(tsParser)
+	analyzer := newC2TypeScriptAnalyzer(tsParser)
 
 	testDir, err := filepath.Abs("../../../testdata/valid-ts-project")
 	if err != nil {
@@ -99,7 +99,7 @@ func TestC2TypeScriptAnalyzer_EmptyTarget(t *testing.T) {
 	}
 	defer tsParser.Close()
 
-	analyzer := NewC2TypeScriptAnalyzer(tsParser)
+	analyzer := newC2TypeScriptAnalyzer(tsParser)
 
 	target := &types.AnalysisTarget{
 		Language: types.LangTypeScript,

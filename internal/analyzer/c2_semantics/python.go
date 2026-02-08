@@ -14,19 +14,19 @@ import (
 	"github.com/ingo/agent-readyness/pkg/types"
 )
 
-// C2PythonAnalyzer computes C2 (Semantic Explicitness) metrics for Python code
+// c2PythonAnalyzer computes C2 (Semantic Explicitness) metrics for Python code
 // using Tree-sitter for parsing.
-type C2PythonAnalyzer struct {
+type c2PythonAnalyzer struct {
 	tsParser *parser.TreeSitterParser
 }
 
-// NewC2PythonAnalyzer creates a Python C2 analyzer with the given Tree-sitter parser.
-func NewC2PythonAnalyzer(p *parser.TreeSitterParser) *C2PythonAnalyzer {
-	return &C2PythonAnalyzer{tsParser: p}
+// Newc2PythonAnalyzer creates a Python C2 analyzer with the given Tree-sitter parser.
+func newC2PythonAnalyzer(p *parser.TreeSitterParser) *c2PythonAnalyzer {
+	return &c2PythonAnalyzer{tsParser: p}
 }
 
 // Analyze computes C2 metrics for a Python AnalysisTarget.
-func (a *C2PythonAnalyzer) Analyze(target *types.AnalysisTarget) (*types.C2LanguageMetrics, error) {
+func (a *c2PythonAnalyzer) Analyze(target *types.AnalysisTarget) (*types.C2LanguageMetrics, error) {
 	metrics := &types.C2LanguageMetrics{}
 
 	// Filter to source files only (skip test files)

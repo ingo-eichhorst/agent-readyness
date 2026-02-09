@@ -131,7 +131,7 @@ func TestPipelineAnalyzerErrorContinues(t *testing.T) {
 	p.DisableLLM()
 
 	// Replace analyzers with one that errors and one stub
-	p.analyzers = []Analyzer{
+	p.analyzers = []analyzerIface{
 		&errorAnalyzer{},
 		&stubAnalyzer{},
 	}
@@ -232,7 +232,7 @@ func TestParallelAnalyzers(t *testing.T) {
 	p.DisableLLM()
 
 	// Replace analyzers with slow mocks (each sleeps 200ms)
-	p.analyzers = []Analyzer{
+	p.analyzers = []analyzerIface{
 		&slowAnalyzer{name: "slow-c6", category: "C6", delay: 200 * time.Millisecond},
 		&slowAnalyzer{name: "slow-c1", category: "C1", delay: 200 * time.Millisecond},
 		&slowAnalyzer{name: "slow-c3", category: "C3", delay: 200 * time.Millisecond},
@@ -242,7 +242,7 @@ func TestParallelAnalyzers(t *testing.T) {
 	var buf2 bytes.Buffer
 	baseline := New(&buf2, false, nil, 0, false, nil)
 	baseline.DisableLLM()
-	baseline.analyzers = []Analyzer{} // no analyzers
+	baseline.analyzers = []analyzerIface{} // no analyzers
 	baseStart := time.Now()
 	_ = baseline.Run(root) // ignore errors from empty analyzers
 	baselineTime := time.Since(baseStart)

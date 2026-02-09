@@ -5,36 +5,39 @@ import (
 	"fmt"
 )
 
-// Scorer evaluates agent task responses using LLM-as-a-judge via CLI.
-type Scorer struct {
+// scoreScaleToPercent converts a 1-10 score to a 0-100 scale.
+const scoreScaleToPercent = 10
+
+// scorer evaluates agent task responses using LLM-as-a-judge via CLI.
+type scorer struct {
 	evaluator *Evaluator
 }
 
-// NewScorer creates a scorer with the given CLI evaluator.
-func NewScorer(evaluator *Evaluator) *Scorer {
-	return &Scorer{evaluator: evaluator}
+// newScorer creates a scorer with the given CLI evaluator.
+func newScorer(evaluator *Evaluator) *scorer {
+	return &scorer{evaluator: evaluator}
 }
 
-// ScoreResult holds the scoring output for a task response.
-type ScoreResult struct {
+// scoreResult holds the scoring output for a task response.
+type scoreResult struct {
 	Score     int    // 0-100
 	Reasoning string // explanation from LLM judge
 }
 
 // Score evaluates an agent's response against a task's rubric.
-func (s *Scorer) Score(ctx context.Context, task Task, response string) (ScoreResult, error) {
+func (s *scorer) Score(ctx context.Context, t task, response string) (scoreResult, error) {
 	// Build the scoring prompt based on task ID
-	rubric := getRubric(task.ID)
-	content := fmt.Sprintf("Task: %s\n\nAgent Response:\n%s", task.Prompt, response)
+	rubric := getRubric(t.ID)
+	content := fmt.Sprintf("Task: %s\n\nAgent Response:\n%s", t.Prompt, response)
 
 	eval, err := s.evaluator.EvaluateWithRetry(ctx, rubric, content)
 	if err != nil {
-		return ScoreResult{}, err
+		return scoreResult{}, err
 	}
 
 	// Scale from 1-10 to 0-100
-	return ScoreResult{
-		Score:     eval.Score * 10,
+	return scoreResult{
+		Score:     eval.Score * scoreScaleToPercent,
 		Reasoning: eval.Reason, // EvaluationResult uses Reason, not Reasoning
 	}, nil
 }

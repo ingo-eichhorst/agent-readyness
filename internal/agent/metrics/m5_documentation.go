@@ -22,44 +22,44 @@ const (
 	m5BaseScore              = 3                // Starting score before heuristic adjustments
 )
 
-// M5Documentation measures the agent's ability to detect comment/code mismatches.
+// m5Documentation measures the agent's ability to detect comment/code mismatches.
 // It tests the agent's understanding of documentation accuracy.
 //
 // Research basis: Code comment inconsistency detection research shows this is
 // a distinct, measurable capability (TSE 2024).
-type M5Documentation struct {
+type m5Documentation struct {
 	sampleCount int
 	timeout     time.Duration
 }
 
-// NewM5DocumentationMetric creates a Documentation Accuracy Detection metric.
-func NewM5DocumentationMetric() *M5Documentation {
-	return &M5Documentation{
+// newM5DocumentationMetric creates a Documentation Accuracy Detection metric.
+func newM5DocumentationMetric() *m5Documentation {
+	return &m5Documentation{
 		sampleCount: m5SampleCount,
 		timeout:     m5Timeout,
 	}
 }
 
 // ID returns the metric identifier.
-func (m *M5Documentation) ID() string { return "documentation_accuracy_detection" }
+func (m *m5Documentation) ID() string { return "documentation_accuracy_detection" }
 
 // Name returns the human-readable metric name.
-func (m *M5Documentation) Name() string { return "Documentation Accuracy Detection" }
+func (m *m5Documentation) Name() string { return "Documentation Accuracy Detection" }
 
 // Description returns what this metric measures.
-func (m *M5Documentation) Description() string {
+func (m *m5Documentation) Description() string {
 	return "Measures ability to detect comment/code mismatches"
 }
 
 // Timeout returns the per-metric timeout duration.
-func (m *M5Documentation) Timeout() time.Duration { return m.timeout }
+func (m *m5Documentation) Timeout() time.Duration { return m.timeout }
 
 // SampleCount returns the number of samples to evaluate.
-func (m *M5Documentation) SampleCount() int { return m.sampleCount }
+func (m *m5Documentation) SampleCount() int { return m.sampleCount }
 
 // SelectSamples picks files with high comment density (> 5% comment lines).
 // Higher comment density = more opportunity to detect mismatches.
-func (m *M5Documentation) SelectSamples(targets []*types.AnalysisTarget) []Sample {
+func (m *m5Documentation) SelectSamples(targets []*types.AnalysisTarget) []Sample {
 	var candidates []Sample
 
 	// Pattern for comment lines (language-agnostic basics)
@@ -148,7 +148,7 @@ Consider:
 Respond with JSON only: {"score": N, "reason": "brief explanation"}`
 
 // Execute asks the agent to detect documentation accuracy issues.
-func (m *M5Documentation) Execute(ctx context.Context, workDir string, samples []Sample, executor Executor) MetricResult {
+func (m *m5Documentation) Execute(ctx context.Context, workDir string, samples []Sample, executor Executor) MetricResult {
 	result := MetricResult{
 		MetricID:   m.ID(),
 		MetricName: m.Name(),
@@ -234,7 +234,7 @@ If all documentation appears accurate, state that clearly.`, sample.FilePath)
 //
 // Scoring uses thematic groups: each group contributes +1 if ANY member matches.
 // This prevents saturation where many overlapping indicators all score individually.
-func (m *M5Documentation) scoreDocumentationResponse(response string) (int, ScoreTrace) {
+func (m *m5Documentation) scoreDocumentationResponse(response string) (int, ScoreTrace) {
 	responseLower := strings.ToLower(response)
 
 	trace := ScoreTrace{BaseScore: m5BaseScore}

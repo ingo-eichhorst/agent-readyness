@@ -3,6 +3,9 @@ package agent
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -22,86 +25,76 @@ func TestEvaluator_NewEvaluator(t *testing.T) {
 }
 
 func TestEvaluator_EvaluateContent(t *testing.T) {
-	// Skip if Claude CLI is not available
-	status := DetectCLI()
-	if !status.Available {
-		t.Skip("Claude CLI not available, skipping integration test")
-	}
-
 	e := NewEvaluator(60 * time.Second)
+
+	// Inject mock command runner returning valid CLI JSON
+	e.SetCommandRunner(func(ctx context.Context, name string, args ...string) ([]byte, error) {
+		resp := `{"session_id":"test-123","result":"ok","structured_output":{"score":7,"reason":"well-written"}}`
+		return []byte(resp), nil
+	})
+
 	ctx := context.Background()
-
-	// Use a simple test prompt
-	systemPrompt := `You are a simple evaluator. Rate the quality of the text on a scale of 1-10.
-Respond with ONLY valid JSON: {"score": N, "reason": "brief reason"}`
-
-	content := "This is a well-written sentence with proper grammar and punctuation."
-
-	result, err := e.EvaluateContent(ctx, systemPrompt, content)
+	result, err := e.EvaluateContent(ctx, "rate this", "some content")
 	if err != nil {
 		t.Fatalf("EvaluateContent failed: %v", err)
 	}
 
-	if result.Score < 1 || result.Score > 10 {
-		t.Errorf("Expected score 1-10, got %d", result.Score)
+	if result.Score != 7 {
+		t.Errorf("Expected score 7, got %d", result.Score)
 	}
-
-	if result.Reason == "" {
-		t.Error("Expected non-empty reason")
+	if result.Reason != "well-written" {
+		t.Errorf("Expected reason %q, got %q", "well-written", result.Reason)
 	}
-
-	t.Logf("Evaluation result: score=%d, reason=%q", result.Score, result.Reason)
 }
 
 func TestEvaluator_Timeout(t *testing.T) {
-	// Skip if Claude CLI is not available
-	status := DetectCLI()
-	if !status.Available {
-		t.Skip("Claude CLI not available, skipping timeout test")
-	}
-
 	// Use a very short timeout to trigger timeout behavior
 	e := NewEvaluator(1 * time.Nanosecond)
+
+	// Inject mock that blocks until context is cancelled
+	e.SetCommandRunner(func(ctx context.Context, name string, args ...string) ([]byte, error) {
+		<-ctx.Done()
+		return nil, ctx.Err()
+	})
+
 	ctx := context.Background()
-
-	systemPrompt := `Rate this text. Respond with: {"score": 5, "reason": "test"}`
-	content := "Test content"
-
-	_, err := e.EvaluateContent(ctx, systemPrompt, content)
+	_, err := e.EvaluateContent(ctx, "rate this", "content")
 	if err == nil {
-		// If it somehow succeeds (very fast system), that's also acceptable
-		t.Log("Evaluation succeeded despite short timeout - very fast system")
-		return
+		t.Fatal("Expected timeout error, got nil")
 	}
 
-	// Check that error mentions timeout
-	t.Logf("Timeout test error (expected): %v", err)
+	if !strings.Contains(err.Error(), "timed out") {
+		t.Errorf("Expected timeout error, got: %v", err)
+	}
 }
 
 func TestEvaluator_RetryOnFailure(t *testing.T) {
-	// Skip if Claude CLI is not available
-	status := DetectCLI()
-	if !status.Available {
-		t.Skip("Claude CLI not available, skipping retry test")
-	}
-
 	e := NewEvaluator(60 * time.Second)
+
+	// Inject mock that fails on first call, succeeds on second
+	var callCount int32
+	e.SetCommandRunner(func(ctx context.Context, name string, args ...string) ([]byte, error) {
+		n := atomic.AddInt32(&callCount, 1)
+		if n == 1 {
+			return []byte("bad output"), fmt.Errorf("first call fails")
+		}
+		resp := `{"session_id":"retry-ok","result":"ok","structured_output":{"score":8,"reason":"retry succeeded"}}`
+		return []byte(resp), nil
+	})
+
 	ctx := context.Background()
-
-	// Use a simple prompt that should succeed
-	systemPrompt := `Rate this text 1-10. Respond with ONLY: {"score": 7, "reason": "test"}`
-	content := "Simple test content for retry test."
-
-	result, err := e.EvaluateWithRetry(ctx, systemPrompt, content)
+	result, err := e.EvaluateWithRetry(ctx, "rate this", "content")
 	if err != nil {
 		t.Fatalf("EvaluateWithRetry failed: %v", err)
 	}
 
-	if result.Score < 1 || result.Score > 10 {
-		t.Errorf("Expected score 1-10, got %d", result.Score)
+	if result.Score != 8 {
+		t.Errorf("Expected score 8, got %d", result.Score)
 	}
 
-	t.Logf("Retry test result: score=%d, reason=%q", result.Score, result.Reason)
+	if got := atomic.LoadInt32(&callCount); got != 2 {
+		t.Errorf("Expected 2 calls (1 fail + 1 retry), got %d", got)
+	}
 }
 
 func TestEvaluator_ContextCancellation(t *testing.T) {

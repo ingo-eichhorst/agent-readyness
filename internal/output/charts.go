@@ -5,12 +5,25 @@ import (
 	charts "github.com/vicanso/go-charts/v2"
 )
 
+// Chart layout constants.
+const (
+	radarChartWidth   = 450
+	radarChartHeight  = 400
+	radarChartPad     = 20
+	trendChartWidth   = 500
+	trendChartHeight  = 300
+	trendChartPadTop  = 40
+	trendChartPadSide = 20
+	trendChartPadLeft = 40
+	maxCategoryScore  = 10.0 // Maximum score per category (radar chart axis)
+	minRadarCategories = 3   // Minimum categories for radar chart rendering
+)
+
 // generateRadarChart creates an SVG radar chart for category scores.
 // Returns the SVG string and any error.
 // Requires at least 3 categories for radar chart (go-charts library requirement).
 func generateRadarChart(categories []types.CategoryScore) (string, error) {
-	if len(categories) < 3 {
-		// go-charts requires at least 3 indicators for radar charts
+	if len(categories) < minRadarCategories {
 		return "", nil
 	}
 
@@ -21,7 +34,7 @@ func generateRadarChart(categories []types.CategoryScore) (string, error) {
 
 	for i, cat := range categories {
 		names = append(names, cat.Name)
-		maxValues = append(maxValues, 10.0)
+		maxValues = append(maxValues, maxCategoryScore)
 		scores[i] = cat.Score
 	}
 
@@ -36,9 +49,9 @@ func generateRadarChart(categories []types.CategoryScore) (string, error) {
 		}),
 		charts.RadarIndicatorOptionFunc(names, maxValues),
 		charts.ThemeOptionFunc("light"),
-		charts.WidthOptionFunc(450),
-		charts.HeightOptionFunc(400),
-		charts.PaddingOptionFunc(charts.Box{Top: 20, Right: 20, Bottom: 20, Left: 20}),
+		charts.WidthOptionFunc(radarChartWidth),
+		charts.HeightOptionFunc(radarChartHeight),
+		charts.PaddingOptionFunc(charts.Box{Top: radarChartPad, Right: radarChartPad, Bottom: radarChartPad, Left: radarChartPad}),
 	)
 	if err != nil {
 		return "", err
@@ -88,9 +101,9 @@ func generateTrendChart(current, baseline *types.ScoredResult) (string, error) {
 		charts.XAxisDataOptionFunc(names),
 		charts.LegendLabelsOptionFunc([]string{"Previous", "Current"}),
 		charts.ThemeOptionFunc("light"),
-		charts.WidthOptionFunc(500),
-		charts.HeightOptionFunc(300),
-		charts.PaddingOptionFunc(charts.Box{Top: 40, Right: 20, Bottom: 20, Left: 40}),
+		charts.WidthOptionFunc(trendChartWidth),
+		charts.HeightOptionFunc(trendChartHeight),
+		charts.PaddingOptionFunc(charts.Box{Top: trendChartPadTop, Right: trendChartPadSide, Bottom: trendChartPadSide, Left: trendChartPadLeft}),
 	)
 	if err != nil {
 		return "", err

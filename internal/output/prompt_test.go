@@ -9,7 +9,7 @@ import (
 )
 
 func TestRenderImprovementPrompt_C1Metric(t *testing.T) {
-	params := PromptParams{
+	params := promptParams{
 		CategoryName:    "C1",
 		CategoryDisplay: "C1: Code Health",
 		CategoryImpact:  "Lower complexity and smaller functions help agents reason about and modify code safely.",
@@ -54,7 +54,7 @@ func TestRenderImprovementPrompt_C1Metric(t *testing.T) {
 }
 
 func TestRenderImprovementPrompt_NoEvidence(t *testing.T) {
-	params := PromptParams{
+	params := promptParams{
 		CategoryName:    "C2",
 		CategoryDisplay: "C2: Semantic Explicitness",
 		CategoryImpact:  "Explicit types and consistent naming enable agents to understand code semantics without guessing.",
@@ -90,7 +90,7 @@ func TestRenderImprovementPrompt_NoEvidence(t *testing.T) {
 }
 
 func TestRenderImprovementPrompt_C7Metric(t *testing.T) {
-	params := PromptParams{
+	params := promptParams{
 		CategoryName:    "C7",
 		CategoryDisplay: "C7: Agent Evaluation",
 		CategoryImpact:  "Direct measurement of how well AI agents perform real-world coding tasks in your codebase.",

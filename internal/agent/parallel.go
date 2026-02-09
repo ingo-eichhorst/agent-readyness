@@ -35,7 +35,7 @@ func RunMetricsParallel(
 
 	// Use provided executor or create default CLI adapter
 	if executor == nil {
-		executor = NewCLIExecutorAdapter(workDir)
+		executor = newCLIExecutorAdapter(workDir)
 	}
 
 	// Use errgroup for concurrent execution
@@ -126,7 +126,7 @@ func RunMetricsSequential(
 
 	// Use provided executor or create default CLI adapter
 	if executor == nil {
-		executor = NewCLIExecutorAdapter(workDir)
+		executor = newCLIExecutorAdapter(workDir)
 	}
 
 	for i, m := range allMetrics {

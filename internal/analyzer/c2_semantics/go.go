@@ -10,6 +10,13 @@ import (
 	"github.com/ingo/agent-readyness/pkg/types"
 )
 
+// Constants for Go C2 metrics computation.
+const (
+	toPerKLOCGo           = 1000.0
+	toPercentGo           = 100.0
+	goFullAnnotationScore = 100 // Go has 100% type annotation coverage (static typing)
+)
+
 // c2GoAnalyzer computes C2 (Semantic Explicitness) metrics for Go code using go/ast.
 type c2GoAnalyzer struct {
 	pkgs []*parser.ParsedPackage
@@ -28,14 +35,14 @@ func (a *c2GoAnalyzer) Analyze(target *types.AnalysisTarget) (*types.C2LanguageM
 
 	if len(srcPkgs) == 0 {
 		return &types.C2LanguageMetrics{
-			TypeAnnotationCoverage: 100,
+			TypeAnnotationCoverage: goFullAnnotationScore,
 			TypeStrictness:         1,
 		}, nil
 	}
 
 	metrics := &types.C2LanguageMetrics{
 		// Go is statically typed with compile-time type checking
-		TypeAnnotationCoverage: 100,
+		TypeAnnotationCoverage: goFullAnnotationScore,
 		TypeStrictness:         1,
 	}
 
@@ -59,16 +66,16 @@ func (a *c2GoAnalyzer) Analyze(target *types.AnalysisTarget) (*types.C2LanguageM
 	magic := analyzeMagicNumbers(srcPkgs)
 	metrics.MagicNumberCount = magic.count
 	if metrics.LOC > 0 {
-		metrics.MagicNumberRatio = float64(magic.count) / float64(metrics.LOC) * 1000
+		metrics.MagicNumberRatio = float64(magic.count) / float64(metrics.LOC) * toPerKLOCGo
 	}
 
 	// C2-GO-04: Nil safety patterns
 	nilSafety := analyzeNilSafety(srcPkgs)
 	// Blend interface{}/any safety with nil safety (equal weight)
 	if nilSafety.totalPointerUsages > 0 {
-		nilSafetyPercent := float64(nilSafety.checkedUsages) / float64(nilSafety.totalPointerUsages) * 100
-		if nilSafetyPercent > 100 {
-			nilSafetyPercent = 100
+		nilSafetyPercent := float64(nilSafety.checkedUsages) / float64(nilSafety.totalPointerUsages) * toPercentGo
+		if nilSafetyPercent > toPercentGo {
+			nilSafetyPercent = toPercentGo
 		}
 		// Average of any-safety and nil-safety
 		metrics.NullSafety = (anyUsage.safetyPercent + nilSafetyPercent) / 2
@@ -125,10 +132,10 @@ func analyzeAnyUsage(pkgs []*parser.ParsedPackage) anyUsageResult {
 	}
 
 	if result.totalTypeRefs == 0 {
-		result.safetyPercent = 100 // No type refs means no unsafe usage
+		result.safetyPercent = toPercentGo // No type refs means no unsafe usage
 	} else {
-		anyPercent := float64(result.anyRefs) / float64(result.totalTypeRefs) * 100
-		result.safetyPercent = 100 - anyPercent
+		anyPercent := float64(result.anyRefs) / float64(result.totalTypeRefs) * toPercentGo
+		result.safetyPercent = toPercentGo - anyPercent
 		if result.safetyPercent < 0 {
 			result.safetyPercent = 0
 		}
@@ -208,9 +215,9 @@ func analyzeNamingConsistency(pkgs []*parser.ParsedPackage) namingResult {
 	}
 
 	if result.totalChecked == 0 {
-		result.consistencyPercent = 100
+		result.consistencyPercent = toPercentGo
 	} else {
-		result.consistencyPercent = float64(result.consistent) / float64(result.totalChecked) * 100
+		result.consistencyPercent = float64(result.consistent) / float64(result.totalChecked) * toPercentGo
 	}
 
 	return result

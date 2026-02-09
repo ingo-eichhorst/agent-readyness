@@ -21,44 +21,44 @@ const (
 	m2BaseScore         = 2                // Starting score before heuristic adjustments
 )
 
-// M2Comprehension measures the agent's ability to understand what code does.
+// m2Comprehension measures the agent's ability to understand what code does.
 // It tests semantic understanding (behavior), not syntactic correctness.
 //
 // Research basis: Code comprehension benchmarks show LLMs struggle with
 // semantic understanding vs syntactic correctness.
-type M2Comprehension struct {
+type m2Comprehension struct {
 	sampleCount int
 	timeout     time.Duration
 }
 
-// NewM2ComprehensionMetric creates a Code Behavior Comprehension metric.
-func NewM2ComprehensionMetric() *M2Comprehension {
-	return &M2Comprehension{
+// newM2ComprehensionMetric creates a Code Behavior Comprehension metric.
+func newM2ComprehensionMetric() *m2Comprehension {
+	return &m2Comprehension{
 		sampleCount: m2SampleCount,
 		timeout:     m2Timeout,
 	}
 }
 
 // ID returns the metric identifier.
-func (m *M2Comprehension) ID() string { return "code_behavior_comprehension" }
+func (m *m2Comprehension) ID() string { return "code_behavior_comprehension" }
 
 // Name returns the human-readable metric name.
-func (m *M2Comprehension) Name() string { return "Code Behavior Comprehension" }
+func (m *m2Comprehension) Name() string { return "Code Behavior Comprehension" }
 
 // Description returns what this metric measures.
-func (m *M2Comprehension) Description() string {
+func (m *m2Comprehension) Description() string {
 	return "Measures agent's understanding of what code does (semantics, not syntax)"
 }
 
 // Timeout returns the per-metric timeout duration.
-func (m *M2Comprehension) Timeout() time.Duration { return m.timeout }
+func (m *m2Comprehension) Timeout() time.Duration { return m.timeout }
 
 // SampleCount returns the number of samples to evaluate.
-func (m *M2Comprehension) SampleCount() int { return m.sampleCount }
+func (m *m2Comprehension) SampleCount() int { return m.sampleCount }
 
 // SelectSamples picks complex functions by counting complexity indicators
 // (if/for/switch/case statements). Score = complexity_count * (1/sqrt(Lines)).
-func (m *M2Comprehension) SelectSamples(targets []*types.AnalysisTarget) []Sample {
+func (m *m2Comprehension) SelectSamples(targets []*types.AnalysisTarget) []Sample {
 	var candidates []Sample
 
 	// Patterns for complexity indicators across languages
@@ -136,7 +136,7 @@ Consider:
 Respond with JSON only: {"score": N, "reason": "brief explanation"}`
 
 // Execute asks the agent to explain code behavior for each sample.
-func (m *M2Comprehension) Execute(ctx context.Context, workDir string, samples []Sample, executor Executor) MetricResult {
+func (m *m2Comprehension) Execute(ctx context.Context, workDir string, samples []Sample, executor Executor) MetricResult {
 	result := MetricResult{
 		MetricID:   m.ID(),
 		MetricName: m.Name(),
@@ -209,7 +209,7 @@ Be specific and reference actual code elements.`, sample.FilePath)
 //
 // Scoring uses thematic groups: each group contributes +1 if ANY member matches.
 // This prevents saturation where many overlapping indicators all score individually.
-func (m *M2Comprehension) scoreComprehensionResponse(response string) (int, ScoreTrace) {
+func (m *m2Comprehension) scoreComprehensionResponse(response string) (int, ScoreTrace) {
 	responseLower := strings.ToLower(response)
 
 	trace := ScoreTrace{BaseScore: m2BaseScore}

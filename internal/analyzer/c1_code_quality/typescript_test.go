@@ -239,9 +239,9 @@ func TestTsC1Integration(t *testing.T) {
 		t.Fatalf("Analyze() error: %v", err)
 	}
 
-	metrics, ok := result.Metrics["c1"].(*C1MetricsResult)
+	metrics, ok := result.Metrics["c1"].(*c1MetricsResult)
 	if !ok {
-		t.Fatal("expected C1MetricsResult in Metrics[\"c1\"]")
+		t.Fatal("expected c1MetricsResult in Metrics[\"c1\"]")
 	}
 
 	if metrics.CyclomaticComplexity.Avg <= 0 {

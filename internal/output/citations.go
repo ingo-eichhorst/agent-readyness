@@ -1,7 +1,7 @@
 package output
 
-// Citation represents a research reference for ARS metrics.
-type Citation struct {
+// citation represents a research reference for ARS metrics.
+type citation struct {
 	Category    string
 	Title       string
 	Authors     string
@@ -11,7 +11,7 @@ type Citation struct {
 }
 
 // researchCitations contains research backing for each metric category.
-var researchCitations = []Citation{
+var researchCitations = []citation{
 	{
 		Category:    "C1",
 		Title:       "Refactoring: Improving the Design of Existing Code",

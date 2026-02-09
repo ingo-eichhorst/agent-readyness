@@ -264,7 +264,7 @@ func tsAnalyzeIsolation(files []*parser.ParsedTreeSitterFile, testFuncs []types.
 		}
 	}
 
-	return float64(isolatedTests) / float64(totalTests) * 100
+	return float64(isolatedTests) / float64(totalTests) * toPercentC6
 }
 
 // tsCountLOC counts test LOC and source LOC for TypeScript files.

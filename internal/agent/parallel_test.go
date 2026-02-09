@@ -2,16 +2,26 @@ package agent
 
 import (
 	"context"
+	"fmt"
 	"testing"
+	"time"
 
 	"github.com/ingo/agent-readyness/pkg/types"
 )
+
+// noopExecutor implements metrics.Executor but returns an error if called.
+// Used in tests where we pass non-nil executor to avoid creating a real CLIExecutorAdapter.
+type noopExecutor struct{}
+
+func (e *noopExecutor) ExecutePrompt(_ context.Context, _, _, _ string, _ time.Duration) (string, error) {
+	return "", fmt.Errorf("noopExecutor: should not be called in this test")
+}
 
 func TestRunMetricsParallel_NoTargets(t *testing.T) {
 	ctx := context.Background()
 
 	// Running with no targets should not panic
-	result := RunMetricsParallel(ctx, "/tmp", nil, nil, nil)
+	result := RunMetricsParallel(ctx, "/tmp", nil, nil, &noopExecutor{})
 
 	// Should have 5 results (one per metric)
 	if len(result.Results) != 5 {
@@ -36,7 +46,7 @@ func TestRunMetricsParallel_NoTargets(t *testing.T) {
 func TestRunMetricsSequential_NoTargets(t *testing.T) {
 	ctx := context.Background()
 
-	result := RunMetricsSequential(ctx, "/tmp", nil, nil, nil)
+	result := RunMetricsSequential(ctx, "/tmp", nil, nil, &noopExecutor{})
 
 	if len(result.Results) != 5 {
 		t.Errorf("got %d results, want 5", len(result.Results))
@@ -63,7 +73,7 @@ func TestRunMetricsParallel_ContextCancellation(t *testing.T) {
 	cancel() // Cancel immediately
 
 	// Should complete without hanging
-	result := RunMetricsParallel(ctx, "/tmp", nil, nil, nil)
+	result := RunMetricsParallel(ctx, "/tmp", nil, nil, &noopExecutor{})
 
 	// Should still have results (possibly with errors)
 	if len(result.Results) == 0 {
@@ -76,7 +86,7 @@ func TestRunMetricsSequential_ContextCancellation(t *testing.T) {
 	cancel() // Cancel immediately
 
 	// Should complete without hanging
-	result := RunMetricsSequential(ctx, "/tmp", nil, nil, nil)
+	result := RunMetricsSequential(ctx, "/tmp", nil, nil, &noopExecutor{})
 
 	// Should have at least some results
 	if len(result.Results) == 0 {
@@ -97,7 +107,7 @@ func TestRunMetricsParallel_WithProgress(t *testing.T) {
 	}
 	progress := NewC7Progress(nil, ids, nil)
 
-	result := RunMetricsParallel(ctx, "/tmp", nil, progress, nil)
+	result := RunMetricsParallel(ctx, "/tmp", nil, progress, &noopExecutor{})
 
 	// Results should be populated
 	if len(result.Results) != 5 {
@@ -109,7 +119,7 @@ func TestRunMetricsParallel_WithProgress(t *testing.T) {
 	for _, id := range ids {
 		metric := progress.metrics[id]
 		// Each metric should have been either completed or failed
-		if metric.Status != StatusComplete && metric.Status != StatusFailed {
+		if metric.Status != statusComplete && metric.Status != statusFailed {
 			t.Errorf("metric %s status = %v, want Complete or Failed", id, metric.Status)
 		}
 	}
@@ -128,7 +138,7 @@ func TestRunMetricsSequential_WithProgress(t *testing.T) {
 	}
 	progress := NewC7Progress(nil, ids, nil)
 
-	result := RunMetricsSequential(ctx, "/tmp", nil, progress, nil)
+	result := RunMetricsSequential(ctx, "/tmp", nil, progress, &noopExecutor{})
 
 	if len(result.Results) != 5 {
 		t.Errorf("got %d results, want 5", len(result.Results))
@@ -139,7 +149,7 @@ func TestParallelResult_TotalTokensAccumulation(t *testing.T) {
 	// This tests that token counts are properly accumulated
 	ctx := context.Background()
 
-	result := RunMetricsParallel(ctx, "/tmp", nil, nil, nil)
+	result := RunMetricsParallel(ctx, "/tmp", nil, nil, &noopExecutor{})
 
 	// TotalTokens should be sum of all metric token counts
 	var expectedTotal int
@@ -156,7 +166,7 @@ func TestRunMetricsParallel_AllMetricsComplete(t *testing.T) {
 	ctx := context.Background()
 
 	// Even with empty targets, all 5 metrics should complete (with errors)
-	result := RunMetricsParallel(ctx, "/tmp", []*types.AnalysisTarget{}, nil, nil)
+	result := RunMetricsParallel(ctx, "/tmp", []*types.AnalysisTarget{}, nil, &noopExecutor{})
 
 	if len(result.Results) != 5 {
 		t.Errorf("got %d results, want 5", len(result.Results))
@@ -188,7 +198,7 @@ func TestRunMetricsSequential_StopsOnContextCancel(t *testing.T) {
 	// Cancel after a brief moment (simulates timeout)
 	cancel()
 
-	result := RunMetricsSequential(ctx, "/tmp", targets, nil, nil)
+	result := RunMetricsSequential(ctx, "/tmp", targets, nil, &noopExecutor{})
 
 	// Should have stopped early due to context cancellation
 	// May not have all 5 results if it checked context between metrics
@@ -198,7 +208,7 @@ func TestRunMetricsSequential_StopsOnContextCancel(t *testing.T) {
 }
 
 func TestCLIExecutorAdapter_Creation(t *testing.T) {
-	adapter := NewCLIExecutorAdapter("/test/dir")
+	adapter := newCLIExecutorAdapter("/test/dir")
 
 	if adapter == nil {
 		t.Fatal("NewCLIExecutorAdapter returned nil")

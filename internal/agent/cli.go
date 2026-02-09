@@ -21,15 +21,26 @@ const installHint = `Claude CLI not found. Install using one of:
   brew install --cask claude-code
   npm install -g @anthropic-ai/claude-code`
 
+// lookPathFunc and runVersionCmd are package-level variables for testing injection.
+var (
+	lookPathFunc  = exec.LookPath
+	runVersionCmd = func(ctx context.Context, path string) ([]byte, error) {
+		return exec.CommandContext(ctx, path, "--version").CombinedOutput()
+	}
+)
+
 var (
 	cliStatusOnce   sync.Once
 	cachedCLIStatus CLIStatus
 )
 
+// cliVersionTimeout is the maximum time to wait for the Claude CLI version check.
+const cliVersionTimeout = 5 * time.Second
+
 // DetectCLI checks if the Claude CLI is installed and returns its status.
 // This is a convenience wrapper around DetectCLIWithContext using a 5-second timeout.
 func DetectCLI() CLIStatus {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), cliVersionTimeout)
 	defer cancel()
 	return DetectCLIWithContext(ctx)
 }
@@ -38,7 +49,7 @@ func DetectCLI() CLIStatus {
 // The context controls the timeout for the version check.
 func DetectCLIWithContext(ctx context.Context) CLIStatus {
 	// Check if CLI is in PATH
-	path, err := exec.LookPath("claude")
+	path, err := lookPathFunc("claude")
 	if err != nil {
 		return CLIStatus{
 			Available:   false,
@@ -48,8 +59,7 @@ func DetectCLIWithContext(ctx context.Context) CLIStatus {
 	}
 
 	// Run `claude --version` to get version
-	cmd := exec.CommandContext(ctx, path, "--version")
-	output, err := cmd.CombinedOutput()
+	output, err := runVersionCmd(ctx, path)
 	if err != nil {
 		// Check for context timeout
 		if ctx.Err() == context.DeadlineExceeded {

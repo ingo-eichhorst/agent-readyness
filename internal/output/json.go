@@ -14,7 +14,7 @@ type JSONReport struct {
 	CompositeScore  float64              `json:"composite_score"`
 	Tier            string               `json:"tier"`
 	Categories      []jsonCategory       `json:"categories"`
-	Recommendations []JSONRecommendation `json:"recommendations"`
+	Recommendations []jsonRecommendation `json:"recommendations"`
 	BadgeURL        string               `json:"badge_url,omitempty"`
 	BadgeMarkdown   string               `json:"badge_markdown,omitempty"`
 }
@@ -38,8 +38,8 @@ type jsonMetric struct {
 	Evidence  []types.EvidenceItem `json:"evidence"`
 }
 
-// JSONRecommendation represents a single recommendation in JSON output.
-type JSONRecommendation struct {
+// jsonRecommendation represents a single recommendation in JSON output.
+type jsonRecommendation struct {
 	Rank             int     `json:"rank"`
 	Category         string  `json:"category"`
 	MetricName       string  `json:"metric_name"`
@@ -90,7 +90,7 @@ func BuildJSONReport(scored *types.ScoredResult, recs []recommend.Recommendation
 	}
 
 	for _, rec := range recs {
-		report.Recommendations = append(report.Recommendations, JSONRecommendation{
+		report.Recommendations = append(report.Recommendations, jsonRecommendation{
 			Rank:             rec.Rank,
 			Category:         rec.Category,
 			MetricName:       rec.MetricName,

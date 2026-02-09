@@ -13,6 +13,15 @@ import (
 	"github.com/ingo/agent-readyness/pkg/types"
 )
 
+// Constants for TypeScript C2 metrics computation.
+const (
+	toPerKLOCTS          = 1000.0
+	toPercentTS          = 100.0
+	strictNullCheckPoints = 50.0
+	chainDensityScale    = 10.0
+	maxChainScore        = 50.0
+)
+
 // c2TypeScriptAnalyzer computes C2 (Semantic Explicitness) metrics for TypeScript code
 // using Tree-sitter for parsing.
 type c2TypeScriptAnalyzer struct{
@@ -88,13 +97,13 @@ func (a *c2TypeScriptAnalyzer) Analyze(target *types.AnalysisTarget) (*types.C2L
 		if effective < 0 {
 			effective = 0
 		}
-		metrics.TypeAnnotationCoverage = float64(effective) / float64(totalElements) * 100
+		metrics.TypeAnnotationCoverage = float64(effective) / float64(totalElements) * toPercentTS
 	}
 
 	// Magic numbers
 	metrics.MagicNumberCount = magicNumberCount
 	if totalLOC > 0 {
-		metrics.MagicNumberRatio = float64(magicNumberCount) / float64(totalLOC) * 1000
+		metrics.MagicNumberRatio = float64(magicNumberCount) / float64(totalLOC) * toPerKLOCTS
 	}
 
 	// C2-TS-02: tsconfig.json strict mode
@@ -107,15 +116,15 @@ func (a *c2TypeScriptAnalyzer) Analyze(target *types.AnalysisTarget) (*types.C2L
 	// Combination of strictNullChecks flag + optional chaining density
 	nullSafetyScore := 0.0
 	if strictNullChecks {
-		nullSafetyScore += 50 // 50 points for strictNullChecks
+		nullSafetyScore += strictNullCheckPoints
 	}
 	// Optional chaining density: more usage = better
 	if totalLOC > 0 {
-		chainDensity := float64(optionalChainCount) / float64(totalLOC) * 1000
+		chainDensity := float64(optionalChainCount) / float64(totalLOC) * toPerKLOCTS
 		// Scale: 0 chains/kLOC = 0 points, 5+ chains/kLOC = 50 points
-		chainScore := chainDensity * 10
-		if chainScore > 50 {
-			chainScore = 50
+		chainScore := chainDensity * chainDensityScale
+		if chainScore > maxChainScore {
+			chainScore = maxChainScore
 		}
 		nullSafetyScore += chainScore
 	}

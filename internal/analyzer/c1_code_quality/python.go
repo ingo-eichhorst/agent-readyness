@@ -17,6 +17,14 @@ import (
 	"github.com/ingo/agent-readyness/pkg/types"
 )
 
+// Constants for Python C1 metrics computation.
+const (
+	p90PercentilePy     = 0.9
+	toPercentC1Py       = 100.0
+	maxHashNodeDepthPy  = 5
+	maxHashNodeChildPy  = 10
+)
+
 // pyAnalyzeFunctions extracts per-function complexity and line count from Python files.
 // It walks Tree-sitter ASTs to find function_definition nodes and computes
 // cyclomatic complexity by counting branches in the function body.
@@ -32,7 +40,12 @@ func pyAnalyzeFunctions(files []*parser.ParsedTreeSitterFile) []types.FunctionMe
 }
 
 // pyWalkFunctions recursively walks the AST to find function definitions.
-// className tracks the enclosing class for method naming.
+//
+// Python-specific handling:
+// - className tracks the enclosing class for method naming (Class.method format)
+// - Handles decorated_definition nodes (functions with @decorators)
+// - Processes nested functions and classes within function bodies
+// - Computes line count from Tree-sitter node start/end positions
 func pyWalkFunctions(node *tree_sitter.Node, content []byte, file string, className string, results *[]types.FunctionMetric) {
 	if node == nil {
 		return
@@ -134,8 +147,14 @@ func pyWalkFunctionsInBody(node *tree_sitter.Node, content []byte, file string, 
 }
 
 // pyComputeComplexity computes McCabe cyclomatic complexity for a Python function.
-// Base complexity is 1. Each branching construct adds 1.
-// Nested function definitions are excluded.
+//
+// Complexity calculation:
+// - Base complexity is 1 (single execution path)
+// - Each branching construct adds 1: if/elif, for, while, except, and, or
+// - Boolean operators (and/or) in conditions add branches (short-circuit evaluation)
+// - Nested function definitions are excluded from parent's complexity count
+//
+// This matches the standard McCabe complexity metric used by tools like radon and pylint.
 func pyComputeComplexity(funcNode *tree_sitter.Node) int {
 	complexity := 1
 	body := funcNode.ChildByFieldName("body")
@@ -207,7 +226,7 @@ func pyAnalyzeFileSizes(files []*parser.ParsedTreeSitterFile) types.MetricSummar
 		sorted := make([]int, len(sizes))
 		copy(sorted, sizes)
 		sort.Ints(sorted)
-		idx := int(math.Ceil(float64(len(sorted))*0.9)) - 1
+		idx := int(math.Ceil(float64(len(sorted))*p90PercentilePy)) - 1
 		if idx < 0 {
 			idx = 0
 		}
@@ -233,6 +252,14 @@ type pyDupSeq struct {
 }
 
 // pyAnalyzeDuplication detects duplicate code blocks in Python using statement-sequence hashing.
+//
+// Python-specific approach:
+// - Uses Tree-sitter AST to identify statement sequences within blocks
+// - Applies sliding window over statements in function/class bodies
+// - Normalizes variable names via structural hashing to detect renamed copies
+// - Thresholds: minStatements=3, minLines=6 (same as Go analysis for consistency)
+//
+// Returns duplicate blocks and duplication rate (% of lines duplicated).
 func pyAnalyzeDuplication(files []*parser.ParsedTreeSitterFile) ([]types.DuplicateBlock, float64) {
 	const minStatements = 3
 	const minLines = 6
@@ -297,13 +324,19 @@ func pyAnalyzeDuplication(files []*parser.ParsedTreeSitterFile) ([]types.Duplica
 
 	var rate float64
 	if totalLines > 0 {
-		rate = float64(dupLineCount) / float64(totalLines) * 100
+		rate = float64(dupLineCount) / float64(totalLines) * toPercentC1Py
 	}
 
 	return blocks, rate
 }
 
 // pyCollectDupSequences walks the AST collecting hashed statement sequences from block nodes.
+//
+// Sliding window approach:
+// - Identifies block and module nodes containing statement sequences
+// - Filters out comments, newlines, and empty nodes
+// - Applies sliding window of varying sizes to capture duplicates of different lengths
+// - Only records sequences meeting minimum statement count and line span thresholds
 func pyCollectDupSequences(node *tree_sitter.Node, file string, content []byte, minStmts, minLines int, seqs *[]pyDupSeq) {
 	if node == nil {
 		return
@@ -366,7 +399,7 @@ func pyHashStmtSequence(stmts []*tree_sitter.Node) uint64 {
 
 // pyHashNodeStructure writes a structural representation of a Python AST node to the hasher.
 func pyHashNodeStructure(h hash.Hash64, node *tree_sitter.Node, depth int) {
-	if node == nil || depth > 5 {
+	if node == nil || depth > maxHashNodeDepthPy {
 		return
 	}
 
@@ -388,7 +421,7 @@ func pyHashNodeStructure(h hash.Hash64, node *tree_sitter.Node, depth int) {
 		fmt.Fprint(h, "ret")
 	}
 
-	for i := uint(0); i < childCount && i < 10; i++ {
+	for i := uint(0); i < childCount && i < maxHashNodeChildPy; i++ {
 		child := node.Child(i)
 		if child != nil {
 			pyHashNodeStructure(h, child, depth+1)

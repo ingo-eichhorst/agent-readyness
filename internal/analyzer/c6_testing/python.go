@@ -198,7 +198,7 @@ func pyAnalyzeIsolation(files []*parser.ParsedTreeSitterFile, testFuncs []types.
 		}
 	}
 
-	return float64(isolatedTests) / float64(totalTests) * 100
+	return float64(isolatedTests) / float64(totalTests) * toPercentC6
 }
 
 // pyCountLOC counts test LOC and source LOC for Python files.

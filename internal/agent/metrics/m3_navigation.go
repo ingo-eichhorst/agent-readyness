@@ -21,44 +21,44 @@ const (
 	m3ExtensiveWordCount = 200             // Min word count for extensive response indicator
 )
 
-// M3Navigation measures the agent's ability to trace dependencies across files.
+// m3Navigation measures the agent's ability to trace dependencies across files.
 // It tests cross-file understanding and data flow tracing.
 //
 // Research basis: RepoGraph (ICLR 2025) shows 32.8% improvement when agents
 // have repository-level understanding.
-type M3Navigation struct {
+type m3Navigation struct {
 	sampleCount int
 	timeout     time.Duration
 }
 
-// NewM3NavigationMetric creates a Cross-File Navigation metric.
-func NewM3NavigationMetric() *M3Navigation {
-	return &M3Navigation{
+// newM3NavigationMetric creates a Cross-File Navigation metric.
+func newM3NavigationMetric() *m3Navigation {
+	return &m3Navigation{
 		sampleCount: m3SampleCount,
 		timeout:     m3Timeout,
 	}
 }
 
 // ID returns the metric identifier.
-func (m *M3Navigation) ID() string { return "cross_file_navigation" }
+func (m *m3Navigation) ID() string { return "cross_file_navigation" }
 
 // Name returns the human-readable metric name.
-func (m *M3Navigation) Name() string { return "Cross-File Navigation" }
+func (m *m3Navigation) Name() string { return "Cross-File Navigation" }
 
 // Description returns what this metric measures.
-func (m *M3Navigation) Description() string {
+func (m *m3Navigation) Description() string {
 	return "Measures ability to trace dependencies across files"
 }
 
 // Timeout returns the per-metric timeout duration.
-func (m *M3Navigation) Timeout() time.Duration { return m.timeout }
+func (m *m3Navigation) Timeout() time.Duration { return m.timeout }
 
 // SampleCount returns the number of samples to evaluate.
-func (m *M3Navigation) SampleCount() int { return m.sampleCount }
+func (m *m3Navigation) SampleCount() int { return m.sampleCount }
 
 // SelectSamples picks files with many imports (dependency entry points).
 // Sorts by import count descending, takes top 2 non-test files.
-func (m *M3Navigation) SelectSamples(targets []*types.AnalysisTarget) []Sample {
+func (m *m3Navigation) SelectSamples(targets []*types.AnalysisTarget) []Sample {
 	var candidates []Sample
 
 	// Import patterns for different languages
@@ -126,7 +126,7 @@ Consider:
 Respond with JSON only: {"score": N, "reason": "brief explanation"}`
 
 // Execute asks the agent to trace dependencies for each sample.
-func (m *M3Navigation) Execute(ctx context.Context, workDir string, samples []Sample, executor Executor) MetricResult {
+func (m *m3Navigation) Execute(ctx context.Context, workDir string, samples []Sample, executor Executor) MetricResult {
 	result := MetricResult{
 		MetricID:   m.ID(),
 		MetricName: m.Name(),
@@ -202,7 +202,7 @@ Reference actual file paths and function names from the codebase.`, sample.FileP
 //
 // Scoring uses thematic groups: each group contributes +1 if ANY member matches.
 // This prevents saturation where many overlapping indicators all score individually.
-func (m *M3Navigation) scoreNavigationResponse(response string) (int, ScoreTrace) {
+func (m *m3Navigation) scoreNavigationResponse(response string) (int, ScoreTrace) {
 	responseLower := strings.ToLower(response)
 
 	trace := ScoreTrace{BaseScore: m3BaseScore}

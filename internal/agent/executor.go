@@ -9,20 +9,30 @@ import (
 	"time"
 )
 
-// Executor manages Claude CLI subprocess invocation for agent tasks.
-type Executor struct {
+// executor configuration constants.
+const (
+	defaultTaskTimeout  = 300               // Default task timeout in seconds (5 minutes)
+	taskCommandGraceSec = 10 * time.Second  // Grace period after SIGINT before force-kill
+	outputPreviewMax    = 200               // Max characters in error output preview
+)
+
+// execLookPath is a package-level variable wrapping exec.LookPath for testing injection.
+var execLookPath = exec.LookPath
+
+// executor manages Claude CLI subprocess invocation for agent tasks.
+type executor struct {
 	workDir string // Isolated workspace path for agent execution
 }
 
-// NewExecutor creates an Executor that runs tasks in the given work directory.
-func NewExecutor(workDir string) *Executor {
-	return &Executor{workDir: workDir}
+// newExecutor creates an executor that runs tasks in the given work directory.
+func newExecutor(workDir string) *executor {
+	return &executor{workDir: workDir}
 }
 
 // CheckClaudeCLI verifies that the Claude CLI is installed and accessible.
 // Returns nil if available, or a descriptive error with installation instructions.
 func CheckClaudeCLI() error {
-	_, err := exec.LookPath("claude")
+	_, err := execLookPath("claude")
 	if err != nil {
 		return fmt.Errorf("claude CLI not found. Install from: https://claude.ai/install.sh\n" +
 			"Alternative methods:\n" +
@@ -32,8 +42,8 @@ func CheckClaudeCLI() error {
 	return nil
 }
 
-// CLIResponse represents the JSON output from Claude CLI in headless mode.
-type CLIResponse struct {
+// cliResponse represents the JSON output from Claude CLI in headless mode.
+type cliResponse struct {
 	Type      string `json:"type"`       // "result"
 	SessionID string `json:"session_id"` // Session identifier
 	Result    string `json:"result"`     // Agent's text response
@@ -41,16 +51,16 @@ type CLIResponse struct {
 
 // ExecuteTask runs a single task against the Claude CLI.
 // Uses graceful timeout handling with SIGINT before force-kill.
-func (e *Executor) ExecuteTask(ctx context.Context, task Task) TaskResult {
-	result := TaskResult{
-		TaskID:    task.ID,
+func (e *executor) ExecuteTask(ctx context.Context, t task) taskResult {
+	result := taskResult{
+		TaskID:    t.ID,
 		StartTime: time.Now(),
 	}
 
 	// Default timeout if not specified
-	timeout := task.TimeoutSeconds
+	timeout := t.TimeoutSeconds
 	if timeout <= 0 {
-		timeout = 300 // 5 minutes default
+		timeout = defaultTaskTimeout
 	}
 
 	// Create timeout context
@@ -59,11 +69,11 @@ func (e *Executor) ExecuteTask(ctx context.Context, task Task) TaskResult {
 
 	// Build command with JSON output
 	args := []string{
-		"-p", task.Prompt,
+		"-p", t.Prompt,
 		"--output-format", "json",
 	}
-	if task.ToolsAllowed != "" {
-		args = append(args, "--allowedTools", task.ToolsAllowed)
+	if t.ToolsAllowed != "" {
+		args = append(args, "--allowedTools", t.ToolsAllowed)
 	}
 
 	cmd := exec.CommandContext(taskCtx, "claude", args...)
@@ -74,7 +84,7 @@ func (e *Executor) ExecuteTask(ctx context.Context, task Task) TaskResult {
 		return cmd.Process.Signal(os.Interrupt)
 	}
 	// Grace period before force-kill after SIGINT
-	cmd.WaitDelay = 10 * time.Second
+	cmd.WaitDelay = taskCommandGraceSec
 
 	// Capture both stdout and stderr for error diagnosis
 	output, err := cmd.CombinedOutput()
@@ -84,20 +94,20 @@ func (e *Executor) ExecuteTask(ctx context.Context, task Task) TaskResult {
 	// Handle execution errors
 	if err != nil {
 		if taskCtx.Err() == context.DeadlineExceeded {
-			result.Status = StatusTimeout
+			result.Status = statusTimeout
 			result.Error = fmt.Sprintf("task timed out after %d seconds", timeout)
 			return result
 		}
 
 		// Check if CLI was not found
 		if exitErr, ok := err.(*exec.ExitError); ok {
-			result.Status = StatusError
+			result.Status = statusError
 			result.Error = fmt.Sprintf("exit code %d: %s", exitErr.ExitCode(), string(output))
-		} else if _, lookErr := exec.LookPath("claude"); lookErr != nil {
-			result.Status = StatusCLINotFound
+		} else if _, lookErr := execLookPath("claude"); lookErr != nil {
+			result.Status = statusCLINotFound
 			result.Error = "claude CLI not found"
 		} else {
-			result.Status = StatusError
+			result.Status = statusError
 			result.Error = err.Error()
 		}
 		return result
@@ -106,29 +116,29 @@ func (e *Executor) ExecuteTask(ctx context.Context, task Task) TaskResult {
 	// Parse JSON response
 	parsed, parseErr := parseJSONOutput(output)
 	if parseErr != nil {
-		result.Status = StatusError
+		result.Status = statusError
 		result.Error = fmt.Sprintf("failed to parse CLI output: %v", parseErr)
 		return result
 	}
 
-	result.Status = StatusCompleted
+	result.Status = statusCompleted
 	result.Response = parsed.Result
 	result.SessionID = parsed.SessionID
 	return result
 }
 
 // parseJSONOutput extracts the response from Claude CLI JSON output.
-func parseJSONOutput(output []byte) (*CLIResponse, error) {
+func parseJSONOutput(output []byte) (*cliResponse, error) {
 	if len(output) == 0 {
 		return nil, fmt.Errorf("empty output")
 	}
 
-	var resp CLIResponse
+	var resp cliResponse
 	if err := json.Unmarshal(output, &resp); err != nil {
 		// Try to provide helpful context on parse failure
 		preview := string(output)
-		if len(preview) > 200 {
-			preview = preview[:200] + "..."
+		if len(preview) > outputPreviewMax {
+			preview = preview[:outputPreviewMax] + "..."
 		}
 		return nil, fmt.Errorf("invalid JSON: %w (got: %s)", err, preview)
 	}

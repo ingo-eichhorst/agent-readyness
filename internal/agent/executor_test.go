@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -8,9 +9,11 @@ import (
 )
 
 func TestCheckClaudeCLI_Available(t *testing.T) {
-	// Skip if claude is not installed (common in CI)
-	if _, err := exec.LookPath("claude"); err != nil {
-		t.Skip("claude CLI not installed, skipping availability test")
+	origLookPath := execLookPath
+	defer func() { execLookPath = origLookPath }()
+
+	execLookPath = func(file string) (string, error) {
+		return "/usr/local/bin/claude", nil
 	}
 
 	err := CheckClaudeCLI()
@@ -20,27 +23,23 @@ func TestCheckClaudeCLI_Available(t *testing.T) {
 }
 
 func TestCheckClaudeCLI_ErrorMessage(t *testing.T) {
-	// We can't easily uninstall claude, but we can verify the error message format
-	// when the function would fail (by checking the expected content)
+	origLookPath := execLookPath
+	defer func() { execLookPath = origLookPath }()
+
+	execLookPath = func(file string) (string, error) {
+		return "", fmt.Errorf("%w: claude", exec.ErrNotFound)
+	}
+
+	testErr := CheckClaudeCLI()
+	if testErr == nil {
+		t.Fatal("Expected error when claude is not found")
+	}
+
 	expectedSubstrings := []string{
 		"claude CLI not found",
 		"https://claude.ai/install.sh",
 		"brew install",
 		"npm install",
-	}
-
-	// Create a fake error scenario by checking LookPath error
-	_, err := exec.LookPath("nonexistent-binary-xyz")
-	if err == nil {
-		t.Fatal("expected LookPath to fail for nonexistent binary")
-	}
-
-	// Verify our error message would contain expected content
-	testErr := CheckClaudeCLI()
-	if testErr == nil {
-		// Claude is installed - just verify the success path works
-		t.Log("claude CLI is installed, error message format cannot be tested directly")
-		return
 	}
 
 	errMsg := testErr.Error()
@@ -52,7 +51,7 @@ func TestCheckClaudeCLI_ErrorMessage(t *testing.T) {
 }
 
 func TestAllTasksDefined(t *testing.T) {
-	tasks := AllTasks()
+	tasks := allTasks()
 
 	if len(tasks) != 4 {
 		t.Errorf("expected 4 tasks, got %d", len(tasks))
@@ -100,11 +99,11 @@ func TestAllTasksDefined(t *testing.T) {
 
 func TestTaskResultStatuses(t *testing.T) {
 	// Verify status constants are defined correctly
-	statuses := []TaskStatus{
-		StatusCompleted,
-		StatusTimeout,
-		StatusError,
-		StatusCLINotFound,
+	statuses := []taskStatus{
+		statusCompleted,
+		statusTimeout,
+		statusError,
+		statusCLINotFound,
 	}
 
 	expectedValues := []string{

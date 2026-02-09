@@ -3,22 +3,22 @@ package agent
 
 import "time"
 
-// TaskStatus represents the completion status of an agent task.
-type TaskStatus string
+// taskStatus represents the completion status of an agent task.
+type taskStatus string
 
 const (
-	// StatusCompleted indicates the task finished successfully.
-	StatusCompleted TaskStatus = "completed"
-	// StatusTimeout indicates the task exceeded its time limit.
-	StatusTimeout TaskStatus = "timeout"
-	// StatusError indicates the task failed with an error.
-	StatusError TaskStatus = "error"
-	// StatusCLINotFound indicates the Claude CLI is not installed.
-	StatusCLINotFound TaskStatus = "cli_not_found"
+	// statusCompleted indicates the task finished successfully.
+	statusCompleted taskStatus = "completed"
+	// statusTimeout indicates the task exceeded its time limit.
+	statusTimeout taskStatus = "timeout"
+	// statusError indicates the task failed with an error.
+	statusError taskStatus = "error"
+	// statusCLINotFound indicates the Claude CLI is not installed.
+	statusCLINotFound taskStatus = "cli_not_found"
 )
 
-// Task defines a standardized agent evaluation task.
-type Task struct {
+// task defines a standardized agent evaluation task.
+type task struct {
 	ID             string // Unique identifier (e.g., "intent_clarity")
 	Name           string // Human-readable name
 	Description    string // What this task measures
@@ -27,10 +27,10 @@ type Task struct {
 	TimeoutSeconds int    // Per-task timeout (default 300)
 }
 
-// TaskResult holds the outcome of executing a single task.
-type TaskResult struct {
+// taskResult holds the outcome of executing a single task.
+type taskResult struct {
 	TaskID    string        // Which task was executed
-	Status    TaskStatus    // Completion status
+	Status    taskStatus    // Completion status
 	Response  string        // Agent's text response (if completed)
 	SessionID string        // Claude session ID (for debugging)
 	StartTime time.Time     // When execution began
@@ -39,9 +39,9 @@ type TaskResult struct {
 	Error     string        // Error message (if status is error)
 }
 
-// C7EvaluationResult holds the complete C7 evaluation outcome.
-type C7EvaluationResult struct {
-	Tasks         []TaskResult  // Results for each task
+// c7EvaluationResult holds the complete C7 evaluation outcome.
+type c7EvaluationResult struct {
+	Tasks         []taskResult  // Results for each task
 	TotalDuration time.Duration // Total wall-clock time
 	CLIAvailable  bool          // Whether Claude CLI was found
 }

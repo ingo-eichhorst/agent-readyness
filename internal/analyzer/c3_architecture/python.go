@@ -1,3 +1,17 @@
+// Package c3 analyzes C3 (Architecture) metrics for agent-readiness.
+//
+// C3 measures architectural complexity for Python codebases using Tree-sitter.
+//
+// Python-specific architectural patterns:
+// - Imports use dotted module paths (e.g., "from pkg.sub import foo")
+// - Relative imports with dots ("from .sibling import bar", "from ..parent import baz")
+// - __init__.py files define package boundaries and can create false circular deps
+// - Dynamic imports (importlib, __import__) cannot be statically analyzed
+// - site-packages and stdlib imports must be filtered (external dependencies)
+// - __all__ list defines public API (unlike TypeScript's explicit export keyword)
+//
+// This file handles Python's import semantics and package structure for dependency
+// analysis and dead code detection.
 package c3
 
 import (
@@ -42,7 +56,19 @@ func isTestFileByPath(path string) bool {
 }
 
 // pyBuildImportGraph builds an import graph from Python files.
+//
 // It tracks intra-project imports only (skips stdlib/third-party).
+//
+// Python-specific import edge cases:
+// - Relative imports (from . import foo) require resolving dots to parent packages
+// - Deferred imports (import inside function) still create dependencies for analysis
+// - __init__.py imports can create false positives (package re-exports)
+// - "from X import *" creates dependencies even without explicit names listed
+//
+// Circular dependency detection via Tarjan's SCC algorithm (see shared package).
+// Python's import system technically supports cycles via deferred imports, but
+// they still indicate poor architecture that confuses agents trying to understand
+// module boundaries and dependency flow.
 func pyBuildImportGraph(files []*parser.ParsedTreeSitterFile) *shared.ImportGraph {
 	g := &shared.ImportGraph{
 		Forward: make(map[string][]string),
@@ -162,6 +188,18 @@ func pyResolveRelativeImport(fromModule, relImport string) string {
 }
 
 // pyDetectDeadCode finds top-level functions and classes not imported by other files.
+//
+// Why dead code matters for agents: Unused exports inflate the API surface agents
+// must parse and understand. Dead code also creates false leads during debugging
+// ("this function looks relevant but isn't actually called anywhere"). Pruning
+// dead exports focuses agent attention on the active codebase.
+//
+// Python-specific considerations:
+// - __all__ list defines public API (if present, only those names are "public")
+// - Private names (starting with _) are excluded by convention
+// - Decorated definitions (@decorator) are unwrapped to find the actual def/class
+//
+// Limitation: Jupyter notebooks cannot be analyzed (dynamic execution model).
 func pyDetectDeadCode(files []*parser.ParsedTreeSitterFile) []types.DeadExport {
 	if len(files) <= 1 {
 		return nil // Single file: no cross-file analysis possible

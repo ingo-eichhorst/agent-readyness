@@ -355,7 +355,7 @@ func TestMin(t *testing.T) {
 
 // Test scoring heuristics for M2 (Comprehension)
 func TestM2_ScoreComprehensionResponse(t *testing.T) {
-	m := NewM2Comprehension().(*M2Comprehension)
+	m := NewM2Comprehension().(*m2Comprehension)
 
 	tests := []struct {
 		name     string
@@ -395,7 +395,7 @@ func TestM2_ScoreComprehensionResponse(t *testing.T) {
 
 // Test scoring heuristics for M3 (Navigation)
 func TestM3_ScoreNavigationResponse(t *testing.T) {
-	m := NewM3Navigation().(*M3Navigation)
+	m := NewM3Navigation().(*m3Navigation)
 
 	tests := []struct {
 		name     string
@@ -435,7 +435,7 @@ func TestM3_ScoreNavigationResponse(t *testing.T) {
 
 // Test scoring heuristics for M4 (Identifiers)
 func TestM4_ScoreIdentifierResponse(t *testing.T) {
-	m := NewM4Identifiers().(*M4Identifiers)
+	m := NewM4Identifiers().(*m4Identifiers)
 
 	tests := []struct {
 		name     string
@@ -475,7 +475,7 @@ func TestM4_ScoreIdentifierResponse(t *testing.T) {
 
 // Test scoring heuristics for M5 (Documentation)
 func TestM5_ScoreDocumentationResponse(t *testing.T) {
-	m := NewM5Documentation().(*M5Documentation)
+	m := NewM5Documentation().(*m5Documentation)
 
 	tests := []struct {
 		name     string
@@ -524,42 +524,42 @@ func TestScoreTrace_SumsCorrectly(t *testing.T) {
 	}{
 		{
 			name:     "M2 good response",
-			scoreFn:  NewM2ComprehensionMetric().scoreComprehensionResponse,
+			scoreFn:  newM2ComprehensionMetric().scoreComprehensionResponse,
 			response: "The function returns the result after handling errors. It validates input and checks conditions.",
 		},
 		{
 			name:     "M2 empty response",
-			scoreFn:  NewM2ComprehensionMetric().scoreComprehensionResponse,
+			scoreFn:  newM2ComprehensionMetric().scoreComprehensionResponse,
 			response: "",
 		},
 		{
 			name:     "M3 good response",
-			scoreFn:  NewM3NavigationMetric().scoreNavigationResponse,
+			scoreFn:  newM3NavigationMetric().scoreNavigationResponse,
 			response: "Imports: import fmt, import os. The module exports a function that calls -> /src/handler.go",
 		},
 		{
 			name:     "M3 empty response",
-			scoreFn:  NewM3NavigationMetric().scoreNavigationResponse,
+			scoreFn:  newM3NavigationMetric().scoreNavigationResponse,
 			response: "",
 		},
 		{
 			name:     "M4 good response",
-			scoreFn:  NewM4IdentifiersMetric().scoreIdentifierResponse,
+			scoreFn:  newM4IdentifiersMetric().scoreIdentifierResponse,
 			response: "Interpretation: This function creates a database connection. Verification: Confirmed accurate. Accuracy: Correct.",
 		},
 		{
 			name:     "M4 empty response",
-			scoreFn:  NewM4IdentifiersMetric().scoreIdentifierResponse,
+			scoreFn:  newM4IdentifiersMetric().scoreIdentifierResponse,
 			response: "",
 		},
 		{
 			name:     "M5 good response",
-			scoreFn:  NewM5DocumentationMetric().scoreDocumentationResponse,
+			scoreFn:  newM5DocumentationMetric().scoreDocumentationResponse,
 			response: "## Summary\nGood documentation.\n## Accurate Documentation\nComment correctly describes behavior.\n## Potential Mismatches\nLocation: line 10\nComment says: returns nil\nCode does: returns error\nIssue: outdated",
 		},
 		{
 			name:     "M5 empty response",
-			scoreFn:  NewM5DocumentationMetric().scoreDocumentationResponse,
+			scoreFn:  newM5DocumentationMetric().scoreDocumentationResponse,
 			response: "",
 		},
 	}
@@ -772,7 +772,7 @@ func errorResponse() Response { return Response{} }
 // Good responses should score 6-8, weaker responses should score 4-6.
 
 func TestM2_Score_Fixtures(t *testing.T) {
-	m := NewM2ComprehensionMetric()
+	m := newM2ComprehensionMetric()
 
 	tests := []struct {
 		name     string
@@ -813,7 +813,7 @@ func TestM2_Score_Fixtures(t *testing.T) {
 }
 
 func TestM3_Score_Fixtures(t *testing.T) {
-	m := NewM3NavigationMetric()
+	m := newM3NavigationMetric()
 
 	tests := []struct {
 		name     string
@@ -854,7 +854,7 @@ func TestM3_Score_Fixtures(t *testing.T) {
 }
 
 func TestM4_Score_Fixtures(t *testing.T) {
-	m := NewM4IdentifiersMetric()
+	m := newM4IdentifiersMetric()
 
 	tests := []struct {
 		name     string

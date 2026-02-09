@@ -225,9 +225,9 @@ func TestPyC1Integration(t *testing.T) {
 		t.Fatalf("Analyze() error: %v", err)
 	}
 
-	metrics, ok := result.Metrics["c1"].(*C1MetricsResult)
+	metrics, ok := result.Metrics["c1"].(*c1MetricsResult)
 	if !ok {
-		t.Fatal("expected C1MetricsResult in Metrics[\"c1\"]")
+		t.Fatal("expected c1MetricsResult in Metrics[\"c1\"]")
 	}
 
 	if metrics.CyclomaticComplexity.Avg <= 0 {
@@ -281,9 +281,9 @@ func TestC1_GoRegressionWithNewConstructor(t *testing.T) {
 		t.Fatalf("Analyze failed: %v", err)
 	}
 
-	metrics, ok := result.Metrics["c1"].(*C1MetricsResult)
+	metrics, ok := result.Metrics["c1"].(*c1MetricsResult)
 	if !ok {
-		t.Fatal("expected C1MetricsResult")
+		t.Fatal("expected c1MetricsResult")
 	}
 
 	funcComplexity := make(map[string]int)

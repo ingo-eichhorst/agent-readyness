@@ -94,26 +94,26 @@ Respond with ONLY valid JSON in this exact format:
 
 Do not include any text before or after the JSON.`
 
-// PromptType identifies which evaluation prompt to use.
-type PromptType int
+// promptType identifies which evaluation prompt to use.
+type promptType int
 
 const (
-	PromptReadmeClarity PromptType = iota
-	PromptExampleQuality
-	PromptCompleteness
-	PromptCrossRefCoherence
+	promptReadmeClarity promptType = iota
+	promptExampleQuality
+	promptCompleteness
+	promptCrossRefCoherence
 )
 
-// GetPrompt returns the system prompt for the given evaluation type.
-func GetPrompt(pt PromptType) string {
+// getPrompt returns the system prompt for the given evaluation type.
+func getPrompt(pt promptType) string {
 	switch pt {
-	case PromptReadmeClarity:
+	case promptReadmeClarity:
 		return ReadmeClarityPrompt
-	case PromptExampleQuality:
+	case promptExampleQuality:
 		return ExampleQualityPrompt
-	case PromptCompleteness:
+	case promptCompleteness:
 		return CompletenessPrompt
-	case PromptCrossRefCoherence:
+	case promptCrossRefCoherence:
 		return CrossRefCoherencePrompt
 	default:
 		return ReadmeClarityPrompt

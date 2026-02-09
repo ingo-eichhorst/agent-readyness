@@ -42,15 +42,15 @@ const (
 //
 // Research basis: Agent benchmarks show ~13% variance in results; consistency
 // is critical for reliability in production use.
-type M1Consistency struct {
+type m1Consistency struct {
 	sampleCount int
 	timeout     time.Duration
 	runs        int // Number of times to repeat the task
 }
 
-// NewM1ConsistencyMetric creates a Task Execution Consistency metric.
-func NewM1ConsistencyMetric() *M1Consistency {
-	return &M1Consistency{
+// newM1ConsistencyMetric creates a Task Execution Consistency metric.
+func newM1ConsistencyMetric() *m1Consistency {
+	return &m1Consistency{
 		sampleCount: m1SampleCount,
 		timeout:     m1Timeout,
 		runs:        m1Runs,
@@ -58,25 +58,25 @@ func NewM1ConsistencyMetric() *M1Consistency {
 }
 
 // ID returns the metric identifier.
-func (m *M1Consistency) ID() string { return "task_execution_consistency" }
+func (m *m1Consistency) ID() string { return "task_execution_consistency" }
 
 // Name returns the human-readable metric name.
-func (m *M1Consistency) Name() string { return "Task Execution Consistency" }
+func (m *m1Consistency) Name() string { return "Task Execution Consistency" }
 
 // Description returns what this metric measures.
-func (m *M1Consistency) Description() string {
+func (m *m1Consistency) Description() string {
 	return "Measures reproducibility of agent task completion across multiple runs"
 }
 
 // Timeout returns the per-metric timeout duration.
-func (m *M1Consistency) Timeout() time.Duration { return m.timeout }
+func (m *m1Consistency) Timeout() time.Duration { return m.timeout }
 
 // SampleCount returns the number of samples to evaluate.
-func (m *M1Consistency) SampleCount() int { return m.sampleCount }
+func (m *m1Consistency) SampleCount() int { return m.sampleCount }
 
 // SelectSamples picks 1 file with moderate size (50-200 LOC) and 3-10 functions.
 // Uses deterministic heuristics: count `func ` occurrences, prefer moderate complexity.
-func (m *M1Consistency) SelectSamples(targets []*types.AnalysisTarget) []Sample {
+func (m *m1Consistency) SelectSamples(targets []*types.AnalysisTarget) []Sample {
 	var candidates []Sample
 
 	funcPattern := regexp.MustCompile(`(?m)^func\s+`)
@@ -141,7 +141,7 @@ func (m *M1Consistency) SelectSamples(targets []*types.AnalysisTarget) []Sample 
 }
 
 // Execute runs the same task 3 times and measures variance.
-func (m *M1Consistency) Execute(ctx context.Context, workDir string, samples []Sample, executor Executor) MetricResult {
+func (m *m1Consistency) Execute(ctx context.Context, workDir string, samples []Sample, executor Executor) MetricResult {
 	result := MetricResult{
 		MetricID:   m.ID(),
 		MetricName: m.Name(),

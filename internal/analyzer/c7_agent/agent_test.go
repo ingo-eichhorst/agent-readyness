@@ -279,7 +279,7 @@ func TestBuildMetrics_DebugOn_PopulatesDebugSamples(t *testing.T) {
 func TestC7Analyzer_Analyze_NoTargets(t *testing.T) {
 	analyzer := NewC7Analyzer()
 	// Enable with a mock evaluator
-	analyzer.Enable(&agent.Evaluator{})
+	analyzer.Enable(agent.NewEvaluator(0))
 
 	// Analyze with empty targets
 	_, err := analyzer.Analyze([]*types.AnalysisTarget{})
@@ -360,7 +360,7 @@ func TestC7Analyzer_SetEvaluator(t *testing.T) {
 		t.Error("evaluator should be nil by default")
 	}
 
-	eval := &agent.Evaluator{}
+	eval := agent.NewEvaluator(0)
 	analyzer.SetEvaluator(eval)
 
 	if analyzer.evaluator != eval {

@@ -39,8 +39,8 @@ func (a *C1Analyzer) Name() string {
 	return "C1: Code Health"
 }
 
-// C1MetricsResult is the internal result type stored in AnalysisResult.Metrics["c1"].
-type C1MetricsResult = types.C1Metrics
+// c1MetricsResult is the internal result type stored in AnalysisResult.Metrics["c1"].
+type c1MetricsResult = types.C1Metrics
 
 // SetGoPackages stores Go-specific parsed packages for use during Analyze.
 func (a *C1Analyzer) SetGoPackages(pkgs []*parser.ParsedPackage) {
@@ -50,7 +50,7 @@ func (a *C1Analyzer) SetGoPackages(pkgs []*parser.ParsedPackage) {
 // Analyze runs all 6 C1 sub-analyses on the given packages and returns
 // a combined AnalysisResult with Category "C1".
 func (a *C1Analyzer) Analyze(targets []*types.AnalysisTarget) (*types.AnalysisResult, error) {
-	metrics := &C1MetricsResult{
+	metrics := &c1MetricsResult{
 		AfferentCoupling: make(map[string]int),
 		EfferentCoupling: make(map[string]int),
 	}

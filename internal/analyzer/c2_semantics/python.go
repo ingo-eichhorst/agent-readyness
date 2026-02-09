@@ -14,6 +14,12 @@ import (
 	"github.com/ingo/agent-readyness/pkg/types"
 )
 
+// Constants for Python C2 metrics computation.
+const (
+	toPerKLOCPy = 1000.0
+	toPercentPy = 100.0
+)
+
 // c2PythonAnalyzer computes C2 (Semantic Explicitness) metrics for Python code
 // using Tree-sitter for parsing.
 type c2PythonAnalyzer struct {
@@ -89,18 +95,18 @@ func (a *c2PythonAnalyzer) Analyze(target *types.AnalysisTarget) (*types.C2Langu
 	// Type annotation coverage score
 	denominator := totalParams + totalFunctions
 	if denominator > 0 {
-		metrics.TypeAnnotationCoverage = float64(totalAnnotatedParams+totalAnnotatedReturns) / float64(denominator) * 100
+		metrics.TypeAnnotationCoverage = float64(totalAnnotatedParams+totalAnnotatedReturns) / float64(denominator) * toPercentPy
 	}
 
 	// Naming consistency score
 	if totalIdentifiers > 0 {
-		metrics.NamingConsistency = float64(consistentNames) / float64(totalIdentifiers) * 100
+		metrics.NamingConsistency = float64(consistentNames) / float64(totalIdentifiers) * toPercentPy
 	}
 
 	// Magic number ratio per 1000 LOC
 	metrics.MagicNumberCount = magicNumberCount
 	if totalLOC > 0 {
-		metrics.MagicNumberRatio = float64(magicNumberCount) / float64(totalLOC) * 1000
+		metrics.MagicNumberRatio = float64(magicNumberCount) / float64(totalLOC) * toPerKLOCPy
 	}
 
 	// C2-PY-04: mypy/pyright config detection

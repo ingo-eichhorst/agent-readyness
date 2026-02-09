@@ -8,6 +8,14 @@ import (
 	"github.com/ingo/agent-readyness/pkg/types"
 )
 
+// Recommendation thresholds and effort classification constants.
+const (
+	skipScoreThreshold = 9.0 // Metrics scoring this high need no recommendation
+	effortHighGap      = 2.5 // Score gap threshold for "High" effort
+	effortMediumGap    = 1.0 // Score gap threshold for "Medium" effort
+	effortMaxLevel     = 2   // Maximum effort level (0=Low, 1=Medium, 2=High)
+)
+
 // Recommendation represents a single improvement recommendation.
 type Recommendation struct {
 	Rank             int     // 1-based rank
@@ -99,7 +107,7 @@ func Generate(scored *types.ScoredResult, cfg *scoring.ScoringConfig) []Recommen
 		}
 
 		for _, ss := range cat.SubScores {
-			if !ss.Available || ss.Score >= 9.0 {
+			if !ss.Available || ss.Score >= skipScoreThreshold {
 				continue
 			}
 
@@ -271,16 +279,16 @@ func computeComposite(categories []types.CategoryScore) float64 {
 // Hard metrics (complexity_avg, duplication_rate) get bumped up one level.
 func effortLevel(scoreGap float64, metricName string) string {
 	level := 0 // 0=Low, 1=Medium, 2=High
-	if scoreGap >= 2.5 {
-		level = 2
-	} else if scoreGap >= 1.0 {
+	if scoreGap >= effortHighGap {
+		level = effortMaxLevel
+	} else if scoreGap >= effortMediumGap {
 		level = 1
 	}
 
 	if hardMetrics[metricName] {
 		level++
-		if level > 2 {
-			level = 2
+		if level > effortMaxLevel {
+			level = effortMaxLevel
 		}
 	}
 

@@ -9,21 +9,31 @@ import (
 	"github.com/mattn/go-isatty"
 )
 
-// MetricStatus represents the current state of a single metric evaluation.
-type MetricStatus string
+// metricStatus represents the current state of a single metric evaluation.
+type metricStatus string
 
 const (
-	StatusPending  MetricStatus = "pending"
-	StatusRunning  MetricStatus = "running"
-	StatusComplete MetricStatus = "complete"
-	StatusFailed   MetricStatus = "failed"
+	statusPending  metricStatus = "pending"
+	statusRunning  metricStatus = "running"
+	statusComplete metricStatus = "complete"
+	statusFailed   metricStatus = "failed"
 )
 
-// MetricProgress tracks the progress of a single metric.
-type MetricProgress struct {
+// Progress display constants.
+const (
+	progressTickInterval = 200 * time.Millisecond // Refresh rate for progress display
+	percentMultiplier    = 100                     // Multiplier for percentage calculation
+	costRatePerMTok      = 5.0                     // Sonnet 4.5 blended rate $/MTok
+	tokensPerMillion     = 1_000_000               // Token-to-millions conversion
+	tokensPerThousand    = 1000                    // Token-to-thousands conversion
+	progressLineWidth    = 130                     // Terminal line width for padding
+)
+
+// metricProgress tracks the progress of a single metric.
+type metricProgress struct {
 	ID            string
 	Name          string
-	Status        MetricStatus
+	Status        metricStatus
 	CurrentSample int
 	TotalSamples  int
 	Score         int // Final score when complete (1-10)
@@ -34,7 +44,7 @@ type MetricProgress struct {
 // Thread-safe for concurrent metric updates.
 type C7Progress struct {
 	mu          sync.Mutex
-	metrics     map[string]*MetricProgress
+	metrics     map[string]*metricProgress
 	metricOrder []string // Preserve display order
 	totalTokens int
 	startTime   time.Time
@@ -48,16 +58,16 @@ type C7Progress struct {
 // NewC7Progress creates a new progress display.
 // If writer is not a TTY, display operations are no-ops.
 func NewC7Progress(w *os.File, metricIDs []string, metricNames []string) *C7Progress {
-	metrics := make(map[string]*MetricProgress, len(metricIDs))
+	metrics := make(map[string]*metricProgress, len(metricIDs))
 	for i, id := range metricIDs {
 		name := id
 		if i < len(metricNames) {
 			name = metricNames[i]
 		}
-		metrics[id] = &MetricProgress{
+		metrics[id] = &metricProgress{
 			ID:     id,
 			Name:   name,
-			Status: StatusPending,
+			Status: statusPending,
 		}
 	}
 
@@ -81,7 +91,7 @@ func (p *C7Progress) Start() {
 	p.startTime = time.Now()
 	p.mu.Unlock()
 
-	p.ticker = time.NewTicker(200 * time.Millisecond)
+	p.ticker = time.NewTicker(progressTickInterval)
 	go func() {
 		for {
 			select {
@@ -99,7 +109,7 @@ func (p *C7Progress) SetMetricRunning(id string, totalSamples int) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if m, ok := p.metrics[id]; ok {
-		m.Status = StatusRunning
+		m.Status = statusRunning
 		m.TotalSamples = totalSamples
 		m.CurrentSample = 0
 	}
@@ -119,7 +129,7 @@ func (p *C7Progress) SetMetricComplete(id string, score int) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if m, ok := p.metrics[id]; ok {
-		m.Status = StatusComplete
+		m.Status = statusComplete
 		m.Score = score
 	}
 }
@@ -129,7 +139,7 @@ func (p *C7Progress) SetMetricFailed(id string, err string) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if m, ok := p.metrics[id]; ok {
-		m.Status = StatusFailed
+		m.Status = statusFailed
 		m.Error = err
 	}
 }
@@ -165,18 +175,18 @@ func (p *C7Progress) render() {
 		// Use short ID for display (e.g., "M1" from "task_execution_consistency")
 		shortID := shortMetricID(id)
 		switch m.Status {
-		case StatusPending:
+		case statusPending:
 			parts = append(parts, fmt.Sprintf("%s: Pending", shortID))
-		case StatusRunning:
+		case statusRunning:
 			// Show percentage for progress visibility (C7-IMPL-06)
 			pct := 0
 			if m.TotalSamples > 0 {
-				pct = (m.CurrentSample * 100) / m.TotalSamples
+				pct = (m.CurrentSample * percentMultiplier) / m.TotalSamples
 			}
 			parts = append(parts, fmt.Sprintf("%s: %d%% (%d/%d)", shortID, pct, m.CurrentSample, m.TotalSamples))
-		case StatusComplete:
+		case statusComplete:
 			parts = append(parts, fmt.Sprintf("%s: Done(%d)", shortID, m.Score))
-		case StatusFailed:
+		case statusFailed:
 			parts = append(parts, fmt.Sprintf("%s: Failed", shortID))
 		}
 	}
@@ -185,7 +195,7 @@ func (p *C7Progress) render() {
 	tokenStr := formatTokens(p.totalTokens)
 
 	// Cost estimation: Sonnet 4.5 blended rate ~$5/MTok
-	costUSD := float64(p.totalTokens) / 1_000_000 * 5.0
+	costUSD := float64(p.totalTokens) / tokensPerMillion * costRatePerMTok
 
 	// Build and write line - includes "progress" text for C7-IMPL-06 compliance
 	elapsed := time.Since(p.startTime).Round(time.Second)
@@ -199,7 +209,7 @@ func (p *C7Progress) render() {
 	line += fmt.Sprintf(" | Tokens: %s | Est. $%.2f", tokenStr, costUSD)
 
 	// Pad with spaces to clear previous longer lines, then write
-	fmt.Fprintf(p.writer, "%-130s", line)
+	fmt.Fprintf(p.writer, "%-*s", progressLineWidth, line)
 }
 
 // Stop halts the progress display and prints a final summary.
@@ -233,7 +243,7 @@ func (p *C7Progress) printSummary() {
 
 	elapsed := time.Since(p.startTime).Round(time.Second)
 	tokenStr := formatTokens(p.totalTokens)
-	costUSD := float64(p.totalTokens) / 1_000_000 * 5.0
+	costUSD := float64(p.totalTokens) / tokensPerMillion * costRatePerMTok
 
 	fmt.Fprintf(p.writer, "C7 Evaluation complete in %s | Tokens: %s | Cost: $%.2f\n", elapsed, tokenStr, costUSD)
 }
@@ -261,11 +271,11 @@ func shortMetricID(id string) string {
 
 // formatTokens formats a token count with comma separators.
 func formatTokens(n int) string {
-	if n < 1000 {
+	if n < tokensPerThousand {
 		return fmt.Sprintf("%d", n)
 	}
-	if n < 1_000_000 {
-		return fmt.Sprintf("%d,%03d", n/1000, n%1000)
+	if n < tokensPerMillion {
+		return fmt.Sprintf("%d,%03d", n/tokensPerThousand, n%tokensPerThousand)
 	}
-	return fmt.Sprintf("%d,%03d,%03d", n/1_000_000, (n/1000)%1000, n%1000)
+	return fmt.Sprintf("%d,%03d,%03d", n/tokensPerMillion, (n/tokensPerThousand)%tokensPerThousand, n%tokensPerThousand)
 }

@@ -21,40 +21,40 @@ const (
 	m4SelfReportNegativeDelta  = -2    // Delta for self-reported incorrect interpretation
 )
 
-// M4Identifiers measures the agent's ability to infer meaning from identifier names.
+// m4Identifiers measures the agent's ability to infer meaning from identifier names.
 // It tests semantic interpretation of naming conventions without surrounding context.
 //
 // Research basis: Descriptive compound identifiers improve comprehension;
 // this tests the agent's ability to leverage meaningful naming.
-type M4Identifiers struct {
+type m4Identifiers struct {
 	sampleCount int
 	timeout     time.Duration
 }
 
-// NewM4IdentifiersMetric creates an Identifier Interpretability metric.
-func NewM4IdentifiersMetric() *M4Identifiers {
-	return &M4Identifiers{
+// newM4IdentifiersMetric creates an Identifier Interpretability metric.
+func newM4IdentifiersMetric() *m4Identifiers {
+	return &m4Identifiers{
 		sampleCount: m4SampleCount,
 		timeout:     m4Timeout,
 	}
 }
 
 // ID returns the metric identifier.
-func (m *M4Identifiers) ID() string { return "identifier_interpretability" }
+func (m *m4Identifiers) ID() string { return "identifier_interpretability" }
 
 // Name returns the human-readable metric name.
-func (m *M4Identifiers) Name() string { return "Identifier Interpretability" }
+func (m *m4Identifiers) Name() string { return "Identifier Interpretability" }
 
 // Description returns what this metric measures.
-func (m *M4Identifiers) Description() string {
+func (m *m4Identifiers) Description() string {
 	return "Measures ability to infer meaning from identifier names"
 }
 
 // Timeout returns the per-metric timeout duration.
-func (m *M4Identifiers) Timeout() time.Duration { return m.timeout }
+func (m *m4Identifiers) Timeout() time.Duration { return m.timeout }
 
 // SampleCount returns the number of samples to evaluate.
-func (m *M4Identifiers) SampleCount() int { return m.sampleCount }
+func (m *m4Identifiers) SampleCount() int { return m.sampleCount }
 
 // identifierCandidate holds an extracted identifier and its source.
 type identifierCandidate struct {
@@ -66,7 +66,7 @@ type identifierCandidate struct {
 
 // SelectSamples extracts exported identifiers and selects those with longer,
 // more semantically rich names. Longer names = more semantic content to test.
-func (m *M4Identifiers) SelectSamples(targets []*types.AnalysisTarget) []Sample {
+func (m *m4Identifiers) SelectSamples(targets []*types.AnalysisTarget) []Sample {
 	var candidates []identifierCandidate
 
 	// Patterns for exported identifiers by language
@@ -212,7 +212,7 @@ Consider:
 Respond with JSON only: {"score": N, "reason": "brief explanation"}`
 
 // Execute asks the agent to interpret identifier meanings.
-func (m *M4Identifiers) Execute(ctx context.Context, workDir string, samples []Sample, executor Executor) MetricResult {
+func (m *m4Identifiers) Execute(ctx context.Context, workDir string, samples []Sample, executor Executor) MetricResult {
 	result := MetricResult{
 		MetricID:   m.ID(),
 		MetricName: m.Name(),
@@ -288,7 +288,7 @@ Format:
 //
 // Scoring uses thematic groups with variable weights. Self-report groups have
 // higher impact (+2/-2) since the agent's own accuracy assessment is a strong signal.
-func (m *M4Identifiers) scoreIdentifierResponse(response string) (int, ScoreTrace) {
+func (m *m4Identifiers) scoreIdentifierResponse(response string) (int, ScoreTrace) {
 	responseLower := strings.ToLower(response)
 
 	trace := ScoreTrace{BaseScore: m4BaseScore}

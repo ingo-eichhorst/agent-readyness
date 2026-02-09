@@ -10,8 +10,15 @@ import (
 	"github.com/ingo/agent-readyness/pkg/types"
 )
 
-// PromptParams holds all data needed to render an improvement prompt.
-type PromptParams struct {
+// Constants for prompt generation.
+const (
+	targetScoreOffset = 2.0
+	maxScorePrompt    = 10.0
+	maxEvidenceItems  = 5
+)
+
+// promptParams holds all data needed to render an improvement prompt.
+type promptParams struct {
 	CategoryName    string // e.g., "C1"
 	CategoryDisplay string // e.g., "C1: Code Health"
 	CategoryImpact  string // from categoryImpact()
@@ -29,7 +36,7 @@ type PromptParams struct {
 
 // renderImprovementPrompt builds HTML containing a copyable prompt with
 // 4 sections: Context, Build & Test, Task, and Verification.
-func renderImprovementPrompt(params PromptParams) string {
+func renderImprovementPrompt(params promptParams) string {
 	var b strings.Builder
 
 	// Build the plain-text prompt content
@@ -42,9 +49,9 @@ func renderImprovementPrompt(params PromptParams) string {
 	if params.HasBreakpoints {
 		prompt.WriteString(fmt.Sprintf("Target score: %.1f/10 (target value: %.4g)\n", params.TargetScore, params.TargetValue))
 	} else {
-		targetScore := params.Score + 2
-		if targetScore > 10 {
-			targetScore = 10
+		targetScore := params.Score + targetScoreOffset
+		if targetScore > maxScorePrompt {
+			targetScore = maxScorePrompt
 		}
 		prompt.WriteString(fmt.Sprintf("Target score: Improve score above %.1f/10\n", targetScore))
 	}
@@ -64,8 +71,8 @@ func renderImprovementPrompt(params PromptParams) string {
 	if len(params.Evidence) > 0 {
 		prompt.WriteString("\n### Files to Focus On\n\n")
 		limit := len(params.Evidence)
-		if limit > 5 {
-			limit = 5
+		if limit > maxEvidenceItems {
+			limit = maxEvidenceItems
 		}
 		for i := 0; i < limit; i++ {
 			ev := params.Evidence[i]
@@ -102,8 +109,8 @@ func nextTarget(score float64, breakpoints []scoring.Breakpoint) (targetValue fl
 	}
 
 	// Already at max
-	if score >= 10 {
-		return breakpoints[len(breakpoints)-1].Value, 10
+	if score >= maxScorePrompt {
+		return breakpoints[len(breakpoints)-1].Value, maxScorePrompt
 	}
 
 	// Detect direction: ascending means first breakpoint score < last breakpoint score

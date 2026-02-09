@@ -15,6 +15,12 @@ import (
 	"github.com/ingo/agent-readyness/pkg/types"
 )
 
+// Score range for all metric evaluations (1-10 scale).
+const (
+	minScore = 1
+	maxScore = 10
+)
+
 // Metric defines a single MECE agent evaluation capability.
 type Metric interface {
 	ID() string                    // e.g., "task_execution_consistency"
@@ -81,25 +87,25 @@ type Executor interface {
 
 // NewM1Consistency creates the Task Execution Consistency metric.
 func NewM1Consistency() Metric {
-	return NewM1ConsistencyMetric()
+	return newM1ConsistencyMetric()
 }
 
 // NewM2Comprehension creates the Code Behavior Comprehension metric.
 func NewM2Comprehension() Metric {
-	return NewM2ComprehensionMetric()
+	return newM2ComprehensionMetric()
 }
 
 // NewM3Navigation creates the Cross-File Navigation metric.
 func NewM3Navigation() Metric {
-	return NewM3NavigationMetric()
+	return newM3NavigationMetric()
 }
 
 // NewM4Identifiers creates the Identifier Interpretability metric.
 func NewM4Identifiers() Metric {
-	return NewM4IdentifiersMetric()
+	return newM4IdentifiersMetric()
 }
 
 // NewM5Documentation creates the Documentation Accuracy Detection metric.
 func NewM5Documentation() Metric {
-	return NewM5DocumentationMetric()
+	return newM5DocumentationMetric()
 }

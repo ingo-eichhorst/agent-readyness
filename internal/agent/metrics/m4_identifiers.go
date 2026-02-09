@@ -11,6 +11,16 @@ import (
 	"github.com/ingo/agent-readyness/pkg/types"
 )
 
+// M4 sample selection and scoring constants.
+const (
+	m4SampleCount   = 5                // Number of identifiers to evaluate
+	m4Timeout       = 180 * time.Second // Total timeout across all samples
+	m4MinNameLength = 4                // Minimum identifier name length for selection
+	m4BaseScore     = 1                // Starting score before heuristic adjustments
+	m4SelfReportPositiveDelta  = 2     // Delta for self-reported accurate interpretation
+	m4SelfReportNegativeDelta  = -2    // Delta for self-reported incorrect interpretation
+)
+
 // M4Identifiers measures the agent's ability to infer meaning from identifier names.
 // It tests semantic interpretation of naming conventions without surrounding context.
 //
@@ -24,17 +34,26 @@ type M4Identifiers struct {
 // NewM4IdentifiersMetric creates an Identifier Interpretability metric.
 func NewM4IdentifiersMetric() *M4Identifiers {
 	return &M4Identifiers{
-		sampleCount: 5,
-		timeout:     180 * time.Second,
+		sampleCount: m4SampleCount,
+		timeout:     m4Timeout,
 	}
 }
 
+// ID returns the metric identifier.
 func (m *M4Identifiers) ID() string { return "identifier_interpretability" }
+
+// Name returns the human-readable metric name.
 func (m *M4Identifiers) Name() string { return "Identifier Interpretability" }
+
+// Description returns what this metric measures.
 func (m *M4Identifiers) Description() string {
 	return "Measures ability to infer meaning from identifier names"
 }
+
+// Timeout returns the per-metric timeout duration.
 func (m *M4Identifiers) Timeout() time.Duration { return m.timeout }
+
+// SampleCount returns the number of samples to evaluate.
 func (m *M4Identifiers) SampleCount() int { return m.sampleCount }
 
 // identifierCandidate holds an extracted identifier and its source.
@@ -86,7 +105,7 @@ func (m *M4Identifiers) SelectSamples(targets []*types.AnalysisTarget) []Sample 
 						name := content[match[2]:match[3]]
 
 						// Skip very short names (less semantic content)
-						if len(name) < 4 {
+						if len(name) < m4MinNameLength {
 							continue
 						}
 
@@ -272,14 +291,14 @@ Format:
 func (m *M4Identifiers) scoreIdentifierResponse(response string) (int, ScoreTrace) {
 	responseLower := strings.ToLower(response)
 
-	trace := ScoreTrace{BaseScore: 1}
+	trace := ScoreTrace{BaseScore: m4BaseScore}
 
 	// Self-report positive group (+2): agent confirms its interpretation was right
 	// Uses "accurate" rather than "correct" to avoid false positive on "partially correct"
 	matchedPositive := strings.Contains(responseLower, "accurate")
 	deltaPositive := 0
 	if matchedPositive {
-		deltaPositive = 2
+		deltaPositive = m4SelfReportPositiveDelta
 	}
 	trace.Indicators = append(trace.Indicators, IndicatorMatch{
 		Name: "group:self_report_positive", Matched: matchedPositive, Delta: deltaPositive,
@@ -301,7 +320,7 @@ func (m *M4Identifiers) scoreIdentifierResponse(response string) (int, ScoreTrac
 		strings.Contains(responseLower, "misunderstood")
 	deltaNegative := 0
 	if matchedNegative {
-		deltaNegative = -2
+		deltaNegative = m4SelfReportNegativeDelta
 	}
 	trace.Indicators = append(trace.Indicators, IndicatorMatch{
 		Name: "group:self_report_negative", Matched: matchedNegative, Delta: deltaNegative,
@@ -363,11 +382,11 @@ func (m *M4Identifiers) scoreIdentifierResponse(response string) (int, ScoreTrac
 	for _, ind := range trace.Indicators {
 		score += ind.Delta
 	}
-	if score < 1 {
-		score = 1
+	if score < minScore {
+		score = minScore
 	}
-	if score > 10 {
-		score = 10
+	if score > maxScore {
+		score = maxScore
 	}
 	trace.FinalScore = score
 

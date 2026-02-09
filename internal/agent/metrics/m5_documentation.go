@@ -11,6 +11,17 @@ import (
 	"github.com/ingo/agent-readyness/pkg/types"
 )
 
+// M5 sample selection and scoring constants.
+const (
+	m5SampleCount            = 3                // Number of documentation samples to evaluate
+	m5Timeout                = 180 * time.Second // Total timeout across all samples
+	m5MinFileLOC             = 20               // Minimum file size for sample selection
+	m5MinCommentDensity      = 0.05             // Minimum comment density (5%) for selection
+	m5BlockCommentLinesEst   = 3                // Estimated average lines per block comment
+	m5PercentMultiplier      = 100              // Multiplier for density-to-percent display
+	m5BaseScore              = 3                // Starting score before heuristic adjustments
+)
+
 // M5Documentation measures the agent's ability to detect comment/code mismatches.
 // It tests the agent's understanding of documentation accuracy.
 //
@@ -24,17 +35,26 @@ type M5Documentation struct {
 // NewM5DocumentationMetric creates a Documentation Accuracy Detection metric.
 func NewM5DocumentationMetric() *M5Documentation {
 	return &M5Documentation{
-		sampleCount: 3,
-		timeout:     180 * time.Second,
+		sampleCount: m5SampleCount,
+		timeout:     m5Timeout,
 	}
 }
 
+// ID returns the metric identifier.
 func (m *M5Documentation) ID() string { return "documentation_accuracy_detection" }
+
+// Name returns the human-readable metric name.
 func (m *M5Documentation) Name() string { return "Documentation Accuracy Detection" }
+
+// Description returns what this metric measures.
 func (m *M5Documentation) Description() string {
 	return "Measures ability to detect comment/code mismatches"
 }
+
+// Timeout returns the per-metric timeout duration.
 func (m *M5Documentation) Timeout() time.Duration { return m.timeout }
+
+// SampleCount returns the number of samples to evaluate.
 func (m *M5Documentation) SampleCount() int { return m.sampleCount }
 
 // SelectSamples picks files with high comment density (> 5% comment lines).
@@ -52,7 +72,7 @@ func (m *M5Documentation) SelectSamples(targets []*types.AnalysisTarget) []Sampl
 			if file.Class != types.ClassSource {
 				continue
 			}
-			if file.Lines < 20 { // Skip very small files
+			if file.Lines < m5MinFileLOC { // Skip very small files
 				continue
 			}
 
@@ -73,21 +93,21 @@ func (m *M5Documentation) SelectSamples(targets []*types.AnalysisTarget) []Sampl
 			blockStarts := len(blockCommentStart.FindAllString(content, -1))
 			blockEnds := len(blockCommentEnd.FindAllString(content, -1))
 			// Estimate average block comment is 3 lines
-			blockLines := min(blockStarts, blockEnds) * 3
+			blockLines := min(blockStarts, blockEnds) * m5BlockCommentLinesEst
 			commentLines += blockLines
 
 			// Calculate comment density
 			density := float64(commentLines) / float64(file.Lines)
 
 			// Skip files with very low comment density
-			if density < 0.05 {
+			if density < m5MinCommentDensity {
 				continue
 			}
 
 			candidates = append(candidates, Sample{
 				FilePath:       file.RelPath,
 				SelectionScore: density,
-				Description:    fmt.Sprintf("Comment density %.1f%% (%d comment lines)", density*100, commentLines),
+				Description:    fmt.Sprintf("Comment density %.1f%% (%d comment lines)", density*m5PercentMultiplier, commentLines),
 			})
 		}
 	}
@@ -217,7 +237,7 @@ If all documentation appears accurate, state that clearly.`, sample.FilePath)
 func (m *M5Documentation) scoreDocumentationResponse(response string) (int, ScoreTrace) {
 	responseLower := strings.ToLower(response)
 
-	trace := ScoreTrace{BaseScore: 3}
+	trace := ScoreTrace{BaseScore: m5BaseScore}
 
 	// Thematic indicator groups: each group +1 if ANY member matches.
 
@@ -322,11 +342,11 @@ func (m *M5Documentation) scoreDocumentationResponse(response string) (int, Scor
 	for _, ind := range trace.Indicators {
 		score += ind.Delta
 	}
-	if score < 1 {
-		score = 1
+	if score < minScore {
+		score = minScore
 	}
-	if score > 10 {
-		score = 10
+	if score > maxScore {
+		score = maxScore
 	}
 	trace.FinalScore = score
 

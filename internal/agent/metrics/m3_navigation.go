@@ -11,6 +11,16 @@ import (
 	"github.com/ingo/agent-readyness/pkg/types"
 )
 
+// M3 sample selection and scoring constants.
+const (
+	m3SampleCount       = 2                // Number of code samples to evaluate
+	m3Timeout           = 360 * time.Second // Total timeout across all samples
+	m3MinImports        = 3                // Minimum imports for sample selection
+	m3BaseScore         = 2                // Starting score before heuristic adjustments
+	m3DepthPathCount    = 6                // Min path reference count for depth indicator
+	m3ExtensiveWordCount = 200             // Min word count for extensive response indicator
+)
+
 // M3Navigation measures the agent's ability to trace dependencies across files.
 // It tests cross-file understanding and data flow tracing.
 //
@@ -24,17 +34,26 @@ type M3Navigation struct {
 // NewM3NavigationMetric creates a Cross-File Navigation metric.
 func NewM3NavigationMetric() *M3Navigation {
 	return &M3Navigation{
-		sampleCount: 2,
-		timeout:     360 * time.Second,
+		sampleCount: m3SampleCount,
+		timeout:     m3Timeout,
 	}
 }
 
+// ID returns the metric identifier.
 func (m *M3Navigation) ID() string { return "cross_file_navigation" }
+
+// Name returns the human-readable metric name.
 func (m *M3Navigation) Name() string { return "Cross-File Navigation" }
+
+// Description returns what this metric measures.
 func (m *M3Navigation) Description() string {
 	return "Measures ability to trace dependencies across files"
 }
+
+// Timeout returns the per-metric timeout duration.
 func (m *M3Navigation) Timeout() time.Duration { return m.timeout }
+
+// SampleCount returns the number of samples to evaluate.
 func (m *M3Navigation) SampleCount() int { return m.sampleCount }
 
 // SelectSamples picks files with many imports (dependency entry points).
@@ -65,7 +84,7 @@ func (m *M3Navigation) SelectSamples(targets []*types.AnalysisTarget) []Sample {
 			matches := pattern.FindAllString(content, -1)
 			importCount := len(matches)
 
-			if importCount < 3 { // Skip files with few imports
+			if importCount < m3MinImports { // Skip files with few imports
 				continue
 			}
 
@@ -186,7 +205,7 @@ Reference actual file paths and function names from the codebase.`, sample.FileP
 func (m *M3Navigation) scoreNavigationResponse(response string) (int, ScoreTrace) {
 	responseLower := strings.ToLower(response)
 
-	trace := ScoreTrace{BaseScore: 2}
+	trace := ScoreTrace{BaseScore: m3BaseScore}
 
 	// Thematic indicator groups: each group +1 if ANY member matches.
 	type indicatorGroup struct {
@@ -220,7 +239,7 @@ func (m *M3Navigation) scoreNavigationResponse(response string) (int, ScoreTrace
 	// Depth group: based on file path reference count
 	pathCount := strings.Count(response, "/")
 
-	matchedDepth := pathCount > 6
+	matchedDepth := pathCount > m3DepthPathCount
 	deltaDepth := 0
 	if matchedDepth {
 		deltaDepth = 1
@@ -231,7 +250,7 @@ func (m *M3Navigation) scoreNavigationResponse(response string) (int, ScoreTrace
 
 	// Extensive depth group: lengthy response with many paths
 	wordCount := len(strings.Fields(response))
-	matchedExtensive := wordCount > 200
+	matchedExtensive := wordCount > m3ExtensiveWordCount
 	deltaExtensive := 0
 	if matchedExtensive {
 		deltaExtensive = 1
@@ -262,11 +281,11 @@ func (m *M3Navigation) scoreNavigationResponse(response string) (int, ScoreTrace
 	for _, ind := range trace.Indicators {
 		score += ind.Delta
 	}
-	if score < 1 {
-		score = 1
+	if score < minScore {
+		score = minScore
 	}
-	if score > 10 {
-		score = 10
+	if score > maxScore {
+		score = maxScore
 	}
 	trace.FinalScore = score
 

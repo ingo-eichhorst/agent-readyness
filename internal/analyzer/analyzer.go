@@ -14,15 +14,25 @@ import (
 	"github.com/ingo/agent-readyness/internal/parser"
 )
 
-// Type aliases for backward compatibility.
-// These allow existing code to continue using analyzer.CxAnalyzer
-// after the types are moved to subdirectories.
+// C1Analyzer is the C1 (Code Quality) analyzer type.
 type C1Analyzer = c1.C1Analyzer
+
+// C2Analyzer is the C2 (Semantic Explicitness) analyzer type.
 type C2Analyzer = c2.C2Analyzer
+
+// C3Analyzer is the C3 (Architectural Navigability) analyzer type.
 type C3Analyzer = c3.C3Analyzer
+
+// C4Analyzer is the C4 (Documentation) analyzer type.
 type C4Analyzer = c4.C4Analyzer
+
+// C5Analyzer is the C5 (Temporal History) analyzer type.
 type C5Analyzer = c5.C5Analyzer
+
+// C6Analyzer is the C6 (Testing) analyzer type.
 type C6Analyzer = c6.C6Analyzer
+
+// C7Analyzer is the C7 (Agent Evaluation) analyzer type.
 type C7Analyzer = c7.C7Analyzer
 
 // Constructor wrappers for backward compatibility.

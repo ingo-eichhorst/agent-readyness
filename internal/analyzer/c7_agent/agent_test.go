@@ -276,6 +276,184 @@ func TestBuildMetrics_DebugOn_PopulatesDebugSamples(t *testing.T) {
 	}
 }
 
+func TestC7Analyzer_Analyze_NoTargets(t *testing.T) {
+	analyzer := NewC7Analyzer()
+	// Enable with a mock evaluator
+	analyzer.Enable(&agent.Evaluator{})
+
+	// Analyze with empty targets
+	_, err := analyzer.Analyze([]*types.AnalysisTarget{})
+	if err == nil {
+		t.Error("expected error for empty targets, got nil")
+	}
+	if !strings.Contains(err.Error(), "no targets provided") {
+		t.Errorf("expected 'no targets provided' error, got: %v", err)
+	}
+}
+
+func TestC7Analyzer_Analyze_EvaluatorNil(t *testing.T) {
+	analyzer := NewC7Analyzer()
+	// Don't enable - evaluator remains nil
+
+	targets := []*types.AnalysisTarget{
+		{
+			Language: types.LangGo,
+			RootDir:  "/tmp/test",
+		},
+	}
+
+	result, err := analyzer.Analyze(targets)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	c7, ok := result.Metrics["c7"].(*types.C7Metrics)
+	if !ok {
+		t.Fatal("expected c7 metrics in result")
+	}
+
+	if c7.Available {
+		t.Error("expected Available=false when evaluator is nil")
+	}
+}
+
+func TestC7Analyzer_DisabledResult(t *testing.T) {
+	analyzer := NewC7Analyzer()
+	result := analyzer.disabledResult()
+
+	if result.Name != "C7: Agent Evaluation" {
+		t.Errorf("expected name 'C7: Agent Evaluation', got %q", result.Name)
+	}
+	if result.Category != "C7" {
+		t.Errorf("expected category 'C7', got %q", result.Category)
+	}
+
+	c7, ok := result.Metrics["c7"].(*types.C7Metrics)
+	if !ok {
+		t.Fatal("expected c7 metrics in result")
+	}
+	if c7.Available {
+		t.Error("disabled result should have Available=false")
+	}
+}
+
+func TestC7Analyzer_SetDebugDir(t *testing.T) {
+	analyzer := NewC7Analyzer()
+
+	// Initially empty
+	if analyzer.debugDir != "" {
+		t.Error("debugDir should be empty by default")
+	}
+
+	analyzer.SetDebugDir("/tmp/debug")
+
+	if analyzer.debugDir != "/tmp/debug" {
+		t.Errorf("debugDir = %q, want '/tmp/debug'", analyzer.debugDir)
+	}
+}
+
+func TestC7Analyzer_SetEvaluator(t *testing.T) {
+	analyzer := NewC7Analyzer()
+
+	// Initially nil
+	if analyzer.evaluator != nil {
+		t.Error("evaluator should be nil by default")
+	}
+
+	eval := &agent.Evaluator{}
+	analyzer.SetEvaluator(eval)
+
+	if analyzer.evaluator != eval {
+		t.Error("evaluator should be set")
+	}
+
+	// Should also set enabled flag
+	if !analyzer.enabled {
+		t.Error("SetEvaluator should enable the analyzer")
+	}
+}
+
+func TestBuildMetrics_EmptyResults(t *testing.T) {
+	analyzer := NewC7Analyzer()
+	startTime := time.Now()
+
+	emptyResult := agent.ParallelResult{
+		Results: []metrics.MetricResult{},
+	}
+
+	m := analyzer.buildMetrics(emptyResult, startTime)
+
+	if !m.Available {
+		t.Error("metrics should be available even with empty results")
+	}
+	if len(m.MetricResults) != 0 {
+		t.Errorf("expected 0 metric results, got %d", len(m.MetricResults))
+	}
+	if m.TotalDuration <= 0 {
+		t.Error("total duration should be > 0")
+	}
+}
+
+func TestBuildMetrics_WithErrors(t *testing.T) {
+	analyzer := NewC7Analyzer()
+	startTime := time.Now()
+
+	// Simulate some metrics succeeding, some failing
+	parallelResult := agent.ParallelResult{
+		Results: []metrics.MetricResult{
+			{
+				MetricID:   "code_navigation",
+				MetricName: "Code Navigation",
+				Score:      8,
+				Duration:   2 * time.Second,
+				Samples: []metrics.SampleResult{
+					{
+						Sample: metrics.Sample{FilePath: "test.go"},
+						Score:  8,
+					},
+				},
+			},
+			{
+				MetricID:   "task_breakdown",
+				MetricName: "Task Breakdown",
+				Score:      0,   // failed metric
+				Duration:   100 * time.Millisecond,
+				Samples:    nil, // no samples due to failure
+			},
+		},
+	}
+
+	metrics := analyzer.buildMetrics(parallelResult, startTime)
+
+	if !metrics.Available {
+		t.Error("metrics should be available even with some failures")
+	}
+	if len(metrics.MetricResults) != 2 {
+		t.Errorf("expected 2 metric results, got %d", len(metrics.MetricResults))
+	}
+
+	// Check that both results are present
+	foundNav := false
+	foundTask := false
+	for _, mr := range metrics.MetricResults {
+		if mr.MetricID == "code_navigation" {
+			foundNav = true
+			if mr.Score != 8 {
+				t.Errorf("code_navigation score = %d, want 8", mr.Score)
+			}
+		}
+		if mr.MetricID == "task_breakdown" {
+			foundTask = true
+			if mr.Score != 0 {
+				t.Errorf("task_breakdown score = %d, want 0", mr.Score)
+			}
+		}
+	}
+	if !foundNav || !foundTask {
+		t.Error("missing expected metric results")
+	}
+}
+
 func TestC7MetricResult_DebugSamples_OmitEmpty_JSON(t *testing.T) {
 	// Case 1: nil DebugSamples should be omitted from JSON
 	mr := types.C7MetricResult{

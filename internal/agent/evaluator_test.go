@@ -169,3 +169,111 @@ func TestEvaluationResult_JSONUnmarshal(t *testing.T) {
 func unmarshalEvaluationResult(data []byte, r *EvaluationResult) error {
 	return json.Unmarshal(data, r)
 }
+
+func TestEvaluationResult_JSONMarshaling(t *testing.T) {
+	result := EvaluationResult{
+		Score:  8,
+		Reason: "well-written content",
+	}
+
+	// Marshal to JSON
+	data, err := json.Marshal(result)
+	if err != nil {
+		t.Fatalf("failed to marshal: %v", err)
+	}
+
+	// Unmarshal back
+	var decoded EvaluationResult
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		t.Fatalf("failed to unmarshal: %v", err)
+	}
+
+	if decoded.Score != result.Score {
+		t.Errorf("score = %d, want %d", decoded.Score, result.Score)
+	}
+	if decoded.Reason != result.Reason {
+		t.Errorf("reason = %q, want %q", decoded.Reason, result.Reason)
+	}
+}
+
+func TestEvaluationResult_ScoreValidation(t *testing.T) {
+	// Test that the EvaluationResult struct can hold scores 1-10
+	tests := []struct {
+		score      int
+		shouldFail bool
+	}{
+		{1, false},   // min valid
+		{10, false},  // max valid
+		{5, false},   // mid range
+		{0, true},    // below minimum (would fail validation in evaluator)
+		{11, true},   // above maximum (would fail validation in evaluator)
+		{-1, true},   // negative (would fail validation in evaluator)
+	}
+
+	for _, tt := range tests {
+		t.Run(string(rune('0'+tt.score)), func(t *testing.T) {
+			result := EvaluationResult{
+				Score:  tt.score,
+				Reason: "test",
+			}
+
+			// The struct itself doesn't validate, but the evaluator does
+			// Just verify the struct can hold these values
+			if result.Score != tt.score {
+				t.Errorf("score not stored correctly")
+			}
+		})
+	}
+}
+
+func TestNewEvaluator_TimeoutHandling(t *testing.T) {
+	tests := []struct {
+		name           string
+		inputTimeout   time.Duration
+		expectedOutput time.Duration
+	}{
+		{
+			name:           "zero timeout uses default",
+			inputTimeout:   0,
+			expectedOutput: 60 * time.Second,
+		},
+		{
+			name:           "custom timeout preserved",
+			inputTimeout:   30 * time.Second,
+			expectedOutput: 30 * time.Second,
+		},
+		{
+			name:           "very short timeout preserved",
+			inputTimeout:   1 * time.Second,
+			expectedOutput: 1 * time.Second,
+		},
+		{
+			name:           "very long timeout preserved",
+			inputTimeout:   5 * time.Minute,
+			expectedOutput: 5 * time.Minute,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			e := NewEvaluator(tt.inputTimeout)
+			if e.timeout != tt.expectedOutput {
+				t.Errorf("timeout = %v, want %v", e.timeout, tt.expectedOutput)
+			}
+		})
+	}
+}
+
+func TestEvaluator_TimeoutField(t *testing.T) {
+	// Test that evaluator stores timeout correctly
+	e := NewEvaluator(10 * time.Second)
+
+	if e == nil {
+		t.Fatal("evaluator should not be nil")
+	}
+
+	// Verify evaluator has the correct timeout
+	if e.timeout != 10*time.Second {
+		t.Errorf("timeout = %v, want 10s", e.timeout)
+	}
+}

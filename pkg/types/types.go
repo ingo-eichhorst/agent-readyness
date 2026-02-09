@@ -131,6 +131,7 @@ type C1Metrics struct {
 	Functions            []FunctionMetric // per-function detail
 }
 
+// IsCategoryMetrics marks C1Metrics as a CategoryMetrics implementation.
 func (*C1Metrics) IsCategoryMetrics() {}
 
 // C3Metrics holds Architectural Navigability metric results.
@@ -143,6 +144,7 @@ type C3Metrics struct {
 	DeadExports       []DeadExport  // unreferenced exported symbols
 }
 
+// IsCategoryMetrics marks C3Metrics as a CategoryMetrics implementation.
 func (*C3Metrics) IsCategoryMetrics() {}
 
 // DeadExport represents an exported symbol not referenced within the module.
@@ -173,6 +175,7 @@ type C2LanguageMetrics struct {
 	LOC                    int     // lines of code for this language
 }
 
+// IsCategoryMetrics marks C2Metrics as a CategoryMetrics implementation.
 func (*C2Metrics) IsCategoryMetrics() {}
 
 // C6Metrics holds Testing Infrastructure metric results.
@@ -197,6 +200,7 @@ type TestFunctionMetric struct {
 	HasExternalDep bool
 }
 
+// IsCategoryMetrics marks C6Metrics as a CategoryMetrics implementation.
 func (*C6Metrics) IsCategoryMetrics() {}
 
 // C5Metrics holds Temporal & Operational Dynamics metric results.
@@ -229,6 +233,7 @@ type CoupledPair struct {
 	SharedCommits int
 }
 
+// IsCategoryMetrics marks C5Metrics as a CategoryMetrics implementation.
 func (*C5Metrics) IsCategoryMetrics() {}
 
 // C4Metrics holds Documentation Quality metric results.
@@ -260,6 +265,7 @@ type C4Metrics struct {
 	LLMFilesSampled   int     // Number of files sampled for LLM analysis
 }
 
+// IsCategoryMetrics marks C4Metrics as a CategoryMetrics implementation.
 func (*C4Metrics) IsCategoryMetrics() {}
 
 // C7Metrics holds Agent Evaluation metric results including 5 MECE metrics.
@@ -293,6 +299,7 @@ type C7Metrics struct {
 	CostUSD       float64 // estimated cost
 }
 
+// IsCategoryMetrics marks C7Metrics as a CategoryMetrics implementation.
 func (*C7Metrics) IsCategoryMetrics() {}
 
 // C7TaskResult holds results for a single C7 evaluation task.

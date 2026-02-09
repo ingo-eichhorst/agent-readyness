@@ -86,7 +86,7 @@ func (a *C2Analyzer) Analyze(targets []*types.AnalysisTarget) (*types.AnalysisRe
 	return &types.AnalysisResult{
 		Name:     "C2: Semantic Explicitness",
 		Category: "C2",
-		Metrics:  map[string]interface{}{"c2": metrics},
+		Metrics:  map[string]types.CategoryMetrics{"c2": metrics},
 	}, nil
 }
 

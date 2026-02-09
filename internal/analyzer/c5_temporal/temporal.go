@@ -16,6 +16,24 @@ import (
 	"github.com/ingo/agent-readyness/pkg/types"
 )
 
+// Temporal analysis constants.
+const (
+	defaultAnalysisMonths     = 6
+	gitLogTimeout             = 25 * time.Second
+	gitSHAMinLength           = 40
+	defaultChurnWindowDays    = 90
+	minCommitsForCoupling     = 5
+	maxFilesPerCommitCoupling = 50
+	topHotspotsLimit          = 10
+	approxDaysPerMonth        = 30
+	couplingStrengthThreshold = 70.0
+	toPercentC5               = 100.0
+	secondsPerDay             = 86400.0
+	defaultStabilityDays      = 30.0
+	hotspotTopPercentDivisor  = 10
+	numstatFieldCount         = 3
+)
+
 // C5Analyzer implements the pipeline.Analyzer interface for C5: Temporal Dynamics.
 // It parses git log output and computes churn rate, temporal coupling,
 // author fragmentation, commit stability, and hotspot concentration.
@@ -43,11 +61,11 @@ func (a *C5Analyzer) Analyze(targets []*types.AnalysisTarget) (*types.AnalysisRe
 		return &types.AnalysisResult{
 			Name:     "C5: Temporal Dynamics",
 			Category: "C5",
-			Metrics:  map[string]interface{}{"c5": &types.C5Metrics{Available: false}},
+			Metrics:  map[string]types.CategoryMetrics{"c5": &types.C5Metrics{Available: false}},
 		}, nil
 	}
 
-	metrics, err := analyzeGitHistory(rootDir, 6) // 6-month window
+	metrics, err := analyzeGitHistory(rootDir, defaultAnalysisMonths)
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +73,7 @@ func (a *C5Analyzer) Analyze(targets []*types.AnalysisTarget) (*types.AnalysisRe
 	return &types.AnalysisResult{
 		Name:     "C5: Temporal Dynamics",
 		Category: "C5",
-		Metrics:  map[string]interface{}{"c5": metrics},
+		Metrics:  map[string]types.CategoryMetrics{"c5": metrics},
 	}, nil
 }
 
@@ -75,9 +93,18 @@ type fileChange struct {
 }
 
 // runGitLog executes git log and parses the output into commit structs.
+//
+// Git output format:
+// - --pretty=format:%H|%ae|%at : hash|author_email|unix_timestamp
+// - --numstat: added\tdeleted\tpath for each file in commit
+// - --no-merges: excludes merge commits to focus on authored changes
+//
+// Rename handling: Converts git's "{old => new}" notation to final path via resolveRenamePath.
+// Timeout: 25s context timeout with graceful degradation (returns partial results on timeout).
+// Binary files: Skipped (git shows "-" for added/deleted counts).
 func runGitLog(rootDir string, months int) ([]commitInfo, error) {
 	since := fmt.Sprintf("--since=%d months ago", months)
-	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), gitLogTimeout)
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, "git", "log",
@@ -113,7 +140,8 @@ func runGitLog(rootDir string, months int) ([]commitInfo, error) {
 		}
 
 		// Header line: hash|author|timestamp
-		if parts := strings.SplitN(line, "|", 3); len(parts) == 3 && len(parts[0]) >= 40 {
+		// Check hash length (>=40 chars) to distinguish from numstat lines with pipes
+		if parts := strings.SplitN(line, "|", numstatFieldCount); len(parts) == numstatFieldCount && len(parts[0]) >= gitSHAMinLength {
 			if current != nil {
 				commits = append(commits, *current)
 			}
@@ -128,9 +156,10 @@ func runGitLog(rootDir string, months int) ([]commitInfo, error) {
 
 		// Numstat line: added\tdeleted\tpath
 		if current != nil && strings.Contains(line, "\t") {
-			parts := strings.SplitN(line, "\t", 3)
-			if len(parts) == 3 {
-				// Skip binary files (added/deleted shown as "-")
+			parts := strings.SplitN(line, "\t", numstatFieldCount)
+			if len(parts) == numstatFieldCount {
+				// Skip binary files: git numstat shows "-" for added/deleted counts on binary files
+				// Binary files would skew churn metrics since we can't measure meaningful line changes
 				if parts[0] == "-" || parts[1] == "-" {
 					continue
 				}
@@ -216,14 +245,14 @@ func analyzeGitHistory(rootDir string, months int) (*types.C5Metrics, error) {
 		return &types.C5Metrics{Available: false}, nil
 	}
 
-	churnRate := calcChurnRate(commits, 90)
-	couplingPct, coupledPairs := calcTemporalCoupling(commits, 5, 50)
-	authorFrag := calcAuthorFragmentation(commits, 90)
+	churnRate := calcChurnRate(commits, defaultChurnWindowDays)
+	couplingPct, coupledPairs := calcTemporalCoupling(commits, minCommitsForCoupling, maxFilesPerCommitCoupling)
+	authorFrag := calcAuthorFragmentation(commits, defaultChurnWindowDays)
 	stability := calcCommitStability(commits)
 	hotspotPct, _ := calcHotspotConcentration(commits)
 
 	// Build TopHotspots (up to 10) with full detail
-	topHotspots := buildTopHotspots(commits, 10)
+	topHotspots := buildTopHotspots(commits, topHotspotsLimit)
 
 	return &types.C5Metrics{
 		Available:            true,
@@ -235,11 +264,13 @@ func analyzeGitHistory(rootDir string, months int) (*types.C5Metrics, error) {
 		TopHotspots:          topHotspots,
 		CoupledPairs:         coupledPairs,
 		TotalCommits:         len(commits),
-		TimeWindowDays:       months * 30,
+		TimeWindowDays:       months * approxDaysPerMonth,
 	}, nil
 }
 
 // calcChurnRate computes average lines changed per commit within a time window.
+// Lines changed = added + deleted (measures total change activity).
+// 90-day window focuses on recent development patterns, ignoring historical churn.
 func calcChurnRate(commits []commitInfo, windowDays int) float64 {
 	cutoff := time.Now().Add(-time.Duration(windowDays) * 24 * time.Hour).Unix()
 	totalLines := 0
@@ -262,6 +293,18 @@ func calcChurnRate(commits []commitInfo, windowDays int) float64 {
 }
 
 // calcTemporalCoupling computes the percentage of file pairs with >70% co-change rate.
+//
+// Algorithm:
+// - Counts how often each file pair appears together in commits
+// - Coupling strength = (shared commits / min(commits_A, commits_B)) * 100
+// - Reports pairs with strength > 70% as "temporally coupled"
+//
+// Thresholds:
+// - 70% coupling: Indicates files frequently change together (strong dependency signal)
+// - minCommits=5: Filters out rarely-changed files (statistical significance)
+// - maxFilesPerCommit=50: Excludes mass refactors/renames that skew co-change data
+//
+// High temporal coupling suggests hidden architectural dependencies or missing abstractions.
 func calcTemporalCoupling(commits []commitInfo, minCommits int, maxFilesPerCommit int) (float64, []types.CoupledPair) {
 	// Count per-file commit frequency
 	fileCommitCount := make(map[string]int)
@@ -301,8 +344,8 @@ func calcTemporalCoupling(commits []commitInfo, minCommits int, maxFilesPerCommi
 		if countB < minCount {
 			minCount = countB
 		}
-		strength := float64(shared) / float64(minCount) * 100
-		if strength > 70 {
+		strength := float64(shared) / float64(minCount) * toPercentC5
+		if strength > couplingStrengthThreshold {
 			coupledPairs++
 			coupled = append(coupled, types.CoupledPair{
 				FileA:         pair[0],
@@ -316,10 +359,13 @@ func calcTemporalCoupling(commits []commitInfo, minCommits int, maxFilesPerCommi
 	if totalPairs == 0 {
 		return 0, nil
 	}
-	return float64(coupledPairs) / float64(totalPairs) * 100, coupled
+	return float64(coupledPairs) / float64(totalPairs) * toPercentC5, coupled
 }
 
 // calcAuthorFragmentation computes the average distinct authors per file within a time window.
+// High fragmentation (many authors per file) can indicate:
+// - Lack of code ownership (everyone touches everything)
+// - Unclear module boundaries
 func calcAuthorFragmentation(commits []commitInfo, windowDays int) float64 {
 	cutoff := time.Now().Add(-time.Duration(windowDays) * 24 * time.Hour).Unix()
 	fileAuthors := make(map[string]map[string]bool)
@@ -347,6 +393,8 @@ func calcAuthorFragmentation(commits []commitInfo, windowDays int) float64 {
 }
 
 // calcCommitStability computes the median days between changes across all files.
+// Median is used instead of mean to handle outliers (very long or short gaps).
+// Files with only 1 commit default to 30 days (assumes monthly review cycle).
 func calcCommitStability(commits []commitInfo) float64 {
 	fileTimestamps := make(map[string][]int64)
 	for _, c := range commits {
@@ -359,13 +407,13 @@ func calcCommitStability(commits []commitInfo) float64 {
 	for _, timestamps := range fileTimestamps {
 		sort.Slice(timestamps, func(i, j int) bool { return timestamps[i] < timestamps[j] })
 		for i := 1; i < len(timestamps); i++ {
-			days := float64(timestamps[i]-timestamps[i-1]) / 86400.0
+			days := float64(timestamps[i]-timestamps[i-1]) / secondsPerDay
 			allIntervals = append(allIntervals, days)
 		}
 	}
 
 	if len(allIntervals) == 0 {
-		return 30 // default: stable if no repeat changes
+		return defaultStabilityDays // default: stable if no repeat changes
 	}
 	sort.Float64s(allIntervals)
 	return allIntervals[len(allIntervals)/2] // median
@@ -396,7 +444,7 @@ func calcHotspotConcentration(commits []commitInfo) (float64, []types.FileChurn)
 	}
 	sort.Slice(sorted, func(i, j int) bool { return sorted[i].changes > sorted[j].changes })
 
-	top10Pct := len(sorted) / 10
+	top10Pct := len(sorted) / hotspotTopPercentDivisor
 	if top10Pct < 1 {
 		top10Pct = 1
 	}
@@ -410,7 +458,7 @@ func calcHotspotConcentration(commits []commitInfo) (float64, []types.FileChurn)
 		})
 	}
 
-	return float64(top10Changes) / float64(totalChanges) * 100, hotspots
+	return float64(top10Changes) / float64(totalChanges) * toPercentC5, hotspots
 }
 
 // buildTopHotspots creates detailed FileChurn entries for the top N churning files.

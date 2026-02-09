@@ -81,7 +81,14 @@ type ScanResult struct {
 type AnalysisResult struct {
 	Name     string                 // Name of the analysis (e.g., "complexity")
 	Category string                 // Category identifier (e.g., "C1", "C3", "C6")
-	Metrics  map[string]interface{} // Analysis metrics
+	Metrics  map[string]CategoryMetrics // Analysis metrics
+}
+
+// CategoryMetrics is a marker interface for category metric structs
+// stored in AnalysisResult.Metrics. Using a typed interface instead of
+// interface{} improves null safety metrics and enforces type safety.
+type CategoryMetrics interface {
+	IsCategoryMetrics()
 }
 
 // MetricSummary holds avg/max for a numeric metric.
@@ -124,6 +131,8 @@ type C1Metrics struct {
 	Functions            []FunctionMetric // per-function detail
 }
 
+func (*C1Metrics) IsCategoryMetrics() {}
+
 // C3Metrics holds Architectural Navigability metric results.
 type C3Metrics struct {
 	MaxDirectoryDepth int
@@ -133,6 +142,8 @@ type C3Metrics struct {
 	ImportComplexity  MetricSummary // avg relative path segments
 	DeadExports       []DeadExport  // unreferenced exported symbols
 }
+
+func (*C3Metrics) IsCategoryMetrics() {}
 
 // DeadExport represents an exported symbol not referenced within the module.
 type DeadExport struct {
@@ -162,6 +173,8 @@ type C2LanguageMetrics struct {
 	LOC                    int     // lines of code for this language
 }
 
+func (*C2Metrics) IsCategoryMetrics() {}
+
 // C6Metrics holds Testing Infrastructure metric results.
 type C6Metrics struct {
 	TestFileCount    int
@@ -183,6 +196,8 @@ type TestFunctionMetric struct {
 	AssertionCount int
 	HasExternalDep bool
 }
+
+func (*C6Metrics) IsCategoryMetrics() {}
 
 // C5Metrics holds Temporal & Operational Dynamics metric results.
 type C5Metrics struct {
@@ -214,6 +229,8 @@ type CoupledPair struct {
 	SharedCommits int
 }
 
+func (*C5Metrics) IsCategoryMetrics() {}
+
 // C4Metrics holds Documentation Quality metric results.
 type C4Metrics struct {
 	Available           bool
@@ -242,6 +259,8 @@ type C4Metrics struct {
 	LLMTokensUsed     int     // Total tokens used
 	LLMFilesSampled   int     // Number of files sampled for LLM analysis
 }
+
+func (*C4Metrics) IsCategoryMetrics() {}
 
 // C7Metrics holds Agent Evaluation metric results including 5 MECE metrics.
 type C7Metrics struct {
@@ -273,6 +292,8 @@ type C7Metrics struct {
 	TokensUsed    int     // estimated total tokens
 	CostUSD       float64 // estimated cost
 }
+
+func (*C7Metrics) IsCategoryMetrics() {}
 
 // C7TaskResult holds results for a single C7 evaluation task.
 type C7TaskResult struct {

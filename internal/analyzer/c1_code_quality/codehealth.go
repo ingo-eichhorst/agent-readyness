@@ -16,6 +16,12 @@ import (
 	"github.com/ingo/agent-readyness/pkg/types"
 )
 
+// Constants for C1 metrics computation.
+const (
+	modulePathMinParts = 3
+	toPercentC1        = 100.0
+)
+
 // C1Analyzer implements the pipeline.Analyzer interface for C1: Code Health metrics.
 // It also implements GoAwareAnalyzer for Go-specific analysis via SetGoPackages.
 type C1Analyzer struct {
@@ -154,7 +160,7 @@ func (a *C1Analyzer) Analyze(targets []*types.AnalysisTarget) (*types.AnalysisRe
 	return &types.AnalysisResult{
 		Name:     "C1: Code Health",
 		Category: "C1",
-		Metrics:  map[string]interface{}{"c1": metrics},
+		Metrics:  map[string]types.CategoryMetrics{"c1": metrics},
 	}, nil
 }
 
@@ -195,6 +201,9 @@ func (a *C1Analyzer) analyzeGoC1() ([]types.FunctionMetric, []types.DuplicateBlo
 }
 
 // analyzeFunctions extracts per-function complexity and line count from all source packages.
+// Computes cyclomatic complexity for all functions using gocyclo.
+// Matches complexity results to function declarations by position (line number).
+// Minimum complexity is 1 (function with no branches has complexity=1).
 func analyzeFunctions(pkgs []*parser.ParsedPackage) []types.FunctionMetric {
 	var allFunctions []types.FunctionMetric
 
@@ -383,8 +392,8 @@ func detectModulePath(pkgs []*parser.ParsedPackage) string {
 		path := pkgs[0].PkgPath
 		// Use everything up to the first package component
 		parts := strings.Split(path, "/")
-		if len(parts) >= 3 {
-			return strings.Join(parts[:3], "/")
+		if len(parts) >= modulePathMinParts {
+			return strings.Join(parts[:modulePathMinParts], "/")
 		}
 		return path
 	}
@@ -392,7 +401,17 @@ func detectModulePath(pkgs []*parser.ParsedPackage) string {
 }
 
 // analyzeDuplication detects duplicate code blocks using AST statement-sequence hashing.
-// Returns the list of duplicate blocks and the duplication rate (0-100).
+//
+// Algorithm approach:
+// - Sliding window over statement sequences within each block
+// - Structural hashing normalizes variable names to detect logic patterns
+// - Groups sequences by hash to find matches across the codebase
+//
+// Thresholds:
+// - minStatements=3: Reduces false positives from trivial assignments/returns
+// - minLines=6: Focuses on substantial duplicated logic worth refactoring
+//
+// Returns the list of duplicate blocks and the duplication rate (% of lines duplicated).
 func analyzeDuplication(pkgs []*parser.ParsedPackage) ([]types.DuplicateBlock, float64) {
 	const minStatements = 3
 	const minLines = 6
@@ -417,7 +436,8 @@ func analyzeDuplication(pkgs []*parser.ParsedPackage) ([]types.DuplicateBlock, f
 					return true
 				}
 
-				// Sliding window over statements
+				// Sliding window over statements: examine all subsequences of minStatements or more
+				// Nested loop explores varying window sizes to capture duplicates of different lengths
 				for i := 0; i <= len(block.List)-minStatements; i++ {
 					for windowSize := minStatements; windowSize <= len(block.List)-i; windowSize++ {
 						stmts := block.List[i : i+windowSize]
@@ -465,6 +485,7 @@ func analyzeDuplication(pkgs []*parser.ParsedPackage) ([]types.DuplicateBlock, f
 				a, b := group[i], group[j]
 
 				// Skip self-overlapping matches (same file, overlapping lines)
+				// This prevents reporting the same code sequence matched against itself at different window sizes
 				if a.file == b.file && a.startLine < b.endLine && b.startLine < a.endLine {
 					continue
 				}
@@ -479,7 +500,9 @@ func analyzeDuplication(pkgs []*parser.ParsedPackage) ([]types.DuplicateBlock, f
 					LineCount: a.endLine - a.startLine + 1,
 				})
 
-				// Track duplicated lines
+				// Track duplicated lines: build set of all line numbers involved in duplications
+				// Using a map[file]map[line]bool ensures each line is counted only once,
+				// even if it appears in multiple duplicate blocks (avoids double-counting)
 				for _, s := range []stmtSeq{a, b} {
 					if duplicatedLines[s.file] == nil {
 						duplicatedLines[s.file] = make(map[int]bool)
@@ -500,7 +523,7 @@ func analyzeDuplication(pkgs []*parser.ParsedPackage) ([]types.DuplicateBlock, f
 
 	var rate float64
 	if totalLines > 0 {
-		rate = float64(dupLineCount) / float64(totalLines) * 100
+		rate = float64(dupLineCount) / float64(totalLines) * toPercentC1
 	}
 
 	return blocks, rate
@@ -508,6 +531,14 @@ func analyzeDuplication(pkgs []*parser.ParsedPackage) ([]types.DuplicateBlock, f
 
 // hashStatements computes an FNV hash of a sequence of AST statements
 // based on their normalized string representation.
+//
+// Normalization approach:
+// - Statement types and operators are preserved (if, for, switch, assign, etc.)
+// - Identifier names are abstracted to "id" via hashNode to match structurally similar code
+// - Literal values are included to distinguish different constant usage patterns
+//
+// This allows detection of copy-pasted logic with renamed variables while
+// avoiding false positives from semantically different code.
 func hashStatements(fset *token.FileSet, stmts []ast.Stmt) uint64 {
 	h := fnv.New64a()
 	for _, stmt := range stmts {
@@ -519,7 +550,10 @@ func hashStatements(fset *token.FileSet, stmts []ast.Stmt) uint64 {
 	return h.Sum64()
 }
 
-// hashNode writes a structural representation of an AST node to the hasher.
+// hashNode recursively hashes an AST node using structural fingerprinting.
+// Identifiers are normalized to "id" to ignore variable naming, preserving
+// only the code structure. This enables detection of duplicated patterns
+// regardless of local variable names.
 func hashNode(h hash.Hash64, fset *token.FileSet, node ast.Node) {
 	if node == nil {
 		h.Write([]byte("nil"))

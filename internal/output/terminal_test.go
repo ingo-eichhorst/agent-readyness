@@ -33,7 +33,7 @@ func newTestAnalysisResults() []*types.AnalysisResult {
 		{
 			Name:     "C1: Code Health",
 			Category: "C1",
-			Metrics: map[string]interface{}{
+			Metrics: map[string]types.CategoryMetrics{
 				"c1": &types.C1Metrics{
 					CyclomaticComplexity: types.MetricSummary{Avg: 3.5, Max: 8, MaxEntity: "main.handleRequest"},
 					FunctionLength:       types.MetricSummary{Avg: 15.2, Max: 42, MaxEntity: "main.handleRequest"},
@@ -49,7 +49,7 @@ func newTestAnalysisResults() []*types.AnalysisResult {
 		{
 			Name:     "C3: Architecture",
 			Category: "C3",
-			Metrics: map[string]interface{}{
+			Metrics: map[string]types.CategoryMetrics{
 				"c3": &types.C3Metrics{
 					MaxDirectoryDepth: 3,
 					AvgDirectoryDepth: 1.5,
@@ -64,7 +64,7 @@ func newTestAnalysisResults() []*types.AnalysisResult {
 		{
 			Name:     "C6: Testing",
 			Category: "C6",
-			Metrics: map[string]interface{}{
+			Metrics: map[string]types.CategoryMetrics{
 				"c6": &types.C6Metrics{
 					TestFileCount:   1,
 					SourceFileCount: 2,
@@ -82,7 +82,7 @@ func newTestAnalysisResults() []*types.AnalysisResult {
 		{
 			Name:     "C7: Agent Evaluation",
 			Category: "C7",
-			Metrics: map[string]interface{}{
+			Metrics: map[string]types.CategoryMetrics{
 				"c7": &types.C7Metrics{
 					Available:              true,
 					IntentClarity:          75,
@@ -102,7 +102,7 @@ func newTestAnalysisResults() []*types.AnalysisResult {
 		{
 			Name:     "C4: Documentation Quality",
 			Category: "C4",
-			Metrics: map[string]interface{}{
+			Metrics: map[string]types.CategoryMetrics{
 				"c4": &types.C4Metrics{
 					Available:           true,
 					ReadmePresent:       true,
@@ -380,7 +380,7 @@ func TestRenderC7Unavailable(t *testing.T) {
 	ar := &types.AnalysisResult{
 		Name:     "C7: Agent Evaluation",
 		Category: "C7",
-		Metrics: map[string]interface{}{
+		Metrics: map[string]types.CategoryMetrics{
 			"c7": &types.C7Metrics{
 				Available: false,
 			},
@@ -406,7 +406,7 @@ func TestRenderC4WithLLM(t *testing.T) {
 	ar := &types.AnalysisResult{
 		Name:     "C4: Documentation Quality",
 		Category: "C4",
-		Metrics: map[string]interface{}{
+		Metrics: map[string]types.CategoryMetrics{
 			"c4": &types.C4Metrics{
 				Available:           true,
 				ReadmePresent:       true,
@@ -458,7 +458,7 @@ func TestRenderC4Unavailable(t *testing.T) {
 	ar := &types.AnalysisResult{
 		Name:     "C4: Documentation Quality",
 		Category: "C4",
-		Metrics: map[string]interface{}{
+		Metrics: map[string]types.CategoryMetrics{
 			"c4": &types.C4Metrics{
 				Available: false,
 			},
@@ -485,7 +485,7 @@ func TestRenderC7Debug(t *testing.T) {
 		{
 			Name:     "C7: Agent Evaluation",
 			Category: "C7",
-			Metrics: map[string]interface{}{
+			Metrics: map[string]types.CategoryMetrics{
 				"c7": &types.C7Metrics{
 					Available: true,
 					MetricResults: []types.C7MetricResult{
@@ -549,7 +549,7 @@ func TestRenderC7Debug_NoDebugSamples(t *testing.T) {
 		{
 			Name:     "C7: Agent Evaluation",
 			Category: "C7",
-			Metrics: map[string]interface{}{
+			Metrics: map[string]types.CategoryMetrics{
 				"c7": &types.C7Metrics{
 					Available: true,
 					MetricResults: []types.C7MetricResult{
@@ -587,7 +587,7 @@ func TestRenderC7Debug_NoC7Result(t *testing.T) {
 		{
 			Name:     "C1: Code Health",
 			Category: "C1",
-			Metrics:  map[string]interface{}{},
+			Metrics:  map[string]types.CategoryMetrics{},
 		},
 	}
 
@@ -606,7 +606,7 @@ func TestRenderC2(t *testing.T) {
 	ar := &types.AnalysisResult{
 		Name:     "C2: Semantic Explicitness",
 		Category: "C2",
-		Metrics: map[string]interface{}{
+		Metrics: map[string]types.CategoryMetrics{
 			"c2": &types.C2Metrics{
 				Aggregate: &types.C2LanguageMetrics{
 					TypeAnnotationCoverage: 75.0,
@@ -648,7 +648,7 @@ func TestRenderC2_TypeStrictnessOff(t *testing.T) {
 	ar := &types.AnalysisResult{
 		Name:     "C2: Semantic Explicitness",
 		Category: "C2",
-		Metrics: map[string]interface{}{
+		Metrics: map[string]types.CategoryMetrics{
 			"c2": &types.C2Metrics{
 				Aggregate: &types.C2LanguageMetrics{
 					TypeAnnotationCoverage: 50.0,
@@ -674,7 +674,7 @@ func TestRenderC2_Verbose(t *testing.T) {
 	ar := &types.AnalysisResult{
 		Name:     "C2: Semantic Explicitness",
 		Category: "C2",
-		Metrics: map[string]interface{}{
+		Metrics: map[string]types.CategoryMetrics{
 			"c2": &types.C2Metrics{
 				Aggregate: &types.C2LanguageMetrics{
 					TypeAnnotationCoverage: 75.0,
@@ -716,7 +716,7 @@ func TestRenderC5(t *testing.T) {
 	ar := &types.AnalysisResult{
 		Name:     "C5: Temporal Dynamics",
 		Category: "C5",
-		Metrics: map[string]interface{}{
+		Metrics: map[string]types.CategoryMetrics{
 			"c5": &types.C5Metrics{
 				Available:            true,
 				TotalCommits:         100,
@@ -762,7 +762,7 @@ func TestRenderC5_Unavailable(t *testing.T) {
 	ar := &types.AnalysisResult{
 		Name:     "C5: Temporal Dynamics",
 		Category: "C5",
-		Metrics: map[string]interface{}{
+		Metrics: map[string]types.CategoryMetrics{
 			"c5": &types.C5Metrics{
 				Available: false,
 			},
@@ -782,7 +782,7 @@ func TestRenderC5_Verbose(t *testing.T) {
 	ar := &types.AnalysisResult{
 		Name:     "C5: Temporal Dynamics",
 		Category: "C5",
-		Metrics: map[string]interface{}{
+		Metrics: map[string]types.CategoryMetrics{
 			"c5": &types.C5Metrics{
 				Available:      true,
 				TotalCommits:   50,

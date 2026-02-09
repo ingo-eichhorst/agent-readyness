@@ -23,7 +23,7 @@ func (s *stubAnalyzer) Name() string {
 func (s *stubAnalyzer) Analyze(_ []*types.AnalysisTarget) (*types.AnalysisResult, error) {
 	return &types.AnalysisResult{
 		Name:    "stub",
-		Metrics: make(map[string]interface{}),
+		Metrics: make(map[string]types.CategoryMetrics),
 	}, nil
 }
 
@@ -35,6 +35,7 @@ func TestPipelineRun(t *testing.T) {
 
 	var buf bytes.Buffer
 	p := New(&buf, false, nil, 0, false, nil)
+	p.DisableLLM()
 
 	if err := p.Run(root); err != nil {
 		t.Fatalf("Pipeline.Run() returned error: %v", err)
@@ -86,6 +87,7 @@ func TestPipelineRunVerbose(t *testing.T) {
 
 	var buf bytes.Buffer
 	p := New(&buf, true, nil, 0, false, nil)
+	p.DisableLLM()
 
 	if err := p.Run(root); err != nil {
 		t.Fatalf("Pipeline.Run() returned error: %v", err)
@@ -126,6 +128,7 @@ func TestPipelineAnalyzerErrorContinues(t *testing.T) {
 
 	var buf bytes.Buffer
 	p := New(&buf, false, nil, 0, false, nil)
+	p.DisableLLM()
 
 	// Replace analyzers with one that errors and one stub
 	p.analyzers = []Analyzer{
@@ -151,6 +154,7 @@ func TestPipelineScoringStage(t *testing.T) {
 
 	var buf bytes.Buffer
 	p := New(&buf, false, nil, 0, false, nil)
+	p.DisableLLM()
 
 	if err := p.Run(root); err != nil {
 		t.Fatalf("Pipeline.Run() returned error: %v", err)
@@ -181,11 +185,11 @@ func TestPipelineScoringStage(t *testing.T) {
 		}
 	}
 
-	// Each category score should be in valid range [0,10]
-	// (0 indicates disabled/unavailable category)
+	// Each category score should be in valid range [-1,10]
+	// (-1 indicates unavailable category, e.g. C5 without git repo)
 	for _, cat := range p.scored.Categories {
-		if cat.Score < 0 || cat.Score > 10 {
-			t.Errorf("category %q score %v out of range [0,10]", cat.Name, cat.Score)
+		if cat.Score < -1 || cat.Score > 10 {
+			t.Errorf("category %q score %v out of range [-1,10]", cat.Name, cat.Score)
 		}
 	}
 }
@@ -213,7 +217,7 @@ func (s *slowAnalyzer) Analyze(_ []*types.AnalysisTarget) (*types.AnalysisResult
 	return &types.AnalysisResult{
 		Name:     s.name,
 		Category: s.category,
-		Metrics:  make(map[string]interface{}),
+		Metrics:  make(map[string]types.CategoryMetrics),
 	}, nil
 }
 
@@ -225,6 +229,7 @@ func TestParallelAnalyzers(t *testing.T) {
 
 	var buf bytes.Buffer
 	p := New(&buf, false, nil, 0, false, nil)
+	p.DisableLLM()
 
 	// Replace analyzers with slow mocks (each sleeps 200ms)
 	p.analyzers = []Analyzer{
@@ -236,6 +241,7 @@ func TestParallelAnalyzers(t *testing.T) {
 	// First, measure baseline pipeline time without analyzers
 	var buf2 bytes.Buffer
 	baseline := New(&buf2, false, nil, 0, false, nil)
+	baseline.DisableLLM()
 	baseline.analyzers = []Analyzer{} // no analyzers
 	baseStart := time.Now()
 	_ = baseline.Run(root) // ignore errors from empty analyzers
@@ -280,6 +286,7 @@ func TestProgressCallbackInvoked(t *testing.T) {
 
 	var buf bytes.Buffer
 	p := New(&buf, false, nil, 0, false, onProgress)
+	p.DisableLLM()
 
 	if err := p.Run(root); err != nil {
 		t.Fatalf("Pipeline.Run() returned error: %v", err)

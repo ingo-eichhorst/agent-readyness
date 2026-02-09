@@ -355,3 +355,112 @@ func TestSetC7DebugThreadsToC7Analyzer(t *testing.T) {
 		t.Error("pipeline debugWriter should be os.Stderr")
 	}
 }
+
+func TestDisableLLM(t *testing.T) {
+	var buf bytes.Buffer
+	p := New(&buf, false, nil, 0, false, nil)
+
+	// Initially evaluator should be non-nil
+	if p.evaluator == nil {
+		t.Fatal("evaluator should be non-nil after New()")
+	}
+
+	p.DisableLLM()
+
+	if p.evaluator != nil {
+		t.Error("DisableLLM should set evaluator to nil")
+	}
+}
+
+func TestGetCLIStatus(t *testing.T) {
+	var buf bytes.Buffer
+	p := New(&buf, false, nil, 0, false, nil)
+
+	status := p.GetCLIStatus()
+
+	// CLIStatus is a struct - just verify we got something back
+	// We can't assert Available is true/false as it depends on the environment
+	_ = status.Available
+	_ = status.Version
+}
+
+func TestSetC7Enabled(t *testing.T) {
+	var buf bytes.Buffer
+	p := New(&buf, false, nil, 0, false, nil)
+
+	// C7 is always in the analyzers list, but SetC7Enabled explicitly enables it
+	// if evaluator is present. We verify the method runs without error.
+	p.SetC7Enabled()
+
+	// Verify C7 analyzer is in the list
+	hasC7 := false
+	for _, a := range p.analyzers {
+		if a.Name() == "C7: Agent Evaluation" {
+			hasC7 = true
+			break
+		}
+	}
+	if !hasC7 {
+		t.Error("C7 should be in analyzers list")
+	}
+}
+
+func TestSetHTMLOutput(t *testing.T) {
+	var buf bytes.Buffer
+	p := New(&buf, false, nil, 0, false, nil)
+
+	// Initially these should be empty
+	if p.htmlOutput != "" {
+		t.Error("htmlOutput should be empty by default")
+	}
+	if p.baselinePath != "" {
+		t.Error("baselinePath should be empty by default")
+	}
+
+	p.SetHTMLOutput("/tmp/test.html", "/tmp/baseline.json")
+
+	if p.htmlOutput != "/tmp/test.html" {
+		t.Errorf("htmlOutput = %q, want %q", p.htmlOutput, "/tmp/test.html")
+	}
+	if p.baselinePath != "/tmp/baseline.json" {
+		t.Errorf("baselinePath = %q, want %q", p.baselinePath, "/tmp/baseline.json")
+	}
+}
+
+func TestSetBadgeOutput(t *testing.T) {
+	var buf bytes.Buffer
+	p := New(&buf, false, nil, 0, false, nil)
+
+	// Initially should be disabled
+	if p.badgeOutput {
+		t.Error("badgeOutput should be false by default")
+	}
+
+	p.SetBadgeOutput(true)
+
+	if !p.badgeOutput {
+		t.Error("badgeOutput should be true after SetBadgeOutput(true)")
+	}
+
+	p.SetBadgeOutput(false)
+
+	if p.badgeOutput {
+		t.Error("badgeOutput should be false after SetBadgeOutput(false)")
+	}
+}
+
+func TestSetDebugDir(t *testing.T) {
+	var buf bytes.Buffer
+	p := New(&buf, false, nil, 0, false, nil)
+
+	// Initially should be empty
+	if p.debugDir != "" {
+		t.Error("debugDir should be empty by default")
+	}
+
+	p.SetDebugDir("/tmp/debug")
+
+	if p.debugDir != "/tmp/debug" {
+		t.Errorf("debugDir = %q, want %q", p.debugDir, "/tmp/debug")
+	}
+}

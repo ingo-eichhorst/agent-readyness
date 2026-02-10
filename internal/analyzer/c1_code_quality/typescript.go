@@ -337,7 +337,7 @@ type tsDupSeq struct {
 // - Uses Tree-sitter AST to identify statement sequences within blocks
 // - Applies sliding window over statements in function/class bodies and statement blocks
 // - Normalizes variable names via structural hashing to detect renamed copies
-// - Thresholds: minStatements=3, minLines=6 (same as Go/Python for consistency)
+// - Thresholds: dupMinStatements=3, dupMinLines=6 (same as Go/Python for consistency)
 //
 // Returns duplicate blocks and duplication rate (% of lines duplicated).
 //
@@ -347,16 +347,13 @@ type tsDupSeq struct {
 // increases agent error rates because the "find all copies" step often fails.
 // Agents lack the contextual memory to reliably track duplicates across files.
 func tsAnalyzeDuplication(files []*parser.ParsedTreeSitterFile) ([]types.DuplicateBlock, float64) {
-	const minStatements = 3
-	const minLines = 6
-
 	var sequences []tsDupSeq
 	totalLines := 0
 
 	for _, f := range files {
 		totalLines += bytes.Count(f.Content, []byte("\n")) + 1
 		root := f.Tree.RootNode()
-		tsCollectDupSequences(root, f.RelPath, f.Content, minStatements, minLines, &sequences)
+		tsCollectDupSequences(root, f.RelPath, f.Content, dupMinStatements, dupMinLines, &sequences)
 	}
 
 	// Group by hash

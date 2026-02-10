@@ -20,6 +20,10 @@ import (
 const (
 	modulePathMinParts = 3
 	toPercentC1        = 100.0
+
+	// Duplication detection thresholds shared across Go, Python, and TypeScript analyzers.
+	dupMinStatements = 3 // Minimum statement count to detect as duplicate block
+	dupMinLines      = 6 // Minimum line span to qualify as substantial duplication
 )
 
 // C1Analyzer implements the pipeline.Analyzer interface for C1: Code Health metrics.
@@ -408,14 +412,11 @@ func detectModulePath(pkgs []*parser.ParsedPackage) string {
 // - Groups sequences by hash to find matches across the codebase
 //
 // Thresholds:
-// - minStatements=3: Reduces false positives from trivial assignments/returns
-// - minLines=6: Focuses on substantial duplicated logic worth refactoring
+// - dupMinStatements=3: Reduces false positives from trivial assignments/returns
+// - dupMinLines=6: Focuses on substantial duplicated logic worth refactoring
 //
 // Returns the list of duplicate blocks and the duplication rate (% of lines duplicated).
 func analyzeDuplication(pkgs []*parser.ParsedPackage) ([]types.DuplicateBlock, float64) {
-	const minStatements = 3
-	const minLines = 6
-
 	type stmtSeq struct {
 		hash      uint64
 		file      string
@@ -436,16 +437,16 @@ func analyzeDuplication(pkgs []*parser.ParsedPackage) ([]types.DuplicateBlock, f
 					return true
 				}
 
-				// Sliding window over statements: examine all subsequences of minStatements or more
+				// Sliding window over statements: examine all subsequences of dupMinStatements or more
 				// Nested loop explores varying window sizes to capture duplicates of different lengths
-				for i := 0; i <= len(block.List)-minStatements; i++ {
-					for windowSize := minStatements; windowSize <= len(block.List)-i; windowSize++ {
+				for i := 0; i <= len(block.List)-dupMinStatements; i++ {
+					for windowSize := dupMinStatements; windowSize <= len(block.List)-i; windowSize++ {
 						stmts := block.List[i : i+windowSize]
 						start := pkg.Fset.Position(stmts[0].Pos())
 						end := pkg.Fset.Position(stmts[len(stmts)-1].End())
 						lineSpan := end.Line - start.Line + 1
 
-						if lineSpan < minLines {
+						if lineSpan < dupMinLines {
 							continue
 						}
 

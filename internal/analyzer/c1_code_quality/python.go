@@ -257,20 +257,17 @@ type pyDupSeq struct {
 // - Uses Tree-sitter AST to identify statement sequences within blocks
 // - Applies sliding window over statements in function/class bodies
 // - Normalizes variable names via structural hashing to detect renamed copies
-// - Thresholds: minStatements=3, minLines=6 (same as Go analysis for consistency)
+// - Thresholds: dupMinStatements=3, dupMinLines=6 (same as Go analysis for consistency)
 //
 // Returns duplicate blocks and duplication rate (% of lines duplicated).
 func pyAnalyzeDuplication(files []*parser.ParsedTreeSitterFile) ([]types.DuplicateBlock, float64) {
-	const minStatements = 3
-	const minLines = 6
-
 	var sequences []pyDupSeq
 	totalLines := 0
 
 	for _, f := range files {
 		totalLines += bytes.Count(f.Content, []byte("\n")) + 1
 		root := f.Tree.RootNode()
-		pyCollectDupSequences(root, f.RelPath, f.Content, minStatements, minLines, &sequences)
+		pyCollectDupSequences(root, f.RelPath, f.Content, dupMinStatements, dupMinLines, &sequences)
 	}
 
 	// Group by hash

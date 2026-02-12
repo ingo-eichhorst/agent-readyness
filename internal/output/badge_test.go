@@ -72,7 +72,7 @@ func TestGenerateBadge(t *testing.T) {
 
 			if tt.scored == nil {
 				if badge.URL != "" || badge.Markdown != "" {
-					t.Errorf("expected empty BadgeInfo for nil scored, got URL=%q Markdown=%q", badge.URL, badge.Markdown)
+					t.Errorf("expected empty badgeInfo for nil scored, got URL=%q Markdown=%q", badge.URL, badge.Markdown)
 				}
 				return
 			}

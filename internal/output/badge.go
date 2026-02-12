@@ -11,17 +11,17 @@ import (
 // arsRepoURL is the URL to the ARS project repository.
 const arsRepoURL = "https://github.com/ingo-eichhorst/agent-readyness"
 
-// BadgeInfo contains the generated badge URL and markdown.
-type BadgeInfo struct {
+// badgeInfo contains the generated badge URL and markdown.
+type badgeInfo struct {
 	URL      string // Raw shields.io badge URL
 	Markdown string // Complete markdown with link to repo
 }
 
 // GenerateBadge creates a shields.io badge URL and markdown from a scored result.
-// Returns empty BadgeInfo if scored is nil.
-func GenerateBadge(scored *types.ScoredResult) BadgeInfo {
+// Returns empty badgeInfo if scored is nil.
+func GenerateBadge(scored *types.ScoredResult) badgeInfo {
 	if scored == nil {
-		return BadgeInfo{}
+		return badgeInfo{}
 	}
 
 	// Format message: "{Tier} {Composite:.1f}/10"
@@ -39,7 +39,7 @@ func GenerateBadge(scored *types.ScoredResult) BadgeInfo {
 	// Build markdown: [![ARS]({url})]({repo_url})
 	markdown := fmt.Sprintf("[![ARS](%s)](%s)", badgeURL, arsRepoURL)
 
-	return BadgeInfo{
+	return badgeInfo{
 		URL:      badgeURL,
 		Markdown: markdown,
 	}

@@ -1,7 +1,7 @@
 package agent
 
 // IntentClarityTask tests the agent's ability to understand code purpose.
-var IntentClarityTask = Task{
+var intentClarityTask = task{
 	ID:          "intent_clarity",
 	Name:        "Intent Clarity",
 	Description: "Measures agent's ability to find and explain code purpose",
@@ -16,7 +16,7 @@ Be specific and reference actual code.`,
 }
 
 // ModificationConfidenceTask tests the agent's ability to propose targeted changes.
-var ModificationConfidenceTask = Task{
+var modificationConfidenceTask = task{
 	ID:          "modification_confidence",
 	Name:        "Modification Confidence",
 	Description: "Measures agent's ability to propose safe, scoped changes",
@@ -31,7 +31,7 @@ Do not actually modify the file - just propose the change.`,
 }
 
 // CrossFileCoherenceTask tests the agent's multi-file navigation capabilities.
-var CrossFileCoherenceTask = Task{
+var crossFileCoherenceTask = task{
 	ID:          "cross_file_coherence",
 	Name:        "Cross-File Coherence",
 	Description: "Measures agent's ability to trace code across files",
@@ -46,7 +46,7 @@ Reference actual file paths and function names.`,
 }
 
 // SemanticCompletenessTask tests the agent's context-aware modification abilities.
-var SemanticCompletenessTask = Task{
+var semanticCompletenessTask = task{
 	ID:          "semantic_completeness",
 	Name:        "Semantic Completeness",
 	Description: "Measures agent's ability to follow existing patterns",
@@ -61,11 +61,11 @@ Do not actually modify files - just propose the change.`,
 }
 
 // AllTasks returns all standardized C7 evaluation tasks.
-func AllTasks() []Task {
-	return []Task{
-		IntentClarityTask,
-		ModificationConfidenceTask,
-		CrossFileCoherenceTask,
-		SemanticCompletenessTask,
+func allTasks() []task {
+	return []task{
+		intentClarityTask,
+		modificationConfidenceTask,
+		crossFileCoherenceTask,
+		semanticCompletenessTask,
 	}
 }

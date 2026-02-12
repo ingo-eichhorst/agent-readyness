@@ -5,7 +5,7 @@ import (
 )
 
 func TestGetRubric_AllTasksHaveRubrics(t *testing.T) {
-	tasks := AllTasks()
+	tasks := allTasks()
 
 	for _, task := range tasks {
 		rubric := getRubric(task.ID)
@@ -30,7 +30,7 @@ func TestGetRubric_Fallback(t *testing.T) {
 
 func TestScoreResult_Fields(t *testing.T) {
 	// Verify ScoreResult has expected fields
-	result := ScoreResult{
+	result := scoreResult{
 		Score:     80,
 		Reasoning: "Good response with accurate explanation",
 	}
@@ -45,15 +45,15 @@ func TestScoreResult_Fields(t *testing.T) {
 
 func TestNewScorer(t *testing.T) {
 	// Test NewScorer with nil client (should not panic)
-	scorer := NewScorer(nil)
-	if scorer == nil {
+	s := newScorer(nil)
+	if s == nil {
 		t.Error("NewScorer returned nil")
 	}
 }
 
 func TestGetRubric_ContainsJSONInstruction(t *testing.T) {
 	// All rubrics should instruct to respond with JSON
-	tasks := AllTasks()
+	tasks := allTasks()
 	for _, task := range tasks {
 		rubric := getRubric(task.ID)
 		if !contains(rubric, "JSON") {

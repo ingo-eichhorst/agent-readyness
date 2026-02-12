@@ -17,6 +17,14 @@ import (
 	"github.com/ingo/agent-readyness/pkg/types"
 )
 
+// Constants for TypeScript C1 metrics computation.
+const (
+	p90PercentileTS      = 0.9
+	toPercentC1TS        = 100.0
+	maxHashNodeDepth     = 5
+	maxHashNodeChildren  = 10
+)
+
 // tsFilterSourceFiles filters to source-only TypeScript files (not test files).
 func tsFilterSourceFiles(files []*parser.ParsedTreeSitterFile) []*parser.ParsedTreeSitterFile {
 	var result []*parser.ParsedTreeSitterFile
@@ -54,6 +62,12 @@ func tsIsTestFile(path string) bool {
 }
 
 // tsAnalyzeFunctions extracts per-function complexity and line count from TypeScript files.
+//
+// TypeScript-specific handling:
+// - Processes function_declaration, method_definition, and arrow_function nodes
+// - Tracks className for method naming (Class.method format)
+// - Handles anonymous arrow functions (assigns synthetic names based on context)
+// - Computes line count from Tree-sitter node start/end positions
 func tsAnalyzeFunctions(files []*parser.ParsedTreeSitterFile) []types.FunctionMetric {
 	var results []types.FunctionMetric
 
@@ -66,6 +80,14 @@ func tsAnalyzeFunctions(files []*parser.ParsedTreeSitterFile) []types.FunctionMe
 }
 
 // tsWalkFunctions recursively walks the AST to find function declarations, arrow functions, and methods.
+//
+// TypeScript function types handled:
+// - function_declaration: Named function declarations (function foo() {})
+// - method_definition: Class methods and object method shorthand
+// - arrow_function: Arrow functions (const f = () => {})
+// - Tracks enclosing class name for proper method identification
+//
+// Returns early for function nodes to avoid counting nested functions multiple times.
 func tsWalkFunctions(node *tree_sitter.Node, content []byte, file string, className string, results *[]types.FunctionMetric) {
 	if node == nil {
 		return
@@ -178,8 +200,20 @@ func tsArrowFunctionName(node *tree_sitter.Node, content []byte) string {
 }
 
 // tsComputeComplexity computes McCabe cyclomatic complexity for a TypeScript function.
-// Base complexity is 1. Each branching construct adds 1.
-// Nested function/arrow definitions are excluded.
+//
+// Complexity calculation:
+// - Base complexity is 1 (single execution path)
+// - Each branching construct adds 1: if, for, while, switch case, catch, ternary
+// - Boolean operators (&&, ||, ??) in expressions add branches (short-circuit evaluation)
+// - Nested function/arrow definitions are excluded from parent's complexity count
+//
+// This matches the standard McCabe complexity metric used by tools like ESLint.
+//
+// Why complexity matters for AI agents: High complexity (>15) requires multi-step
+// reasoning across many execution paths. Agents struggle to track all branches
+// simultaneously, leading to bugs where edge cases are missed. Functions with
+// complexity >20 have exponentially higher agent error rates. Threshold: keep
+// complexity ≤10 for agent-friendly code (single-digit branch count).
 func tsComputeComplexity(funcNode *tree_sitter.Node, content []byte) int {
 	complexity := 1
 	body := funcNode.ChildByFieldName("body")
@@ -272,7 +306,7 @@ func tsAnalyzeFileSizes(files []*parser.ParsedTreeSitterFile) types.MetricSummar
 		sorted := make([]int, len(sizes))
 		copy(sorted, sizes)
 		sort.Ints(sorted)
-		idx := int(math.Ceil(float64(len(sorted))*0.9)) - 1
+		idx := int(math.Ceil(float64(len(sorted))*p90PercentileTS)) - 1
 		if idx < 0 {
 			idx = 0
 		}
@@ -298,17 +332,28 @@ type tsDupSeq struct {
 }
 
 // tsAnalyzeDuplication detects duplicate code blocks in TypeScript using statement-sequence hashing.
+//
+// TypeScript-specific approach:
+// - Uses Tree-sitter AST to identify statement sequences within blocks
+// - Applies sliding window over statements in function/class bodies and statement blocks
+// - Normalizes variable names via structural hashing to detect renamed copies
+// - Thresholds: dupMinStatements=3, dupMinLines=6 (same as Go/Python for consistency)
+//
+// Returns duplicate blocks and duplication rate (% of lines duplicated).
+//
+// Why duplication matters for agents: When agents modify duplicated code, they
+// must find and update ALL copies to maintain consistency. Missing even one copy
+// creates subtle bugs where behavior diverges. High duplication (>10%) dramatically
+// increases agent error rates because the "find all copies" step often fails.
+// Agents lack the contextual memory to reliably track duplicates across files.
 func tsAnalyzeDuplication(files []*parser.ParsedTreeSitterFile) ([]types.DuplicateBlock, float64) {
-	const minStatements = 3
-	const minLines = 6
-
 	var sequences []tsDupSeq
 	totalLines := 0
 
 	for _, f := range files {
 		totalLines += bytes.Count(f.Content, []byte("\n")) + 1
 		root := f.Tree.RootNode()
-		tsCollectDupSequences(root, f.RelPath, f.Content, minStatements, minLines, &sequences)
+		tsCollectDupSequences(root, f.RelPath, f.Content, dupMinStatements, dupMinLines, &sequences)
 	}
 
 	// Group by hash
@@ -362,7 +407,7 @@ func tsAnalyzeDuplication(files []*parser.ParsedTreeSitterFile) ([]types.Duplica
 
 	var rate float64
 	if totalLines > 0 {
-		rate = float64(dupLineCount) / float64(totalLines) * 100
+		rate = float64(dupLineCount) / float64(totalLines) * toPercentC1TS
 	}
 
 	return blocks, rate
@@ -431,7 +476,7 @@ func tsHashStmtSequence(stmts []*tree_sitter.Node) uint64 {
 
 // tsHashNodeStructure writes a structural representation of a TypeScript AST node to the hasher.
 func tsHashNodeStructure(h hash.Hash64, node *tree_sitter.Node, depth int) {
-	if node == nil || depth > 5 {
+	if node == nil || depth > maxHashNodeDepth {
 		return
 	}
 
@@ -453,7 +498,7 @@ func tsHashNodeStructure(h hash.Hash64, node *tree_sitter.Node, depth int) {
 		fmt.Fprint(h, "ret")
 	}
 
-	for i := uint(0); i < childCount && i < 10; i++ {
+	for i := uint(0); i < childCount && i < maxHashNodeChildren; i++ {
 		child := node.Child(i)
 		if child != nil {
 			tsHashNodeStructure(h, child, depth+1)

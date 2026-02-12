@@ -2,46 +2,59 @@ package agent
 
 import (
 	"context"
+	"fmt"
+	"os/exec"
 	"testing"
-	"time"
 )
 
 func TestDetectCLI_Available(t *testing.T) {
-	// This test runs against the actual system
-	// It's informational - the test passes regardless of whether claude is installed
+	// Swap package-level functions with mocks
+	origLookPath := lookPathFunc
+	origRunVersion := runVersionCmd
+	defer func() {
+		lookPathFunc = origLookPath
+		runVersionCmd = origRunVersion
+	}()
+
+	lookPathFunc = func(file string) (string, error) {
+		return "/usr/local/bin/claude", nil
+	}
+	runVersionCmd = func(ctx context.Context, path string) ([]byte, error) {
+		return []byte("claude 2.1.12"), nil
+	}
+
 	status := DetectCLI()
 
-	if status.Available {
-		t.Logf("Claude CLI is available: %s", status.Version)
-		if status.Version == "" {
-			t.Error("Expected non-empty version when Available is true")
-		}
-		if status.InstallHint != "" {
-			t.Error("Expected empty InstallHint when Available is true")
-		}
-		if status.Error != "" {
-			t.Error("Expected empty Error when Available is true")
-		}
-	} else {
-		t.Logf("Claude CLI is not available: %s", status.Error)
-		if status.InstallHint == "" {
-			t.Error("Expected non-empty InstallHint when Available is false")
-		}
+	if !status.Available {
+		t.Fatal("Expected Available to be true")
+	}
+	if status.Version != "claude 2.1.12" {
+		t.Errorf("Expected version %q, got %q", "claude 2.1.12", status.Version)
+	}
+	if status.Error != "" {
+		t.Errorf("Expected empty Error, got %q", status.Error)
+	}
+	if status.InstallHint != "" {
+		t.Errorf("Expected empty InstallHint, got %q", status.InstallHint)
 	}
 }
 
 func TestDetectCLI_NotFound(t *testing.T) {
-	// Test that when CLI is not found, we get proper install hint
-	// We can't actually remove claude from PATH for this test,
-	// but we can verify the install hint content
-	status := CLIStatus{
-		Available:   false,
-		Error:       "claude CLI not found in PATH",
-		InstallHint: installHint,
+	origLookPath := lookPathFunc
+	defer func() { lookPathFunc = origLookPath }()
+
+	lookPathFunc = func(file string) (string, error) {
+		return "", fmt.Errorf("%w: claude", exec.ErrNotFound)
 	}
+
+	status := DetectCLI()
 
 	if status.Available {
 		t.Error("Expected Available to be false")
+	}
+
+	if status.Error != "claude CLI not found in PATH" {
+		t.Errorf("Expected error %q, got %q", "claude CLI not found in PATH", status.Error)
 	}
 
 	// Verify install hint contains expected installation methods
@@ -63,28 +76,53 @@ func TestDetectCLI_NotFound(t *testing.T) {
 }
 
 func TestDetectCLIWithContext_Timeout(t *testing.T) {
-	// Test that context timeout is respected
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Nanosecond)
-	defer cancel()
+	origLookPath := lookPathFunc
+	origRunVersion := runVersionCmd
+	defer func() {
+		lookPathFunc = origLookPath
+		runVersionCmd = origRunVersion
+	}()
 
-	// Give the context time to expire
-	time.Sleep(10 * time.Millisecond)
+	lookPathFunc = func(file string) (string, error) {
+		return "/usr/local/bin/claude", nil
+	}
+	// Mock version command that blocks until context expires
+	runVersionCmd = func(ctx context.Context, path string) ([]byte, error) {
+		<-ctx.Done()
+		return nil, ctx.Err()
+	}
 
-	status := DetectCLIWithContext(ctx)
+	// Use an already-expired context
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
 
-	// If claude is not installed, we'll get "not found" error instead of timeout
-	// If claude is installed but slow, we'll get timeout
-	// Either way, the test verifies the function handles context properly
+	status := detectCLIWithContext(ctx)
+
 	if status.Available {
-		t.Log("CLI detected even with minimal timeout - fast system")
-	} else {
-		t.Logf("CLI not available: %s", status.Error)
+		t.Fatal("Expected Available to be false with expired context")
 	}
 }
 
 func TestGetCLIStatus_Caching(t *testing.T) {
+	origLookPath := lookPathFunc
+	origRunVersion := runVersionCmd
+	defer func() {
+		lookPathFunc = origLookPath
+		runVersionCmd = origRunVersion
+		resetCLICache()
+	}()
+
+	var callCount int
+	lookPathFunc = func(file string) (string, error) {
+		callCount++
+		return "/usr/local/bin/claude", nil
+	}
+	runVersionCmd = func(ctx context.Context, path string) ([]byte, error) {
+		return []byte("claude 3.0.0"), nil
+	}
+
 	// Reset cache before test
-	ResetCLICache()
+	resetCLICache()
 
 	// First call should populate cache
 	status1 := GetCLIStatus()
@@ -98,9 +136,14 @@ func TestGetCLIStatus_Caching(t *testing.T) {
 	if status1.Version != status2.Version {
 		t.Error("Cached version should be consistent")
 	}
+	if !status1.Available {
+		t.Error("Expected Available to be true")
+	}
 
-	// Reset for other tests
-	ResetCLICache()
+	// LookPath should only have been called once (cached)
+	if callCount != 1 {
+		t.Errorf("Expected lookPathFunc called once, got %d", callCount)
+	}
 }
 
 func containsSubstr(s, substr string) bool {

@@ -18,7 +18,7 @@ func TestC2GoAnalyzer_SelfAnalysis(t *testing.T) {
 		t.Fatal("no packages found")
 	}
 
-	analyzer := &C2GoAnalyzer{pkgs: pkgs}
+	analyzer := &c2GoAnalyzer{pkgs: pkgs}
 	target := &types.AnalysisTarget{
 		Language: types.LangGo,
 		RootDir:  "../../../",
@@ -26,7 +26,7 @@ func TestC2GoAnalyzer_SelfAnalysis(t *testing.T) {
 
 	metrics, err := analyzer.Analyze(target)
 	if err != nil {
-		t.Fatalf("C2GoAnalyzer.Analyze() error: %v", err)
+		t.Fatalf("c2GoAnalyzer.Analyze() error: %v", err)
 	}
 
 	// Go is statically typed: TypeAnnotationCoverage must be 100

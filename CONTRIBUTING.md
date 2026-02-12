@@ -30,6 +30,7 @@ Agent Readiness Score (ARS) is a CLI tool that measures how ready a codebase is 
 - Go 1.21 or later
 - Git
 - (Optional) Claude CLI for C7 agent evaluation features
+- (Optional) `ANTHROPIC_API_KEY` for C4 LLM-based documentation analysis
 
 ### Setup
 
@@ -319,44 +320,6 @@ This project uses **GSD (Get Stuff Done)** methodology:
 - Check `.planning/ROADMAP.md` for current milestone
 - Review phase context before starting work
 - Follow the atomic commit pattern established in GSD
-
-### Updating the Changelog
-
-When completing a phase or making user-visible changes:
-
-1. **During development:**
-   - Add entry to `## [Unreleased]` section in CHANGELOG.md
-   - Use appropriate subsection (Added/Changed/Fixed/Removed/Deprecated/Security)
-   - Focus on user-visible changes (not internal refactors or test additions)
-   - Use clear, concise language with examples where helpful
-   - Commit with: `docs: update CHANGELOG for Phase XX`
-
-2. **When releasing a version:**
-   - Move `[Unreleased]` entries to new version section
-   - Add version number and date: `## [X.Y.Z] - YYYY-MM-DD`
-   - Create git tag: `git tag vX.Y.Z`
-   - Update comparison links at bottom of file
-   - Mark breaking changes prominently in a **BREAKING CHANGES** section
-
-**Example changelog entries:**
-
-```markdown
-### Added
-- C7 scoring bug fixed - M2/M3/M4 metrics now produce non-zero scores
-- Debug infrastructure with `--debug-c7` flag for score transparency
-
-### Changed
-- Python and TypeScript language support added
-
-### Fixed
-- Circular dependency detection now handles import cycles correctly
-```
-
-**What NOT to include:**
-- Internal refactors with no user impact
-- Test additions (unless they signal new feature coverage)
-- Implementation details ("Updated MetricExtractor signature")
-- TODOs or planned work
 
 ## License
 

@@ -659,7 +659,7 @@ func TestHTMLFileSizeBudget(t *testing.T) {
 		{
 			Name:     "c7_agent",
 			Category: "C7",
-			Metrics:  map[string]interface{}{"c7": c7Metrics},
+			Metrics:  map[string]types.CategoryMetrics{"c7": c7Metrics},
 		},
 	}
 

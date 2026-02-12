@@ -37,9 +37,9 @@ func TestC1_CyclomaticComplexity(t *testing.T) {
 		t.Fatalf("Analyze failed: %v", err)
 	}
 
-	metrics, ok := result.Metrics["c1"].(*C1MetricsResult)
+	metrics, ok := result.Metrics["c1"].(*c1MetricsResult)
 	if !ok {
-		t.Fatal("expected C1MetricsResult in Metrics[\"c1\"]")
+		t.Fatal("expected c1MetricsResult in Metrics[\"c1\"]")
 	}
 
 	// Find functions by name in the metrics
@@ -86,7 +86,7 @@ func TestC1_FunctionLength(t *testing.T) {
 		t.Fatalf("Analyze failed: %v", err)
 	}
 
-	metrics := result.Metrics["c1"].(*C1MetricsResult)
+	metrics := result.Metrics["c1"].(*c1MetricsResult)
 
 	funcLength := make(map[string]int)
 	for _, fm := range metrics.Functions {
@@ -119,7 +119,7 @@ func TestC1_FileSize(t *testing.T) {
 		t.Fatalf("Analyze failed: %v", err)
 	}
 
-	metrics := result.Metrics["c1"].(*C1MetricsResult)
+	metrics := result.Metrics["c1"].(*c1MetricsResult)
 
 	// The complexity/main.go fixture should have a known line count
 	if metrics.FileSize.Max <= 0 {
@@ -142,7 +142,7 @@ func TestC1_AfferentCoupling(t *testing.T) {
 		t.Fatalf("Analyze failed: %v", err)
 	}
 
-	metrics := result.Metrics["c1"].(*C1MetricsResult)
+	metrics := result.Metrics["c1"].(*c1MetricsResult)
 
 	// pkgb is imported by pkga -> afferent(pkgb) = 1
 	pkgbPath := "github.com/ingo/agent-readyness/testdata/coupling/pkgb"
@@ -163,7 +163,7 @@ func TestC1_EfferentCoupling(t *testing.T) {
 		t.Fatalf("Analyze failed: %v", err)
 	}
 
-	metrics := result.Metrics["c1"].(*C1MetricsResult)
+	metrics := result.Metrics["c1"].(*c1MetricsResult)
 
 	// pkga imports pkgb -> efferent(pkga) = 1
 	pkgaPath := "github.com/ingo/agent-readyness/testdata/coupling/pkga"
@@ -190,7 +190,7 @@ func TestC1_Duplication(t *testing.T) {
 		t.Fatalf("Analyze failed: %v", err)
 	}
 
-	metrics := result.Metrics["c1"].(*C1MetricsResult)
+	metrics := result.Metrics["c1"].(*c1MetricsResult)
 
 	// Two identical 8-line blocks should be detected
 	if len(metrics.DuplicatedBlocks) == 0 {

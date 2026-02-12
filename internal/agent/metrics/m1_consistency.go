@@ -11,37 +11,72 @@ import (
 	"github.com/ingo/agent-readyness/pkg/types"
 )
 
+// M1 sample selection and scoring constants.
+const (
+	m1SampleCount    = 1               // One file, run multiple times
+	m1Timeout        = 540 * time.Second // 3 runs of 180s each
+	m1Runs           = 3               // Number of repeat runs per sample
+	m1MinFileLOC     = 50              // Minimum file size for sample selection
+	m1MaxFileLOC     = 200             // Maximum file size for sample selection
+	m1MinFuncCount   = 3               // Minimum functions for sample selection
+	m1MaxFuncCount   = 10              // Maximum functions for sample selection
+	m1IdealFileLOC   = 100             // Ideal file size for scoring
+	m1IdealFuncCount = 5               // Ideal function count for scoring
+	m1FallbackMinLOC = 20              // Minimum lines for fallback selection
+	m1VarianceNorm   = 100.0           // Variance normalization factor
+	m1LowVariance    = 5.0             // Variance % below which score is excellent
+	m1MedVariance    = 15.0            // Variance % below which score is good
+	m1HighVariance   = 30.0            // Variance % below which score is fair
+)
+
+// M1 score trace delta values.
+const (
+	m1DeltaExactJSON   = 10 // Delta for exact JSON array response
+	m1DeltaPartialJSON = 7  // Delta for partial JSON array response
+	m1DeltaNonEmpty    = 4  // Delta for non-empty, non-JSON response
+	m1DeltaEmpty       = 1  // Delta for empty response
+)
+
 // M1Consistency measures task execution reproducibility across multiple runs.
 // It tests the same simple task 3 times and measures variance in completion.
 //
 // Research basis: Agent benchmarks show ~13% variance in results; consistency
 // is critical for reliability in production use.
-type M1Consistency struct {
+type m1Consistency struct {
 	sampleCount int
 	timeout     time.Duration
 	runs        int // Number of times to repeat the task
 }
 
-// NewM1ConsistencyMetric creates a Task Execution Consistency metric.
-func NewM1ConsistencyMetric() *M1Consistency {
-	return &M1Consistency{
-		sampleCount: 1,            // One file, run 3 times
-		timeout:     540 * time.Second, // 3 runs of 180s each
-		runs:        3,
+// newM1ConsistencyMetric creates a Task Execution Consistency metric.
+func newM1ConsistencyMetric() *m1Consistency {
+	return &m1Consistency{
+		sampleCount: m1SampleCount,
+		timeout:     m1Timeout,
+		runs:        m1Runs,
 	}
 }
 
-func (m *M1Consistency) ID() string { return "task_execution_consistency" }
-func (m *M1Consistency) Name() string { return "Task Execution Consistency" }
-func (m *M1Consistency) Description() string {
+// ID returns the metric identifier.
+func (m *m1Consistency) ID() string { return "task_execution_consistency" }
+
+// Name returns the human-readable metric name.
+func (m *m1Consistency) Name() string { return "Task Execution Consistency" }
+
+// Description returns what this metric measures.
+func (m *m1Consistency) Description() string {
 	return "Measures reproducibility of agent task completion across multiple runs"
 }
-func (m *M1Consistency) Timeout() time.Duration { return m.timeout }
-func (m *M1Consistency) SampleCount() int { return m.sampleCount }
+
+// Timeout returns the per-metric timeout duration.
+func (m *m1Consistency) Timeout() time.Duration { return m.timeout }
+
+// SampleCount returns the number of samples to evaluate.
+func (m *m1Consistency) SampleCount() int { return m.sampleCount }
 
 // SelectSamples picks 1 file with moderate size (50-200 LOC) and 3-10 functions.
 // Uses deterministic heuristics: count `func ` occurrences, prefer moderate complexity.
-func (m *M1Consistency) SelectSamples(targets []*types.AnalysisTarget) []Sample {
+func (m *m1Consistency) SelectSamples(targets []*types.AnalysisTarget) []Sample {
 	var candidates []Sample
 
 	funcPattern := regexp.MustCompile(`(?m)^func\s+`)
@@ -53,7 +88,7 @@ func (m *M1Consistency) SelectSamples(targets []*types.AnalysisTarget) []Sample 
 			}
 
 			// Skip files outside ideal size range
-			if file.Lines < 50 || file.Lines > 200 {
+			if file.Lines < m1MinFileLOC || file.Lines > m1MaxFileLOC {
 				continue
 			}
 
@@ -61,14 +96,14 @@ func (m *M1Consistency) SelectSamples(targets []*types.AnalysisTarget) []Sample 
 			funcMatches := funcPattern.FindAllString(content, -1)
 			funcCount := len(funcMatches)
 
-			// Prefer files with 3-10 functions
-			if funcCount < 3 || funcCount > 10 {
+			// Prefer files with moderate function count
+			if funcCount < m1MinFuncCount || funcCount > m1MaxFuncCount {
 				continue
 			}
 
-			// Score: prefer files closer to middle of range (100 LOC, 5-6 funcs)
-			sizeScore := 1.0 - float64(abs(file.Lines-100))/100.0
-			funcScore := 1.0 - float64(abs(funcCount-5))/5.0
+			// Score: prefer files closer to middle of range
+			sizeScore := 1.0 - float64(abs(file.Lines-m1IdealFileLOC))/float64(m1IdealFileLOC)
+			funcScore := 1.0 - float64(abs(funcCount-m1IdealFuncCount))/float64(m1IdealFuncCount)
 			score := (sizeScore + funcScore) / 2
 
 			candidates = append(candidates, Sample{
@@ -83,7 +118,7 @@ func (m *M1Consistency) SelectSamples(targets []*types.AnalysisTarget) []Sample 
 		// Fallback: take any source file
 		for _, target := range targets {
 			for _, file := range target.Files {
-				if file.Class != types.ClassSource && file.Lines > 20 {
+				if file.Class != types.ClassSource && file.Lines > m1FallbackMinLOC {
 					candidates = append(candidates, Sample{
 						FilePath:       file.RelPath,
 						SelectionScore: float64(file.Lines),
@@ -106,7 +141,7 @@ func (m *M1Consistency) SelectSamples(targets []*types.AnalysisTarget) []Sample 
 }
 
 // Execute runs the same task 3 times and measures variance.
-func (m *M1Consistency) Execute(ctx context.Context, workDir string, samples []Sample, executor Executor) MetricResult {
+func (m *m1Consistency) Execute(ctx context.Context, workDir string, samples []Sample, executor Executor) MetricResult {
 	result := MetricResult{
 		MetricID:   m.ID(),
 		MetricName: m.Name(),
@@ -151,14 +186,14 @@ Do not include any explanation, just the JSON array.`, sample.FilePath)
 
 			if strings.HasPrefix(response, "[") && strings.HasSuffix(response, "]") {
 				trace.Indicators = append(trace.Indicators, IndicatorMatch{
-					Name: "json_array_exact", Matched: true, Delta: 10,
+					Name: "json_array_exact", Matched: true, Delta: m1DeltaExactJSON,
 				})
 			} else if strings.Contains(response, "[") {
 				trace.Indicators = append(trace.Indicators, IndicatorMatch{
 					Name: "json_array_exact", Matched: false, Delta: 0,
 				})
 				trace.Indicators = append(trace.Indicators, IndicatorMatch{
-					Name: "json_array_partial", Matched: true, Delta: 7,
+					Name: "json_array_partial", Matched: true, Delta: m1DeltaPartialJSON,
 				})
 			} else if len(response) > 0 {
 				trace.Indicators = append(trace.Indicators, IndicatorMatch{
@@ -168,7 +203,7 @@ Do not include any explanation, just the JSON array.`, sample.FilePath)
 					Name: "json_array_partial", Matched: false, Delta: 0,
 				})
 				trace.Indicators = append(trace.Indicators, IndicatorMatch{
-					Name: "non_empty_response", Matched: true, Delta: 4,
+					Name: "non_empty_response", Matched: true, Delta: m1DeltaNonEmpty,
 				})
 			} else {
 				trace.Indicators = append(trace.Indicators, IndicatorMatch{
@@ -181,7 +216,7 @@ Do not include any explanation, just the JSON array.`, sample.FilePath)
 					Name: "non_empty_response", Matched: false, Delta: 0,
 				})
 				trace.Indicators = append(trace.Indicators, IndicatorMatch{
-					Name: "empty_response", Matched: true, Delta: 1,
+					Name: "empty_response", Matched: true, Delta: m1DeltaEmpty,
 				})
 			}
 
@@ -189,11 +224,11 @@ Do not include any explanation, just the JSON array.`, sample.FilePath)
 			for _, ind := range trace.Indicators {
 				score += ind.Delta
 			}
-			if score < 1 {
-				score = 1
+			if score < minScore {
+				score = minScore
 			}
-			if score > 10 {
-				score = 10
+			if score > maxScore {
+				score = maxScore
 			}
 			trace.FinalScore = score
 			sr.Score = score
@@ -215,18 +250,18 @@ Do not include any explanation, just the JSON array.`, sample.FilePath)
 	}
 
 	variance := calculateVariance(scores)
-	variancePct := (variance / 100.0) * 100 // Normalize to percentage
+	variancePct := (variance / m1VarianceNorm) * m1VarianceNorm // Normalize to percentage
 
 	// Score based on variance thresholds from research
 	switch {
-	case variancePct < 5:
-		result.Score = 10
-	case variancePct < 15:
+	case variancePct < m1LowVariance:
+		result.Score = maxScore
+	case variancePct < m1MedVariance:
 		result.Score = 7
-	case variancePct < 30:
+	case variancePct < m1HighVariance:
 		result.Score = 4
 	default:
-		result.Score = 1
+		result.Score = minScore
 	}
 
 	return result

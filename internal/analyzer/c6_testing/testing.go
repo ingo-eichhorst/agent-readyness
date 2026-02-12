@@ -15,6 +15,16 @@ import (
 	"golang.org/x/tools/cover"
 )
 
+// Constants for C6 metrics computation.
+const (
+	toPercentC6            = 100.0
+	vacuousIsolationScore  = 100.0
+	lcovDAPrefix           = "DA:"
+	lcovDASkipChars        = 3
+	lcovFieldCount         = 2
+	coberturaToPercent     = 100.0
+)
+
 // C6Analyzer implements the pipeline.Analyzer interface for C6: Testing Infrastructure.
 // It measures test detection, test-to-code ratio, coverage parsing,
 // test isolation, and assertion density.
@@ -160,7 +170,7 @@ func (a *C6Analyzer) Analyze(targets []*types.AnalysisTarget) (*types.AnalysisRe
 	return &types.AnalysisResult{
 		Name:     "C6: Testing",
 		Category: "C6",
-		Metrics: map[string]interface{}{
+		Metrics: map[string]types.CategoryMetrics{
 			"c6": metrics,
 		},
 	}, nil
@@ -323,7 +333,7 @@ func parseGoCoverage(path string) (float64, error) {
 	if totalStatements == 0 {
 		return 0, nil
 	}
-	return float64(coveredStatements) / float64(totalStatements) * 100, nil
+	return float64(coveredStatements) / float64(totalStatements) * toPercentC6, nil
 }
 
 // parseLCOV parses an LCOV format coverage file.
@@ -338,9 +348,9 @@ func parseLCOV(path string) (float64, error) {
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
 		line := scanner.Text()
-		if strings.HasPrefix(line, "DA:") {
-			parts := strings.SplitN(line[3:], ",", 2)
-			if len(parts) == 2 {
+		if strings.HasPrefix(line, lcovDAPrefix) {
+			parts := strings.SplitN(line[lcovDASkipChars:], ",", lcovFieldCount)
+			if len(parts) == lcovFieldCount {
 				totalLines++
 				if parts[1] != "0" {
 					hitLines++
@@ -356,7 +366,7 @@ func parseLCOV(path string) (float64, error) {
 	if totalLines == 0 {
 		return 0, nil
 	}
-	return float64(hitLines) / float64(totalLines) * 100, nil
+	return float64(hitLines) / float64(totalLines) * toPercentC6, nil
 }
 
 // coberturaXML represents the top-level coverage element in a Cobertura report.
@@ -377,7 +387,7 @@ func parseCobertura(path string) (float64, error) {
 		return 0, err
 	}
 
-	return report.LineRate * 100, nil
+	return report.LineRate * coberturaToPercent, nil
 }
 
 // externalDepPackages are packages that indicate a test has external dependencies.
@@ -440,9 +450,9 @@ func analyzeIsolation(testPkgs []*parser.ParsedPackage, metrics *types.C6Metrics
 	}
 
 	if totalTests == 0 {
-		return 100 // No tests = vacuously isolated
+		return vacuousIsolationScore // No tests = vacuously isolated
 	}
-	return float64(isolatedTests) / float64(totalTests) * 100
+	return float64(isolatedTests) / float64(totalTests) * toPercentC6
 }
 
 // isTestFunction checks if a function declaration is a test function.

@@ -75,26 +75,26 @@ func TestGetMetricByID(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		m := GetMetric(tc.id)
+		m := getMetric(tc.id)
 		if m == nil {
-			t.Errorf("GetMetric(%q) returned nil", tc.id)
+			t.Errorf("getMetric(%q) returned nil", tc.id)
 			continue
 		}
 		if m.Name() != tc.want {
-			t.Errorf("GetMetric(%q).Name() = %q, want %q", tc.id, m.Name(), tc.want)
+			t.Errorf("getMetric(%q).Name() = %q, want %q", tc.id, m.Name(), tc.want)
 		}
 	}
 }
 
 func TestGetMetricUnknown(t *testing.T) {
-	m := GetMetric("unknown_metric")
+	m := getMetric("unknown_metric")
 	if m != nil {
-		t.Errorf("GetMetric(unknown) = %v, want nil", m)
+		t.Errorf("getMetric(unknown) = %v, want nil", m)
 	}
 }
 
 func TestM1Consistency_SelectSamples(t *testing.T) {
-	m := NewM1Consistency()
+	m := newM1Consistency()
 
 	// Empty targets should return empty samples
 	samples := m.SelectSamples(nil)
@@ -104,7 +104,7 @@ func TestM1Consistency_SelectSamples(t *testing.T) {
 }
 
 func TestM2Comprehension_SelectSamples(t *testing.T) {
-	m := NewM2Comprehension()
+	m := newM2Comprehension()
 
 	// With targets
 	targets := []*types.AnalysisTarget{
@@ -125,7 +125,7 @@ func TestM2Comprehension_SelectSamples(t *testing.T) {
 }
 
 func TestM3Navigation_SelectSamples(t *testing.T) {
-	m := NewM3Navigation()
+	m := newM3Navigation()
 
 	// Create targets with files containing imports
 	content := []byte(`package main
@@ -159,7 +159,7 @@ func main() {
 }
 
 func TestM4Identifiers_SelectSamples(t *testing.T) {
-	m := NewM4Identifiers()
+	m := newM4Identifiers()
 
 	// Create targets with exported identifiers
 	content := []byte(`package analyzer
@@ -203,7 +203,7 @@ var GlobalConfiguration = Config{}
 }
 
 func TestM5Documentation_SelectSamples(t *testing.T) {
-	m := NewM5Documentation()
+	m := newM5Documentation()
 
 	// Create targets with comments
 	content := []byte(`package main
@@ -355,7 +355,7 @@ func TestMin(t *testing.T) {
 
 // Test scoring heuristics for M2 (Comprehension)
 func TestM2_ScoreComprehensionResponse(t *testing.T) {
-	m := NewM2Comprehension().(*M2Comprehension)
+	m := newM2Comprehension().(*m2Comprehension)
 
 	tests := []struct {
 		name     string
@@ -395,7 +395,7 @@ func TestM2_ScoreComprehensionResponse(t *testing.T) {
 
 // Test scoring heuristics for M3 (Navigation)
 func TestM3_ScoreNavigationResponse(t *testing.T) {
-	m := NewM3Navigation().(*M3Navigation)
+	m := newM3Navigation().(*m3Navigation)
 
 	tests := []struct {
 		name     string
@@ -435,7 +435,7 @@ func TestM3_ScoreNavigationResponse(t *testing.T) {
 
 // Test scoring heuristics for M4 (Identifiers)
 func TestM4_ScoreIdentifierResponse(t *testing.T) {
-	m := NewM4Identifiers().(*M4Identifiers)
+	m := newM4Identifiers().(*m4Identifiers)
 
 	tests := []struct {
 		name     string
@@ -475,7 +475,7 @@ func TestM4_ScoreIdentifierResponse(t *testing.T) {
 
 // Test scoring heuristics for M5 (Documentation)
 func TestM5_ScoreDocumentationResponse(t *testing.T) {
-	m := NewM5Documentation().(*M5Documentation)
+	m := newM5Documentation().(*m5Documentation)
 
 	tests := []struct {
 		name     string
@@ -524,42 +524,42 @@ func TestScoreTrace_SumsCorrectly(t *testing.T) {
 	}{
 		{
 			name:     "M2 good response",
-			scoreFn:  NewM2ComprehensionMetric().scoreComprehensionResponse,
+			scoreFn:  newM2ComprehensionMetric().scoreComprehensionResponse,
 			response: "The function returns the result after handling errors. It validates input and checks conditions.",
 		},
 		{
 			name:     "M2 empty response",
-			scoreFn:  NewM2ComprehensionMetric().scoreComprehensionResponse,
+			scoreFn:  newM2ComprehensionMetric().scoreComprehensionResponse,
 			response: "",
 		},
 		{
 			name:     "M3 good response",
-			scoreFn:  NewM3NavigationMetric().scoreNavigationResponse,
+			scoreFn:  newM3NavigationMetric().scoreNavigationResponse,
 			response: "Imports: import fmt, import os. The module exports a function that calls -> /src/handler.go",
 		},
 		{
 			name:     "M3 empty response",
-			scoreFn:  NewM3NavigationMetric().scoreNavigationResponse,
+			scoreFn:  newM3NavigationMetric().scoreNavigationResponse,
 			response: "",
 		},
 		{
 			name:     "M4 good response",
-			scoreFn:  NewM4IdentifiersMetric().scoreIdentifierResponse,
+			scoreFn:  newM4IdentifiersMetric().scoreIdentifierResponse,
 			response: "Interpretation: This function creates a database connection. Verification: Confirmed accurate. Accuracy: Correct.",
 		},
 		{
 			name:     "M4 empty response",
-			scoreFn:  NewM4IdentifiersMetric().scoreIdentifierResponse,
+			scoreFn:  newM4IdentifiersMetric().scoreIdentifierResponse,
 			response: "",
 		},
 		{
 			name:     "M5 good response",
-			scoreFn:  NewM5DocumentationMetric().scoreDocumentationResponse,
+			scoreFn:  newM5DocumentationMetric().scoreDocumentationResponse,
 			response: "## Summary\nGood documentation.\n## Accurate Documentation\nComment correctly describes behavior.\n## Potential Mismatches\nLocation: line 10\nComment says: returns nil\nCode does: returns error\nIssue: outdated",
 		},
 		{
 			name:     "M5 empty response",
-			scoreFn:  NewM5DocumentationMetric().scoreDocumentationResponse,
+			scoreFn:  newM5DocumentationMetric().scoreDocumentationResponse,
 			response: "",
 		},
 	}
@@ -736,11 +736,11 @@ func errorResponse() Response { return Response{} }
 		name   string
 		metric Metric
 	}{
-		{"M1", NewM1Consistency()},
-		{"M2", NewM2Comprehension()},
-		{"M3", NewM3Navigation()},
-		{"M4", NewM4Identifiers()},
-		{"M5", NewM5Documentation()},
+		{"M1", newM1Consistency()},
+		{"M2", newM2Comprehension()},
+		{"M3", newM3Navigation()},
+		{"M4", newM4Identifiers()},
+		{"M5", newM5Documentation()},
 	}
 
 	for _, tc := range tests {
@@ -772,7 +772,7 @@ func errorResponse() Response { return Response{} }
 // Good responses should score 6-8, weaker responses should score 4-6.
 
 func TestM2_Score_Fixtures(t *testing.T) {
-	m := NewM2ComprehensionMetric()
+	m := newM2ComprehensionMetric()
 
 	tests := []struct {
 		name     string
@@ -813,7 +813,7 @@ func TestM2_Score_Fixtures(t *testing.T) {
 }
 
 func TestM3_Score_Fixtures(t *testing.T) {
-	m := NewM3NavigationMetric()
+	m := newM3NavigationMetric()
 
 	tests := []struct {
 		name     string
@@ -854,7 +854,7 @@ func TestM3_Score_Fixtures(t *testing.T) {
 }
 
 func TestM4_Score_Fixtures(t *testing.T) {
-	m := NewM4IdentifiersMetric()
+	m := newM4IdentifiersMetric()
 
 	tests := []struct {
 		name     string

@@ -22,6 +22,20 @@ import (
 	"github.com/ingo/agent-readyness/pkg/types"
 )
 
+// Documentation analysis constants.
+const (
+	llmAnalysisTimeout  = 5 * time.Minute
+	llmCostPerMTok      = 5.0
+	readmeTruncateLimit = 20000
+	maxExampleFiles     = 3
+	exampleContentLimit = 10000
+	readmeSummaryLimit  = 5000
+	charsPerToken       = 4
+	maxSampledFiles     = 5
+	toPercentC4         = 100.0
+	minCodeBlockMatches = 2
+)
+
 // C4Analyzer implements the pipeline.Analyzer interface for C4: Documentation Quality.
 // It analyzes README presence, comment density, API doc coverage, and other documentation artifacts.
 type C4Analyzer struct {
@@ -46,6 +60,25 @@ func (a *C4Analyzer) Name() string {
 }
 
 // Analyze runs the C4 documentation quality analysis.
+//
+// Multi-language documentation analysis:
+// - Go: Uses go/ast for doc comment detection and go/parser for comment counting
+// - Python: Uses Tree-sitter to parse docstrings and comments
+// - TypeScript: Uses Tree-sitter for JSDoc and comment analysis
+//
+// Metrics collected:
+// - C4-01: README presence and word count
+// - C4-02: Comment density (comment lines / total lines * 100)
+// - C4-03: API documentation coverage (documented APIs / total public APIs * 100)
+// - C4-04: CHANGELOG presence
+// - C4-05: Examples presence (directory or README code blocks)
+// - C4-06: CONTRIBUTING guide presence
+// - C4-07: Diagrams presence (architecture/design documentation)
+//
+// Optional LLM-based evaluation (if Claude CLI available):
+// - README clarity and completeness
+// - Example code quality and usefulness
+// - Overall documentation comprehensiveness
 func (a *C4Analyzer) Analyze(targets []*types.AnalysisTarget) (*types.AnalysisResult, error) {
 	if len(targets) == 0 {
 		return nil, fmt.Errorf("no targets provided")
@@ -111,10 +144,10 @@ func (a *C4Analyzer) Analyze(targets []*types.AnalysisTarget) (*types.AnalysisRe
 	metrics.DocumentedAPIs = documentedAPIs
 
 	if totalLines > 0 {
-		metrics.CommentDensity = float64(commentLines) / float64(totalLines) * 100
+		metrics.CommentDensity = float64(commentLines) / float64(totalLines) * toPercentC4
 	}
 	if publicAPIs > 0 {
-		metrics.APIDocCoverage = float64(documentedAPIs) / float64(publicAPIs) * 100
+		metrics.APIDocCoverage = float64(documentedAPIs) / float64(publicAPIs) * toPercentC4
 	}
 
 	// LLM-based content quality evaluation (if enabled)
@@ -128,15 +161,23 @@ func (a *C4Analyzer) Analyze(targets []*types.AnalysisTarget) (*types.AnalysisRe
 	return &types.AnalysisResult{
 		Name:     "C4: Documentation Quality",
 		Category: "C4",
-		Metrics:  map[string]interface{}{"c4": metrics},
+		Metrics:  map[string]types.CategoryMetrics{"c4": metrics},
 	}, nil
 }
 
-// runLLMAnalysis performs LLM-based content quality evaluation using CLI.
+// runLLMAnalysis performs LLM-based content quality evaluation using Claude CLI.
+//
+// Optional analysis (requires Claude CLI installed):
+// - README clarity: Evaluates readme comprehensiveness and structure
+// - Example quality: Assesses example code usefulness and completeness
+// - Docs completeness: Overall documentation coverage and gaps
+//
+// Uses agent.Evaluator with 5-minute timeout and retry logic.
+// Gracefully degrades if LLM unavailable (static metrics still provided).
 func (a *C4Analyzer) runLLMAnalysis(rootDir string, metrics *types.C4Metrics) {
 	metrics.LLMEnabled = true
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), llmAnalysisTimeout)
 	defer cancel()
 
 	totalTokens := 0
@@ -189,7 +230,7 @@ func (a *C4Analyzer) runLLMAnalysis(rootDir string, metrics *types.C4Metrics) {
 	// Sonnet pricing: ~$3/MTok input, ~$15/MTok output
 	// Simplified: ~$0.005 per 1000 tokens blended
 	metrics.LLMTokensUsed = totalTokens
-	metrics.LLMCostUSD = float64(totalTokens) / 1_000_000 * 5.0 // CLI/Sonnet blended rate
+	metrics.LLMCostUSD = float64(totalTokens) / 1_000_000 * llmCostPerMTok
 	metrics.LLMFilesSampled = countSampledFiles(rootDir)
 }
 
@@ -206,8 +247,8 @@ func readReadmeContent(rootDir string) string {
 		content, err := os.ReadFile(path)
 		if err == nil {
 			// Truncate very large READMEs to save tokens
-			if len(content) > 20000 {
-				content = content[:20000]
+			if len(content) > readmeTruncateLimit {
+				content = content[:readmeTruncateLimit]
 			}
 			return string(content)
 		}
@@ -234,7 +275,7 @@ func collectExampleContent(rootDir string) string {
 		// Collect first few example files
 		count := 0
 		for _, entry := range entries {
-			if entry.IsDir() || count >= 3 {
+			if entry.IsDir() || count >= maxExampleFiles {
 				continue
 			}
 			ext := strings.ToLower(filepath.Ext(entry.Name()))
@@ -257,7 +298,7 @@ func collectExampleContent(rootDir string) string {
 		codeBlocks := extractCodeBlocks(readmeContent)
 		if len(codeBlocks) > 0 {
 			for i, block := range codeBlocks {
-				if i >= 3 {
+				if i >= maxExampleFiles {
 					break
 				}
 				examples.WriteString(fmt.Sprintf("=== README Example %d ===\n%s\n\n", i+1, block))
@@ -267,8 +308,8 @@ func collectExampleContent(rootDir string) string {
 
 	result := examples.String()
 	// Truncate to save tokens
-	if len(result) > 10000 {
-		result = result[:10000]
+	if len(result) > exampleContentLimit {
+		result = result[:exampleContentLimit]
 	}
 	return result
 }
@@ -343,8 +384,8 @@ func collectDocsSummary(rootDir string, metrics *types.C4Metrics) string {
 	readmeContent := readReadmeContent(rootDir)
 	if readmeContent != "" {
 		// Truncate for token efficiency
-		if len(readmeContent) > 5000 {
-			readmeContent = readmeContent[:5000] + "\n... (truncated)"
+		if len(readmeContent) > readmeSummaryLimit {
+			readmeContent = readmeContent[:readmeSummaryLimit] + "\n... (truncated)"
 		}
 		summary.WriteString("\nREADME Content:\n")
 		summary.WriteString(readmeContent)
@@ -356,7 +397,7 @@ func collectDocsSummary(rootDir string, metrics *types.C4Metrics) string {
 // estimateTokens provides a rough token count estimate.
 func estimateTokens(content string) int {
 	// Approximate: 4 characters per token on average
-	return len(content) / 4
+	return len(content) / charsPerToken
 }
 
 // countSampledFiles counts files that were sampled for LLM analysis.
@@ -386,7 +427,7 @@ func countSampledFiles(rootDir string) int {
 			for _, entry := range entries {
 				if !entry.IsDir() {
 					count++
-					if count >= 5 {
+					if count >= maxSampledFiles {
 						break
 					}
 				}
@@ -399,6 +440,12 @@ func countSampledFiles(rootDir string) int {
 }
 
 // analyzeReadme checks for README presence and counts words.
+//
+// Checks multiple naming conventions (case-insensitive):
+// - README.md, README, readme.md, Readme.md, README.txt
+// - Returns presence flag and word count for scoring
+//
+// Word counting uses unicode-aware space detection for accuracy across languages.
 func analyzeReadme(rootDir string) (bool, int) {
 	readmePaths := []string{
 		filepath.Join(rootDir, "README.md"),
@@ -421,6 +468,8 @@ func analyzeReadme(rootDir string) (bool, int) {
 }
 
 // countWords counts words in text using unicode space detection.
+// Accurately handles multi-byte Unicode characters and various whitespace types.
+// Returns total word count for README quality metrics.
 func countWords(text string) int {
 	words := 0
 	inWord := false
@@ -436,6 +485,8 @@ func countWords(text string) int {
 }
 
 // analyzeChangelog checks for CHANGELOG presence.
+// Recognizes common changelog file naming conventions: CHANGELOG, HISTORY, CHANGES.
+// Returns boolean indicating whether project maintains a changelog.
 func analyzeChangelog(rootDir string) bool {
 	changelogPaths := []string{
 		filepath.Join(rootDir, "CHANGELOG.md"),
@@ -456,6 +507,12 @@ func analyzeChangelog(rootDir string) bool {
 }
 
 // analyzeExamples checks for examples directory or code blocks in README.
+//
+// Two detection methods:
+// - Filesystem: Checks for examples/, example/, or _examples/ directories
+// - README: Counts fenced code blocks (```) in README.md (minimum 2 blocks required)
+//
+// Returns true if either method finds examples, indicating code samples are provided.
 func analyzeExamples(rootDir string) bool {
 	// Check for examples/ directory
 	examplesDirs := []string{
@@ -480,7 +537,7 @@ func analyzeExamples(rootDir string) bool {
 	codeBlockPattern := regexp.MustCompile("(?m)^```")
 	matches := codeBlockPattern.FindAllIndex(content, -1)
 	// Need at least 2 matches (open and close) for a code block
-	return len(matches) >= 2
+	return len(matches) >= minCodeBlockMatches
 }
 
 // analyzeContributing checks for CONTRIBUTING presence.
@@ -548,6 +605,13 @@ func analyzeDiagrams(rootDir string) bool {
 }
 
 // analyzeGoComments counts total lines and comment lines in Go files.
+//
+// Comment detection:
+// - Line comments: Lines starting with "//" (after trimming whitespace)
+// - Block comments: Lines within /* */ pairs (tracks state across lines)
+// - Only counts source files (ClassSource), excluding test and generated files
+//
+// Returns total source lines and comment line count for density calculation.
 func analyzeGoComments(target *types.AnalysisTarget) (totalLines, commentLines int) {
 	for _, sf := range target.Files {
 		if sf.Class != types.ClassSource {
@@ -582,6 +646,14 @@ func analyzeGoComments(target *types.AnalysisTarget) (totalLines, commentLines i
 }
 
 // analyzeGoAPIDocs counts exported (public) APIs and those with godoc comments.
+//
+// API detection:
+// - Exported functions: Functions with capitalized names
+// - Exported types: Type declarations with capitalized names
+// - Documentation check: Presence of Doc comment or associated CommentMap entry
+//
+// Uses go/ast for precise AST-based analysis of doc comments.
+// Returns counts for public API calculation (documented/total).
 func analyzeGoAPIDocs(target *types.AnalysisTarget) (publicAPIs, documentedAPIs int) {
 	fset := token.NewFileSet()
 

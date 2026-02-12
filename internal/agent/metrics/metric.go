@@ -15,6 +15,12 @@ import (
 	"github.com/ingo/agent-readyness/pkg/types"
 )
 
+// Score range for all metric evaluations (1-10 scale).
+const (
+	minScore = 1
+	maxScore = 10
+)
+
 // Metric defines a single MECE agent evaluation capability.
 type Metric interface {
 	ID() string                    // e.g., "task_execution_consistency"
@@ -79,27 +85,27 @@ type Executor interface {
 
 // Metric constructors - these return the real implementations.
 
-// NewM1Consistency creates the Task Execution Consistency metric.
-func NewM1Consistency() Metric {
-	return NewM1ConsistencyMetric()
+// newM1Consistency creates the Task Execution Consistency metric.
+func newM1Consistency() Metric {
+	return newM1ConsistencyMetric()
 }
 
-// NewM2Comprehension creates the Code Behavior Comprehension metric.
-func NewM2Comprehension() Metric {
-	return NewM2ComprehensionMetric()
+// newM2Comprehension creates the Code Behavior Comprehension metric.
+func newM2Comprehension() Metric {
+	return newM2ComprehensionMetric()
 }
 
-// NewM3Navigation creates the Cross-File Navigation metric.
-func NewM3Navigation() Metric {
-	return NewM3NavigationMetric()
+// newM3Navigation creates the Cross-File Navigation metric.
+func newM3Navigation() Metric {
+	return newM3NavigationMetric()
 }
 
-// NewM4Identifiers creates the Identifier Interpretability metric.
-func NewM4Identifiers() Metric {
-	return NewM4IdentifiersMetric()
+// newM4Identifiers creates the Identifier Interpretability metric.
+func newM4Identifiers() Metric {
+	return newM4IdentifiersMetric()
 }
 
-// NewM5Documentation creates the Documentation Accuracy Detection metric.
-func NewM5Documentation() Metric {
-	return NewM5DocumentationMetric()
+// newM5Documentation creates the Documentation Accuracy Detection metric.
+func newM5Documentation() Metric {
+	return newM5DocumentationMetric()
 }

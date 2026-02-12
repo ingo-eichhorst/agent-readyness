@@ -16,7 +16,7 @@ func TestC2PythonAnalyzer_ValidProject(t *testing.T) {
 	}
 	defer tsParser.Close()
 
-	analyzer := NewC2PythonAnalyzer(tsParser)
+	analyzer := newC2PythonAnalyzer(tsParser)
 
 	// Build AnalysisTarget from testdata/valid-python-project
 	testDir, err := filepath.Abs("../../../testdata/valid-python-project")
@@ -100,7 +100,7 @@ func TestC2PythonAnalyzer_EmptyTarget(t *testing.T) {
 	}
 	defer tsParser.Close()
 
-	analyzer := NewC2PythonAnalyzer(tsParser)
+	analyzer := newC2PythonAnalyzer(tsParser)
 
 	target := &types.AnalysisTarget{
 		Language: types.LangPython,

@@ -14,19 +14,19 @@ import (
 // ProjectConfig represents the .arsrc.yml configuration file.
 type ProjectConfig struct {
 	Version   int               `yaml:"version"`
-	Scoring   ScoringOverrides  `yaml:"scoring"`
+	Scoring   scoringOverrides  `yaml:"scoring"`
 	Languages []string          `yaml:"languages"`
-	Metrics   map[string]MetricOverrides `yaml:"metrics"`
+	Metrics   map[string]metricOverrides `yaml:"metrics"`
 }
 
-// ScoringOverrides contains weight and threshold overrides.
-type ScoringOverrides struct {
+// scoringOverrides contains weight and threshold overrides.
+type scoringOverrides struct {
 	Weights   map[string]float64 `yaml:"weights"`
 	Threshold float64            `yaml:"threshold"`
 }
 
-// MetricOverrides allows per-metric customization.
-type MetricOverrides struct {
+// metricOverrides allows per-metric customization.
+type metricOverrides struct {
 	Enabled   *bool   `yaml:"enabled"`
 	Threshold float64 `yaml:"threshold"`
 }
@@ -105,15 +105,5 @@ func (c *ProjectConfig) ApplyToScoringConfig(sc *scoring.ScoringConfig) {
 			cat.Weight = weight
 			sc.Categories[catName] = cat
 		}
-	}
-}
-
-// DefaultProjectConfig returns a ProjectConfig with sensible defaults.
-func DefaultProjectConfig() *ProjectConfig {
-	return &ProjectConfig{
-		Version: 1,
-		Scoring: ScoringOverrides{
-			Weights: map[string]float64{},
-		},
 	}
 }

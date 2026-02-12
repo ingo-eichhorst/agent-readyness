@@ -12,6 +12,20 @@ import (
 	"github.com/ingo/agent-readyness/pkg/types"
 )
 
+// C7 analysis constants.
+const (
+	c7CostRatePerMTok  = 5.0       // Sonnet 4.5 blended rate $/MTok
+	c7TokensPerMillion = 1_000_000 // Token-to-millions conversion
+	c7CharsPerToken    = 4         // Approximate characters per token
+
+	// MECE metric weights (duplicated from scoring config for quick display).
+	c7WeightM1 = 0.20 // Task Execution Consistency
+	c7WeightM2 = 0.25 // Code Behavior Comprehension
+	c7WeightM3 = 0.25 // Cross-File Navigation
+	c7WeightM4 = 0.15 // Identifier Interpretability
+	c7WeightM5 = 0.15 // Documentation Accuracy Detection
+)
+
 // C7Analyzer implements the pipeline.Analyzer interface for C7: Agent Evaluation.
 type C7Analyzer struct {
 	evaluator   *agent.Evaluator
@@ -135,7 +149,7 @@ func (a *C7Analyzer) Analyze(targets []*types.AnalysisTarget) (*types.AnalysisRe
 	return &types.AnalysisResult{
 		Name:     "C7: Agent Evaluation",
 		Category: "C7",
-		Metrics:  map[string]interface{}{"c7": c7metrics},
+		Metrics:  map[string]types.CategoryMetrics{"c7": c7metrics},
 	}, nil
 }
 
@@ -144,7 +158,7 @@ func (a *C7Analyzer) disabledResult() *types.AnalysisResult {
 	return &types.AnalysisResult{
 		Name:     "C7: Agent Evaluation",
 		Category: "C7",
-		Metrics:  map[string]interface{}{"c7": &types.C7Metrics{Available: false}},
+		Metrics:  map[string]types.CategoryMetrics{"c7": &types.C7Metrics{Available: false}},
 	}
 }
 
@@ -212,7 +226,7 @@ func (a *C7Analyzer) buildMetrics(result agent.ParallelResult, startTime time.Ti
 	m.TokensUsed = result.TotalTokens
 	m.TotalDuration = time.Since(startTime).Seconds()
 	// Sonnet 4.5 blended rate ~$5/MTok
-	m.CostUSD = float64(m.TokensUsed) / 1_000_000 * 5.0
+	m.CostUSD = float64(m.TokensUsed) / c7TokensPerMillion * c7CostRatePerMTok
 
 	return m
 }
@@ -226,11 +240,11 @@ func (a *C7Analyzer) calculateWeightedScore(m *types.C7Metrics) float64 {
 	// Weights from scoring config (internal/scoring/config.go):
 	// M1: 0.20, M2: 0.25, M3: 0.25, M4: 0.15, M5: 0.15
 	weights := map[string]float64{
-		"task_execution_consistency":       0.20,
-		"code_behavior_comprehension":      0.25,
-		"cross_file_navigation":            0.25,
-		"identifier_interpretability":      0.15,
-		"documentation_accuracy_detection": 0.15,
+		"task_execution_consistency":       c7WeightM1,
+		"code_behavior_comprehension":      c7WeightM2,
+		"cross_file_navigation":            c7WeightM3,
+		"identifier_interpretability":      c7WeightM4,
+		"documentation_accuracy_detection": c7WeightM5,
 	}
 
 	scores := map[string]int{
@@ -277,5 +291,5 @@ func convertScoreTrace(st metrics.ScoreTrace) types.C7ScoreTrace {
 // estimateResponseTokens estimates token count from response length.
 // Kept for potential backward compatibility or utility functions.
 func estimateResponseTokens(response string) int {
-	return len(response) / 4 // ~4 chars per token
+	return len(response) / c7CharsPerToken
 }

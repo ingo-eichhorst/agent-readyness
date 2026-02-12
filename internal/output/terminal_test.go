@@ -33,7 +33,7 @@ func newTestAnalysisResults() []*types.AnalysisResult {
 		{
 			Name:     "C1: Code Health",
 			Category: "C1",
-			Metrics: map[string]interface{}{
+			Metrics: map[string]types.CategoryMetrics{
 				"c1": &types.C1Metrics{
 					CyclomaticComplexity: types.MetricSummary{Avg: 3.5, Max: 8, MaxEntity: "main.handleRequest"},
 					FunctionLength:       types.MetricSummary{Avg: 15.2, Max: 42, MaxEntity: "main.handleRequest"},
@@ -49,7 +49,7 @@ func newTestAnalysisResults() []*types.AnalysisResult {
 		{
 			Name:     "C3: Architecture",
 			Category: "C3",
-			Metrics: map[string]interface{}{
+			Metrics: map[string]types.CategoryMetrics{
 				"c3": &types.C3Metrics{
 					MaxDirectoryDepth: 3,
 					AvgDirectoryDepth: 1.5,
@@ -64,7 +64,7 @@ func newTestAnalysisResults() []*types.AnalysisResult {
 		{
 			Name:     "C6: Testing",
 			Category: "C6",
-			Metrics: map[string]interface{}{
+			Metrics: map[string]types.CategoryMetrics{
 				"c6": &types.C6Metrics{
 					TestFileCount:   1,
 					SourceFileCount: 2,
@@ -82,7 +82,7 @@ func newTestAnalysisResults() []*types.AnalysisResult {
 		{
 			Name:     "C7: Agent Evaluation",
 			Category: "C7",
-			Metrics: map[string]interface{}{
+			Metrics: map[string]types.CategoryMetrics{
 				"c7": &types.C7Metrics{
 					Available:              true,
 					IntentClarity:          75,
@@ -102,7 +102,7 @@ func newTestAnalysisResults() []*types.AnalysisResult {
 		{
 			Name:     "C4: Documentation Quality",
 			Category: "C4",
-			Metrics: map[string]interface{}{
+			Metrics: map[string]types.CategoryMetrics{
 				"c4": &types.C4Metrics{
 					Available:           true,
 					ReadmePresent:       true,
@@ -380,7 +380,7 @@ func TestRenderC7Unavailable(t *testing.T) {
 	ar := &types.AnalysisResult{
 		Name:     "C7: Agent Evaluation",
 		Category: "C7",
-		Metrics: map[string]interface{}{
+		Metrics: map[string]types.CategoryMetrics{
 			"c7": &types.C7Metrics{
 				Available: false,
 			},
@@ -406,7 +406,7 @@ func TestRenderC4WithLLM(t *testing.T) {
 	ar := &types.AnalysisResult{
 		Name:     "C4: Documentation Quality",
 		Category: "C4",
-		Metrics: map[string]interface{}{
+		Metrics: map[string]types.CategoryMetrics{
 			"c4": &types.C4Metrics{
 				Available:           true,
 				ReadmePresent:       true,
@@ -458,7 +458,7 @@ func TestRenderC4Unavailable(t *testing.T) {
 	ar := &types.AnalysisResult{
 		Name:     "C4: Documentation Quality",
 		Category: "C4",
-		Metrics: map[string]interface{}{
+		Metrics: map[string]types.CategoryMetrics{
 			"c4": &types.C4Metrics{
 				Available: false,
 			},
@@ -485,7 +485,7 @@ func TestRenderC7Debug(t *testing.T) {
 		{
 			Name:     "C7: Agent Evaluation",
 			Category: "C7",
-			Metrics: map[string]interface{}{
+			Metrics: map[string]types.CategoryMetrics{
 				"c7": &types.C7Metrics{
 					Available: true,
 					MetricResults: []types.C7MetricResult{
@@ -549,7 +549,7 @@ func TestRenderC7Debug_NoDebugSamples(t *testing.T) {
 		{
 			Name:     "C7: Agent Evaluation",
 			Category: "C7",
-			Metrics: map[string]interface{}{
+			Metrics: map[string]types.CategoryMetrics{
 				"c7": &types.C7Metrics{
 					Available: true,
 					MetricResults: []types.C7MetricResult{
@@ -587,7 +587,7 @@ func TestRenderC7Debug_NoC7Result(t *testing.T) {
 		{
 			Name:     "C1: Code Health",
 			Category: "C1",
-			Metrics:  map[string]interface{}{},
+			Metrics:  map[string]types.CategoryMetrics{},
 		},
 	}
 
@@ -598,5 +598,441 @@ func TestRenderC7Debug_NoC7Result(t *testing.T) {
 	// Should produce no output
 	if out != "" {
 		t.Errorf("expected empty output when no C7 result, got:\n%s", out)
+	}
+}
+
+func TestRenderC2(t *testing.T) {
+	var buf bytes.Buffer
+	ar := &types.AnalysisResult{
+		Name:     "C2: Semantic Explicitness",
+		Category: "C2",
+		Metrics: map[string]types.CategoryMetrics{
+			"c2": &types.C2Metrics{
+				Aggregate: &types.C2LanguageMetrics{
+					TypeAnnotationCoverage: 75.0,
+					NamingConsistency:      85.0,
+					MagicNumberRatio:       3.5,
+					TypeStrictness:         1,
+					NullSafety:             60.0,
+				},
+			},
+		},
+	}
+
+	renderC2(&buf, ar, false)
+	out := buf.String()
+
+	checks := []string{
+		"C2: Semantic Explicitness",
+		"Type annotation:",
+		"75.0%",
+		"Naming consistency:",
+		"85.0%",
+		"Magic numbers:",
+		"3.5 per kLOC",
+		"Type strictness:",
+		"on",
+		"Null safety:",
+		"60%",
+	}
+
+	for _, check := range checks {
+		if !strings.Contains(out, check) {
+			t.Errorf("output missing %q\nGot:\n%s", check, out)
+		}
+	}
+}
+
+func TestRenderC2_TypeStrictnessOff(t *testing.T) {
+	var buf bytes.Buffer
+	ar := &types.AnalysisResult{
+		Name:     "C2: Semantic Explicitness",
+		Category: "C2",
+		Metrics: map[string]types.CategoryMetrics{
+			"c2": &types.C2Metrics{
+				Aggregate: &types.C2LanguageMetrics{
+					TypeAnnotationCoverage: 50.0,
+					NamingConsistency:      70.0,
+					MagicNumberRatio:       10.0,
+					TypeStrictness:         0, // off
+					NullSafety:             30.0,
+				},
+			},
+		},
+	}
+
+	renderC2(&buf, ar, false)
+	out := buf.String()
+
+	if !strings.Contains(out, "Type strictness:     off") {
+		t.Errorf("output should show type strictness off\nGot:\n%s", out)
+	}
+}
+
+func TestRenderC2_Verbose(t *testing.T) {
+	var buf bytes.Buffer
+	ar := &types.AnalysisResult{
+		Name:     "C2: Semantic Explicitness",
+		Category: "C2",
+		Metrics: map[string]types.CategoryMetrics{
+			"c2": &types.C2Metrics{
+				Aggregate: &types.C2LanguageMetrics{
+					TypeAnnotationCoverage: 75.0,
+					NamingConsistency:      85.0,
+					MagicNumberRatio:       3.5,
+					TypeStrictness:         1,
+					NullSafety:             60.0,
+				},
+				PerLanguage: map[types.Language]*types.C2LanguageMetrics{
+					types.LangGo: {
+						TypeAnnotationCoverage: 80,
+						NamingConsistency:      90,
+						MagicNumberRatio:       2.0,
+						TypeStrictness:         1,
+						NullSafety:             70,
+						LOC:                    1000,
+					},
+				},
+			},
+		},
+	}
+
+	renderC2(&buf, ar, true)
+	out := buf.String()
+
+	if !strings.Contains(out, "Per-language C2 breakdown:") {
+		t.Error("verbose output should show per-language breakdown")
+	}
+	if !strings.Contains(out, "go:") {
+		t.Error("verbose output should show Go language metrics")
+	}
+	if !strings.Contains(out, "LOC=1000") {
+		t.Error("verbose output should show LOC")
+	}
+}
+
+func TestRenderC5(t *testing.T) {
+	var buf bytes.Buffer
+	ar := &types.AnalysisResult{
+		Name:     "C5: Temporal Dynamics",
+		Category: "C5",
+		Metrics: map[string]types.CategoryMetrics{
+			"c5": &types.C5Metrics{
+				Available:            true,
+				TotalCommits:         100,
+				TimeWindowDays:       90,
+				ChurnRate:            150.5,
+				TemporalCouplingPct:  25.0,
+				AuthorFragmentation:  3.2,
+				CommitStability:      5.5,
+				HotspotConcentration: 60.0,
+			},
+		},
+	}
+
+	renderC5(&buf, ar, false)
+	out := buf.String()
+
+	checks := []string{
+		"C5: Temporal Dynamics",
+		"Total commits:",
+		"100",
+		"90-day window",
+		"Churn rate:",
+		"150.5",
+		"Temporal coupling:",
+		"25.0%",
+		"Author fragmentation:",
+		"3.2",
+		"Commit stability:",
+		"5.5 days",
+		"Hotspot concentration:",
+		"60.0%",
+	}
+
+	for _, check := range checks {
+		if !strings.Contains(out, check) {
+			t.Errorf("output missing %q\nGot:\n%s", check, out)
+		}
+	}
+}
+
+func TestRenderC5_Unavailable(t *testing.T) {
+	var buf bytes.Buffer
+	ar := &types.AnalysisResult{
+		Name:     "C5: Temporal Dynamics",
+		Category: "C5",
+		Metrics: map[string]types.CategoryMetrics{
+			"c5": &types.C5Metrics{
+				Available: false,
+			},
+		},
+	}
+
+	renderC5(&buf, ar, false)
+	out := buf.String()
+
+	if !strings.Contains(out, "Not available (no .git directory)") {
+		t.Errorf("output should indicate unavailable\nGot:\n%s", out)
+	}
+}
+
+func TestRenderC5_Verbose(t *testing.T) {
+	var buf bytes.Buffer
+	ar := &types.AnalysisResult{
+		Name:     "C5: Temporal Dynamics",
+		Category: "C5",
+		Metrics: map[string]types.CategoryMetrics{
+			"c5": &types.C5Metrics{
+				Available:      true,
+				TotalCommits:   50,
+				TimeWindowDays: 90,
+				TopHotspots: []types.FileChurn{
+					{Path: "main.go", TotalChanges: 25, CommitCount: 20, AuthorCount: 3},
+				},
+				CoupledPairs: []types.CoupledPair{
+					{FileA: "config.go", FileB: "handler.go", Coupling: 85.0, SharedCommits: 17},
+				},
+			},
+		},
+	}
+
+	renderC5(&buf, ar, true)
+	out := buf.String()
+
+	if !strings.Contains(out, "Top hotspots:") {
+		t.Error("verbose output should show top hotspots")
+	}
+	if !strings.Contains(out, "main.go") {
+		t.Error("verbose output should show hotspot file")
+	}
+	if !strings.Contains(out, "Coupled pairs") {
+		t.Error("verbose output should show coupled pairs")
+	}
+	if !strings.Contains(out, "config.go <-> handler.go") {
+		t.Error("verbose output should show coupled pair details")
+	}
+}
+
+func TestRenderScores(t *testing.T) {
+	var buf bytes.Buffer
+	scored := &types.ScoredResult{
+		Composite: 7.5,
+		Tier:      "Agent-Assisted",
+		Categories: []types.CategoryScore{
+			{Name: "C1", Score: 8.0, Weight: 0.25},
+			{Name: "C3", Score: 7.0, Weight: 0.20},
+			{Name: "C6", Score: 6.5, Weight: 0.15},
+		},
+	}
+
+	RenderScores(&buf, scored, false)
+	out := buf.String()
+
+	checks := []string{
+		"Agent Readiness Score",
+		"C1:",
+		"8.0 / 10",
+		"C3:",
+		"7.0 / 10",
+		"C6:",
+		"6.5 / 10",
+		"Composite Score:",
+		"7.5 / 10",
+		"Rating:",
+		"Agent-Assisted",
+	}
+
+	for _, check := range checks {
+		if !strings.Contains(out, check) {
+			t.Errorf("output missing %q\nGot:\n%s", check, out)
+		}
+	}
+}
+
+func TestRenderScores_UnavailableCategory(t *testing.T) {
+	var buf bytes.Buffer
+	scored := &types.ScoredResult{
+		Composite: 7.0,
+		Tier:      "Agent-Assisted",
+		Categories: []types.CategoryScore{
+			{Name: "C1", Score: 8.0, Weight: 0.25},
+			{Name: "C5", Score: -1, Weight: 0.10}, // unavailable
+		},
+	}
+
+	RenderScores(&buf, scored, false)
+	out := buf.String()
+
+	if !strings.Contains(out, "C5:") {
+		t.Error("output should contain C5 category")
+	}
+	if !strings.Contains(out, "n/a") {
+		t.Error("unavailable category should show n/a")
+	}
+}
+
+func TestRenderScores_Verbose(t *testing.T) {
+	var buf bytes.Buffer
+	scored := &types.ScoredResult{
+		Composite: 7.5,
+		Tier:      "Agent-Assisted",
+		Categories: []types.CategoryScore{
+			{
+				Name:   "C1",
+				Score:  8.0,
+				Weight: 0.25,
+				SubScores: []types.SubScore{
+					{MetricName: "complexity_avg", RawValue: 5.5, Score: 8.0, Weight: 0.3, Available: true},
+					{MetricName: "function_length_avg", RawValue: 20.0, Score: 7.5, Weight: 0.25, Available: true},
+				},
+			},
+		},
+	}
+
+	RenderScores(&buf, scored, true)
+	out := buf.String()
+
+	// Should show subscores in verbose mode (check for weight percentage)
+	if !strings.Contains(out, "30%") {
+		t.Errorf("verbose mode should show subscore weight\nGot:\n%s", out)
+	}
+	if !strings.Contains(out, "25%") {
+		t.Errorf("verbose mode should show subscore weight\nGot:\n%s", out)
+	}
+}
+
+func TestRenderSubScores(t *testing.T) {
+	var buf bytes.Buffer
+	subScores := []types.SubScore{
+		{MetricName: "complexity_avg", RawValue: 5.5, Score: 8.0, Weight: 0.3, Available: true},
+		{MetricName: "function_length_avg", RawValue: 20.0, Score: 7.5, Weight: 0.25, Available: true},
+		{MetricName: "deprecated_metric", RawValue: 0, Score: 0, Weight: 0.0, Available: true}, // should be filtered
+	}
+
+	renderSubScores(&buf, subScores)
+	out := buf.String()
+
+	// Metric names may be displayed through metricDisplayNames map, so check for values instead
+	if out == "" {
+		t.Error("output should not be empty")
+	}
+	if !strings.Contains(out, "5.5") {
+		t.Errorf("output should contain raw value\nGot:\n%s", out)
+	}
+	if !strings.Contains(out, "8.0") {
+		t.Errorf("output should contain score\nGot:\n%s", out)
+	}
+	if !strings.Contains(out, "30%") {
+		t.Errorf("output should contain weight percentage\nGot:\n%s", out)
+	}
+}
+
+func TestRenderSubScores_Unavailable(t *testing.T) {
+	var buf bytes.Buffer
+	subScores := []types.SubScore{
+		{MetricName: "coverage_percent", RawValue: 0, Score: 0, Weight: 0.4, Available: false},
+	}
+
+	renderSubScores(&buf, subScores)
+	out := buf.String()
+
+	if out == "" {
+		t.Error("output should not be empty")
+	}
+	if !strings.Contains(out, "n/a") {
+		t.Errorf("unavailable metric should show n/a\nGot:\n%s", out)
+	}
+	if !strings.Contains(out, "40%") {
+		t.Errorf("output should show weight\nGot:\n%s", out)
+	}
+	if !strings.Contains(out, "excluded") {
+		t.Errorf("unavailable metric should indicate excluded\nGot:\n%s", out)
+	}
+}
+
+func TestTierColor(t *testing.T) {
+	tests := []struct {
+		tier string
+		want string // We can't test exact colors, but verify it returns a color
+	}{
+		{"Agent-Ready", "green"},
+		{"Agent-Assisted", "yellow"},
+		{"Agent-Limited", "red"},
+		{"Agent-Hostile", "red"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.tier, func(t *testing.T) {
+			c := tierColor(tt.tier)
+			if c == nil {
+				t.Error("tierColor should not return nil")
+			}
+		})
+	}
+}
+
+func TestJoinCycle(t *testing.T) {
+	tests := []struct {
+		name  string
+		cycle []string
+		want  string
+	}{
+		{
+			name:  "simple cycle",
+			cycle: []string{"A", "B", "C"},
+			want:  "A -> B -> C -> A",
+		},
+		{
+			name:  "two node cycle",
+			cycle: []string{"pkg/a", "pkg/b"},
+			want:  "pkg/a -> pkg/b -> pkg/a",
+		},
+		{
+			name:  "empty cycle",
+			cycle: []string{},
+			want:  "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := joinCycle(tt.cycle)
+			if got != tt.want {
+				t.Errorf("joinCycle(%v) = %q, want %q", tt.cycle, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestRenderBadge(t *testing.T) {
+	var buf bytes.Buffer
+	scored := &types.ScoredResult{
+		Composite: 8.5,
+		Tier:      "Agent-Ready",
+	}
+
+	RenderBadge(&buf, scored)
+	out := buf.String()
+
+	if !strings.Contains(out, "Badge") {
+		t.Error("output should contain Badge header")
+	}
+	// Output should contain markdown badge (exact format depends on GenerateBadge)
+	if out == "" {
+		t.Error("output should not be empty")
+	}
+}
+
+func TestRenderBadge_Nil(t *testing.T) {
+	var buf bytes.Buffer
+
+	// Should not panic with nil input
+	RenderBadge(&buf, nil)
+	out := buf.String()
+
+	// Should produce no output
+	if out != "" {
+		t.Errorf("expected empty output for nil scored result, got:\n%s", out)
 	}
 }

@@ -1,3 +1,18 @@
+// Package c3 analyzes C3 (Architecture) metrics for agent-readiness.
+//
+// C3 measures architectural complexity: directory depth, module fanout, circular
+// dependencies, and dead code. Poor architecture forces agents to understand
+// large dependency graphs before making changes, increasing error rates.
+//
+// TypeScript-specific challenges:
+// - Imports use relative paths ("./" "../") unlike Go's package-based imports
+// - tsconfig.json path aliases ("@/components") require resolution
+// - node_modules imports must be filtered (external dependencies)
+// - Index files (index.ts) create multiple valid import paths for same module
+// - ESM (import/export) and CommonJS (require/module.exports) both common
+//
+// This file uses Tree-sitter parsing since TypeScript lacks a standard AST API
+// like Go's go/packages or Python's ast module.
 package c3
 
 import (
@@ -49,7 +64,18 @@ func tsIsTestFile(path string) bool {
 }
 
 // tsBuildImportGraph builds an import graph from TypeScript files.
+//
 // It tracks intra-project imports only (skips node_modules/third-party).
+//
+// Circular dependency detection uses Tarjan's strongly connected components algorithm
+// (implemented in shared.DetectCycles). Tarjan's runs in O(V+E) time - linear in
+// graph size - making it efficient even for large codebases (1000+ files).
+//
+// Why circular dependencies matter for agents: Agents struggle to reason about
+// circular deps because they create bidirectional knowledge requirements. To modify
+// module A, the agent must understand module B, which requires understanding A,
+// creating an infinite reasoning loop. Breaking cycles into DAGs (directed acyclic
+// graphs) allows agents to reason bottom-up with confidence.
 func tsBuildImportGraph(files []*parser.ParsedTreeSitterFile) *shared.ImportGraph {
 	g := &shared.ImportGraph{
 		Forward: make(map[string][]string),
@@ -159,6 +185,15 @@ func tsStripQuotes(s string) string {
 }
 
 // tsDetectDeadCode finds exported symbols not imported by other project files.
+//
+// Why track dead exports for agent-readiness: Dead exports bloat the API surface
+// agents must understand. When an agent sees 50 exported functions but only 10
+// are actually used, it wastes reasoning capacity on irrelevant code. Pruning
+// dead exports reduces cognitive load and improves agent focus on active APIs.
+//
+// Limitation: Test files are excluded from the "imported by" check because test
+// imports don't represent production usage. This may flag some exports as dead
+// when they're only used in tests - acceptable trade-off for simpler analysis.
 func tsDetectDeadCode(files []*parser.ParsedTreeSitterFile) []types.DeadExport {
 	if len(files) <= 1 {
 		return nil // Single file: no cross-file analysis possible

@@ -9,9 +9,9 @@ import (
 // It dispatches to language-specific analyzers and aggregates results.
 // It also implements GoAwareAnalyzer for Go-specific analysis via SetGoPackages.
 type C2Analyzer struct {
-	goAnalyzer *C2GoAnalyzer
-	pyAnalyzer *C2PythonAnalyzer
-	tsAnalyzer *C2TypeScriptAnalyzer
+	goAnalyzer *c2GoAnalyzer
+	pyAnalyzer *c2PythonAnalyzer
+	tsAnalyzer *c2TypeScriptAnalyzer
 }
 
 // NewC2Analyzer creates a C2Analyzer with Tree-sitter-based language analyzers.
@@ -19,8 +19,8 @@ type C2Analyzer struct {
 func NewC2Analyzer(tsParser *parser.TreeSitterParser) *C2Analyzer {
 	a := &C2Analyzer{}
 	if tsParser != nil {
-		a.pyAnalyzer = NewC2PythonAnalyzer(tsParser)
-		a.tsAnalyzer = NewC2TypeScriptAnalyzer(tsParser)
+		a.pyAnalyzer = newC2PythonAnalyzer(tsParser)
+		a.tsAnalyzer = newC2TypeScriptAnalyzer(tsParser)
 	}
 	return a
 }
@@ -33,7 +33,7 @@ func (a *C2Analyzer) Name() string {
 // SetGoPackages stores Go-specific parsed packages for use during Analyze.
 func (a *C2Analyzer) SetGoPackages(pkgs []*parser.ParsedPackage) {
 	if a.goAnalyzer == nil {
-		a.goAnalyzer = &C2GoAnalyzer{}
+		a.goAnalyzer = &c2GoAnalyzer{}
 	}
 	a.goAnalyzer.pkgs = pkgs
 }
@@ -86,7 +86,7 @@ func (a *C2Analyzer) Analyze(targets []*types.AnalysisTarget) (*types.AnalysisRe
 	return &types.AnalysisResult{
 		Name:     "C2: Semantic Explicitness",
 		Category: "C2",
-		Metrics:  map[string]interface{}{"c2": metrics},
+		Metrics:  map[string]types.CategoryMetrics{"c2": metrics},
 	}, nil
 }
 

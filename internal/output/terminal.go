@@ -1,3 +1,12 @@
+// Package output renders analysis results to various output formats (terminal, JSON, HTML, badges).
+//
+// Terminal rendering uses hierarchical display with automatic color encoding (green/yellow/red)
+// based on score thresholds. Colors convey metric health at a glance without requiring users to
+// interpret numeric scores. NO_COLOR environment variable support ensures compatibility with
+// screen readers, CI/CD pipelines, and accessibility tools per https://no-color.org standards.
+//
+// The package handles evidence formatting, section expansion/collapse for verbose output,
+// and tier classification display with visual indicators (emojis, color, progress bars).
 package output
 
 import (
@@ -12,8 +21,121 @@ import (
 	"github.com/ingo/agent-readyness/pkg/types"
 )
 
+// Display thresholds for terminal score coloring.
+const (
+	scoreGreenMin  = 8.0 // Score at or above: green (Agent-Ready)
+	scoreYellowMin = 6.0 // Score at or above: yellow (Agent-Assisted)
+)
+
+// Display thresholds for C7 score coloring (0-100 scale).
+const (
+	c7ScoreGreenMin  = 70
+	c7ScoreYellowMin = 40
+	c7ScoreScale     = 10 // Multiplier to convert 1-10 scores to 0-100 for color
+)
+
+// Display limits for verbose terminal output.
+const (
+	verboseTopN      = 5   // Top offenders shown in verbose mode
+	coupledPairsTopN = 10  // Max coupled pairs in C5 verbose output
+	truncateShort    = 200 // Truncation limit for short text (prompts)
+	truncateLong     = 500 // Truncation limit for long text (responses)
+	separatorWide    = 60  // Wide separator width (C7 debug)
+	separatorNarrow  = 50  // Narrow separator width (C7 debug)
+)
+
+// C1 metric color thresholds for terminal display (green = good, yellow = caution).
+const (
+	c1ComplexityAvgGreen  = 10.0
+	c1ComplexityAvgYellow = 20.0
+	c1ComplexityMaxGreen  = 15
+	c1ComplexityMaxYellow = 30
+	c1FuncLenAvgGreen     = 30.0
+	c1FuncLenAvgYellow    = 60.0
+	c1FuncLenMaxGreen     = 50
+	c1FuncLenMaxYellow    = 100
+	c1FileSizeAvgGreen    = 300.0
+	c1FileSizeAvgYellow   = 500.0
+	c1FileSizeMaxGreen    = 500
+	c1FileSizeMaxYellow   = 1000
+	c1DuplicationGreen    = 5.0
+	c1DuplicationYellow   = 15.0
+)
+
+// C2 metric color thresholds (inverse: higher is better for coverage/consistency).
+const (
+	c2TypeAnnotationRed    = 50.0
+	c2TypeAnnotationYellow = 80.0
+	c2NamingRed            = 70.0
+	c2NamingYellow         = 90.0
+	c2MagicNumGreen        = 5.0
+	c2MagicNumYellow       = 15.0
+)
+
+// C3 metric color thresholds.
+const (
+	c3DirDepthGreen     = 4
+	c3DirDepthYellow    = 7
+	c3FanoutGreen       = 5.0
+	c3FanoutYellow      = 10.0
+	c3CircularDepsMax   = 2
+	c3DeadExportsGreen  = 5
+	c3DeadExportsYellow = 20
+)
+
+// C4 metric color thresholds (inverse: higher is better).
+const (
+	c4CommentDensityRed    = 5.0
+	c4CommentDensityYellow = 15.0
+	c4APIDocRed            = 30.0
+	c4APIDocYellow         = 60.0
+	c4LLMScoreRed          = 4
+	c4LLMScoreYellow       = 7
+)
+
+// C5 metric color thresholds.
+const (
+	c5ChurnGreen            = 100.0
+	c5ChurnYellow           = 300.0
+	c5TemporalCouplingGreen = 10.0
+	c5TemporalCouplingYellow = 30.0
+	c5AuthorFragGreen       = 2.0
+	c5AuthorFragYellow      = 4.0
+	c5CommitStabilityRed    = 3.0
+	c5CommitStabilityYellow = 7.0
+	c5HotspotGreen          = 50.0
+	c5HotspotYellow         = 75.0
+)
+
+// C6 metric color thresholds.
+const (
+	c6TestRatioRed        = 0.2
+	c6TestRatioYellow     = 0.5
+	c6CoverageRed         = 40.0
+	c6CoverageYellow      = 70.0
+	c6IsolationRed        = 50.0
+	c6IsolationYellow     = 80.0
+	c6AssertionNoThreshold = 999.0 // Sentinel: no meaningful yellow/red threshold
+)
+
+// Recommendation impact thresholds.
+const (
+	recImpactScaleToScore = 20.0 // Scales 0.5 point improvement to score 10.0
+	recHighImpact         = 0.5  // Score improvement >= this is high impact (green)
+	recModerateImpact     = 0.2  // Score improvement >= this is moderate (yellow)
+)
+
 // RenderSummary prints a formatted scan summary to w.
+//
 // Color is automatically disabled when w is not a TTY (e.g., piped output).
+// This prevents ANSI escape codes from corrupting piped data while preserving
+// the visual hierarchy when output goes to a terminal. The layout uses a fixed
+// hierarchy: header → file counts → per-language breakdown → exclusion counts
+// → verbose file listing → category-specific metrics (C1-C7).
+//
+// Each category renderer (renderC1-C7) follows the same pattern: bold headers,
+// color-coded metrics using score thresholds, and optional verbose sections
+// for detailed breakdowns (top offenders, per-item details, traces).
 func RenderSummary(w io.Writer, result *types.ScanResult, analysisResults []*types.AnalysisResult, verbose bool) {
 	bold := color.New(color.Bold)
 	green := color.New(color.FgGreen)
@@ -50,6 +172,14 @@ func RenderSummary(w io.Writer, result *types.ScanResult, analysisResults []*typ
 	}
 
 	// Verbose: list individual files
+	//
+	// File listing shows classification tags (SOURCE, TEST, EXCLUDED) with exclusion
+	// reasons when applicable. This helps users audit discovery logic and understand
+	// why certain files were skipped. Common exclusion reasons: .gitignore rules,
+	// vendor/ directories, generated code markers, or unsupported file extensions.
+	//
+	// Relative paths are displayed to keep output compact and repository-agnostic
+	// (absolute paths would leak local filesystem structure and make diffs noisy).
 	if verbose {
 		fmt.Fprintln(w)
 		bold.Fprintln(w, "Discovered files:")
@@ -146,9 +276,9 @@ func renderC1(w io.Writer, ar *types.AnalysisResult, verbose bool) {
 	fmt.Fprintln(w, "────────────────────────────────────────")
 
 	// Complexity
-	cc := colorForFloat(m.CyclomaticComplexity.Avg, 10, 20)
+	cc := colorForFloat(m.CyclomaticComplexity.Avg, c1ComplexityAvgGreen, c1ComplexityAvgYellow)
 	cc.Fprintf(w, "  Complexity avg:      %.1f\n", m.CyclomaticComplexity.Avg)
-	cm := colorForInt(m.CyclomaticComplexity.Max, 15, 30)
+	cm := colorForInt(m.CyclomaticComplexity.Max, c1ComplexityMaxGreen, c1ComplexityMaxYellow)
 	cm.Fprintf(w, "  Complexity max:      %d", m.CyclomaticComplexity.Max)
 	if m.CyclomaticComplexity.MaxEntity != "" {
 		fmt.Fprintf(w, " (%s)", m.CyclomaticComplexity.MaxEntity)
@@ -156,9 +286,9 @@ func renderC1(w io.Writer, ar *types.AnalysisResult, verbose bool) {
 	fmt.Fprintln(w)
 
 	// Function length
-	fl := colorForFloat(m.FunctionLength.Avg, 30, 60)
+	fl := colorForFloat(m.FunctionLength.Avg, c1FuncLenAvgGreen, c1FuncLenAvgYellow)
 	fl.Fprintf(w, "  Func length avg:     %.1f lines\n", m.FunctionLength.Avg)
-	flm := colorForInt(m.FunctionLength.Max, 50, 100)
+	flm := colorForInt(m.FunctionLength.Max, c1FuncLenMaxGreen, c1FuncLenMaxYellow)
 	flm.Fprintf(w, "  Func length max:     %d lines", m.FunctionLength.Max)
 	if m.FunctionLength.MaxEntity != "" {
 		fmt.Fprintf(w, " (%s)", m.FunctionLength.MaxEntity)
@@ -166,9 +296,9 @@ func renderC1(w io.Writer, ar *types.AnalysisResult, verbose bool) {
 	fmt.Fprintln(w)
 
 	// File size
-	fs := colorForFloat(m.FileSize.Avg, 300, 500)
+	fs := colorForFloat(m.FileSize.Avg, c1FileSizeAvgGreen, c1FileSizeAvgYellow)
 	fs.Fprintf(w, "  File size avg:       %.0f lines\n", m.FileSize.Avg)
-	fsm := colorForInt(m.FileSize.Max, 500, 1000)
+	fsm := colorForInt(m.FileSize.Max, c1FileSizeMaxGreen, c1FileSizeMaxYellow)
 	fsm.Fprintf(w, "  File size max:       %d lines", m.FileSize.Max)
 	if m.FileSize.MaxEntity != "" {
 		fmt.Fprintf(w, " (%s)", m.FileSize.MaxEntity)
@@ -176,10 +306,20 @@ func renderC1(w io.Writer, ar *types.AnalysisResult, verbose bool) {
 	fmt.Fprintln(w)
 
 	// Duplication
-	dc := colorForFloat(m.DuplicationRate, 5, 15)
+	dc := colorForFloat(m.DuplicationRate, c1DuplicationGreen, c1DuplicationYellow)
 	dc.Fprintf(w, "  Duplication rate:    %.1f%%\n", m.DuplicationRate)
 
 	// Verbose: top 5 most complex and longest functions
+	//
+	// "Top offenders" lists help developers prioritize refactoring work by identifying
+	// the specific functions dragging down scores. Without this drill-down, users only
+	// see aggregate metrics (e.g., "avg complexity: 12") but don't know which functions
+	// to target. File:line references allow quick navigation via IDE jump-to-line features.
+	//
+	// Why limit to 5? Beyond 5 items, lists become overwhelming and users stop reading.
+	// The Pareto principle suggests 20% of functions cause 80% of problems - top 5
+	// captures the highest-leverage improvements. Users can always rerun with full
+	// evidence details in HTML reports if they need comprehensive listings.
 	if verbose && len(m.Functions) > 0 {
 		fmt.Fprintln(w)
 		bold.Fprintln(w, "  Top complex functions:")
@@ -188,7 +328,7 @@ func renderC1(w io.Writer, ar *types.AnalysisResult, verbose bool) {
 		sort.Slice(byComplexity, func(i, j int) bool {
 			return byComplexity[i].Complexity > byComplexity[j].Complexity
 		})
-		limit := 5
+		limit := verboseTopN
 		if len(byComplexity) < limit {
 			limit = len(byComplexity)
 		}
@@ -203,7 +343,7 @@ func renderC1(w io.Writer, ar *types.AnalysisResult, verbose bool) {
 		sort.Slice(byLength, func(i, j int) bool {
 			return byLength[i].LineCount > byLength[j].LineCount
 		})
-		limit = 5
+		limit = verboseTopN
 		if len(byLength) < limit {
 			limit = len(byLength)
 		}
@@ -231,13 +371,13 @@ func renderC2(w io.Writer, ar *types.AnalysisResult, verbose bool) {
 	bold.Fprintln(w, "C2: Semantic Explicitness")
 	fmt.Fprintln(w, "────────────────────────────────────────")
 
-	tc := colorForFloatInverse(agg.TypeAnnotationCoverage, 50, 80)
+	tc := colorForFloatInverse(agg.TypeAnnotationCoverage, c2TypeAnnotationRed, c2TypeAnnotationYellow)
 	tc.Fprintf(w, "  Type annotation:     %.1f%%\n", agg.TypeAnnotationCoverage)
 
-	nc := colorForFloatInverse(agg.NamingConsistency, 70, 90)
+	nc := colorForFloatInverse(agg.NamingConsistency, c2NamingRed, c2NamingYellow)
 	nc.Fprintf(w, "  Naming consistency:  %.1f%%\n", agg.NamingConsistency)
 
-	mr := colorForFloat(agg.MagicNumberRatio, 5, 15)
+	mr := colorForFloat(agg.MagicNumberRatio, c2MagicNumGreen, c2MagicNumYellow)
 	mr.Fprintf(w, "  Magic numbers:       %.1f per kLOC\n", agg.MagicNumberRatio)
 
 	if agg.TypeStrictness >= 1 {
@@ -281,19 +421,19 @@ func renderC3(w io.Writer, ar *types.AnalysisResult, verbose bool) {
 	bold.Fprintln(w, "C3: Architecture")
 	fmt.Fprintln(w, "────────────────────────────────────────")
 
-	dd := colorForInt(m.MaxDirectoryDepth, 4, 7)
+	dd := colorForInt(m.MaxDirectoryDepth, c3DirDepthGreen, c3DirDepthYellow)
 	dd.Fprintf(w, "  Max directory depth: %d\n", m.MaxDirectoryDepth)
 	fmt.Fprintf(w, "  Avg directory depth: %.1f\n", m.AvgDirectoryDepth)
 
-	fo := colorForFloat(m.ModuleFanout.Avg, 5, 10)
+	fo := colorForFloat(m.ModuleFanout.Avg, c3FanoutGreen, c3FanoutYellow)
 	fo.Fprintf(w, "  Avg module fanout:   %.1f\n", m.ModuleFanout.Avg)
 
 	circCount := len(m.CircularDeps)
-	cc := colorForInt(circCount, 0, 2)
+	cc := colorForInt(circCount, 0, c3CircularDepsMax)
 	cc.Fprintf(w, "  Circular deps:       %d\n", circCount)
 
 	deadCount := len(m.DeadExports)
-	dc := colorForInt(deadCount, 5, 20)
+	dc := colorForInt(deadCount, c3DeadExportsGreen, c3DeadExportsYellow)
 	dc.Fprintf(w, "  Dead exports:        %d\n", deadCount)
 
 	// Verbose: coupling details + dead exports
@@ -339,22 +479,34 @@ func renderC5(w io.Writer, ar *types.AnalysisResult, verbose bool) {
 
 	fmt.Fprintf(w, "  Total commits:       %d (%d-day window)\n", m.TotalCommits, m.TimeWindowDays)
 
-	cr := colorForFloat(m.ChurnRate, 100, 300)
+	cr := colorForFloat(m.ChurnRate, c5ChurnGreen, c5ChurnYellow)
 	cr.Fprintf(w, "  Churn rate:          %.1f lines/commit\n", m.ChurnRate)
 
-	tc := colorForFloat(m.TemporalCouplingPct, 10, 30)
+	tc := colorForFloat(m.TemporalCouplingPct, c5TemporalCouplingGreen, c5TemporalCouplingYellow)
 	tc.Fprintf(w, "  Temporal coupling:   %.1f%%\n", m.TemporalCouplingPct)
 
-	af := colorForFloat(m.AuthorFragmentation, 2, 4)
+	af := colorForFloat(m.AuthorFragmentation, c5AuthorFragGreen, c5AuthorFragYellow)
 	af.Fprintf(w, "  Author fragmentation: %.2f avg authors/file\n", m.AuthorFragmentation)
 
-	cs := colorForFloatInverse(m.CommitStability, 3, 7)
+	cs := colorForFloatInverse(m.CommitStability, c5CommitStabilityRed, c5CommitStabilityYellow)
 	cs.Fprintf(w, "  Commit stability:    %.1f days median\n", m.CommitStability)
 
-	hc := colorForFloat(m.HotspotConcentration, 50, 75)
+	hc := colorForFloat(m.HotspotConcentration, c5HotspotGreen, c5HotspotYellow)
 	hc.Fprintf(w, "  Hotspot concentration: %.1f%%\n", m.HotspotConcentration)
 
 	// Verbose: show top hotspots and coupled pairs
+	//
+	// Hotspots reveal files under high change pressure - prime refactoring candidates.
+	// High commit counts + high author counts = knowledge fragmentation (no single owner).
+	// Agents struggle with hotspots because the code's behavior is a moving target,
+	// increasing the likelihood of merge conflicts and stale context during modifications.
+	//
+	// Temporally coupled pairs (files that change together >70% of the time) indicate
+	// hidden dependencies that aren't visible in static import graphs. For example,
+	// a config file and its consumer may be coupled despite no direct import. Agents
+	// miss these implicit dependencies, leading to incomplete changes (update config
+	// but not consumer). Limit: 10 pairs to keep output manageable while surfacing
+	// the strongest coupling relationships.
 	if verbose && len(m.TopHotspots) > 0 {
 		fmt.Fprintln(w)
 		bold.Fprintln(w, "  Top hotspots:")
@@ -365,7 +517,7 @@ func renderC5(w io.Writer, ar *types.AnalysisResult, verbose bool) {
 	if verbose && len(m.CoupledPairs) > 0 {
 		fmt.Fprintln(w)
 		bold.Fprintln(w, "  Coupled pairs (>70%% co-change):")
-		limit := 10
+		limit := coupledPairsTopN
 		if len(m.CoupledPairs) < limit {
 			limit = len(m.CoupledPairs)
 		}
@@ -406,11 +558,11 @@ func renderC4(w io.Writer, ar *types.AnalysisResult, verbose bool) {
 	}
 
 	// Comment density
-	cd := colorForFloatInverse(m.CommentDensity, 5, 15)
+	cd := colorForFloatInverse(m.CommentDensity, c4CommentDensityRed, c4CommentDensityYellow)
 	cd.Fprintf(w, "  Comment density:     %.1f%%\n", m.CommentDensity)
 
 	// API doc coverage
-	ad := colorForFloatInverse(m.APIDocCoverage, 30, 60)
+	ad := colorForFloatInverse(m.APIDocCoverage, c4APIDocRed, c4APIDocYellow)
 	ad.Fprintf(w, "  API doc coverage:    %.1f%%\n", m.APIDocCoverage)
 
 	// CHANGELOG
@@ -445,13 +597,13 @@ func renderC4(w io.Writer, ar *types.AnalysisResult, verbose bool) {
 	fmt.Fprintln(w)
 	bold.Fprintln(w, "  LLM Analysis:")
 	if m.LLMEnabled {
-		rc := colorForIntInverse(m.ReadmeClarity, 4, 7)
+		rc := colorForIntInverse(m.ReadmeClarity, c4LLMScoreRed, c4LLMScoreYellow)
 		rc.Fprintf(w, "    README clarity:      %d/10\n", m.ReadmeClarity)
-		eq := colorForIntInverse(m.ExampleQuality, 4, 7)
+		eq := colorForIntInverse(m.ExampleQuality, c4LLMScoreRed, c4LLMScoreYellow)
 		eq.Fprintf(w, "    Example quality:     %d/10\n", m.ExampleQuality)
-		cp := colorForIntInverse(m.Completeness, 4, 7)
+		cp := colorForIntInverse(m.Completeness, c4LLMScoreRed, c4LLMScoreYellow)
 		cp.Fprintf(w, "    Completeness:        %d/10\n", m.Completeness)
-		cr := colorForIntInverse(m.CrossRefCoherence, 4, 7)
+		cr := colorForIntInverse(m.CrossRefCoherence, c4LLMScoreRed, c4LLMScoreYellow)
 		cr.Fprintf(w, "    Cross-ref coherence: %d/10\n", m.CrossRefCoherence)
 		fmt.Fprintf(w, "    LLM cost:            $%.4f (%d tokens)\n", m.LLMCostUSD, m.LLMTokensUsed)
 	} else {
@@ -462,6 +614,11 @@ func renderC4(w io.Writer, ar *types.AnalysisResult, verbose bool) {
 	}
 
 	// Verbose: show counts
+	//
+	// These raw counts help developers understand the denominators behind
+	// percentages (e.g., "15% comment density" becomes concrete: "469 comment
+	// lines out of 3,127 total"). Concrete numbers make improvement targets
+	// actionable ("add 78 comment lines" vs "increase density 2.5%").
 	if verbose {
 		fmt.Fprintln(w)
 		bold.Fprintln(w, "  Detailed metrics:")
@@ -488,20 +645,20 @@ func renderC6(w io.Writer, ar *types.AnalysisResult, verbose bool) {
 	bold.Fprintln(w, "C6: Testing")
 	fmt.Fprintln(w, "────────────────────────────────────────")
 
-	tr := colorForFloatInverse(m.TestToCodeRatio, 0.2, 0.5)
+	tr := colorForFloatInverse(m.TestToCodeRatio, c6TestRatioRed, c6TestRatioYellow)
 	tr.Fprintf(w, "  Test-to-code ratio:  %.2f\n", m.TestToCodeRatio)
 
 	if m.CoveragePercent >= 0 {
-		cov := colorForFloatInverse(m.CoveragePercent, 40, 70)
+		cov := colorForFloatInverse(m.CoveragePercent, c6CoverageRed, c6CoverageYellow)
 		cov.Fprintf(w, "  Coverage:            %.1f%% (%s)\n", m.CoveragePercent, m.CoverageSource)
 	} else {
 		fmt.Fprintf(w, "  Coverage:            n/a (no coverage data found)\n")
 	}
 
-	iso := colorForFloatInverse(m.TestIsolation, 50, 80)
+	iso := colorForFloatInverse(m.TestIsolation, c6IsolationRed, c6IsolationYellow)
 	iso.Fprintf(w, "  Test isolation:      %.0f%%\n", m.TestIsolation)
 
-	ad := colorForFloat(m.AssertionDensity.Avg, 999, 999) // no yellow/red thresholds for assertion density
+	ad := colorForFloat(m.AssertionDensity.Avg, c6AssertionNoThreshold, c6AssertionNoThreshold)
 	ad.Fprintf(w, "  Assertion density:   %.1f avg\n", m.AssertionDensity.Avg)
 
 	// Verbose: per-test function details
@@ -520,10 +677,10 @@ func renderC6(w io.Writer, ar *types.AnalysisResult, verbose bool) {
 
 // c7ScoreColor returns a color based on C7 score (0-100, higher is better).
 func c7ScoreColor(score int) *color.Color {
-	if score >= 70 {
+	if score >= c7ScoreGreenMin {
 		return color.New(color.FgGreen)
 	}
-	if score >= 40 {
+	if score >= c7ScoreYellowMin {
 		return color.New(color.FgYellow)
 	}
 	return color.New(color.FgRed)
@@ -555,19 +712,19 @@ func renderC7(w io.Writer, ar *types.AnalysisResult, verbose bool) {
 		m.CrossFileNavigation > 0 || m.IdentifierInterpretability > 0 ||
 		m.DocumentationAccuracyDetection > 0 {
 		// Show new MECE metrics
-		m1c := c7ScoreColor(m.TaskExecutionConsistency * 10) // Convert 1-10 to 0-100 for color
+		m1c := c7ScoreColor(m.TaskExecutionConsistency * c7ScoreScale)
 		m1c.Fprintf(w, "  M1 Exec Consistency:  %d/10\n", m.TaskExecutionConsistency)
 
-		m2c := c7ScoreColor(m.CodeBehaviorComprehension * 10)
+		m2c := c7ScoreColor(m.CodeBehaviorComprehension * c7ScoreScale)
 		m2c.Fprintf(w, "  M2 Comprehension:     %d/10\n", m.CodeBehaviorComprehension)
 
-		m3c := c7ScoreColor(m.CrossFileNavigation * 10)
+		m3c := c7ScoreColor(m.CrossFileNavigation * c7ScoreScale)
 		m3c.Fprintf(w, "  M3 Navigation:        %d/10\n", m.CrossFileNavigation)
 
-		m4c := c7ScoreColor(m.IdentifierInterpretability * 10)
+		m4c := c7ScoreColor(m.IdentifierInterpretability * c7ScoreScale)
 		m4c.Fprintf(w, "  M4 Identifiers:       %d/10\n", m.IdentifierInterpretability)
 
-		m5c := c7ScoreColor(m.DocumentationAccuracyDetection * 10)
+		m5c := c7ScoreColor(m.DocumentationAccuracyDetection * c7ScoreScale)
 		m5c.Fprintf(w, "  M5 Documentation:     %d/10\n", m.DocumentationAccuracyDetection)
 	} else {
 		// Fallback to legacy metrics for backward compatibility
@@ -588,7 +745,7 @@ func renderC7(w io.Writer, ar *types.AnalysisResult, verbose bool) {
 	fmt.Fprintln(w, "  ─────────────────────────────────────")
 	if m.MECEScore > 0 {
 		// Show MECE score (weighted average of 5 metrics, 1-10 scale)
-		os := c7ScoreColor(int(m.MECEScore * 10)) // Convert to 0-100 for color
+		os := c7ScoreColor(int(m.MECEScore * c7ScoreScale))
 		os.Fprintf(w, "  MECE Score:           %.1f/10\n", m.MECEScore)
 	} else {
 		// Show legacy overall score (0-100 scale)
@@ -668,6 +825,14 @@ var metricDisplayNames = map[string]string{
 // RenderScores prints a formatted scoring section showing per-category scores,
 // composite score, and tier rating. When verbose is true, per-metric sub-score
 // breakdowns are shown beneath each category.
+//
+// Score rendering uses color-coded thresholds aligned with tier boundaries:
+// - Green (≥8.0): Agent-Ready tier, agents can work autonomously
+// - Yellow (≥6.0): Agent-Assisted tier, agents need human guidance
+// - Red (<6.0): Agent-Limited or Agent-Hostile, agents struggle significantly
+//
+// This color mapping helps users quickly identify categories dragging down the
+// composite score and prioritize improvements for tier advancement.
 func RenderScores(w io.Writer, scored *types.ScoredResult, verbose bool) {
 	bold := color.New(color.Bold)
 
@@ -709,6 +874,14 @@ func RenderScores(w io.Writer, scored *types.ScoredResult, verbose bool) {
 }
 
 // renderSubScores prints per-metric sub-score details indented beneath a category.
+//
+// Evidence-based display format: raw value → interpolated score → weight percentage.
+// This shows users exactly how each metric contributes to the category score and
+// reveals which metrics have the most improvement leverage (high weight + low score).
+//
+// Zero-weight metrics are filtered out to avoid confusing users with deprecated or
+// inactive metrics. For example, C7's overall_score (0-100 scale) was replaced by
+// MECE-based scoring but kept for backward compatibility with weight=0.
 func renderSubScores(w io.Writer, subScores []types.SubScore) {
 	for _, ss := range subScores {
 		// Skip metrics with zero weight (e.g., deprecated overall_score in C7)
@@ -733,17 +906,29 @@ func renderSubScores(w io.Writer, subScores []types.SubScore) {
 }
 
 // scoreColor returns a color based on score thresholds: green >= 8, yellow >= 6, red < 6.
+//
+// Threshold rationale:
+// - 8.0 (green): Agent-Ready tier boundary - autonomous agent operation possible
+// - 6.0 (yellow): Agent-Assisted tier boundary - agents need human oversight
+// - <6.0 (red): Agent-Limited/Hostile - agents struggle or fail frequently
+//
+// These thresholds were empirically derived from agent success rates across codebases
+// and align with the project's research on agent-readiness factors (see agent.md).
 func scoreColor(score float64) *color.Color {
-	if score >= 8.0 {
+	if score >= scoreGreenMin {
 		return color.New(color.FgGreen)
 	}
-	if score >= 6.0 {
+	if score >= scoreYellowMin {
 		return color.New(color.FgYellow)
 	}
 	return color.New(color.FgRed)
 }
 
 // tierColor returns a color for tier badge display.
+//
+// Bold formatting emphasizes tier classification since it's the primary outcome
+// users care about (single summary of overall agent-readiness). Color semantics:
+// green = positive (ready), yellow = caution (needs help), red = negative (hostile).
 func tierColor(tier string) *color.Color {
 	switch tier {
 	case "Agent-Ready":
@@ -756,7 +941,15 @@ func tierColor(tier string) *color.Color {
 }
 
 // RenderRecommendations prints ranked improvement recommendations to w.
+//
 // Each recommendation shows rank, summary, impact, effort, and action.
+// Recommendations are pre-sorted by ROI (impact/effort ratio) in the recommend
+// package, so displaying them in order guides users toward the most efficient
+// improvements. High-impact, low-effort changes appear first (quick wins).
+//
+// Impact visualization uses color thresholds: ≥0.5 points = green (significant),
+// ≥0.2 points = yellow (moderate), <0.2 = red (marginal). This helps users
+// gauge whether a recommendation is worth pursuing given their tier goals.
 func RenderRecommendations(w io.Writer, recs []recommend.Recommendation) {
 	bold := color.New(color.Bold)
 	green := color.New(color.FgGreen)
@@ -773,10 +966,10 @@ func RenderRecommendations(w io.Writer, recs []recommend.Recommendation) {
 	for i, rec := range recs {
 		bold.Fprintf(w, "  %d. %s\n", rec.Rank, rec.Summary)
 
-		impactColor := scoreColor(rec.ScoreImprovement * 20) // map 0.5->10 for green threshold
-		if rec.ScoreImprovement >= 0.5 {
+		impactColor := scoreColor(rec.ScoreImprovement * recImpactScaleToScore)
+		if rec.ScoreImprovement >= recHighImpact {
 			impactColor = color.New(color.FgGreen)
-		} else if rec.ScoreImprovement >= 0.2 {
+		} else if rec.ScoreImprovement >= recModerateImpact {
 			impactColor = color.New(color.FgYellow)
 		} else {
 			impactColor = color.New(color.FgRed)
@@ -826,6 +1019,15 @@ func RenderBadge(w io.Writer, scored *types.ScoredResult) {
 // RenderC7Debug renders detailed C7 debug data (prompts, responses, scores, traces)
 // to the provided writer. This is called only when --debug-c7 is active. The writer
 // is typically os.Stderr so debug output never mixes with normal stdout output.
+//
+// Debug rendering helps developers:
+// 1. Understand why C7 scores are low (inspect actual agent responses)
+// 2. Validate C7 scoring heuristics (see score trace breakdowns)
+// 3. Debug Claude CLI integration issues (capture raw prompts/responses)
+// 4. Replay saved responses without hitting the Claude API (--debug-dir)
+//
+// Output goes to stderr by convention to keep stdout clean for JSON pipelines
+// and avoid contaminating production output with debug data.
 func RenderC7Debug(w io.Writer, analysisResults []*types.AnalysisResult) {
 	// Find the C7 result
 	var c7Result *types.AnalysisResult
@@ -858,12 +1060,12 @@ func RenderC7Debug(w io.Writer, analysisResults []*types.AnalysisResult) {
 	// Header
 	fmt.Fprintln(w)
 	bold.Fprintln(w, "C7 Debug: Agent Evaluation Details")
-	fmt.Fprintln(w, strings.Repeat("=", 60))
+	fmt.Fprintln(w, strings.Repeat("=", separatorWide))
 
 	for _, mr := range m.MetricResults {
 		fmt.Fprintln(w)
 		bold.Fprintf(w, "[%s] %s  score=%d/10  (%.1fs)\n", mr.MetricID, mr.MetricName, mr.Score, mr.Duration)
-		fmt.Fprintln(w, strings.Repeat("-", 50))
+		fmt.Fprintln(w, strings.Repeat("-", separatorNarrow))
 
 		if len(mr.DebugSamples) == 0 {
 			dim.Fprintln(w, "  No debug samples captured")
@@ -876,11 +1078,11 @@ func RenderC7Debug(w io.Writer, analysisResults []*types.AnalysisResult) {
 			fmt.Fprintf(w, "  Score:    %d/10  Duration: %.1fs\n", ds.Score, ds.Duration)
 
 			// Prompt (truncated, dim)
-			prompt := truncateString(ds.Prompt, 200)
+			prompt := truncateString(ds.Prompt, truncateShort)
 			dim.Fprintf(w, "  Prompt:   %s\n", prompt)
 
 			// Response (truncated)
-			response := truncateString(ds.Response, 500)
+			response := truncateString(ds.Response, truncateLong)
 			fmt.Fprintf(w, "  Response: %s\n", response)
 
 			// Score trace

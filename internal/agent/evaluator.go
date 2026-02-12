@@ -9,24 +9,53 @@ import (
 	"time"
 )
 
+// Evaluator configuration constants.
+const (
+	defaultEvalTimeout = 60 * time.Second  // Default evaluation timeout
+	commandWaitDelay   = 10 * time.Second  // Grace period after SIGINT before force-kill
+	retryDelay         = 2 * time.Second   // Wait before retrying failed evaluation
+	errorPreviewMax    = 200               // Max characters in error output preview
+	scoreMin           = 1                 // Minimum valid evaluation score
+	scoreMax           = 10                // Maximum valid evaluation score
+)
+
 // EvaluationResult holds the result of content quality evaluation.
 type EvaluationResult struct {
 	Score  int    `json:"score"`  // 1-10
 	Reason string `json:"reason"` // Brief explanation
 }
 
+// commandRunnerFunc executes a command and returns its combined output.
+type commandRunnerFunc func(ctx context.Context, name string, args ...string) ([]byte, error)
+
+// defaultCommandRunner runs a real CLI command with SIGINT graceful shutdown.
+func defaultCommandRunner(ctx context.Context, name string, args ...string) ([]byte, error) {
+	cmd := exec.CommandContext(ctx, name, args...)
+	cmd.Cancel = func() error {
+		return cmd.Process.Signal(os.Interrupt)
+	}
+	cmd.WaitDelay = commandWaitDelay
+	return cmd.CombinedOutput()
+}
+
 // Evaluator performs content quality evaluation using the Claude CLI.
 type Evaluator struct {
-	timeout time.Duration
+	timeout    time.Duration
+	runCommand commandRunnerFunc
 }
 
 // NewEvaluator creates an Evaluator with the specified timeout.
 // If timeout is 0, a default of 60 seconds is used.
 func NewEvaluator(timeout time.Duration) *Evaluator {
 	if timeout == 0 {
-		timeout = 60 * time.Second
+		timeout = defaultEvalTimeout
 	}
-	return &Evaluator{timeout: timeout}
+	return &Evaluator{timeout: timeout, runCommand: defaultCommandRunner}
+}
+
+// SetCommandRunner replaces the command execution function (for testing).
+func (e *Evaluator) SetCommandRunner(fn commandRunnerFunc) {
+	e.runCommand = fn
 }
 
 // EvaluateContent runs content evaluation using the Claude CLI.
@@ -47,25 +76,16 @@ func (e *Evaluator) EvaluateContent(ctx context.Context, systemPrompt, content s
 	evalCtx, cancel := context.WithTimeout(ctx, e.timeout)
 	defer cancel()
 
-	cmd := exec.CommandContext(evalCtx, "claude", args...)
-
-	// Graceful cancellation: send SIGINT first
-	cmd.Cancel = func() error {
-		return cmd.Process.Signal(os.Interrupt)
-	}
-	// Grace period before force-kill after SIGINT
-	cmd.WaitDelay = 10 * time.Second
-
 	// Execute and capture output
-	output, err := cmd.CombinedOutput()
+	output, err := e.runCommand(evalCtx, "claude", args...)
 	if err != nil {
 		if evalCtx.Err() == context.DeadlineExceeded {
 			return EvaluationResult{}, fmt.Errorf("evaluation timed out after %v", e.timeout)
 		}
 		// Include output in error for debugging
 		preview := string(output)
-		if len(preview) > 200 {
-			preview = preview[:200] + "..."
+		if len(preview) > errorPreviewMax {
+			preview = preview[:errorPreviewMax] + "..."
 		}
 		return EvaluationResult{}, fmt.Errorf("CLI execution failed: %w (output: %s)", err, preview)
 	}
@@ -80,14 +100,14 @@ func (e *Evaluator) EvaluateContent(ctx context.Context, systemPrompt, content s
 
 	if err := json.Unmarshal(output, &resp); err != nil {
 		preview := string(output)
-		if len(preview) > 200 {
-			preview = preview[:200] + "..."
+		if len(preview) > errorPreviewMax {
+			preview = preview[:errorPreviewMax] + "..."
 		}
 		return EvaluationResult{}, fmt.Errorf("failed to parse CLI response: %w (got: %s)", err, preview)
 	}
 
 	// Validate score range
-	if resp.StructuredOutput.Score < 1 || resp.StructuredOutput.Score > 10 {
+	if resp.StructuredOutput.Score < scoreMin || resp.StructuredOutput.Score > scoreMax {
 		return EvaluationResult{}, fmt.Errorf("score out of range (1-10): %d", resp.StructuredOutput.Score)
 	}
 
@@ -110,7 +130,7 @@ func (e *Evaluator) EvaluateWithRetry(ctx context.Context, systemPrompt, content
 	select {
 	case <-ctx.Done():
 		return EvaluationResult{}, ctx.Err()
-	case <-time.After(2 * time.Second):
+	case <-time.After(retryDelay):
 	}
 
 	// Retry once

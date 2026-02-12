@@ -7,6 +7,12 @@ import (
 	"github.com/ingo/agent-readyness/pkg/types"
 )
 
+// badMetrics is a test-only type that satisfies CategoryMetrics but is not
+// a valid metrics struct, used to test type assertion failure handling.
+type badMetrics struct{}
+
+func (*badMetrics) IsCategoryMetrics() {}
+
 // --- Interpolate tests ---
 
 func TestInterpolate_LowerIsBetter(t *testing.T) {
@@ -304,7 +310,7 @@ func makeHealthyC1() *types.AnalysisResult {
 	return &types.AnalysisResult{
 		Name:     "code-health",
 		Category: "C1",
-		Metrics: map[string]interface{}{
+		Metrics: map[string]types.CategoryMetrics{
 			"c1": &types.C1Metrics{
 				CyclomaticComplexity: types.MetricSummary{Avg: 3.0, Max: 8},
 				FunctionLength:       types.MetricSummary{Avg: 12.0, Max: 30},
@@ -359,7 +365,7 @@ func TestScoreC1_PoorCodebase(t *testing.T) {
 	ar := &types.AnalysisResult{
 		Name:     "code-health",
 		Category: "C1",
-		Metrics: map[string]interface{}{
+		Metrics: map[string]types.CategoryMetrics{
 			"c1": &types.C1Metrics{
 				CyclomaticComplexity: types.MetricSummary{Avg: 25.0, Max: 60},
 				FunctionLength:       types.MetricSummary{Avg: 70.0, Max: 200},
@@ -381,7 +387,7 @@ func TestScoreC1_EmptyCouplingMaps(t *testing.T) {
 	ar := &types.AnalysisResult{
 		Name:     "code-health",
 		Category: "C1",
-		Metrics: map[string]interface{}{
+		Metrics: map[string]types.CategoryMetrics{
 			"c1": &types.C1Metrics{
 				CyclomaticComplexity: types.MetricSummary{Avg: 3.0},
 				FunctionLength:       types.MetricSummary{Avg: 10.0},
@@ -412,7 +418,7 @@ func TestScoreC1_InvalidMetricsType(t *testing.T) {
 	ar := &types.AnalysisResult{
 		Name:     "code-health",
 		Category: "C1",
-		Metrics:  map[string]interface{}{"c1": "not-a-struct"},
+		Metrics:  map[string]types.CategoryMetrics{"c1": &badMetrics{}},
 	}
 	got := scoreCategory(s, ar)
 	// Should return zero-value CategoryScore on type assertion failure
@@ -426,7 +432,7 @@ func TestScoreC1_CouplingAverage(t *testing.T) {
 	ar := &types.AnalysisResult{
 		Name:     "code-health",
 		Category: "C1",
-		Metrics: map[string]interface{}{
+		Metrics: map[string]types.CategoryMetrics{
 			"c1": &types.C1Metrics{
 				CyclomaticComplexity: types.MetricSummary{Avg: 5.0},
 				FunctionLength:       types.MetricSummary{Avg: 15.0},
@@ -462,7 +468,7 @@ func TestScoreC3_Healthy(t *testing.T) {
 	ar := &types.AnalysisResult{
 		Name:     "architecture",
 		Category: "C3",
-		Metrics: map[string]interface{}{
+		Metrics: map[string]types.CategoryMetrics{
 			"c3": &types.C3Metrics{
 				MaxDirectoryDepth: 3,
 				ModuleFanout:      types.MetricSummary{Avg: 2.5},
@@ -492,7 +498,7 @@ func TestScoreC3_PoorArchitecture(t *testing.T) {
 	ar := &types.AnalysisResult{
 		Name:     "architecture",
 		Category: "C3",
-		Metrics: map[string]interface{}{
+		Metrics: map[string]types.CategoryMetrics{
 			"c3": &types.C3Metrics{
 				MaxDirectoryDepth: 8,
 				ModuleFanout:      types.MetricSummary{Avg: 12.0},
@@ -521,7 +527,7 @@ func TestScoreC3_MetricExtraction(t *testing.T) {
 	ar := &types.AnalysisResult{
 		Name:     "architecture",
 		Category: "C3",
-		Metrics: map[string]interface{}{
+		Metrics: map[string]types.CategoryMetrics{
 			"c3": &types.C3Metrics{
 				MaxDirectoryDepth: 5,
 				ModuleFanout:      types.MetricSummary{Avg: 4.0},
@@ -560,7 +566,7 @@ func TestScoreC6_Healthy(t *testing.T) {
 	ar := &types.AnalysisResult{
 		Name:     "testing",
 		Category: "C6",
-		Metrics: map[string]interface{}{
+		Metrics: map[string]types.CategoryMetrics{
 			"c6": &types.C6Metrics{
 				TestFileCount:    20,
 				SourceFileCount:  25,
@@ -597,7 +603,7 @@ func TestScoreC6_MissingCoverage(t *testing.T) {
 	ar := &types.AnalysisResult{
 		Name:     "testing",
 		Category: "C6",
-		Metrics: map[string]interface{}{
+		Metrics: map[string]types.CategoryMetrics{
 			"c6": &types.C6Metrics{
 				TestFileCount:    10,
 				SourceFileCount:  20,
@@ -634,7 +640,7 @@ func TestScoreC6_ZeroSourceFiles(t *testing.T) {
 	ar := &types.AnalysisResult{
 		Name:     "testing",
 		Category: "C6",
-		Metrics: map[string]interface{}{
+		Metrics: map[string]types.CategoryMetrics{
 			"c6": &types.C6Metrics{
 				TestFileCount:    0,
 				SourceFileCount:  0,
@@ -662,7 +668,7 @@ func TestScoreC6_TestFileRatio(t *testing.T) {
 	ar := &types.AnalysisResult{
 		Name:     "testing",
 		Category: "C6",
-		Metrics: map[string]interface{}{
+		Metrics: map[string]types.CategoryMetrics{
 			"c6": &types.C6Metrics{
 				TestFileCount:    15,
 				SourceFileCount:  20,
@@ -692,7 +698,7 @@ func TestScoreC2_GoMetrics(t *testing.T) {
 	ar := &types.AnalysisResult{
 		Name:     "semantic-explicitness",
 		Category: "C2",
-		Metrics: map[string]interface{}{
+		Metrics: map[string]types.CategoryMetrics{
 			"c2": &types.C2Metrics{
 				Aggregate: &types.C2LanguageMetrics{
 					TypeAnnotationCoverage: 100,
@@ -735,7 +741,7 @@ func TestScoreC2_NilAggregate(t *testing.T) {
 	ar := &types.AnalysisResult{
 		Name:     "semantic-explicitness",
 		Category: "C2",
-		Metrics: map[string]interface{}{
+		Metrics: map[string]types.CategoryMetrics{
 			"c2": &types.C2Metrics{
 				Aggregate: nil,
 			},
@@ -756,7 +762,7 @@ func TestScore_FullRoundTrip(t *testing.T) {
 		{
 			Name:     "architecture",
 			Category: "C3",
-			Metrics: map[string]interface{}{
+			Metrics: map[string]types.CategoryMetrics{
 				"c3": &types.C3Metrics{
 					MaxDirectoryDepth: 3,
 					ModuleFanout:      types.MetricSummary{Avg: 2.0},
@@ -769,7 +775,7 @@ func TestScore_FullRoundTrip(t *testing.T) {
 		{
 			Name:     "testing",
 			Category: "C6",
-			Metrics: map[string]interface{}{
+			Metrics: map[string]types.CategoryMetrics{
 				"c6": &types.C6Metrics{
 					TestFileCount:    20,
 					SourceFileCount:  25,
@@ -833,7 +839,7 @@ func TestScore_EmptyResults(t *testing.T) {
 func TestScore_UnknownCategory(t *testing.T) {
 	s := &Scorer{Config: DefaultConfig()}
 	results := []*types.AnalysisResult{
-		{Name: "unknown", Category: "C99", Metrics: map[string]interface{}{}},
+		{Name: "unknown", Category: "C99", Metrics: map[string]types.CategoryMetrics{}},
 	}
 	// Unknown categories should be silently skipped
 	got, err := s.Score(results)
@@ -849,7 +855,7 @@ func TestScore_UnknownCategory(t *testing.T) {
 
 func TestExtractC7_ReturnsAllMetrics(t *testing.T) {
 	ar := &types.AnalysisResult{
-		Metrics: map[string]interface{}{
+		Metrics: map[string]types.CategoryMetrics{
 			"c7": &types.C7Metrics{
 				Available:                      true,
 				OverallScore:                   75.0,
@@ -912,7 +918,7 @@ func TestExtractC7_ReturnsAllMetrics(t *testing.T) {
 
 func TestExtractC7_UnavailableMarksAllMetrics(t *testing.T) {
 	ar := &types.AnalysisResult{
-		Metrics: map[string]interface{}{
+		Metrics: map[string]types.CategoryMetrics{
 			"c7": &types.C7Metrics{
 				Available: false,
 			},
@@ -946,7 +952,7 @@ func TestScoreC7_NonZeroSubScores(t *testing.T) {
 	ar := &types.AnalysisResult{
 		Name:     "agent-evaluation",
 		Category: "C7",
-		Metrics: map[string]interface{}{
+		Metrics: map[string]types.CategoryMetrics{
 			"c7": &types.C7Metrics{
 				Available:                      true,
 				OverallScore:                   75.0,
@@ -1012,7 +1018,7 @@ func TestExtractEvidence_AllCategories(t *testing.T) {
 			ar: &types.AnalysisResult{
 				Name:     "code-health",
 				Category: "C1",
-				Metrics: map[string]interface{}{
+				Metrics: map[string]types.CategoryMetrics{
 					"c1": &types.C1Metrics{
 						CyclomaticComplexity: types.MetricSummary{Avg: 30.0, Max: 50, MaxEntity: "pkg/big.go"},
 						FunctionLength:       types.MetricSummary{Avg: 100.0, Max: 300, MaxEntity: "pkg/big.go"},
@@ -1040,7 +1046,7 @@ func TestExtractEvidence_AllCategories(t *testing.T) {
 			ar: &types.AnalysisResult{
 				Name:     "semantic-explicitness",
 				Category: "C2",
-				Metrics: map[string]interface{}{
+				Metrics: map[string]types.CategoryMetrics{
 					"c2": &types.C2Metrics{
 						Aggregate: &types.C2LanguageMetrics{
 							TypeAnnotationCoverage: 50.0,
@@ -1063,7 +1069,7 @@ func TestExtractEvidence_AllCategories(t *testing.T) {
 			ar: &types.AnalysisResult{
 				Name:     "architecture",
 				Category: "C3",
-				Metrics: map[string]interface{}{
+				Metrics: map[string]types.CategoryMetrics{
 					"c3": &types.C3Metrics{
 						MaxDirectoryDepth: 8,
 						ModuleFanout:      types.MetricSummary{Avg: 10.0, Max: 25, MaxEntity: "pkg/hub"},
@@ -1086,7 +1092,7 @@ func TestExtractEvidence_AllCategories(t *testing.T) {
 			ar: &types.AnalysisResult{
 				Name:     "documentation",
 				Category: "C4",
-				Metrics: map[string]interface{}{
+				Metrics: map[string]types.CategoryMetrics{
 					"c4": &types.C4Metrics{
 						ReadmeWordCount:     200,
 						CommentDensity:      10.0,
@@ -1109,7 +1115,7 @@ func TestExtractEvidence_AllCategories(t *testing.T) {
 			ar: &types.AnalysisResult{
 				Name:     "temporal",
 				Category: "C5",
-				Metrics: map[string]interface{}{
+				Metrics: map[string]types.CategoryMetrics{
 					"c5": &types.C5Metrics{
 						Available:            true,
 						ChurnRate:            50.0,
@@ -1137,7 +1143,7 @@ func TestExtractEvidence_AllCategories(t *testing.T) {
 			ar: &types.AnalysisResult{
 				Name:     "testing",
 				Category: "C6",
-				Metrics: map[string]interface{}{
+				Metrics: map[string]types.CategoryMetrics{
 					"c6": &types.C6Metrics{
 						TestFileCount:    5,
 						SourceFileCount:  20,
@@ -1162,7 +1168,7 @@ func TestExtractEvidence_AllCategories(t *testing.T) {
 			ar: &types.AnalysisResult{
 				Name:     "agent-evaluation",
 				Category: "C7",
-				Metrics: map[string]interface{}{
+				Metrics: map[string]types.CategoryMetrics{
 					"c7": &types.C7Metrics{
 						Available:                      true,
 						TaskExecutionConsistency:       7,
@@ -1180,7 +1186,7 @@ func TestExtractEvidence_AllCategories(t *testing.T) {
 		},
 	}
 
-	extractors := map[string]MetricExtractor{
+	extractors := map[string]metricExtractor{
 		"C1": extractC1,
 		"C2": extractC2,
 		"C3": extractC3,

@@ -13,6 +13,20 @@ import (
 	"github.com/ingo/agent-readyness/pkg/types"
 )
 
+// stubAnalyzer is a test helper that returns an empty result.
+type stubAnalyzer struct{}
+
+func (s *stubAnalyzer) Name() string {
+	return "stub"
+}
+
+func (s *stubAnalyzer) Analyze(_ []*types.AnalysisTarget) (*types.AnalysisResult, error) {
+	return &types.AnalysisResult{
+		Name:    "stub",
+		Metrics: make(map[string]types.CategoryMetrics),
+	}, nil
+}
+
 func TestPipelineRun(t *testing.T) {
 	root, err := filepath.Abs("../../testdata/valid-go-project")
 	if err != nil {
@@ -21,6 +35,7 @@ func TestPipelineRun(t *testing.T) {
 
 	var buf bytes.Buffer
 	p := New(&buf, false, nil, 0, false, nil)
+	p.DisableLLM()
 
 	if err := p.Run(root); err != nil {
 		t.Fatalf("Pipeline.Run() returned error: %v", err)
@@ -72,6 +87,7 @@ func TestPipelineRunVerbose(t *testing.T) {
 
 	var buf bytes.Buffer
 	p := New(&buf, true, nil, 0, false, nil)
+	p.DisableLLM()
 
 	if err := p.Run(root); err != nil {
 		t.Fatalf("Pipeline.Run() returned error: %v", err)
@@ -89,14 +105,14 @@ func TestPipelineRunVerbose(t *testing.T) {
 }
 
 func TestStubAnalyzerReturnsEmpty(t *testing.T) {
-	a := &StubAnalyzer{}
+	a := &stubAnalyzer{}
 	if a.Name() != "stub" {
 		t.Errorf("expected name 'stub', got %q", a.Name())
 	}
 
 	result, err := a.Analyze(nil)
 	if err != nil {
-		t.Fatalf("StubAnalyzer.Analyze() returned error: %v", err)
+		t.Fatalf("stubAnalyzer.Analyze() returned error: %v", err)
 	}
 
 	if result.Name != "stub" {
@@ -112,11 +128,12 @@ func TestPipelineAnalyzerErrorContinues(t *testing.T) {
 
 	var buf bytes.Buffer
 	p := New(&buf, false, nil, 0, false, nil)
+	p.DisableLLM()
 
 	// Replace analyzers with one that errors and one stub
-	p.analyzers = []Analyzer{
+	p.analyzers = []analyzerIface{
 		&errorAnalyzer{},
-		&StubAnalyzer{},
+		&stubAnalyzer{},
 	}
 
 	if err := p.Run(root); err != nil {
@@ -137,6 +154,7 @@ func TestPipelineScoringStage(t *testing.T) {
 
 	var buf bytes.Buffer
 	p := New(&buf, false, nil, 0, false, nil)
+	p.DisableLLM()
 
 	if err := p.Run(root); err != nil {
 		t.Fatalf("Pipeline.Run() returned error: %v", err)
@@ -167,11 +185,11 @@ func TestPipelineScoringStage(t *testing.T) {
 		}
 	}
 
-	// Each category score should be in valid range [0,10]
-	// (0 indicates disabled/unavailable category)
+	// Each category score should be in valid range [-1,10]
+	// (-1 indicates unavailable category, e.g. C5 without git repo)
 	for _, cat := range p.scored.Categories {
-		if cat.Score < 0 || cat.Score > 10 {
-			t.Errorf("category %q score %v out of range [0,10]", cat.Name, cat.Score)
+		if cat.Score < -1 || cat.Score > 10 {
+			t.Errorf("category %q score %v out of range [-1,10]", cat.Name, cat.Score)
 		}
 	}
 }
@@ -199,7 +217,7 @@ func (s *slowAnalyzer) Analyze(_ []*types.AnalysisTarget) (*types.AnalysisResult
 	return &types.AnalysisResult{
 		Name:     s.name,
 		Category: s.category,
-		Metrics:  make(map[string]interface{}),
+		Metrics:  make(map[string]types.CategoryMetrics),
 	}, nil
 }
 
@@ -211,9 +229,10 @@ func TestParallelAnalyzers(t *testing.T) {
 
 	var buf bytes.Buffer
 	p := New(&buf, false, nil, 0, false, nil)
+	p.DisableLLM()
 
 	// Replace analyzers with slow mocks (each sleeps 200ms)
-	p.analyzers = []Analyzer{
+	p.analyzers = []analyzerIface{
 		&slowAnalyzer{name: "slow-c6", category: "C6", delay: 200 * time.Millisecond},
 		&slowAnalyzer{name: "slow-c1", category: "C1", delay: 200 * time.Millisecond},
 		&slowAnalyzer{name: "slow-c3", category: "C3", delay: 200 * time.Millisecond},
@@ -222,7 +241,8 @@ func TestParallelAnalyzers(t *testing.T) {
 	// First, measure baseline pipeline time without analyzers
 	var buf2 bytes.Buffer
 	baseline := New(&buf2, false, nil, 0, false, nil)
-	baseline.analyzers = []Analyzer{} // no analyzers
+	baseline.DisableLLM()
+	baseline.analyzers = []analyzerIface{} // no analyzers
 	baseStart := time.Now()
 	_ = baseline.Run(root) // ignore errors from empty analyzers
 	baselineTime := time.Since(baseStart)
@@ -266,6 +286,7 @@ func TestProgressCallbackInvoked(t *testing.T) {
 
 	var buf bytes.Buffer
 	p := New(&buf, false, nil, 0, false, onProgress)
+	p.DisableLLM()
 
 	if err := p.Run(root); err != nil {
 		t.Fatalf("Pipeline.Run() returned error: %v", err)
@@ -339,5 +360,114 @@ func TestSetC7DebugThreadsToC7Analyzer(t *testing.T) {
 	}
 	if p.debugWriter != os.Stderr {
 		t.Error("pipeline debugWriter should be os.Stderr")
+	}
+}
+
+func TestDisableLLM(t *testing.T) {
+	var buf bytes.Buffer
+	p := New(&buf, false, nil, 0, false, nil)
+
+	// Initially evaluator should be non-nil
+	if p.evaluator == nil {
+		t.Fatal("evaluator should be non-nil after New()")
+	}
+
+	p.DisableLLM()
+
+	if p.evaluator != nil {
+		t.Error("DisableLLM should set evaluator to nil")
+	}
+}
+
+func TestGetCLIStatus(t *testing.T) {
+	var buf bytes.Buffer
+	p := New(&buf, false, nil, 0, false, nil)
+
+	status := p.GetCLIStatus()
+
+	// CLIStatus is a struct - just verify we got something back
+	// We can't assert Available is true/false as it depends on the environment
+	_ = status.Available
+	_ = status.Version
+}
+
+func TestSetC7Enabled(t *testing.T) {
+	var buf bytes.Buffer
+	p := New(&buf, false, nil, 0, false, nil)
+
+	// C7 is always in the analyzers list, but SetC7Enabled explicitly enables it
+	// if evaluator is present. We verify the method runs without error.
+	p.SetC7Enabled()
+
+	// Verify C7 analyzer is in the list
+	hasC7 := false
+	for _, a := range p.analyzers {
+		if a.Name() == "C7: Agent Evaluation" {
+			hasC7 = true
+			break
+		}
+	}
+	if !hasC7 {
+		t.Error("C7 should be in analyzers list")
+	}
+}
+
+func TestSetHTMLOutput(t *testing.T) {
+	var buf bytes.Buffer
+	p := New(&buf, false, nil, 0, false, nil)
+
+	// Initially these should be empty
+	if p.htmlOutput != "" {
+		t.Error("htmlOutput should be empty by default")
+	}
+	if p.baselinePath != "" {
+		t.Error("baselinePath should be empty by default")
+	}
+
+	p.SetHTMLOutput("/tmp/test.html", "/tmp/baseline.json")
+
+	if p.htmlOutput != "/tmp/test.html" {
+		t.Errorf("htmlOutput = %q, want %q", p.htmlOutput, "/tmp/test.html")
+	}
+	if p.baselinePath != "/tmp/baseline.json" {
+		t.Errorf("baselinePath = %q, want %q", p.baselinePath, "/tmp/baseline.json")
+	}
+}
+
+func TestSetBadgeOutput(t *testing.T) {
+	var buf bytes.Buffer
+	p := New(&buf, false, nil, 0, false, nil)
+
+	// Initially should be disabled
+	if p.badgeOutput {
+		t.Error("badgeOutput should be false by default")
+	}
+
+	p.SetBadgeOutput(true)
+
+	if !p.badgeOutput {
+		t.Error("badgeOutput should be true after SetBadgeOutput(true)")
+	}
+
+	p.SetBadgeOutput(false)
+
+	if p.badgeOutput {
+		t.Error("badgeOutput should be false after SetBadgeOutput(false)")
+	}
+}
+
+func TestSetDebugDir(t *testing.T) {
+	var buf bytes.Buffer
+	p := New(&buf, false, nil, 0, false, nil)
+
+	// Initially should be empty
+	if p.debugDir != "" {
+		t.Error("debugDir should be empty by default")
+	}
+
+	p.SetDebugDir("/tmp/debug")
+
+	if p.debugDir != "/tmp/debug" {
+		t.Errorf("debugDir = %q, want %q", p.debugDir, "/tmp/debug")
 	}
 }

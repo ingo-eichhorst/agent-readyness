@@ -48,7 +48,8 @@ func (s *Spinner) Start(message string) {
 	s.message = message
 	s.mu.Unlock()
 
-	s.ticker = time.NewTicker(100 * time.Millisecond)
+	const spinnerInterval = 100 * time.Millisecond
+	s.ticker = time.NewTicker(spinnerInterval)
 	go func() {
 		for {
 			select {

@@ -22,12 +22,18 @@ import (
 	"github.com/ingo/agent-readyness/pkg/types"
 )
 
+// Pipeline configuration constants.
+const (
+	evaluatorTimeout = 60 * time.Second // Timeout for CLI-based evaluator
+	bytesPerKB       = 1024             // Bytes per kilobyte for file size display
+)
+
 // Pipeline orchestrates the scan workflow: discover -> parse -> analyze -> score -> output.
 type Pipeline struct {
 	verbose      bool
 	writer       io.Writer
-	parser       Parser
-	analyzers    []Analyzer
+	parser       parseProvider
+	analyzers    []analyzerIface
 	c7Analyzer   *analyzer.C7Analyzer // separate for debug features
 	scorer       *scoring.Scorer
 	results      []*types.AnalysisResult
@@ -76,7 +82,7 @@ func New(w io.Writer, verbose bool, cfg *scoring.ScoringConfig, threshold float6
 	cliStatus := agent.GetCLIStatus()
 	var evaluator *agent.Evaluator
 	if cliStatus.Available {
-		evaluator = agent.NewEvaluator(60 * time.Second)
+		evaluator = agent.NewEvaluator(evaluatorTimeout)
 		c4Analyzer.SetEvaluator(evaluator)
 		c7Analyzer.SetEvaluator(evaluator) // Auto-enable C7 when CLI available
 	}
@@ -89,7 +95,7 @@ func New(w io.Writer, verbose bool, cfg *scoring.ScoringConfig, threshold float6
 		onProgress:  onProgress,
 		debugWriter: io.Discard,
 		parser:      &parser.GoPackagesParser{},
-		analyzers: []Analyzer{
+		analyzers: []analyzerIface{
 			analyzer.NewC1Analyzer(tsParser),
 			c2Analyzer,
 			analyzer.NewC3Analyzer(tsParser),
@@ -220,10 +226,10 @@ func (p *Pipeline) Run(dir string) error {
 		return fmt.Errorf("no analyzable source files found in %s", dir)
 	}
 
-	// Stage 2.6: Inject Go packages into GoAwareAnalyzers
+	// Stage 2.6: Inject Go packages into goAwareAnalyzers
 	if len(pkgs) > 0 {
 		for _, a := range p.analyzers {
-			if ga, ok := a.(GoAwareAnalyzer); ok {
+			if ga, ok := a.(goAwareAnalyzer); ok {
 				ga.SetGoPackages(pkgs)
 			}
 		}
@@ -368,7 +374,7 @@ func (p *Pipeline) generateHTMLReport(recs []recommend.Recommendation) error {
 	// Report file size
 	if err := f.Sync(); err == nil {
 		if fi, err := f.Stat(); err == nil {
-			sizeKB := fi.Size() / 1024
+			sizeKB := fi.Size() / bytesPerKB
 			fmt.Fprintf(p.writer, "HTML report: %s (%d KB)\n", p.htmlOutput, sizeKB)
 		}
 	}

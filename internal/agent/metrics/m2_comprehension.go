@@ -12,35 +12,53 @@ import (
 	"github.com/ingo/agent-readyness/pkg/types"
 )
 
-// M2Comprehension measures the agent's ability to understand what code does.
+// M2 sample selection and scoring constants.
+const (
+	m2SampleCount       = 3                // Number of code samples to evaluate
+	m2Timeout           = 360 * time.Second // Total timeout across all samples
+	m2MinFileLOC        = 30               // Minimum file size for sample selection
+	m2MinComplexity     = 5                // Minimum complexity indicators to qualify
+	m2BaseScore         = 2                // Starting score before heuristic adjustments
+)
+
+// m2Comprehension measures the agent's ability to understand what code does.
 // It tests semantic understanding (behavior), not syntactic correctness.
 //
 // Research basis: Code comprehension benchmarks show LLMs struggle with
 // semantic understanding vs syntactic correctness.
-type M2Comprehension struct {
+type m2Comprehension struct {
 	sampleCount int
 	timeout     time.Duration
 }
 
-// NewM2ComprehensionMetric creates a Code Behavior Comprehension metric.
-func NewM2ComprehensionMetric() *M2Comprehension {
-	return &M2Comprehension{
-		sampleCount: 3,
-		timeout:     360 * time.Second,
+// newM2ComprehensionMetric creates a Code Behavior Comprehension metric.
+func newM2ComprehensionMetric() *m2Comprehension {
+	return &m2Comprehension{
+		sampleCount: m2SampleCount,
+		timeout:     m2Timeout,
 	}
 }
 
-func (m *M2Comprehension) ID() string { return "code_behavior_comprehension" }
-func (m *M2Comprehension) Name() string { return "Code Behavior Comprehension" }
-func (m *M2Comprehension) Description() string {
+// ID returns the metric identifier.
+func (m *m2Comprehension) ID() string { return "code_behavior_comprehension" }
+
+// Name returns the human-readable metric name.
+func (m *m2Comprehension) Name() string { return "Code Behavior Comprehension" }
+
+// Description returns what this metric measures.
+func (m *m2Comprehension) Description() string {
 	return "Measures agent's understanding of what code does (semantics, not syntax)"
 }
-func (m *M2Comprehension) Timeout() time.Duration { return m.timeout }
-func (m *M2Comprehension) SampleCount() int { return m.sampleCount }
+
+// Timeout returns the per-metric timeout duration.
+func (m *m2Comprehension) Timeout() time.Duration { return m.timeout }
+
+// SampleCount returns the number of samples to evaluate.
+func (m *m2Comprehension) SampleCount() int { return m.sampleCount }
 
 // SelectSamples picks complex functions by counting complexity indicators
 // (if/for/switch/case statements). Score = complexity_count * (1/sqrt(Lines)).
-func (m *M2Comprehension) SelectSamples(targets []*types.AnalysisTarget) []Sample {
+func (m *m2Comprehension) SelectSamples(targets []*types.AnalysisTarget) []Sample {
 	var candidates []Sample
 
 	// Patterns for complexity indicators across languages
@@ -60,7 +78,7 @@ func (m *M2Comprehension) SelectSamples(targets []*types.AnalysisTarget) []Sampl
 			if file.Class != types.ClassSource {
 				continue
 			}
-			if file.Lines < 30 { // Skip very small files
+			if file.Lines < m2MinFileLOC { // Skip very small files
 				continue
 			}
 
@@ -73,7 +91,7 @@ func (m *M2Comprehension) SelectSamples(targets []*types.AnalysisTarget) []Sampl
 				complexityCount += len(matches)
 			}
 
-			if complexityCount < 5 { // Skip simple files
+			if complexityCount < m2MinComplexity { // Skip simple files
 				continue
 			}
 
@@ -118,7 +136,7 @@ Consider:
 Respond with JSON only: {"score": N, "reason": "brief explanation"}`
 
 // Execute asks the agent to explain code behavior for each sample.
-func (m *M2Comprehension) Execute(ctx context.Context, workDir string, samples []Sample, executor Executor) MetricResult {
+func (m *m2Comprehension) Execute(ctx context.Context, workDir string, samples []Sample, executor Executor) MetricResult {
 	result := MetricResult{
 		MetricID:   m.ID(),
 		MetricName: m.Name(),
@@ -191,10 +209,10 @@ Be specific and reference actual code elements.`, sample.FilePath)
 //
 // Scoring uses thematic groups: each group contributes +1 if ANY member matches.
 // This prevents saturation where many overlapping indicators all score individually.
-func (m *M2Comprehension) scoreComprehensionResponse(response string) (int, ScoreTrace) {
+func (m *m2Comprehension) scoreComprehensionResponse(response string) (int, ScoreTrace) {
 	responseLower := strings.ToLower(response)
 
-	trace := ScoreTrace{BaseScore: 2}
+	trace := ScoreTrace{BaseScore: m2BaseScore}
 
 	// Thematic indicator groups: each group +1 if ANY member matches.
 	type indicatorGroup struct {
@@ -266,11 +284,11 @@ func (m *M2Comprehension) scoreComprehensionResponse(response string) (int, Scor
 	for _, ind := range trace.Indicators {
 		score += ind.Delta
 	}
-	if score < 1 {
-		score = 1
+	if score < minScore {
+		score = minScore
 	}
-	if score > 10 {
-		score = 10
+	if score > maxScore {
+		score = maxScore
 	}
 	trace.FinalScore = score
 

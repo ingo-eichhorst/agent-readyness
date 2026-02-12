@@ -55,7 +55,7 @@ func TestC7Progress_SetMetricRunning(t *testing.T) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	if p.metrics["m1"].Status != StatusRunning {
+	if p.metrics["m1"].Status != statusRunning {
 		t.Errorf("status = %v, want Running", p.metrics["m1"].Status)
 	}
 	if p.metrics["m1"].TotalSamples != 5 {
@@ -90,7 +90,7 @@ func TestC7Progress_SetMetricComplete(t *testing.T) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	if p.metrics["m1"].Status != StatusComplete {
+	if p.metrics["m1"].Status != statusComplete {
 		t.Errorf("status = %v, want Complete", p.metrics["m1"].Status)
 	}
 	if p.metrics["m1"].Score != 8 {
@@ -107,7 +107,7 @@ func TestC7Progress_SetMetricFailed(t *testing.T) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	if p.metrics["m1"].Status != StatusFailed {
+	if p.metrics["m1"].Status != statusFailed {
 		t.Errorf("status = %v, want Failed", p.metrics["m1"].Status)
 	}
 	if p.metrics["m1"].Error != "timeout exceeded" {
@@ -162,7 +162,7 @@ func TestC7Progress_UnknownMetricID(t *testing.T) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	if p.metrics["m1"].Status != StatusPending {
+	if p.metrics["m1"].Status != statusPending {
 		t.Errorf("m1 status = %v, want Pending", p.metrics["m1"].Status)
 	}
 }
@@ -215,11 +215,11 @@ func TestFormatTokens(t *testing.T) {
 
 func TestMetricStatusConstants(t *testing.T) {
 	// Verify status constants are defined correctly
-	statuses := []MetricStatus{
-		StatusPending,
-		StatusRunning,
-		StatusComplete,
-		StatusFailed,
+	statuses := []metricStatus{
+		statusPending,
+		statusRunning,
+		statusComplete,
+		statusFailed,
 	}
 
 	expectedValues := []string{
@@ -237,7 +237,7 @@ func TestMetricStatusConstants(t *testing.T) {
 }
 
 func TestMetricProgress_InitialState(t *testing.T) {
-	p := &MetricProgress{
+	p := &metricProgress{
 		ID:   "test",
 		Name: "Test Metric",
 	}

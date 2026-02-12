@@ -11,6 +11,11 @@ import (
 	arstypes "github.com/ingo/agent-readyness/pkg/types"
 )
 
+// Constants for C3 metrics computation.
+const (
+	modulePathMinPartsC3 = 3
+)
+
 // C3Analyzer implements the pipeline.Analyzer interface for C3: Architectural Navigability.
 // It also implements GoAwareAnalyzer for Go-specific analysis via SetGoPackages.
 type C3Analyzer struct {
@@ -162,7 +167,7 @@ func (a *C3Analyzer) Analyze(targets []*arstypes.AnalysisTarget) (*arstypes.Anal
 	return &arstypes.AnalysisResult{
 		Name:     "C3: Architecture",
 		Category: "C3",
-		Metrics:  map[string]interface{}{"c3": metrics},
+		Metrics:  map[string]arstypes.CategoryMetrics{"c3": metrics},
 	}, nil
 }
 
@@ -202,6 +207,7 @@ func filterSourcePackages(pkgs []*parser.ParsedPackage) []*parser.ParsedPackage 
 
 // analyzeDirectoryDepth computes the max and average directory depth relative to module root.
 // Depth is measured as the number of path segments in the package's relative import path.
+// Skips packages outside the module (stdlib, vendor, external deps).
 func analyzeDirectoryDepth(pkgs []*parser.ParsedPackage, modulePath string) (int, float64) {
 	if len(pkgs) == 0 {
 		return 0, 0
@@ -223,7 +229,8 @@ func analyzeDirectoryDepth(pkgs []*parser.ParsedPackage, modulePath string) (int
 }
 
 // packageDepth computes the directory nesting depth of a package relative to its module root.
-// e.g., "github.com/foo/bar/internal/deep" with module "github.com/foo/bar" -> depth 2
+// Example: "github.com/foo/bar/internal/deep" with module "github.com/foo/bar" -> depth 2
+// Depth measures relative path segment count (internal/deep = 2 segments).
 func packageDepth(pkgPath, modulePath string) int {
 	if pkgPath == modulePath {
 		return 0
@@ -261,8 +268,18 @@ func analyzeModuleFanout(pkgs []*parser.ParsedPackage, graph *shared.ImportGraph
 	}
 }
 
-// detectCircularDeps uses DFS with white/gray/black coloring to find cycles in the import graph.
-// In valid Go code, the compiler prevents import cycles, so this returns empty for compilable code.
+// detectCircularDeps uses DFS with node coloring to find dependency cycles.
+//
+// Algorithm (Tarjan's approach):
+// - White (unvisited): Not yet explored
+// - Gray (in current DFS path): Currently being explored
+// - Black (fully processed): Completed exploration and all descendants
+//
+// Cycle detection: An edge to a gray node indicates a back-edge (cycle found).
+// Cycle reconstruction: Trace parent pointers from current node to gray neighbor.
+//
+// Note: For Go code, the compiler prevents import cycles, so this returns empty.
+// Useful for Python/TypeScript where circular imports are possible.
 func detectCircularDeps(graph *shared.ImportGraph) [][]string {
 	const (
 		white = iota // unvisited
@@ -289,15 +306,18 @@ func detectCircularDeps(graph *shared.ImportGraph) [][]string {
 
 	var dfs func(node string)
 	dfs = func(node string) {
+		// Mark node as gray: currently being explored (on the DFS stack)
 		color[node] = gray
 
 		for _, neighbor := range graph.Forward[node] {
 			switch color[neighbor] {
 			case white:
+				// Unvisited node: record parent and explore recursively
 				parent[neighbor] = node
 				dfs(neighbor)
 			case gray:
-				// Found a cycle: trace back from node to neighbor.
+				// Back-edge detected: neighbor is in current DFS path, forming a cycle
+				// Trace back from current node to neighbor to reconstruct the cycle
 				cycle := []string{neighbor}
 				cur := node
 				for cur != neighbor {
@@ -311,6 +331,7 @@ func detectCircularDeps(graph *shared.ImportGraph) [][]string {
 			}
 		}
 
+		// Mark node as black: fully processed (all descendants explored)
 		color[node] = black
 	}
 
@@ -323,7 +344,9 @@ func detectCircularDeps(graph *shared.ImportGraph) [][]string {
 	return cycles
 }
 
-// analyzeImportComplexity computes the average number of path segments in intra-module imports.
+// analyzeImportComplexity computes the maximum import path depth across all packages.
+// Depth is measured by segment count (slashes) relative to module root.
+// Example: mymodule/internal/analyzer/c1_code_quality has depth=3 (internal, analyzer, c1_code_quality).
 func analyzeImportComplexity(pkgs []*parser.ParsedPackage, modulePath string) arstypes.MetricSummary {
 	if len(pkgs) == 0 || modulePath == "" {
 		return arstypes.MetricSummary{}
@@ -363,8 +386,17 @@ func analyzeImportComplexity(pkgs []*parser.ParsedPackage, modulePath string) ar
 	}
 }
 
-// detectDeadCode finds exported functions and types that are never referenced by any other package.
-// Conservative: only flags functions and types (not vars/consts), skips main/init, skips test packages.
+// detectDeadCode finds exported functions and types that are never referenced
+// by any other package in the module.
+//
+// Conservative approach:
+// - Only flags functions and types (not vars/consts which may be config/constants)
+// - Skips main/init (special runtime functions)
+// - Skips test packages (test-only exports are valid)
+// - Requires multi-package module (single-package projects have no cross-package refs)
+//
+// Uses go/types TypesInfo.Uses to track cross-package references via type-checker.
+// An exported object with no uses from other packages is considered dead.
 func detectDeadCode(pkgs []*parser.ParsedPackage) []arstypes.DeadExport {
 	type exportedSymbol struct {
 		pkg  string
@@ -422,12 +454,14 @@ func detectDeadCode(pkgs []*parser.ParsedPackage) []arstypes.DeadExport {
 	}
 
 	// Build cross-package reference set: objects referenced from a different package.
+	// TypesInfo.Uses contains all identifier uses; filter for cross-package references only
 	crossPkgRef := make(map[types.Object]bool)
 	for _, pkg := range pkgs {
 		if pkg.TypesInfo == nil {
 			continue
 		}
 		for _, obj := range pkg.TypesInfo.Uses {
+			// Check if object's package differs from current package (cross-package reference)
 			if obj.Pkg() != nil && obj.Pkg().Path() != pkg.PkgPath {
 				crossPkgRef[obj] = true
 			}
@@ -458,8 +492,9 @@ func detectDeadCode(pkgs []*parser.ParsedPackage) []arstypes.DeadExport {
 	return dead
 }
 
-// detectModulePath extracts the module path from go.mod in the package directory,
-// or infers it from the first package's import path.
+// detectModulePath walks up the directory tree to find go.mod and extracts module path.
+// Falls back to common prefix heuristic if go.mod not found or malformed.
+// This is used to compute relative package paths for depth and fanout calculations.
 func detectModulePath(pkgs []*parser.ParsedPackage) string {
 	if len(pkgs) == 0 {
 		return ""
@@ -492,8 +527,8 @@ func detectModulePath(pkgs []*parser.ParsedPackage) string {
 		path := pkgs[0].PkgPath
 		// Use everything up to the first package component
 		parts := strings.Split(path, "/")
-		if len(parts) >= 3 {
-			return strings.Join(parts[:3], "/")
+		if len(parts) >= modulePathMinPartsC3 {
+			return strings.Join(parts[:modulePathMinPartsC3], "/")
 		}
 		return path
 	}

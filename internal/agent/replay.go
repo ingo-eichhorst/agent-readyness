@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ingo/agent-readyness/internal/agent/metrics"
+	"github.com/ingo-eichhorst/agent-readyness/internal/agent/metrics"
 )
 
 // DebugResponse represents a single captured C7 metric response for persistence and replay.

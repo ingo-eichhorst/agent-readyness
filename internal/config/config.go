@@ -8,7 +8,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/ingo/agent-readyness/internal/scoring"
+	"github.com/ingo-eichhorst/agent-readyness/internal/scoring"
 )
 
 // ProjectConfig represents the .arsrc.yml configuration file.

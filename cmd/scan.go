@@ -7,9 +7,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/ingo/agent-readyness/internal/config"
-	"github.com/ingo/agent-readyness/internal/pipeline"
-	"github.com/ingo/agent-readyness/internal/scoring"
+	"github.com/ingo-eichhorst/agent-readyness/internal/config"
+	"github.com/ingo-eichhorst/agent-readyness/internal/pipeline"
+	"github.com/ingo-eichhorst/agent-readyness/internal/scoring"
 )
 
 var (

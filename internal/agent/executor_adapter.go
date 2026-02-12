@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ingo/agent-readyness/internal/agent/metrics"
+	"github.com/ingo-eichhorst/agent-readyness/internal/agent/metrics"
 )
 
 // cliExecutorAdapter adapts the real Claude CLI executor to the metrics.Executor interface.

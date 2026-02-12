@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/ingo/agent-readyness/internal/scoring"
+	"github.com/ingo-eichhorst/agent-readyness/internal/scoring"
 )
 
 func TestLoadProjectConfig_ValidYml(t *testing.T) {

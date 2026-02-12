@@ -1,7 +1,7 @@
 package output
 
 import (
-	"github.com/ingo/agent-readyness/pkg/types"
+	"github.com/ingo-eichhorst/agent-readyness/pkg/types"
 	charts "github.com/vicanso/go-charts/v2"
 )
 

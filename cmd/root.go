@@ -6,8 +6,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/ingo/agent-readyness/pkg/types"
-	"github.com/ingo/agent-readyness/pkg/version"
+	"github.com/ingo-eichhorst/agent-readyness/pkg/types"
+	"github.com/ingo-eichhorst/agent-readyness/pkg/version"
 )
 
 var verbose bool

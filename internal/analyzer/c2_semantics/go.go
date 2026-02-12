@@ -6,8 +6,8 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/ingo/agent-readyness/internal/parser"
-	"github.com/ingo/agent-readyness/pkg/types"
+	"github.com/ingo-eichhorst/agent-readyness/internal/parser"
+	"github.com/ingo-eichhorst/agent-readyness/pkg/types"
 )
 
 // Constants for Go C2 metrics computation.

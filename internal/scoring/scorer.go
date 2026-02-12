@@ -16,7 +16,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/ingo/agent-readyness/pkg/types"
+	"github.com/ingo-eichhorst/agent-readyness/pkg/types"
 )
 
 // evidenceTopN is the maximum number of evidence items retained per metric.

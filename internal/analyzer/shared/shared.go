@@ -8,7 +8,7 @@ import (
 
 	tree_sitter "github.com/tree-sitter/go-tree-sitter"
 
-	"github.com/ingo/agent-readyness/internal/parser"
+	"github.com/ingo-eichhorst/agent-readyness/internal/parser"
 )
 
 // ImportGraph holds forward and reverse adjacency lists for intra-module imports.

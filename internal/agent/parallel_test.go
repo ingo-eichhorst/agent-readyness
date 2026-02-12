@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ingo/agent-readyness/pkg/types"
+	"github.com/ingo-eichhorst/agent-readyness/pkg/types"
 )
 
 // noopExecutor implements metrics.Executor but returns an error if called.

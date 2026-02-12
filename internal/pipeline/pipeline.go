@@ -12,14 +12,14 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
-	"github.com/ingo/agent-readyness/internal/agent"
-	"github.com/ingo/agent-readyness/internal/analyzer"
-	"github.com/ingo/agent-readyness/internal/discovery"
-	"github.com/ingo/agent-readyness/internal/output"
-	"github.com/ingo/agent-readyness/internal/parser"
-	"github.com/ingo/agent-readyness/internal/recommend"
-	"github.com/ingo/agent-readyness/internal/scoring"
-	"github.com/ingo/agent-readyness/pkg/types"
+	"github.com/ingo-eichhorst/agent-readyness/internal/agent"
+	"github.com/ingo-eichhorst/agent-readyness/internal/analyzer"
+	"github.com/ingo-eichhorst/agent-readyness/internal/discovery"
+	"github.com/ingo-eichhorst/agent-readyness/internal/output"
+	"github.com/ingo-eichhorst/agent-readyness/internal/parser"
+	"github.com/ingo-eichhorst/agent-readyness/internal/recommend"
+	"github.com/ingo-eichhorst/agent-readyness/internal/scoring"
+	"github.com/ingo-eichhorst/agent-readyness/pkg/types"
 )
 
 // Pipeline configuration constants.

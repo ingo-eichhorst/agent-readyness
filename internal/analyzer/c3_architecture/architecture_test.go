@@ -5,8 +5,8 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/ingo/agent-readyness/internal/parser"
-	"github.com/ingo/agent-readyness/pkg/types"
+	"github.com/ingo-eichhorst/agent-readyness/internal/parser"
+	"github.com/ingo-eichhorst/agent-readyness/pkg/types"
 )
 
 // testdataDir returns the absolute path to the project testdata directory.
@@ -118,8 +118,8 @@ func TestC3ImportComplexity(t *testing.T) {
 
 	m := c3Metrics(t, result)
 
-	// coupling: pkga imports "github.com/ingo/agent-readyness/testdata/coupling/pkgb"
-	// Relative to module root "github.com/ingo/agent-readyness/testdata/coupling" -> "pkgb" = 1 segment
+	// coupling: pkga imports "github.com/ingo-eichhorst/agent-readyness/testdata/coupling/pkgb"
+	// Relative to module root "github.com/ingo-eichhorst/agent-readyness/testdata/coupling" -> "pkgb" = 1 segment
 	// Only one intra-module import, so avg = 1.0, max = 1
 	if m.ImportComplexity.Avg < 0.9 || m.ImportComplexity.Avg > 1.1 {
 		t.Errorf("ImportComplexity.Avg = %f, want ~1.0", m.ImportComplexity.Avg)

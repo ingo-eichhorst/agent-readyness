@@ -10,7 +10,7 @@ import (
 
 	ignore "github.com/sabhiram/go-gitignore"
 
-	"github.com/ingo/agent-readyness/pkg/types"
+	"github.com/ingo-eichhorst/agent-readyness/pkg/types"
 )
 
 // skipDirs lists directory names that should be skipped during walking.

@@ -445,6 +445,12 @@ Top Recommendations
 
 If you find this project useful, please consider giving it a star! ⭐
 
+<div align="center">
+
+[![Star History Chart](https://api.star-history.com/svg?repos=ingo-eichhorst/agent-readyness&type=Date)](https://star-history.com/#ingo-eichhorst/agent-readyness&Date)
+
+</div>
+
 ---
 
 ## License

@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	projectparser "github.com/ingo/agent-readyness/internal/parser"
-	pkgtypes "github.com/ingo/agent-readyness/pkg/types"
+	projectparser "github.com/ingo-eichhorst/agent-readyness/internal/parser"
+	pkgtypes "github.com/ingo-eichhorst/agent-readyness/pkg/types"
 	"golang.org/x/tools/go/packages"
 )
 

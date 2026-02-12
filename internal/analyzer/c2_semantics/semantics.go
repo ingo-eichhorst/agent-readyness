@@ -1,8 +1,8 @@
 package c2
 
 import (
-	"github.com/ingo/agent-readyness/internal/parser"
-	"github.com/ingo/agent-readyness/pkg/types"
+	"github.com/ingo-eichhorst/agent-readyness/internal/parser"
+	"github.com/ingo-eichhorst/agent-readyness/pkg/types"
 )
 
 // C2Analyzer implements the pipeline.Analyzer interface for C2: Semantic Explicitness.

@@ -1,4 +1,4 @@
-module github.com/ingo/agent-readyness
+module github.com/ingo-eichhorst/agent-readyness
 
 go 1.25.1
 

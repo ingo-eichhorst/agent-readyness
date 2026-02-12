@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ingo/agent-readyness/pkg/types"
+	"github.com/ingo-eichhorst/agent-readyness/pkg/types"
 )
 
 // stubAnalyzer is a test helper that returns an empty result.

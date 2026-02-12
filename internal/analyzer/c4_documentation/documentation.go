@@ -17,9 +17,9 @@ import (
 
 	tree_sitter "github.com/tree-sitter/go-tree-sitter"
 
-	"github.com/ingo/agent-readyness/internal/agent"
-	tsp "github.com/ingo/agent-readyness/internal/parser"
-	"github.com/ingo/agent-readyness/pkg/types"
+	"github.com/ingo-eichhorst/agent-readyness/internal/agent"
+	tsp "github.com/ingo-eichhorst/agent-readyness/internal/parser"
+	"github.com/ingo-eichhorst/agent-readyness/pkg/types"
 )
 
 // Documentation analysis constants.

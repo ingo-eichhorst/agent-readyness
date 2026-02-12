@@ -5,7 +5,7 @@ import (
 
 	"golang.org/x/tools/go/packages"
 
-	"github.com/ingo/agent-readyness/internal/parser"
+	"github.com/ingo-eichhorst/agent-readyness/internal/parser"
 )
 
 // makeImports creates a map for testing import graphs

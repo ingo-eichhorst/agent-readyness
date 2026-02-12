@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ingo/agent-readyness/internal/parser"
-	"github.com/ingo/agent-readyness/pkg/types"
+	"github.com/ingo-eichhorst/agent-readyness/internal/parser"
+	"github.com/ingo-eichhorst/agent-readyness/pkg/types"
 )
 
 // findProjectRoot walks up from cwd to locate the .git directory.

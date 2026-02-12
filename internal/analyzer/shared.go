@@ -3,8 +3,8 @@
 package analyzer
 
 import (
-	"github.com/ingo/agent-readyness/internal/analyzer/shared"
-	"github.com/ingo/agent-readyness/internal/parser"
+	"github.com/ingo-eichhorst/agent-readyness/internal/analyzer/shared"
+	"github.com/ingo-eichhorst/agent-readyness/internal/parser"
 
 	tree_sitter "github.com/tree-sitter/go-tree-sitter"
 )

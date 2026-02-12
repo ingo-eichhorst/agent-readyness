@@ -12,7 +12,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/ingo/agent-readyness/pkg/types"
+	"github.com/ingo-eichhorst/agent-readyness/pkg/types"
 )
 
 // Score range for all metric evaluations (1-10 scale).

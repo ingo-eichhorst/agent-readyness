@@ -11,9 +11,9 @@ import (
 	"strings"
 
 	"github.com/fzipp/gocyclo"
-	"github.com/ingo/agent-readyness/internal/analyzer/shared"
-	"github.com/ingo/agent-readyness/internal/parser"
-	"github.com/ingo/agent-readyness/pkg/types"
+	"github.com/ingo-eichhorst/agent-readyness/internal/analyzer/shared"
+	"github.com/ingo-eichhorst/agent-readyness/internal/parser"
+	"github.com/ingo-eichhorst/agent-readyness/pkg/types"
 )
 
 // Constants for C1 metrics computation.

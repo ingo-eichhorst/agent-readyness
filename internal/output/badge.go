@@ -5,7 +5,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/ingo/agent-readyness/pkg/types"
+	"github.com/ingo-eichhorst/agent-readyness/pkg/types"
 )
 
 // arsRepoURL is the URL to the ARS project repository.

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ingo/agent-readyness/pkg/types"
+	"github.com/ingo-eichhorst/agent-readyness/pkg/types"
 )
 
 // M4 sample selection and scoring constants.

@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ingo/agent-readyness/internal/scoring"
-	"github.com/ingo/agent-readyness/pkg/types"
+	"github.com/ingo-eichhorst/agent-readyness/internal/scoring"
+	"github.com/ingo-eichhorst/agent-readyness/pkg/types"
 )
 
 func TestRenderImprovementPrompt_C1Metric(t *testing.T) {

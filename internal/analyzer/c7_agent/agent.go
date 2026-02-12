@@ -7,9 +7,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/ingo/agent-readyness/internal/agent"
-	"github.com/ingo/agent-readyness/internal/agent/metrics"
-	"github.com/ingo/agent-readyness/pkg/types"
+	"github.com/ingo-eichhorst/agent-readyness/internal/agent"
+	"github.com/ingo-eichhorst/agent-readyness/internal/agent/metrics"
+	"github.com/ingo-eichhorst/agent-readyness/pkg/types"
 )
 
 // C7 analysis constants.

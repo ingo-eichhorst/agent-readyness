@@ -5,8 +5,8 @@ import (
 	"html/template"
 	"strings"
 
-	"github.com/ingo/agent-readyness/internal/scoring"
-	"github.com/ingo/agent-readyness/pkg/types"
+	"github.com/ingo-eichhorst/agent-readyness/internal/scoring"
+	"github.com/ingo-eichhorst/agent-readyness/pkg/types"
 )
 
 // renderBreakpointTrace renders the full C1-C6 trace modal content showing

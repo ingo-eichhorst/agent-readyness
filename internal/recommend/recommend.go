@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/ingo/agent-readyness/internal/scoring"
-	"github.com/ingo/agent-readyness/pkg/types"
+	"github.com/ingo-eichhorst/agent-readyness/internal/scoring"
+	"github.com/ingo-eichhorst/agent-readyness/pkg/types"
 )
 
 // Recommendation thresholds and effort classification constants.

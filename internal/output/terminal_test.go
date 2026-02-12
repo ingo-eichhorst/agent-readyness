@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ingo/agent-readyness/internal/recommend"
-	"github.com/ingo/agent-readyness/pkg/types"
+	"github.com/ingo-eichhorst/agent-readyness/internal/recommend"
+	"github.com/ingo-eichhorst/agent-readyness/pkg/types"
 )
 
 func newTestResult() *types.ScanResult {

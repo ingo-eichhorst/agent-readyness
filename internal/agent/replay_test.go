@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ingo/agent-readyness/internal/agent/metrics"
+	"github.com/ingo-eichhorst/agent-readyness/internal/agent/metrics"
 )
 
 func TestSaveLoadResponses(t *testing.T) {

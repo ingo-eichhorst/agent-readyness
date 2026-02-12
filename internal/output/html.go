@@ -21,10 +21,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ingo/agent-readyness/internal/recommend"
-	"github.com/ingo/agent-readyness/internal/scoring"
-	"github.com/ingo/agent-readyness/pkg/types"
-	"github.com/ingo/agent-readyness/pkg/version"
+	"github.com/ingo-eichhorst/agent-readyness/internal/recommend"
+	"github.com/ingo-eichhorst/agent-readyness/internal/scoring"
+	"github.com/ingo-eichhorst/agent-readyness/pkg/types"
+	"github.com/ingo-eichhorst/agent-readyness/pkg/version"
 )
 
 // Constants for HTML report generation.

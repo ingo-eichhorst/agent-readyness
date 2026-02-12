@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"io"
 
-	"github.com/ingo/agent-readyness/internal/recommend"
-	"github.com/ingo/agent-readyness/pkg/types"
+	"github.com/ingo-eichhorst/agent-readyness/internal/recommend"
+	"github.com/ingo-eichhorst/agent-readyness/pkg/types"
 )
 
 // JSONReport is the top-level JSON output structure.

@@ -4,7 +4,7 @@ import (
 	"math"
 	"testing"
 
-	"github.com/ingo/agent-readyness/pkg/types"
+	"github.com/ingo-eichhorst/agent-readyness/pkg/types"
 )
 
 // badMetrics is a test-only type that satisfies CategoryMetrics but is not

@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ingo/agent-readyness/pkg/types"
+	"github.com/ingo-eichhorst/agent-readyness/pkg/types"
 )
 
 // loadFixture reads a test fixture file from testdata/c7_responses/{subdir}/{name}.

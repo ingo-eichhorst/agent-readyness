@@ -5,7 +5,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/ingo/agent-readyness/internal/parser"
+	"github.com/ingo-eichhorst/agent-readyness/internal/parser"
 )
 
 // testdataDir returns the absolute path to the project testdata directory.
@@ -145,7 +145,7 @@ func TestC1_AfferentCoupling(t *testing.T) {
 	metrics := result.Metrics["c1"].(*c1MetricsResult)
 
 	// pkgb is imported by pkga -> afferent(pkgb) = 1
-	pkgbPath := "github.com/ingo/agent-readyness/testdata/coupling/pkgb"
+	pkgbPath := "github.com/ingo-eichhorst/agent-readyness/testdata/coupling/pkgb"
 	if ca, ok := metrics.AfferentCoupling[pkgbPath]; !ok || ca != 1 {
 		t.Errorf("AfferentCoupling[pkgb] = %d, want 1", ca)
 	}
@@ -166,13 +166,13 @@ func TestC1_EfferentCoupling(t *testing.T) {
 	metrics := result.Metrics["c1"].(*c1MetricsResult)
 
 	// pkga imports pkgb -> efferent(pkga) = 1
-	pkgaPath := "github.com/ingo/agent-readyness/testdata/coupling/pkga"
+	pkgaPath := "github.com/ingo-eichhorst/agent-readyness/testdata/coupling/pkga"
 	if ce, ok := metrics.EfferentCoupling[pkgaPath]; !ok || ce != 1 {
 		t.Errorf("EfferentCoupling[pkga] = %d, want 1", ce)
 	}
 
 	// pkgb imports nothing intra-module -> efferent(pkgb) = 0
-	pkgbPath := "github.com/ingo/agent-readyness/testdata/coupling/pkgb"
+	pkgbPath := "github.com/ingo-eichhorst/agent-readyness/testdata/coupling/pkgb"
 	if ce := metrics.EfferentCoupling[pkgbPath]; ce != 0 {
 		t.Errorf("EfferentCoupling[pkgb] = %d, want 0", ce)
 	}

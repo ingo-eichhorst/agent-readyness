@@ -4,14 +4,14 @@
 package analyzer
 
 import (
-	c1 "github.com/ingo/agent-readyness/internal/analyzer/c1_code_quality"
-	c2 "github.com/ingo/agent-readyness/internal/analyzer/c2_semantics"
-	c3 "github.com/ingo/agent-readyness/internal/analyzer/c3_architecture"
-	c4 "github.com/ingo/agent-readyness/internal/analyzer/c4_documentation"
-	c5 "github.com/ingo/agent-readyness/internal/analyzer/c5_temporal"
-	c6 "github.com/ingo/agent-readyness/internal/analyzer/c6_testing"
-	c7 "github.com/ingo/agent-readyness/internal/analyzer/c7_agent"
-	"github.com/ingo/agent-readyness/internal/parser"
+	c1 "github.com/ingo-eichhorst/agent-readyness/internal/analyzer/c1_code_quality"
+	c2 "github.com/ingo-eichhorst/agent-readyness/internal/analyzer/c2_semantics"
+	c3 "github.com/ingo-eichhorst/agent-readyness/internal/analyzer/c3_architecture"
+	c4 "github.com/ingo-eichhorst/agent-readyness/internal/analyzer/c4_documentation"
+	c5 "github.com/ingo-eichhorst/agent-readyness/internal/analyzer/c5_temporal"
+	c6 "github.com/ingo-eichhorst/agent-readyness/internal/analyzer/c6_testing"
+	c7 "github.com/ingo-eichhorst/agent-readyness/internal/analyzer/c7_agent"
+	"github.com/ingo-eichhorst/agent-readyness/internal/parser"
 )
 
 // C1Analyzer is the C1 (Code Quality) analyzer type.

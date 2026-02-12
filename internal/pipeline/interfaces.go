@@ -1,8 +1,8 @@
 package pipeline
 
 import (
-	"github.com/ingo/agent-readyness/internal/parser"
-	"github.com/ingo/agent-readyness/pkg/types"
+	"github.com/ingo-eichhorst/agent-readyness/internal/parser"
+	"github.com/ingo-eichhorst/agent-readyness/pkg/types"
 )
 
 // parseProvider loads and parses Go packages from a module directory.

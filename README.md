@@ -58,14 +58,14 @@ Make sure `$GOPATH/bin` (usually `~/go/bin`) is in your PATH.
 ### Run Your First Scan
 
 ```bash
-# Scan current directory (C4 & C7 auto-enabled if Claude CLI detected)
-ars scan .
+# Disable LLM features for your first test and faster scans (CI/CD)
+ars scan /path/to/repo --no-llm
 
 # Generate beautiful HTML report
-ars scan . --output-html report.html
+ars scan /path/to/repo --no-llm --output-html report.html
 
-# Disable LLM features for faster scans (CI/CD)
-ars scan . --no-llm
+# Scan a repo with all metrics (C4: Documentation & C7: Agent need Claude CLI)
+ars scan /path/to/repo
 ```
 
 **That's it!** You'll get a comprehensive analysis of your codebase's agent-readiness across 7 research-backed categories.

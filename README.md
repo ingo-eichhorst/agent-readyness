@@ -6,11 +6,11 @@
 
 [![Go Reference](https://pkg.go.dev/badge/github.com/ingo-eichhorst/agent-readyness.svg)](https://pkg.go.dev/github.com/ingo-eichhorst/agent-readyness)
 [![Go Report Card](https://goreportcard.com/badge/github.com/ingo-eichhorst/agent-readyness)](https://goreportcard.com/report/github.com/ingo-eichhorst/agent-readyness)
-[![Coverage](https://img.shields.io/badge/coverage-75.4%25-green)](https://github.com/ingo-eichhorst/agent-readyness)
+[![Coverage](https://img.shields.io/badge/coverage-78.6%25-green)](https://github.com/ingo-eichhorst/agent-readyness)
 [![License](https://img.shields.io/github/license/ingo-eichhorst/agent-readyness)](https://github.com/ingo-eichhorst/agent-readyness/blob/main/LICENSE)
 [![Release](https://img.shields.io/github/release/ingo-eichhorst/agent-readyness)](https://github.com/ingo-eichhorst/agent-readyness/releases)
 
-[![ARS](https://img.shields.io/badge/ARS-Agent--Assisted%206.9%2F10-yellow)](https://github.com/ingo-eichhorst/agent-readyness)
+[![ARS](https://img.shields.io/badge/ARS-Agent--Ready%208.1%2F10-green)](https://github.com/ingo-eichhorst/agent-readyness)
 
 [Quick Start](#-quick-start) •
 [Features](#-features) •

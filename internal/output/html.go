@@ -74,7 +74,7 @@ type htmlCategory struct {
 
 // htmlSubScore represents a metric sub-score for HTML display.
 type htmlSubScore struct {
-	Key                 string        // Unique key like "complexity_avg"
+	Key                 string // Unique key like "complexity_avg"
 	MetricName          string
 	DisplayName         string
 	RawValue            float64
@@ -101,7 +101,7 @@ type TraceData struct {
 }
 
 // htmlRecommendation represents a recommendation for HTML display.
-type htmlRecommendation struct{
+type htmlRecommendation struct {
 	Rank             int
 	Summary          string
 	ScoreImprovement float64
@@ -415,34 +415,34 @@ func categoryDisplayName(name string) string {
 func metricDisplayName(name string) string {
 	// Reuse from terminal.go mapping
 	names := map[string]string{
-		"complexity_avg":            "Complexity avg",
-		"func_length_avg":           "Func length avg",
-		"file_size_avg":             "File size avg",
-		"afferent_coupling_avg":     "Afferent coupling",
-		"efferent_coupling_avg":     "Efferent coupling",
-		"duplication_rate":          "Duplication rate",
-		"max_dir_depth":             "Max dir depth",
-		"module_fanout_avg":         "Module fanout avg",
-		"circular_deps":             "Circular deps",
-		"import_complexity_avg":     "Import complexity",
-		"dead_exports":              "Dead exports",
-		"test_to_code_ratio":        "Test-to-code ratio",
-		"coverage_percent":          "Coverage",
-		"test_isolation":            "Test isolation",
-		"assertion_density_avg":     "Assertion density",
-		"test_file_ratio":           "Test file ratio",
-		"type_annotation_coverage":  "Type annotations",
-		"naming_consistency":        "Naming consistency",
-		"magic_number_ratio":        "Magic numbers",
-		"type_strictness":           "Type strictness",
-		"null_safety":               "Null safety",
-		"churn_rate":                "Churn rate",
-		"temporal_coupling_pct":     "Temporal coupling",
-		"author_fragmentation":      "Author fragmentation",
-		"commit_stability":          "Commit stability",
-		"hotspot_concentration":     "Hotspot concentration",
-		"readme_word_count":         "README word count",
-		"comment_density":           "Comment density",
+		"complexity_avg":                   "Complexity avg",
+		"func_length_avg":                  "Func length avg",
+		"file_size_avg":                    "File size avg",
+		"afferent_coupling_avg":            "Afferent coupling",
+		"efferent_coupling_avg":            "Efferent coupling",
+		"duplication_rate":                 "Duplication rate",
+		"max_dir_depth":                    "Max dir depth",
+		"module_fanout_avg":                "Module fanout avg",
+		"circular_deps":                    "Circular deps",
+		"import_complexity_avg":            "Import complexity",
+		"dead_exports":                     "Dead exports",
+		"test_to_code_ratio":               "Test-to-code ratio",
+		"coverage_percent":                 "Coverage",
+		"test_isolation":                   "Test isolation",
+		"assertion_density_avg":            "Assertion density",
+		"test_file_ratio":                  "Test file ratio",
+		"type_annotation_coverage":         "Type annotations",
+		"naming_consistency":               "Naming consistency",
+		"magic_number_ratio":               "Magic numbers",
+		"type_strictness":                  "Type strictness",
+		"null_safety":                      "Null safety",
+		"churn_rate":                       "Churn rate",
+		"temporal_coupling_pct":            "Temporal coupling",
+		"author_fragmentation":             "Author fragmentation",
+		"commit_stability":                 "Commit stability",
+		"hotspot_concentration":            "Hotspot concentration",
+		"readme_word_count":                "README word count",
+		"comment_density":                  "Comment density",
 		"api_doc_coverage":                 "API doc coverage",
 		"changelog_present":                "CHANGELOG",
 		"examples_present":                 "Examples",

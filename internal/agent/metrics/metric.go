@@ -85,27 +85,27 @@ type Executor interface {
 
 // Metric constructors - these return the real implementations.
 
-// NewM1Consistency creates the Task Execution Consistency metric.
-func NewM1Consistency() Metric {
+// newM1Consistency creates the Task Execution Consistency metric.
+func newM1Consistency() Metric {
 	return newM1ConsistencyMetric()
 }
 
-// NewM2Comprehension creates the Code Behavior Comprehension metric.
-func NewM2Comprehension() Metric {
+// newM2Comprehension creates the Code Behavior Comprehension metric.
+func newM2Comprehension() Metric {
 	return newM2ComprehensionMetric()
 }
 
-// NewM3Navigation creates the Cross-File Navigation metric.
-func NewM3Navigation() Metric {
+// newM3Navigation creates the Cross-File Navigation metric.
+func newM3Navigation() Metric {
 	return newM3NavigationMetric()
 }
 
-// NewM4Identifiers creates the Identifier Interpretability metric.
-func NewM4Identifiers() Metric {
+// newM4Identifiers creates the Identifier Interpretability metric.
+func newM4Identifiers() Metric {
 	return newM4IdentifiersMetric()
 }
 
-// NewM5Documentation creates the Documentation Accuracy Detection metric.
-func NewM5Documentation() Metric {
+// newM5Documentation creates the Documentation Accuracy Detection metric.
+func newM5Documentation() Metric {
 	return newM5DocumentationMetric()
 }

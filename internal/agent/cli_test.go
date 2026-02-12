@@ -96,7 +96,7 @@ func TestDetectCLIWithContext_Timeout(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	status := DetectCLIWithContext(ctx)
+	status := detectCLIWithContext(ctx)
 
 	if status.Available {
 		t.Fatal("Expected Available to be false with expired context")
@@ -109,7 +109,7 @@ func TestGetCLIStatus_Caching(t *testing.T) {
 	defer func() {
 		lookPathFunc = origLookPath
 		runVersionCmd = origRunVersion
-		ResetCLICache()
+		resetCLICache()
 	}()
 
 	var callCount int
@@ -122,7 +122,7 @@ func TestGetCLIStatus_Caching(t *testing.T) {
 	}
 
 	// Reset cache before test
-	ResetCLICache()
+	resetCLICache()
 
 	// First call should populate cache
 	status1 := GetCLIStatus()

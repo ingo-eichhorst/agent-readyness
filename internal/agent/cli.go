@@ -38,16 +38,16 @@ var (
 const cliVersionTimeout = 5 * time.Second
 
 // DetectCLI checks if the Claude CLI is installed and returns its status.
-// This is a convenience wrapper around DetectCLIWithContext using a 5-second timeout.
+// This is a convenience wrapper around detectCLIWithContext using a 5-second timeout.
 func DetectCLI() CLIStatus {
 	ctx, cancel := context.WithTimeout(context.Background(), cliVersionTimeout)
 	defer cancel()
-	return DetectCLIWithContext(ctx)
+	return detectCLIWithContext(ctx)
 }
 
-// DetectCLIWithContext checks if the Claude CLI is installed and returns its status.
+// detectCLIWithContext checks if the Claude CLI is installed and returns its status.
 // The context controls the timeout for the version check.
-func DetectCLIWithContext(ctx context.Context) CLIStatus {
+func detectCLIWithContext(ctx context.Context) CLIStatus {
 	// Check if CLI is in PATH
 	path, err := lookPathFunc("claude")
 	if err != nil {
@@ -97,8 +97,8 @@ func GetCLIStatus() CLIStatus {
 	return cachedCLIStatus
 }
 
-// ResetCLICache clears the cached CLI status (mainly for testing).
-func ResetCLICache() {
+// resetCLICache clears the cached CLI status (mainly for testing).
+func resetCLICache() {
 	cliStatusOnce = sync.Once{}
 	cachedCLIStatus = CLIStatus{}
 }

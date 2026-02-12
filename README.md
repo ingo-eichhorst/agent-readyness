@@ -12,11 +12,11 @@
 
 [![ARS](https://img.shields.io/badge/ARS-Agent--Ready%208.1%2F10-green)](https://github.com/ingo-eichhorst/agent-readyness)
 
-[Quick Start](#-quick-start) •
-[Features](#-features) •
-[Installation](#-installation) •
-[Usage](#-usage) •
-[Documentation](#-documentation) •
+[Quick Start](#quick-start) •
+[Features](#features) •
+[Installation](#installation) •
+[Usage](#usage) •
+[Documentation](#documentation) •
 [Contributing](#-contributing)
 
 </div>

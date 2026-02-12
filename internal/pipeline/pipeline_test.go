@@ -367,11 +367,22 @@ func TestDisableLLM(t *testing.T) {
 	var buf bytes.Buffer
 	p := New(&buf, false, nil, 0, false, nil)
 
-	// Initially evaluator should be non-nil
-	if p.evaluator == nil {
-		t.Fatal("evaluator should be non-nil after New()")
+	// CLI availability determines if evaluator is created
+	cliStatus := p.GetCLIStatus()
+
+	if cliStatus.Available {
+		// When CLI is available, evaluator should be non-nil
+		if p.evaluator == nil {
+			t.Fatal("evaluator should be non-nil when CLI is available")
+		}
+	} else {
+		// When CLI is not available, evaluator should be nil
+		if p.evaluator != nil {
+			t.Fatal("evaluator should be nil when CLI is not available")
+		}
 	}
 
+	// DisableLLM should always set evaluator to nil regardless of initial state
 	p.DisableLLM()
 
 	if p.evaluator != nil {

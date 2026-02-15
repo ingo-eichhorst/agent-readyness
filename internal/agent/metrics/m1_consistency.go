@@ -76,66 +76,61 @@ func (m *m1Consistency) SampleCount() int { return m.sampleCount }
 
 // SelectSamples picks 1 file with moderate size (50-200 LOC) and 3-10 functions.
 // Uses deterministic heuristics: count `func ` occurrences, prefer moderate complexity.
+// m1FuncPattern matches Go function declarations for counting.
+var m1FuncPattern = regexp.MustCompile(`(?m)^func\s+`)
+
 func (m *m1Consistency) SelectSamples(targets []*types.AnalysisTarget) []Sample {
+	candidates := m.findIdealCandidates(targets)
+	if len(candidates) == 0 {
+		candidates = m1FallbackCandidates(targets)
+	}
+
+	sort.Slice(candidates, func(i, j int) bool {
+		return candidates[i].SelectionScore > candidates[j].SelectionScore
+	})
+	if len(candidates) > m.sampleCount {
+		candidates = candidates[:m.sampleCount]
+	}
+	return candidates
+}
+
+// findIdealCandidates selects files with moderate size and function count.
+func (m *m1Consistency) findIdealCandidates(targets []*types.AnalysisTarget) []Sample {
 	var candidates []Sample
-
-	funcPattern := regexp.MustCompile(`(?m)^func\s+`)
-
 	for _, target := range targets {
 		for _, file := range target.Files {
-			if file.Class != types.ClassSource {
+			if file.Class != types.ClassSource || file.Lines < m1MinFileLOC || file.Lines > m1MaxFileLOC {
 				continue
 			}
-
-			// Skip files outside ideal size range
-			if file.Lines < m1MinFileLOC || file.Lines > m1MaxFileLOC {
-				continue
-			}
-
-			content := string(file.Content)
-			funcMatches := funcPattern.FindAllString(content, -1)
-			funcCount := len(funcMatches)
-
-			// Prefer files with moderate function count
+			funcCount := len(m1FuncPattern.FindAllString(string(file.Content), -1))
 			if funcCount < m1MinFuncCount || funcCount > m1MaxFuncCount {
 				continue
 			}
-
-			// Score: prefer files closer to middle of range
 			sizeScore := 1.0 - float64(abs(file.Lines-m1IdealFileLOC))/float64(m1IdealFileLOC)
 			funcScore := 1.0 - float64(abs(funcCount-m1IdealFuncCount))/float64(m1IdealFuncCount)
-			score := (sizeScore + funcScore) / 2
-
 			candidates = append(candidates, Sample{
 				FilePath:       file.RelPath,
-				SelectionScore: score,
+				SelectionScore: (sizeScore + funcScore) / 2,
 				Description:    fmt.Sprintf("Moderate size (%d LOC, %d funcs)", file.Lines, funcCount),
 			})
 		}
 	}
+	return candidates
+}
 
-	if len(candidates) == 0 {
-		// Fallback: take any source file
-		for _, target := range targets {
-			for _, file := range target.Files {
-				if file.Class != types.ClassSource && file.Lines > m1FallbackMinLOC {
-					candidates = append(candidates, Sample{
-						FilePath:       file.RelPath,
-						SelectionScore: float64(file.Lines),
-						Description:    fmt.Sprintf("Fallback selection (%d LOC)", file.Lines),
-					})
-				}
+// m1FallbackCandidates selects any source file above minimum size.
+func m1FallbackCandidates(targets []*types.AnalysisTarget) []Sample {
+	var candidates []Sample
+	for _, target := range targets {
+		for _, file := range target.Files {
+			if file.Class != types.ClassSource && file.Lines > m1FallbackMinLOC {
+				candidates = append(candidates, Sample{
+					FilePath:       file.RelPath,
+					SelectionScore: float64(file.Lines),
+					Description:    fmt.Sprintf("Fallback selection (%d LOC)", file.Lines),
+				})
 			}
 		}
-	}
-
-	// Sort by score descending
-	sort.Slice(candidates, func(i, j int) bool {
-		return candidates[i].SelectionScore > candidates[j].SelectionScore
-	})
-
-	if len(candidates) > m.sampleCount {
-		candidates = candidates[:m.sampleCount]
 	}
 	return candidates
 }

@@ -59,51 +59,24 @@ func (m *m5Documentation) SampleCount() int { return m.sampleCount }
 
 // SelectSamples picks files with high comment density (> 5% comment lines).
 // Higher comment density = more opportunity to detect mismatches.
+// Comment detection patterns (compiled once).
+var (
+	m5LineCommentPattern = regexp.MustCompile(`(?m)^\s*(?://|#)`)
+	m5BlockCommentStart  = regexp.MustCompile(`/\*`)
+	m5BlockCommentEnd    = regexp.MustCompile(`\*/`)
+)
+
 func (m *m5Documentation) SelectSamples(targets []*types.AnalysisTarget) []Sample {
 	var candidates []Sample
-
-	// Pattern for comment lines (language-agnostic basics)
-	lineCommentPattern := regexp.MustCompile(`(?m)^\s*(?://|#)`)
-	blockCommentStart := regexp.MustCompile(`/\*`)
-	blockCommentEnd := regexp.MustCompile(`\*/`)
-
 	for _, target := range targets {
 		for _, file := range target.Files {
-			if file.Class != types.ClassSource {
+			if file.Class != types.ClassSource || file.Lines < m5MinFileLOC {
 				continue
 			}
-			if file.Lines < m5MinFileLOC { // Skip very small files
-				continue
-			}
-
-			content := string(file.Content)
-			lines := strings.Split(content, "\n")
-
-			// Count comment lines
-			commentLines := 0
-
-			// Count line comments
-			for _, line := range lines {
-				if lineCommentPattern.MatchString(line) {
-					commentLines++
-				}
-			}
-
-			// Count block comment lines (rough estimation)
-			blockStarts := len(blockCommentStart.FindAllString(content, -1))
-			blockEnds := len(blockCommentEnd.FindAllString(content, -1))
-			// Estimate average block comment is 3 lines
-			blockLines := min(blockStarts, blockEnds) * m5BlockCommentLinesEst
-			commentLines += blockLines
-
-			// Calculate comment density
-			density := float64(commentLines) / float64(file.Lines)
-
-			// Skip files with very low comment density
+			density, commentLines := commentDensity(string(file.Content), file.Lines)
 			if density < m5MinCommentDensity {
 				continue
 			}
-
 			candidates = append(candidates, Sample{
 				FilePath:       file.RelPath,
 				SelectionScore: density,
@@ -112,15 +85,28 @@ func (m *m5Documentation) SelectSamples(targets []*types.AnalysisTarget) []Sampl
 		}
 	}
 
-	// Sort by density descending
 	sort.Slice(candidates, func(i, j int) bool {
 		return candidates[i].SelectionScore > candidates[j].SelectionScore
 	})
-
 	if len(candidates) > m.sampleCount {
 		candidates = candidates[:m.sampleCount]
 	}
 	return candidates
+}
+
+// commentDensity counts comment lines and returns density as a fraction.
+func commentDensity(content string, totalLines int) (float64, int) {
+	lines := strings.Split(content, "\n")
+	commentLines := 0
+	for _, line := range lines {
+		if m5LineCommentPattern.MatchString(line) {
+			commentLines++
+		}
+	}
+	blockStarts := len(m5BlockCommentStart.FindAllString(content, -1))
+	blockEnds := len(m5BlockCommentEnd.FindAllString(content, -1))
+	commentLines += min(blockStarts, blockEnds) * m5BlockCommentLinesEst
+	return float64(commentLines) / float64(totalLines), commentLines
 }
 
 func min(a, b int) int {

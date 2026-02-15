@@ -56,39 +56,54 @@ type jsonRecommendation struct {
 // The verbose parameter is deprecated; sub_scores are always included.
 // When includeBadge is true, badge URL and markdown are included.
 func BuildJSONReport(scored *types.ScoredResult, recs []recommend.Recommendation, verbose bool, includeBadge bool) *JSONReport {
-	report := &JSONReport{
+	report := initializeJSONReport(scored)
+	buildCategories(report, scored.Categories)
+	buildRecommendations(report, recs)
+	addBadgeIfRequested(report, scored, includeBadge)
+	return report
+}
+
+func initializeJSONReport(scored *types.ScoredResult) *JSONReport {
+	return &JSONReport{
 		Version:        "3",
 		CompositeScore: scored.Composite,
 		Tier:           scored.Tier,
 	}
+}
 
-	for _, cat := range scored.Categories {
+func buildCategories(report *JSONReport, categories []types.CategoryScore) {
+	for _, cat := range categories {
 		jc := jsonCategory{
 			Name:      cat.Name,
 			Score:     cat.Score,
 			Weight:    cat.Weight,
-			Available: cat.Score >= 0, // Infer from score
-			SubScores: make([]jsonMetric, 0, len(cat.SubScores)),
+			Available: cat.Score >= 0,
+			SubScores: buildSubScores(cat.SubScores),
 		}
-
-		for _, ss := range cat.SubScores {
-			ev := ss.Evidence
-			if ev == nil {
-				ev = make([]types.EvidenceItem, 0)
-			}
-			jc.SubScores = append(jc.SubScores, jsonMetric{
-				Name:      ss.MetricName,
-				RawValue:  ss.RawValue,
-				Score:     ss.Score,
-				Weight:    ss.Weight,
-				Available: ss.Available,
-				Evidence:  ev,
-			})
-		}
-
 		report.Categories = append(report.Categories, jc)
 	}
+}
 
+func buildSubScores(subScores []types.SubScore) []jsonMetric {
+	result := make([]jsonMetric, 0, len(subScores))
+	for _, ss := range subScores {
+		ev := ss.Evidence
+		if ev == nil {
+			ev = make([]types.EvidenceItem, 0)
+		}
+		result = append(result, jsonMetric{
+			Name:      ss.MetricName,
+			RawValue:  ss.RawValue,
+			Score:     ss.Score,
+			Weight:    ss.Weight,
+			Available: ss.Available,
+			Evidence:  ev,
+		})
+	}
+	return result
+}
+
+func buildRecommendations(report *JSONReport, recs []recommend.Recommendation) {
 	for _, rec := range recs {
 		report.Recommendations = append(report.Recommendations, jsonRecommendation{
 			Rank:             rec.Rank,
@@ -103,15 +118,14 @@ func BuildJSONReport(scored *types.ScoredResult, recs []recommend.Recommendation
 			Action:           rec.Action,
 		})
 	}
+}
 
-	// Add badge information if requested
+func addBadgeIfRequested(report *JSONReport, scored *types.ScoredResult, includeBadge bool) {
 	if includeBadge && scored != nil {
 		badge := GenerateBadge(scored)
 		report.BadgeURL = badge.URL
 		report.BadgeMarkdown = badge.Markdown
 	}
-
-	return report
 }
 
 // RenderJSON writes the JSON report to w with pretty-printed indentation.

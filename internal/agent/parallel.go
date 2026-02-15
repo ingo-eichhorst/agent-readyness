@@ -33,61 +33,50 @@ func RunMetricsParallel(
 		Errors:  make([]error, 0),
 	}
 
-	// Use provided executor or create default CLI adapter
 	if executor == nil {
 		executor = newCLIExecutorAdapter(workDir)
 	}
 
-	// Use errgroup for concurrent execution
 	g, ctx := errgroup.WithContext(ctx)
-	var mu sync.Mutex // Protect results slice and errors
+	var mu sync.Mutex
 
 	for i, m := range allMetrics {
-		i, m := i, m // Capture loop variables
-
+		i, m := i, m
 		g.Go(func() error {
-			// Select samples
-			samples := m.SelectSamples(targets)
-
-			// Update progress: starting
-			if progress != nil {
-				progress.SetMetricRunning(m.ID(), len(samples))
-			}
-
-			// Execute metric with progress callback
-			metricResult := executeMetricWithProgress(ctx, m, workDir, samples, executor, progress)
-
-			// Store result
+			mr := runSingleMetric(ctx, m, workDir, targets, executor, progress)
 			mu.Lock()
-			result.Results[i] = metricResult
-			if metricResult.Error != "" {
-				// Don't return error - we want all metrics to complete
-				// Just track that this one failed
-				if progress != nil {
-					progress.SetMetricFailed(m.ID(), metricResult.Error)
-				}
-			} else {
-				if progress != nil {
-					progress.SetMetricComplete(m.ID(), metricResult.Score)
-					progress.AddTokens(metricResult.TokensUsed)
-				}
-			}
+			result.Results[i] = mr
+			reportMetricProgress(progress, m.ID(), mr)
 			mu.Unlock()
-
-			// Return nil - we don't want errgroup to cancel other goroutines
 			return nil
 		})
 	}
 
-	// Wait for all metrics to complete
 	_ = g.Wait()
-
-	// Sum up total tokens
 	for _, r := range result.Results {
 		result.TotalTokens += r.TokensUsed
 	}
-
 	return result
+}
+
+func runSingleMetric(ctx context.Context, m metrics.Metric, workDir string, targets []*types.AnalysisTarget, executor metrics.Executor, progress *C7Progress) metrics.MetricResult {
+	samples := m.SelectSamples(targets)
+	if progress != nil {
+		progress.SetMetricRunning(m.ID(), len(samples))
+	}
+	return executeMetricWithProgress(ctx, m, workDir, samples, executor, progress)
+}
+
+func reportMetricProgress(progress *C7Progress, metricID string, mr metrics.MetricResult) {
+	if progress == nil {
+		return
+	}
+	if mr.Error != "" {
+		progress.SetMetricFailed(metricID, mr.Error)
+	} else {
+		progress.SetMetricComplete(metricID, mr.Score)
+		progress.AddTokens(mr.TokensUsed)
+	}
 }
 
 // executeMetricWithProgress runs a single metric and updates progress for each sample.

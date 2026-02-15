@@ -45,30 +45,43 @@ const (
 
 // RenderSummary prints a formatted scan summary to w.
 func RenderSummary(w io.Writer, result *types.ScanResult, analysisResults []*types.AnalysisResult, verbose bool) {
+	renderSummaryHeader(w, result)
+	renderFileCounts(w, result)
+	renderPerLanguageCounts(w, result)
+	renderExcludedCounts(w, result)
+	renderVerboseFileList(w, result, verbose)
+	renderAnalysisResults(w, analysisResults, verbose)
+}
+
+// renderSummaryHeader prints the scan header and separator.
+func renderSummaryHeader(w io.Writer, result *types.ScanResult) {
 	bold := color.New(color.Bold)
+	bold.Fprintf(w, "ARS Scan: %s\n", result.RootDir)
+	fmt.Fprintln(w, "────────────────────────────────────────")
+}
+
+// renderFileCounts prints total, source, and test file counts.
+func renderFileCounts(w io.Writer, result *types.ScanResult) {
 	green := color.New(color.FgGreen)
 	yellow := color.New(color.FgYellow)
 
-	// Header
-	bold.Fprintf(w, "ARS Scan: %s\n", result.RootDir)
-	fmt.Fprintln(w, "────────────────────────────────────────")
-
-	// Total count
 	fmt.Fprintf(w, "Files discovered: %d\n", result.TotalFiles)
-
-	// Source and test counts (always shown)
 	green.Fprintf(w, "  Source files:        %d\n", result.SourceCount)
 	yellow.Fprintf(w, "  Test files:          %d\n", result.TestCount)
+}
 
-	// Per-language file counts (if multi-language)
+// renderPerLanguageCounts prints per-language source file counts if multi-language.
+func renderPerLanguageCounts(w io.Writer, result *types.ScanResult) {
 	if len(result.PerLanguage) > 1 || (len(result.PerLanguage) == 1 && result.PerLanguage[types.LangGo] == 0) {
 		fmt.Fprintln(w, "  Per-language source files:")
 		for lang, count := range result.PerLanguage {
 			fmt.Fprintf(w, "    %-12s %d\n", string(lang)+":", count)
 		}
 	}
+}
 
-	// Excluded categories (only shown if non-zero)
+// renderExcludedCounts prints excluded file counts (generated, vendor, gitignored).
+func renderExcludedCounts(w io.Writer, result *types.ScanResult) {
 	if result.GeneratedCount > 0 {
 		fmt.Fprintf(w, "  Generated (excluded): %d\n", result.GeneratedCount)
 	}
@@ -78,22 +91,29 @@ func RenderSummary(w io.Writer, result *types.ScanResult, analysisResults []*typ
 	if result.GitignoreCount > 0 {
 		fmt.Fprintf(w, "  Gitignored (excluded): %d\n", result.GitignoreCount)
 	}
+}
 
-	// Verbose: list individual files
-	if verbose {
-		fmt.Fprintln(w)
-		bold.Fprintln(w, "Discovered files:")
-		for _, f := range result.Files {
-			tag := f.Class.String()
-			suffix := ""
-			if f.Class == types.ClassExcluded && f.ExcludeReason != "" {
-				suffix = fmt.Sprintf(" (%s)", f.ExcludeReason)
-			}
-			fmt.Fprintf(w, "  [%s] %s%s\n", tag, f.RelPath, suffix)
-		}
+// renderVerboseFileList prints detailed file list if verbose mode is enabled.
+func renderVerboseFileList(w io.Writer, result *types.ScanResult, verbose bool) {
+	if !verbose {
+		return
 	}
 
-	// Render analysis results
+	bold := color.New(color.Bold)
+	fmt.Fprintln(w)
+	bold.Fprintln(w, "Discovered files:")
+	for _, f := range result.Files {
+		tag := f.Class.String()
+		suffix := ""
+		if f.Class == types.ClassExcluded && f.ExcludeReason != "" {
+			suffix = fmt.Sprintf(" (%s)", f.ExcludeReason)
+		}
+		fmt.Fprintf(w, "  [%s] %s%s\n", tag, f.RelPath, suffix)
+	}
+}
+
+// renderAnalysisResults dispatches rendering to category-specific renderers.
+func renderAnalysisResults(w io.Writer, analysisResults []*types.AnalysisResult, verbose bool) {
 	for _, ar := range analysisResults {
 		switch ar.Category {
 		case "C1":

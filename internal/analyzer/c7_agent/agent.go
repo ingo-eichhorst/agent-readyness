@@ -169,66 +169,81 @@ func (a *C7Analyzer) buildMetrics(result agent.ParallelResult, startTime time.Ti
 		MetricResults: make([]types.C7MetricResult, 0, len(result.Results)),
 	}
 
-	// Process each metric result
-	for _, mr := range result.Results {
-		// Add to MetricResults
-		metricResult := types.C7MetricResult{
-			MetricID:   mr.MetricID,
-			MetricName: mr.MetricName,
-			Score:      mr.Score,
-			Status:     "completed",
-			Duration:   mr.Duration.Seconds(),
-			Reasoning:  "", // Will be populated from samples
-		}
-		if mr.Error != "" {
-			metricResult.Status = "error"
-			metricResult.Reasoning = mr.Error
-		}
-
-		// Extract sample descriptions and always populate debug data
-		// (debug flag only controls terminal output, not data capture)
-		for _, s := range mr.Samples {
-			metricResult.Samples = append(metricResult.Samples, s.Sample.Description)
-
-			metricResult.DebugSamples = append(metricResult.DebugSamples, types.C7DebugSample{
-				FilePath:    s.Sample.FilePath,
-				Description: s.Sample.Description,
-				Prompt:      s.Prompt,
-				Response:    s.Response,
-				Score:       s.Score,
-				Duration:    s.Duration.Seconds(),
-				ScoreTrace:  convertScoreTrace(s.ScoreTrace),
-				Error:       s.Error,
-			})
-		}
-
-		m.MetricResults = append(m.MetricResults, metricResult)
-
-		// Set individual metric scores
-		switch mr.MetricID {
-		case "task_execution_consistency":
-			m.TaskExecutionConsistency = mr.Score
-		case "code_behavior_comprehension":
-			m.CodeBehaviorComprehension = mr.Score
-		case "cross_file_navigation":
-			m.CrossFileNavigation = mr.Score
-		case "identifier_interpretability":
-			m.IdentifierInterpretability = mr.Score
-		case "documentation_accuracy_detection":
-			m.DocumentationAccuracyDetection = mr.Score
-		}
-	}
-
-	// Calculate MECE score (weighted average)
+	a.processMetricResults(m, result.Results)
 	m.MECEScore = a.calculateWeightedScore(m)
-
-	// Token and cost tracking
-	m.TokensUsed = result.TotalTokens
-	m.TotalDuration = time.Since(startTime).Seconds()
-	// Sonnet 4.5 blended rate ~$5/MTok
-	m.CostUSD = float64(m.TokensUsed) / c7TokensPerMillion * c7CostRatePerMTok
+	a.populateTokensAndCost(m, result, startTime)
 
 	return m
+}
+
+// processMetricResults processes each metric result and populates C7Metrics fields.
+func (a *C7Analyzer) processMetricResults(m *types.C7Metrics, results []metrics.MetricResult) {
+	for _, mr := range results {
+		metricResult := a.buildMetricResult(mr)
+		m.MetricResults = append(m.MetricResults, metricResult)
+		a.assignIndividualScore(m, mr)
+	}
+}
+
+// buildMetricResult constructs a C7MetricResult from a MetricResult.
+func (a *C7Analyzer) buildMetricResult(mr metrics.MetricResult) types.C7MetricResult {
+	metricResult := types.C7MetricResult{
+		MetricID:   mr.MetricID,
+		MetricName: mr.MetricName,
+		Score:      mr.Score,
+		Status:     "completed",
+		Duration:   mr.Duration.Seconds(),
+		Reasoning:  "",
+	}
+
+	if mr.Error != "" {
+		metricResult.Status = "error"
+		metricResult.Reasoning = mr.Error
+	}
+
+	a.extractSampleData(&metricResult, mr.Samples)
+	return metricResult
+}
+
+// extractSampleData extracts sample descriptions and debug data from samples.
+func (a *C7Analyzer) extractSampleData(metricResult *types.C7MetricResult, samples []metrics.SampleResult) {
+	for _, s := range samples {
+		metricResult.Samples = append(metricResult.Samples, s.Sample.Description)
+
+		metricResult.DebugSamples = append(metricResult.DebugSamples, types.C7DebugSample{
+			FilePath:    s.Sample.FilePath,
+			Description: s.Sample.Description,
+			Prompt:      s.Prompt,
+			Response:    s.Response,
+			Score:       s.Score,
+			Duration:    s.Duration.Seconds(),
+			ScoreTrace:  convertScoreTrace(s.ScoreTrace),
+			Error:       s.Error,
+		})
+	}
+}
+
+// assignIndividualScore assigns the score to the appropriate C7Metrics field.
+func (a *C7Analyzer) assignIndividualScore(m *types.C7Metrics, mr metrics.MetricResult) {
+	switch mr.MetricID {
+	case "task_execution_consistency":
+		m.TaskExecutionConsistency = mr.Score
+	case "code_behavior_comprehension":
+		m.CodeBehaviorComprehension = mr.Score
+	case "cross_file_navigation":
+		m.CrossFileNavigation = mr.Score
+	case "identifier_interpretability":
+		m.IdentifierInterpretability = mr.Score
+	case "documentation_accuracy_detection":
+		m.DocumentationAccuracyDetection = mr.Score
+	}
+}
+
+// populateTokensAndCost calculates and populates token usage, duration, and cost.
+func (a *C7Analyzer) populateTokensAndCost(m *types.C7Metrics, result agent.ParallelResult, startTime time.Time) {
+	m.TokensUsed = result.TotalTokens
+	m.TotalDuration = time.Since(startTime).Seconds()
+	m.CostUSD = float64(m.TokensUsed) / c7TokensPerMillion * c7CostRatePerMTok
 }
 
 // calculateWeightedScore computes MECE score using research-based weights.

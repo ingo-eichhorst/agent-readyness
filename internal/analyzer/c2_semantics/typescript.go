@@ -34,106 +34,99 @@ func newC2TypeScriptAnalyzer(p *parser.TreeSitterParser) *c2TypeScriptAnalyzer {
 }
 
 // Analyze computes C2 metrics for a TypeScript AnalysisTarget.
-func (a *c2TypeScriptAnalyzer) Analyze(target *types.AnalysisTarget) (*types.C2LanguageMetrics, error) {
-	metrics := &types.C2LanguageMetrics{}
+type tsAccumulator struct {
+	typedElements      int
+	totalElements      int
+	anyCount           int
+	magicNumberCount   int
+	totalLOC           int
+	optionalChainCount int
+	totalFunctions     int
+}
 
-	// Filter to source files only (skip test files)
+func (a *c2TypeScriptAnalyzer) Analyze(target *types.AnalysisTarget) (*types.C2LanguageMetrics, error) {
 	var sourceFiles []types.SourceFile
 	for _, sf := range target.Files {
 		if sf.Class == types.ClassSource {
 			sourceFiles = append(sourceFiles, sf)
 		}
 	}
-
 	if len(sourceFiles) == 0 {
-		return metrics, nil
+		return &types.C2LanguageMetrics{}, nil
 	}
 
-	var (
-		totalTypedElements int
-		totalElements      int
-		anyCount           int
-		magicNumberCount   int
-		totalLOC           int
-		optionalChainCount int
-		totalFunctions     int
-	)
+	acc := a.accumulateTSMetrics(sourceFiles)
+	return acc.buildMetrics(target.RootDir), nil
+}
 
+func (a *c2TypeScriptAnalyzer) accumulateTSMetrics(sourceFiles []types.SourceFile) tsAccumulator {
+	var acc tsAccumulator
 	for _, sf := range sourceFiles {
 		content, err := os.ReadFile(sf.Path)
 		if err != nil {
 			continue
 		}
-
 		ext := strings.ToLower(filepath.Ext(sf.Path))
 		tree, err := a.tsParser.ParseFile(types.LangTypeScript, ext, content)
 		if err != nil {
 			continue
 		}
-
 		root := tree.RootNode()
-		lines := shared.CountLines(content)
-		totalLOC += lines
+		acc.totalLOC += shared.CountLines(content)
 
-		// C2-TS-01: Type annotation coverage
 		typed, total, anyC, funcs := tsTypeAnnotations(root, content)
-		totalTypedElements += typed
-		totalElements += total
-		anyCount += anyC
-		totalFunctions += funcs
-
-		// C2-TS-03: Magic numbers
-		magicNumberCount += tsMagicNumbers(root, content)
-
-		// C2-TS-04: Null safety -- count optional chaining
-		optionalChainCount += tsOptionalChaining(root)
-
+		acc.typedElements += typed
+		acc.totalElements += total
+		acc.anyCount += anyC
+		acc.totalFunctions += funcs
+		acc.magicNumberCount += tsMagicNumbers(root, content)
+		acc.optionalChainCount += tsOptionalChaining(root)
 		tree.Close()
 	}
+	return acc
+}
 
-	// Type annotation coverage: (typed - any_count) / total * 100
-	if totalElements > 0 {
-		effective := totalTypedElements - anyCount
+func (acc *tsAccumulator) buildMetrics(rootDir string) *types.C2LanguageMetrics {
+	metrics := &types.C2LanguageMetrics{}
+
+	if acc.totalElements > 0 {
+		effective := acc.typedElements - acc.anyCount
 		if effective < 0 {
 			effective = 0
 		}
-		metrics.TypeAnnotationCoverage = float64(effective) / float64(totalElements) * toPercentTS
+		metrics.TypeAnnotationCoverage = float64(effective) / float64(acc.totalElements) * toPercentTS
 	}
 
-	// Magic numbers
-	metrics.MagicNumberCount = magicNumberCount
-	if totalLOC > 0 {
-		metrics.MagicNumberRatio = float64(magicNumberCount) / float64(totalLOC) * toPerKLOCTS
+	metrics.MagicNumberCount = acc.magicNumberCount
+	if acc.totalLOC > 0 {
+		metrics.MagicNumberRatio = float64(acc.magicNumberCount) / float64(acc.totalLOC) * toPerKLOCTS
 	}
 
-	// C2-TS-02: tsconfig.json strict mode
-	strictMode, strictNullChecks := tsDetectStrictMode(target.RootDir)
+	strictMode, strictNullChecks := tsDetectStrictMode(rootDir)
 	if strictMode {
 		metrics.TypeStrictness = 1
 	}
 
-	// C2-TS-04: Null safety score
-	// Combination of strictNullChecks flag + optional chaining density
-	nullSafetyScore := 0.0
+	metrics.NullSafety = tsNullSafetyScore(strictNullChecks, acc.optionalChainCount, acc.totalLOC)
+	metrics.TotalFunctions = acc.totalFunctions
+	metrics.LOC = acc.totalLOC
+	return metrics
+}
+
+func tsNullSafetyScore(strictNullChecks bool, optionalChainCount, totalLOC int) float64 {
+	score := 0.0
 	if strictNullChecks {
-		nullSafetyScore += strictNullCheckPoints
+		score += strictNullCheckPoints
 	}
-	// Optional chaining density: more usage = better
 	if totalLOC > 0 {
 		chainDensity := float64(optionalChainCount) / float64(totalLOC) * toPerKLOCTS
-		// Scale: 0 chains/kLOC = 0 points, 5+ chains/kLOC = 50 points
 		chainScore := chainDensity * chainDensityScale
 		if chainScore > maxChainScore {
 			chainScore = maxChainScore
 		}
-		nullSafetyScore += chainScore
+		score += chainScore
 	}
-	metrics.NullSafety = nullSafetyScore
-
-	metrics.TotalFunctions = totalFunctions
-	metrics.LOC = totalLOC
-
-	return metrics, nil
+	return score
 }
 
 // tsTypeAnnotations counts type annotations in TypeScript functions.

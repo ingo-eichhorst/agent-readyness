@@ -120,59 +120,77 @@ func tsCountAssertions(funcNode *tree_sitter.Node, content []byte) int {
 	}
 
 	count := 0
-	var walk func(n *tree_sitter.Node)
-	walk = func(n *tree_sitter.Node) {
-		if n == nil {
-			return
-		}
+	tsWalkForAssertions(body, funcNode, content, &count)
+	return count
+}
 
-		kind := n.Kind()
+// tsWalkForAssertions recursively walks nodes counting assertion calls.
+func tsWalkForAssertions(node, funcNode *tree_sitter.Node, content []byte, count *int) {
+	if node == nil {
+		return
+	}
 
-		// Skip nested function definitions
-		if kind == "arrow_function" && n != funcNode {
-			return
-		}
-		if kind == "function_expression" && n != funcNode {
-			return
-		}
+	kind := node.Kind()
 
-		if kind == "call_expression" {
-			fn := n.ChildByFieldName("function")
-			if fn != nil {
-				fnText := shared.NodeText(fn, content)
+	// Skip nested function definitions
+	if tsIsNestedFunctionNode(node, funcNode, kind) {
+		return
+	}
 
-				// Jest/Vitest: expect(x).toBe(y) -- the outer call is .toBe()
-				// We count the expect() call as the assertion anchor
-				if fnText == "expect" || strings.HasPrefix(fnText, "expect(") {
-					count++
-					return // Don't double-count the chain
-				}
-
-				// Member expression: expect(...).toBe(...)
-				// The function text would be like "expect(user.name).toBe"
-				if strings.Contains(fnText, "expect(") || strings.Contains(fnText, "expect (") {
-					count++
-					return
-				}
-
-				// Node.js assert module
-				if fnText == "assert" || strings.HasPrefix(fnText, "assert.") {
-					count++
-					return
-				}
-			}
-		}
-
-		for i := uint(0); i < n.ChildCount(); i++ {
-			child := n.Child(i)
-			if child != nil {
-				walk(child)
-			}
+	if kind == "call_expression" {
+		if tsIsAssertionCall(node, content, count) {
+			return // Don't double-count the chain
 		}
 	}
 
-	walk(body)
-	return count
+	// Recurse into children
+	for i := uint(0); i < node.ChildCount(); i++ {
+		child := node.Child(i)
+		if child != nil {
+			tsWalkForAssertions(child, funcNode, content, count)
+		}
+	}
+}
+
+// tsIsNestedFunctionNode checks if node is a nested function (not the parent).
+func tsIsNestedFunctionNode(node, funcNode *tree_sitter.Node, kind string) bool {
+	if kind == "arrow_function" && node != funcNode {
+		return true
+	}
+	if kind == "function_expression" && node != funcNode {
+		return true
+	}
+	return false
+}
+
+// tsIsAssertionCall checks if a call expression is an assertion and increments count.
+func tsIsAssertionCall(node *tree_sitter.Node, content []byte, count *int) bool {
+	fn := node.ChildByFieldName("function")
+	if fn == nil {
+		return false
+	}
+
+	fnText := shared.NodeText(fn, content)
+
+	// Jest/Vitest: expect(x).toBe(y)
+	if fnText == "expect" || strings.HasPrefix(fnText, "expect(") {
+		*count++
+		return true
+	}
+
+	// Member expression: expect(...).toBe(...)
+	if strings.Contains(fnText, "expect(") || strings.Contains(fnText, "expect (") {
+		*count++
+		return true
+	}
+
+	// Node.js assert module
+	if fnText == "assert" || strings.HasPrefix(fnText, "assert.") {
+		*count++
+		return true
+	}
+
+	return false
 }
 
 // tsExternalDepModules are TypeScript/Node.js packages that indicate external/impure dependencies.
@@ -204,59 +222,84 @@ func tsAnalyzeIsolation(files []*parser.ParsedTreeSitterFile, testFuncs []types.
 		return 100 // No tests = vacuously isolated
 	}
 
-	// Check each test file for external imports
+	testFileHasExtDep := tsCheckTestFilesForExternalDeps(files)
+	return tsCalculateIsolationScore(testFuncs, testFileHasExtDep)
+}
+
+// tsCheckTestFilesForExternalDeps checks each test file for external dependencies.
+func tsCheckTestFilesForExternalDeps(files []*parser.ParsedTreeSitterFile) map[string]bool {
 	testFileHasExtDep := make(map[string]bool)
+
 	for _, f := range files {
 		if !shared.TsIsTestFile(f.RelPath) {
 			continue
 		}
 
 		root := f.Tree.RootNode()
-		hasExtDep := false
-
-		shared.WalkTree(root, func(node *tree_sitter.Node) {
-			kind := node.Kind()
-			if kind != "import_statement" {
-				return
-			}
-
-			// Extract module path from source
-			src := node.ChildByFieldName("source")
-			if src == nil {
-				return
-			}
-			modPath := shared.TsStripQuotes(shared.NodeText(src, f.Content))
-
-			// Skip relative imports (intra-project)
-			if strings.HasPrefix(modPath, ".") {
-				return
-			}
-
-			// Check against known external deps
-			topLevel := modPath
-			if idx := strings.Index(modPath, "/"); idx > 0 {
-				// Handle scoped packages: @scope/pkg
-				if strings.HasPrefix(modPath, "@") {
-					parts := strings.SplitN(modPath, "/", 3)
-					if len(parts) >= 2 {
-						topLevel = parts[0] + "/" + parts[1]
-					}
-				} else {
-					topLevel = modPath[:idx]
-				}
-			}
-
-			if tsExternalDepModules[topLevel] {
-				hasExtDep = true
-			}
-		})
-
+		hasExtDep := tsFileHasExternalDep(root, f.Content)
 		testFileHasExtDep[f.RelPath] = hasExtDep
 	}
 
-	// Count isolated vs total test functions
+	return testFileHasExtDep
+}
+
+// tsFileHasExternalDep checks if a file imports any external dependencies.
+func tsFileHasExternalDep(root *tree_sitter.Node, content []byte) bool {
+	hasExtDep := false
+
+	shared.WalkTree(root, func(node *tree_sitter.Node) {
+		if hasExtDep || node.Kind() != "import_statement" {
+			return
+		}
+
+		src := node.ChildByFieldName("source")
+		if src == nil {
+			return
+		}
+
+		modPath := shared.TsStripQuotes(shared.NodeText(src, content))
+		if tsIsExternalDependency(modPath) {
+			hasExtDep = true
+		}
+	})
+
+	return hasExtDep
+}
+
+// tsIsExternalDependency checks if a module path is an external dependency.
+func tsIsExternalDependency(modPath string) bool {
+	// Skip relative imports (intra-project)
+	if strings.HasPrefix(modPath, ".") {
+		return false
+	}
+
+	topLevel := tsExtractTopLevelModule(modPath)
+	return tsExternalDepModules[topLevel]
+}
+
+// tsExtractTopLevelModule extracts the top-level module name from a module path.
+func tsExtractTopLevelModule(modPath string) string {
+	idx := strings.Index(modPath, "/")
+	if idx <= 0 {
+		return modPath
+	}
+
+	// Handle scoped packages: @scope/pkg
+	if strings.HasPrefix(modPath, "@") {
+		parts := strings.SplitN(modPath, "/", 3)
+		if len(parts) >= 2 {
+			return parts[0] + "/" + parts[1]
+		}
+	}
+
+	return modPath[:idx]
+}
+
+// tsCalculateIsolationScore counts isolated vs total test functions.
+func tsCalculateIsolationScore(testFuncs []types.TestFunctionMetric, testFileHasExtDep map[string]bool) float64 {
 	totalTests := len(testFuncs)
 	isolatedTests := 0
+
 	for _, tf := range testFuncs {
 		if !testFileHasExtDep[tf.File] {
 			isolatedTests++

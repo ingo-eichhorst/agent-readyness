@@ -97,84 +97,17 @@ func tsWalkFunctions(node *tree_sitter.Node, content []byte, file string, classN
 
 	switch kind {
 	case "class_declaration":
-		nameNode := node.ChildByFieldName("name")
-		clsName := ""
-		if nameNode != nil {
-			clsName = shared.NodeText(nameNode, content)
-		}
-		body := node.ChildByFieldName("body")
-		if body != nil {
-			for i := uint(0); i < body.ChildCount(); i++ {
-				child := body.Child(i)
-				if child != nil {
-					tsWalkFunctions(child, content, file, clsName, results)
-				}
-			}
-		}
+		tsWalkClassBody(node, content, file, results)
 		return
 
-	case "function_declaration":
-		nameNode := node.ChildByFieldName("name")
-		name := ""
-		if nameNode != nil {
-			name = shared.NodeText(nameNode, content)
-		}
-		if className != "" {
-			name = className + "." + name
-		}
-
-		startRow := int(node.StartPosition().Row)
-		endRow := int(node.EndPosition().Row)
-		lineCount := endRow - startRow + 1
-		complexity := tsComputeComplexity(node, content)
-
-		*results = append(*results, types.FunctionMetric{
-			Name:       name,
-			File:       file,
-			Line:       startRow + 1,
-			Complexity: complexity,
-			LineCount:  lineCount,
-		})
-		return
-
-	case "method_definition":
-		nameNode := node.ChildByFieldName("name")
-		name := ""
-		if nameNode != nil {
-			name = shared.NodeText(nameNode, content)
-		}
-		if className != "" {
-			name = className + "." + name
-		}
-
-		startRow := int(node.StartPosition().Row)
-		endRow := int(node.EndPosition().Row)
-		lineCount := endRow - startRow + 1
-		complexity := tsComputeComplexity(node, content)
-
-		*results = append(*results, types.FunctionMetric{
-			Name:       name,
-			File:       file,
-			Line:       startRow + 1,
-			Complexity: complexity,
-			LineCount:  lineCount,
-		})
+	case "function_declaration", "method_definition":
+		name := tsExtractFuncName(node, content, className)
+		*results = append(*results, tsBuildFuncMetric(node, content, file, name))
 		return
 
 	case "arrow_function":
 		name := tsArrowFunctionName(node, content)
-		startRow := int(node.StartPosition().Row)
-		endRow := int(node.EndPosition().Row)
-		lineCount := endRow - startRow + 1
-		complexity := tsComputeComplexity(node, content)
-
-		*results = append(*results, types.FunctionMetric{
-			Name:       name,
-			File:       file,
-			Line:       startRow + 1,
-			Complexity: complexity,
-			LineCount:  lineCount,
-		})
+		*results = append(*results, tsBuildFuncMetric(node, content, file, name))
 		return
 	}
 
@@ -184,6 +117,50 @@ func tsWalkFunctions(node *tree_sitter.Node, content []byte, file string, classN
 		if child != nil {
 			tsWalkFunctions(child, content, file, className, results)
 		}
+	}
+}
+
+// tsWalkClassBody walks a class declaration's body, passing the class name to child walkers.
+func tsWalkClassBody(node *tree_sitter.Node, content []byte, file string, results *[]types.FunctionMetric) {
+	nameNode := node.ChildByFieldName("name")
+	clsName := ""
+	if nameNode != nil {
+		clsName = shared.NodeText(nameNode, content)
+	}
+	body := node.ChildByFieldName("body")
+	if body != nil {
+		for i := uint(0); i < body.ChildCount(); i++ {
+			child := body.Child(i)
+			if child != nil {
+				tsWalkFunctions(child, content, file, clsName, results)
+			}
+		}
+	}
+}
+
+// tsExtractFuncName extracts the function name, prefixed with className if inside a class.
+func tsExtractFuncName(node *tree_sitter.Node, content []byte, className string) string {
+	nameNode := node.ChildByFieldName("name")
+	name := ""
+	if nameNode != nil {
+		name = shared.NodeText(nameNode, content)
+	}
+	if className != "" {
+		name = className + "." + name
+	}
+	return name
+}
+
+// tsBuildFuncMetric creates a FunctionMetric from a function/method/arrow AST node.
+func tsBuildFuncMetric(node *tree_sitter.Node, content []byte, file string, name string) types.FunctionMetric {
+	startRow := int(node.StartPosition().Row)
+	endRow := int(node.EndPosition().Row)
+	return types.FunctionMetric{
+		Name:       name,
+		File:       file,
+		Line:       startRow + 1,
+		Complexity: tsComputeComplexity(node, content),
+		LineCount:  endRow - startRow + 1,
 	}
 }
 
@@ -215,66 +192,82 @@ func tsArrowFunctionName(node *tree_sitter.Node, content []byte) string {
 // complexity >20 have exponentially higher agent error rates. Threshold: keep
 // complexity ≤10 for agent-friendly code (single-digit branch count).
 func tsComputeComplexity(funcNode *tree_sitter.Node, content []byte) int {
-	complexity := 1
 	body := funcNode.ChildByFieldName("body")
 	if body == nil {
-		return complexity
+		return 1
 	}
 
-	var walk func(n *tree_sitter.Node)
-	walk = func(n *tree_sitter.Node) {
-		if n == nil {
-			return
-		}
-
-		kind := n.Kind()
-
-		// Skip nested function/arrow definitions to avoid double-counting
-		if kind == "function_declaration" || kind == "arrow_function" || kind == "function_expression" {
-			return
-		}
-
-		switch kind {
-		case "if_statement":
-			complexity++
-		case "for_statement", "for_in_statement":
-			complexity++
-		case "while_statement", "do_statement":
-			complexity++
-		case "switch_case":
-			// Only count non-default cases
-			// switch_case with a test expression is a case; without is default
-			if n.ChildCount() > 0 {
-				firstChild := n.Child(0)
-				if firstChild != nil && shared.NodeText(firstChild, content) != "default" {
-					complexity++
-				}
-			}
-		case "catch_clause":
-			complexity++
-		case "ternary_expression":
-			complexity++
-		case "binary_expression":
-			// Count && || ?? operators
-			opNode := n.ChildByFieldName("operator")
-			if opNode != nil {
-				op := shared.NodeText(opNode, content)
-				if op == "&&" || op == "||" || op == "??" {
-					complexity++
-				}
-			}
-		}
-
-		for i := uint(0); i < n.ChildCount(); i++ {
-			child := n.Child(i)
-			if child != nil {
-				walk(child)
-			}
-		}
-	}
-
-	walk(body)
+	complexity := 1
+	tsWalkForComplexity(body, content, &complexity)
 	return complexity
+}
+
+// tsWalkForComplexity recursively walks AST nodes counting branching constructs.
+func tsWalkForComplexity(node *tree_sitter.Node, content []byte, complexity *int) {
+	if node == nil {
+		return
+	}
+
+	kind := node.Kind()
+
+	// Skip nested function definitions to avoid double-counting
+	if tsIsNestedFunction(kind) {
+		return
+	}
+
+	tsIncrementComplexityForNode(node, kind, content, complexity)
+
+	// Recurse into children
+	for i := uint(0); i < node.ChildCount(); i++ {
+		child := node.Child(i)
+		if child != nil {
+			tsWalkForComplexity(child, content, complexity)
+		}
+	}
+}
+
+// tsIsNestedFunction checks if node kind is a nested function definition.
+func tsIsNestedFunction(kind string) bool {
+	return kind == "function_declaration" || kind == "arrow_function" || kind == "function_expression"
+}
+
+// tsIncrementComplexityForNode increments complexity based on node type.
+func tsIncrementComplexityForNode(node *tree_sitter.Node, kind string, content []byte, complexity *int) {
+	switch kind {
+	case "if_statement", "catch_clause", "ternary_expression":
+		*complexity++
+	case "for_statement", "for_in_statement":
+		*complexity++
+	case "while_statement", "do_statement":
+		*complexity++
+	case "switch_case":
+		if tsIsNonDefaultCase(node, content) {
+			*complexity++
+		}
+	case "binary_expression":
+		if tsIsLogicalOperator(node, content) {
+			*complexity++
+		}
+	}
+}
+
+// tsIsNonDefaultCase checks if a switch_case is not the default case.
+func tsIsNonDefaultCase(node *tree_sitter.Node, content []byte) bool {
+	if node.ChildCount() == 0 {
+		return false
+	}
+	firstChild := node.Child(0)
+	return firstChild != nil && shared.NodeText(firstChild, content) != "default"
+}
+
+// tsIsLogicalOperator checks if a binary expression uses a logical operator.
+func tsIsLogicalOperator(node *tree_sitter.Node, content []byte) bool {
+	opNode := node.ChildByFieldName("operator")
+	if opNode == nil {
+		return false
+	}
+	op := shared.NodeText(opNode, content)
+	return op == "&&" || op == "||" || op == "??"
 }
 
 // tsAnalyzeFileSizes computes file size metrics for TypeScript files.
@@ -347,6 +340,16 @@ type tsDupSeq struct {
 // increases agent error rates because the "find all copies" step often fails.
 // Agents lack the contextual memory to reliably track duplicates across files.
 func tsAnalyzeDuplication(files []*parser.ParsedTreeSitterFile) ([]types.DuplicateBlock, float64) {
+	sequences, totalLines := tsCollectAllDupSequences(files)
+	groups := tsGroupSequencesByHash(sequences)
+	blocks, duplicatedLines := tsFindDuplicateBlocks(groups)
+	rate := tsCalculateDuplicationRate(duplicatedLines, totalLines)
+
+	return blocks, rate
+}
+
+// tsCollectAllDupSequences collects duplicate sequences from all files.
+func tsCollectAllDupSequences(files []*parser.ParsedTreeSitterFile) ([]tsDupSeq, int) {
 	var sequences []tsDupSeq
 	totalLines := 0
 
@@ -356,12 +359,20 @@ func tsAnalyzeDuplication(files []*parser.ParsedTreeSitterFile) ([]types.Duplica
 		tsCollectDupSequences(root, f.RelPath, f.Content, dupMinStatements, dupMinLines, &sequences)
 	}
 
-	// Group by hash
+	return sequences, totalLines
+}
+
+// tsGroupSequencesByHash groups sequences by their hash value.
+func tsGroupSequencesByHash(sequences []tsDupSeq) map[uint64][]tsDupSeq {
 	groups := make(map[uint64][]tsDupSeq)
 	for _, seq := range sequences {
 		groups[seq.hash] = append(groups[seq.hash], seq)
 	}
+	return groups
+}
 
+// tsFindDuplicateBlocks finds duplicate blocks from grouped sequences.
+func tsFindDuplicateBlocks(groups map[uint64][]tsDupSeq) ([]types.DuplicateBlock, map[string]map[int]bool) {
 	var blocks []types.DuplicateBlock
 	duplicatedLines := make(map[string]map[int]bool)
 
@@ -370,47 +381,65 @@ func tsAnalyzeDuplication(files []*parser.ParsedTreeSitterFile) ([]types.Duplica
 			continue
 		}
 
-		for i := 0; i < len(group); i++ {
-			for j := i + 1; j < len(group); j++ {
-				a, b := group[i], group[j]
-
-				if a.file == b.file && a.startLine < b.endLine && b.startLine < a.endLine {
-					continue
-				}
-
-				blocks = append(blocks, types.DuplicateBlock{
-					FileA:     a.file,
-					StartA:    a.startLine,
-					EndA:      a.endLine,
-					FileB:     b.file,
-					StartB:    b.startLine,
-					EndB:      b.endLine,
-					LineCount: a.endLine - a.startLine + 1,
-				})
-
-				for _, s := range []tsDupSeq{a, b} {
-					if duplicatedLines[s.file] == nil {
-						duplicatedLines[s.file] = make(map[int]bool)
-					}
-					for l := s.startLine; l <= s.endLine; l++ {
-						duplicatedLines[s.file][l] = true
-					}
-				}
-			}
-		}
+		tsProcessDuplicateGroup(group, &blocks, duplicatedLines)
 	}
 
+	return blocks, duplicatedLines
+}
+
+// tsProcessDuplicateGroup processes a group of duplicate sequences.
+func tsProcessDuplicateGroup(group []tsDupSeq, blocks *[]types.DuplicateBlock, duplicatedLines map[string]map[int]bool) {
+	for i := 0; i < len(group); i++ {
+		for j := i + 1; j < len(group); j++ {
+			a, b := group[i], group[j]
+
+			if tsSequencesOverlap(a, b) {
+				continue
+			}
+
+			*blocks = append(*blocks, types.DuplicateBlock{
+				FileA:     a.file,
+				StartA:    a.startLine,
+				EndA:      a.endLine,
+				FileB:     b.file,
+				StartB:    b.startLine,
+				EndB:      b.endLine,
+				LineCount: a.endLine - a.startLine + 1,
+			})
+
+			tsMarkDuplicatedLines([]tsDupSeq{a, b}, duplicatedLines)
+		}
+	}
+}
+
+// tsSequencesOverlap checks if two sequences overlap in the same file.
+func tsSequencesOverlap(a, b tsDupSeq) bool {
+	return a.file == b.file && a.startLine < b.endLine && b.startLine < a.endLine
+}
+
+// tsMarkDuplicatedLines marks lines as duplicated in the tracking map.
+func tsMarkDuplicatedLines(seqs []tsDupSeq, duplicatedLines map[string]map[int]bool) {
+	for _, s := range seqs {
+		if duplicatedLines[s.file] == nil {
+			duplicatedLines[s.file] = make(map[int]bool)
+		}
+		for l := s.startLine; l <= s.endLine; l++ {
+			duplicatedLines[s.file][l] = true
+		}
+	}
+}
+
+// tsCalculateDuplicationRate calculates the duplication rate from duplicated lines.
+func tsCalculateDuplicationRate(duplicatedLines map[string]map[int]bool, totalLines int) float64 {
 	dupLineCount := 0
 	for _, lines := range duplicatedLines {
 		dupLineCount += len(lines)
 	}
 
-	var rate float64
 	if totalLines > 0 {
-		rate = float64(dupLineCount) / float64(totalLines) * toPercentC1TS
+		return float64(dupLineCount) / float64(totalLines) * toPercentC1TS
 	}
-
-	return blocks, rate
+	return 0
 }
 
 // tsCollectDupSequences walks the AST collecting hashed statement sequences from statement_block nodes.

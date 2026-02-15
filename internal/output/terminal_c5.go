@@ -26,24 +26,41 @@ const (
 func renderC5(w io.Writer, ar *types.AnalysisResult, verbose bool) {
 	bold := color.New(color.Bold)
 
-	raw, ok := ar.Metrics["c5"]
-	if !ok {
-		return
-	}
-	m, ok := raw.(*types.C5Metrics)
-	if !ok {
+	m := extractC5Metrics(ar)
+	if m == nil {
 		return
 	}
 
-	fmt.Fprintln(w)
-	bold.Fprintln(w, "C5: Temporal Dynamics")
-	fmt.Fprintln(w, "────────────────────────────────────────")
+	renderC5Header(w, bold)
 
 	if !m.Available {
 		fmt.Fprintln(w, "  Not available (no .git directory)")
 		return
 	}
 
+	renderC5CoreMetrics(w, m)
+	renderC5VerboseDetails(w, m, verbose, bold)
+}
+
+func extractC5Metrics(ar *types.AnalysisResult) *types.C5Metrics {
+	raw, ok := ar.Metrics["c5"]
+	if !ok {
+		return nil
+	}
+	m, ok := raw.(*types.C5Metrics)
+	if !ok {
+		return nil
+	}
+	return m
+}
+
+func renderC5Header(w io.Writer, bold *color.Color) {
+	fmt.Fprintln(w)
+	bold.Fprintln(w, "C5: Temporal Dynamics")
+	fmt.Fprintln(w, "────────────────────────────────────────")
+}
+
+func renderC5CoreMetrics(w io.Writer, m *types.C5Metrics) {
 	fmt.Fprintf(w, "  Total commits:       %d (%d-day window)\n", m.TotalCommits, m.TimeWindowDays)
 
 	cr := colorForFloat(m.ChurnRate, c5ChurnGreen, c5ChurnYellow)
@@ -60,16 +77,22 @@ func renderC5(w io.Writer, ar *types.AnalysisResult, verbose bool) {
 
 	hc := colorForFloat(m.HotspotConcentration, c5HotspotGreen, c5HotspotYellow)
 	hc.Fprintf(w, "  Hotspot concentration: %.1f%%\n", m.HotspotConcentration)
+}
 
-	// Verbose: show top hotspots and coupled pairs
-	if verbose && len(m.TopHotspots) > 0 {
+func renderC5VerboseDetails(w io.Writer, m *types.C5Metrics, verbose bool, bold *color.Color) {
+	if !verbose {
+		return
+	}
+
+	if len(m.TopHotspots) > 0 {
 		fmt.Fprintln(w)
 		bold.Fprintln(w, "  Top hotspots:")
 		for _, h := range m.TopHotspots {
 			fmt.Fprintf(w, "    %s  changes=%d commits=%d authors=%d\n", h.Path, h.TotalChanges, h.CommitCount, h.AuthorCount)
 		}
 	}
-	if verbose && len(m.CoupledPairs) > 0 {
+
+	if len(m.CoupledPairs) > 0 {
 		fmt.Fprintln(w)
 		bold.Fprintln(w, "  Coupled pairs (>70%% co-change):")
 		limit := coupledPairsTopN

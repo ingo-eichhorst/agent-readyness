@@ -253,462 +253,494 @@ func (sc *ScoringConfig) Category(name string) CategoryConfig {
 }
 
 // DefaultConfig returns the default scoring configuration with breakpoints
-// for all metrics across C1, C2, C3, and C6 categories.
+// for all metrics across C1-C7 categories.
 func DefaultConfig() *ScoringConfig {
 	return &ScoringConfig{
 		Categories: map[string]CategoryConfig{
-			"C1": {
-				Name:   "Code Health",
-				Weight: WeightCodeHealth,
-				Metrics: []MetricThresholds{
-					{
-						Name:   "complexity_avg",
-						Weight: MetricWeightHigh,
-						Breakpoints: []Breakpoint{
-							{Value: 1, Score: ScoreExcellent},
-							{Value: ComplexityGood, Score: ScoreGood},
-							{Value: ComplexityAdequate, Score: ScoreAdequate},
-							{Value: ComplexityWeak, Score: ScoreWeak},
-							{Value: ComplexityCritical, Score: ScoreMinimum},
-						},
-					},
-					{
-						Name:   "func_length_avg",
-						Weight: MetricWeightMedium,
-						Breakpoints: []Breakpoint{
-							{Value: FuncLenGood, Score: ScoreExcellent},
-							{Value: FuncLenAdequate, Score: ScoreGood},
-							{Value: FuncLenWeak, Score: ScoreAdequate},
-							{Value: FuncLenPoor, Score: ScoreWeak},
-							{Value: FuncLenCritical, Score: ScoreMinimum},
-						},
-					},
-					{
-						Name:   "file_size_avg",
-						Weight: MetricWeightStandard,
-						Breakpoints: []Breakpoint{
-							{Value: FileSizeGood, Score: ScoreExcellent},
-							{Value: FileSizeAdequate, Score: ScoreGood},
-							{Value: FileSizeWeak, Score: ScoreAdequate},
-							{Value: FileSizePoor, Score: ScoreWeak},
-							{Value: FileSizeCritical, Score: ScoreMinimum},
-						},
-					},
-					{
-						Name:   "afferent_coupling_avg",
-						Weight: MetricWeightStandard,
-						Breakpoints: []Breakpoint{
-							{Value: 0, Score: ScoreExcellent},
-							{Value: 2, Score: ScoreGood},
-							{Value: CouplingAdequate, Score: ScoreAdequate},
-							{Value: CouplingWeak, Score: ScoreWeak},
-							{Value: CouplingCritical, Score: ScoreMinimum},
-						},
-					},
-					{
-						Name:   "efferent_coupling_avg",
-						Weight: MetricWeightLow,
-						Breakpoints: []Breakpoint{
-							{Value: 0, Score: ScoreExcellent},
-							{Value: 2, Score: ScoreGood},
-							{Value: CouplingAdequate, Score: ScoreAdequate},
-							{Value: CouplingWeak, Score: ScoreWeak},
-							{Value: CouplingCritical, Score: ScoreMinimum},
-						},
-					},
-					{
-						Name:   "duplication_rate",
-						Weight: MetricWeightStandard,
-						Breakpoints: []Breakpoint{
-							{Value: 0, Score: ScoreExcellent},
-							{Value: DupRateGood, Score: ScoreGood},
-							{Value: DupRateAdequate, Score: ScoreAdequate},
-							{Value: DupRateWeak, Score: ScoreWeak},
-							{Value: DupRateCritical, Score: ScoreMinimum},
-						},
-					},
+			"C1": defaultC1Config(),
+			"C2": defaultC2Config(),
+			"C3": defaultC3Config(),
+			"C4": defaultC4Config(),
+			"C5": defaultC5Config(),
+			"C6": defaultC6Config(),
+			"C7": defaultC7Config(),
+		},
+		Tiers: defaultTiers(),
+	}
+}
+
+func defaultC1Config() CategoryConfig {
+	return CategoryConfig{
+		Name:   "Code Health",
+		Weight: WeightCodeHealth,
+		Metrics: []MetricThresholds{
+			{
+				Name:   "complexity_avg",
+				Weight: MetricWeightHigh,
+				Breakpoints: []Breakpoint{
+					{Value: 1, Score: ScoreExcellent},
+					{Value: ComplexityGood, Score: ScoreGood},
+					{Value: ComplexityAdequate, Score: ScoreAdequate},
+					{Value: ComplexityWeak, Score: ScoreWeak},
+					{Value: ComplexityCritical, Score: ScoreMinimum},
 				},
 			},
-			"C2": {
-				Name:   "Semantic Explicitness",
-				Weight: WeightSemantics,
-				Metrics: []MetricThresholds{
-					{
-						Name:   "type_annotation_coverage",
-						Weight: MetricWeightPrimary,
-						Breakpoints: []Breakpoint{
-							{Value: 0, Score: ScoreMinimum},
-							{Value: TypeAnnotationWeak, Score: ScoreWeak},
-							{Value: TypeAnnotationAdequate, Score: ScoreAdequate},
-							{Value: TypeAnnotationGood, Score: ScoreGood},
-							{Value: PercentPerfect, Score: ScoreExcellent},
-						},
-					},
-					{
-						Name:   "naming_consistency",
-						Weight: MetricWeightHigh,
-						Breakpoints: []Breakpoint{
-							{Value: 0, Score: ScoreMinimum},
-							{Value: NamingWeak, Score: ScoreWeak},
-							{Value: NamingAdequate, Score: ScoreAdequate},
-							{Value: NamingGood, Score: ScoreGood},
-							{Value: PercentPerfect, Score: ScoreExcellent},
-						},
-					},
-					{
-						Name:   "magic_number_ratio",
-						Weight: MetricWeightMedium,
-						Breakpoints: []Breakpoint{
-							{Value: 0, Score: ScoreExcellent},
-							{Value: MagicNumGood, Score: ScoreGood},
-							{Value: MagicNumAdequate, Score: ScoreAdequate},
-							{Value: MagicNumWeak, Score: ScoreWeak},
-							{Value: MagicNumCritical, Score: ScoreMinimum},
-						},
-					},
-					{
-						Name:   "type_strictness",
-						Weight: MetricWeightStandard,
-						Breakpoints: []Breakpoint{
-							{Value: 0, Score: ScoreWeak},
-							{Value: 1, Score: ScoreExcellent},
-						},
-					},
-					{
-						Name:   "null_safety",
-						Weight: MetricWeightLow,
-						Breakpoints: []Breakpoint{
-							{Value: 0, Score: ScoreMinimum},
-							{Value: NullSafetyWeak, Score: ScoreWeak},
-							{Value: NullSafetyAdequate, Score: ScoreAdequate},
-							{Value: NullSafetyGood, Score: ScoreGood},
-							{Value: PercentPerfect, Score: ScoreExcellent},
-						},
-					},
+			{
+				Name:   "func_length_avg",
+				Weight: MetricWeightMedium,
+				Breakpoints: []Breakpoint{
+					{Value: FuncLenGood, Score: ScoreExcellent},
+					{Value: FuncLenAdequate, Score: ScoreGood},
+					{Value: FuncLenWeak, Score: ScoreAdequate},
+					{Value: FuncLenPoor, Score: ScoreWeak},
+					{Value: FuncLenCritical, Score: ScoreMinimum},
 				},
 			},
-			"C3": {
-				Name:   "Architecture",
-				Weight: WeightArchitecture,
-				Metrics: []MetricThresholds{
-					{
-						Name:   "max_dir_depth",
-						Weight: MetricWeightMedium,
-						Breakpoints: []Breakpoint{
-							{Value: 1, Score: ScoreExcellent},
-							{Value: DirDepthGood, Score: ScoreGood},
-							{Value: DirDepthAdequate, Score: ScoreAdequate},
-							{Value: DirDepthWeak, Score: ScoreWeak},
-							{Value: DirDepthCritical, Score: ScoreMinimum},
-						},
-					},
-					{
-						Name:   "module_fanout_avg",
-						Weight: MetricWeightMedium,
-						Breakpoints: []Breakpoint{
-							{Value: 0, Score: ScoreExcellent},
-							{Value: FanoutGood, Score: ScoreGood},
-							{Value: FanoutAdequate, Score: ScoreAdequate},
-							{Value: FanoutWeak, Score: ScoreWeak},
-							{Value: FanoutCritical, Score: ScoreMinimum},
-						},
-					},
-					{
-						Name:   "circular_deps",
-						Weight: MetricWeightHigh,
-						Breakpoints: []Breakpoint{
-							{Value: 0, Score: ScoreExcellent},
-							{Value: 1, Score: ScoreAdequate},
-							{Value: CircDepsAdequate, Score: ScoreWeak},
-							{Value: CircDepsPoor, Score: ScoreVeryPoor},
-							{Value: CircDepsCritical, Score: ScoreMinimum},
-						},
-					},
-					{
-						Name:   "import_complexity_avg",
-						Weight: MetricWeightStandard,
-						Breakpoints: []Breakpoint{
-							{Value: 1, Score: ScoreExcellent},
-							{Value: 2, Score: ScoreGood},
-							{Value: ImportCompGood, Score: ScoreAdequate},
-							{Value: ImportCompAdequate, Score: ScoreWeak},
-							{Value: ImportCompCritical, Score: ScoreMinimum},
-						},
-					},
-					{
-						Name:   "dead_exports",
-						Weight: MetricWeightMedium,
-						Breakpoints: []Breakpoint{
-							{Value: 0, Score: ScoreExcellent},
-							{Value: DeadExportsGood, Score: ScoreGood},
-							{Value: DeadExportsAdequate, Score: ScoreAdequate},
-							{Value: DeadExportsWeak, Score: ScoreWeak},
-							{Value: DeadExportsCritical, Score: ScoreMinimum},
-						},
-					},
+			{
+				Name:   "file_size_avg",
+				Weight: MetricWeightStandard,
+				Breakpoints: []Breakpoint{
+					{Value: FileSizeGood, Score: ScoreExcellent},
+					{Value: FileSizeAdequate, Score: ScoreGood},
+					{Value: FileSizeWeak, Score: ScoreAdequate},
+					{Value: FileSizePoor, Score: ScoreWeak},
+					{Value: FileSizeCritical, Score: ScoreMinimum},
 				},
 			},
-			"C4": {
-				Name:   "Documentation Quality",
-				Weight: WeightDocumentation,
-				Metrics: []MetricThresholds{
-					{
-						Name:   "readme_word_count",
-						Weight: MetricWeightStandard,
-						Breakpoints: []Breakpoint{
-							{Value: 0, Score: ScoreMinimum},
-							{Value: ReadmeWordsWeak, Score: ScoreWeak},
-							{Value: ReadmeWordsAdequate, Score: ScoreAdequate},
-							{Value: ReadmeWordsGood, Score: ScoreGood},
-							{Value: ReadmeWordsExcel, Score: ScoreExcellent},
-						},
-					},
-					{
-						Name:   "comment_density",
-						Weight: MetricWeightMedium,
-						Breakpoints: []Breakpoint{
-							{Value: 0, Score: ScoreMinimum},
-							{Value: CommentDensityWeak, Score: ScoreWeak},
-							{Value: CommentDensityAdequate, Score: ScoreAdequate},
-							{Value: CommentDensityGood, Score: ScoreGood},
-							{Value: CommentDensityExcel, Score: ScoreExcellent},
-						},
-					},
-					{
-						Name:   "api_doc_coverage",
-						Weight: MetricWeightHigh,
-						Breakpoints: []Breakpoint{
-							{Value: 0, Score: ScoreMinimum},
-							{Value: APIDocWeak, Score: ScoreWeak},
-							{Value: APIDocAdequate, Score: ScoreAdequate},
-							{Value: APIDocGood, Score: ScoreGood},
-							{Value: PercentPerfect, Score: ScoreExcellent},
-						},
-					},
-					{
-						Name:   "changelog_present",
-						Weight: MetricWeightLow,
-						Breakpoints: []Breakpoint{
-							{Value: 0, Score: ScoreWeak},
-							{Value: 1, Score: ScoreExcellent},
-						},
-					},
-					{
-						Name:   "examples_present",
-						Weight: MetricWeightStandard,
-						Breakpoints: []Breakpoint{
-							{Value: 0, Score: ScoreWeak},
-							{Value: 1, Score: ScoreExcellent},
-						},
-					},
-					{
-						Name:   "contributing_present",
-						Weight: MetricWeightLow,
-						Breakpoints: []Breakpoint{
-							{Value: 0, Score: ScoreWeak},
-							{Value: 1, Score: ScoreExcellent},
-						},
-					},
-					{
-						Name:   "diagrams_present",
-						Weight: MetricWeightMinimal,
-						Breakpoints: []Breakpoint{
-							{Value: 0, Score: ScoreBelowAvg},
-							{Value: 1, Score: ScoreExcellent},
-						},
-					},
+			{
+				Name:   "afferent_coupling_avg",
+				Weight: MetricWeightStandard,
+				Breakpoints: []Breakpoint{
+					{Value: 0, Score: ScoreExcellent},
+					{Value: 2, Score: ScoreGood},
+					{Value: CouplingAdequate, Score: ScoreAdequate},
+					{Value: CouplingWeak, Score: ScoreWeak},
+					{Value: CouplingCritical, Score: ScoreMinimum},
 				},
 			},
-			"C5": {
-				Name:   "Temporal Dynamics",
-				Weight: WeightTemporal,
-				Metrics: []MetricThresholds{
-					{
-						Name:   "churn_rate",
-						Weight: MetricWeightMedium,
-						Breakpoints: []Breakpoint{
-							{Value: ChurnExcel, Score: ScoreExcellent},
-							{Value: ChurnGood, Score: ScoreGood},
-							{Value: ChurnAdequate, Score: ScoreAdequate},
-							{Value: ChurnWeak, Score: ScoreWeak},
-							{Value: ChurnCritical, Score: ScoreMinimum},
-						},
-					},
-					{
-						Name:   "temporal_coupling_pct",
-						Weight: MetricWeightHigh,
-						Breakpoints: []Breakpoint{
-							{Value: 0, Score: ScoreExcellent},
-							{Value: TempCouplingGood, Score: ScoreGood},
-							{Value: TempCouplingAdequate, Score: ScoreAdequate},
-							{Value: TempCouplingWeak, Score: ScoreWeak},
-							{Value: TempCouplingCritical, Score: ScoreMinimum},
-						},
-					},
-					{
-						Name:   "author_fragmentation",
-						Weight: MetricWeightMedium,
-						Breakpoints: []Breakpoint{
-							{Value: 1, Score: ScoreExcellent},
-							{Value: 2, Score: ScoreGood},
-							{Value: AuthorFragGood, Score: ScoreAdequate},
-							{Value: AuthorFragWeak, Score: ScoreWeak},
-							{Value: AuthorFragCritical, Score: ScoreMinimum},
-						},
-					},
-					{
-						Name:   "commit_stability",
-						Weight: MetricWeightStandard,
-						Breakpoints: []Breakpoint{
-							{Value: CommitStabMinimum, Score: ScoreMinimum},
-							{Value: 1, Score: ScoreWeak},
-							{Value: CommitStabAdequate, Score: ScoreAdequate},
-							{Value: CommitStabGood, Score: ScoreGood},
-							{Value: CommitStabExcel, Score: ScoreExcellent},
-						},
-					},
-					{
-						Name:   "hotspot_concentration",
-						Weight: MetricWeightMedium,
-						Breakpoints: []Breakpoint{
-							{Value: HotspotExcel, Score: ScoreExcellent},
-							{Value: HotspotGood, Score: ScoreGood},
-							{Value: HotspotAdequate, Score: ScoreAdequate},
-							{Value: HotspotWeak, Score: ScoreWeak},
-							{Value: HotspotCritical, Score: ScoreMinimum},
-						},
-					},
+			{
+				Name:   "efferent_coupling_avg",
+				Weight: MetricWeightLow,
+				Breakpoints: []Breakpoint{
+					{Value: 0, Score: ScoreExcellent},
+					{Value: 2, Score: ScoreGood},
+					{Value: CouplingAdequate, Score: ScoreAdequate},
+					{Value: CouplingWeak, Score: ScoreWeak},
+					{Value: CouplingCritical, Score: ScoreMinimum},
 				},
 			},
-			"C6": {
-				Name:   "Testing",
-				Weight: WeightTesting,
-				Metrics: []MetricThresholds{
-					{
-						Name:   "test_to_code_ratio",
-						Weight: MetricWeightHigh,
-						Breakpoints: []Breakpoint{
-							{Value: 0, Score: ScoreMinimum},
-							{Value: TestRatioPoor, Score: ScorePoor},
-							{Value: TestRatioAdequate, Score: ScoreAdequate},
-							{Value: TestRatioGood, Score: ScoreGood},
-							{Value: TestRatioExcel, Score: ScoreExcellent},
-						},
-					},
-					{
-						Name:   "coverage_percent",
-						Weight: MetricWeightPrimary,
-						Breakpoints: []Breakpoint{
-							{Value: 0, Score: ScoreMinimum},
-							{Value: CoveragePoor, Score: ScorePoor},
-							{Value: CoverageAdequate, Score: ScoreAdequate},
-							{Value: CoverageGood, Score: ScoreGood},
-							{Value: CoverageExcel, Score: ScoreExcellent},
-						},
-					},
-					{
-						Name:   "test_isolation",
-						Weight: MetricWeightStandard,
-						Breakpoints: []Breakpoint{
-							{Value: 0, Score: ScoreMinimum},
-							{Value: IsolationPoor, Score: ScorePoor},
-							{Value: IsolationAdequate, Score: ScoreAdequate},
-							{Value: IsolationGood, Score: ScoreGood},
-							{Value: IsolationExcel, Score: ScoreExcellent},
-						},
-					},
-					{
-						Name:   "assertion_density_avg",
-						Weight: MetricWeightStandard,
-						Breakpoints: []Breakpoint{
-							{Value: 0, Score: ScoreMinimum},
-							{Value: 1, Score: ScorePoor},
-							{Value: 2, Score: ScoreAdequate},
-							{Value: AssertDensityAdequate, Score: ScoreGood},
-							{Value: AssertDensityExcel, Score: ScoreExcellent},
-						},
-					},
-					{
-						Name:   "test_file_ratio",
-						Weight: MetricWeightStandard,
-						Breakpoints: []Breakpoint{
-							{Value: 0, Score: ScoreMinimum},
-							{Value: TestFileRatioPoor, Score: ScorePoor},
-							{Value: TestFileRatioAdequate, Score: ScoreAdequate},
-							{Value: TestFileRatioGood, Score: ScoreGood},
-							{Value: TestFileRatioExcel, Score: ScoreExcellent},
-						},
-					},
-				},
-			},
-			"C7": {
-				Name:   "Agent Evaluation",
-				Weight: WeightAgentEval,
-				Metrics: []MetricThresholds{
-					// M1: Task Execution Consistency
-					{
-						Name:   "task_execution_consistency",
-						Weight: MetricWeightMedium,
-						Breakpoints: []Breakpoint{
-							{Value: 1, Score: ScoreMinimum},
-							{Value: C7ScorePoor, Score: ScorePoor},
-							{Value: C7ScoreAboveAvg, Score: ScoreAboveAvg},
-							{Value: 10, Score: ScoreExcellent},
-						},
-					},
-					// M2: Code Behavior Comprehension
-					{
-						Name:   "code_behavior_comprehension",
-						Weight: MetricWeightHigh,
-						Breakpoints: []Breakpoint{
-							{Value: 1, Score: ScoreMinimum},
-							{Value: C7ScorePoor, Score: ScorePoor},
-							{Value: C7ScoreAboveAvg, Score: ScoreAboveAvg},
-							{Value: 10, Score: ScoreExcellent},
-						},
-					},
-					// M3: Cross-File Navigation
-					{
-						Name:   "cross_file_navigation",
-						Weight: MetricWeightHigh,
-						Breakpoints: []Breakpoint{
-							{Value: 1, Score: ScoreMinimum},
-							{Value: C7ScorePoor, Score: ScorePoor},
-							{Value: C7ScoreAboveAvg, Score: ScoreAboveAvg},
-							{Value: 10, Score: ScoreExcellent},
-						},
-					},
-					// M4: Identifier Interpretability
-					{
-						Name:   "identifier_interpretability",
-						Weight: MetricWeightStandard,
-						Breakpoints: []Breakpoint{
-							{Value: 1, Score: ScoreMinimum},
-							{Value: C7ScorePoor, Score: ScorePoor},
-							{Value: C7ScoreAboveAvg, Score: ScoreAboveAvg},
-							{Value: 10, Score: ScoreExcellent},
-						},
-					},
-					// M5: Documentation Accuracy Detection
-					{
-						Name:   "documentation_accuracy_detection",
-						Weight: MetricWeightStandard,
-						Breakpoints: []Breakpoint{
-							{Value: 1, Score: ScoreMinimum},
-							{Value: C7ScorePoor, Score: ScorePoor},
-							{Value: C7ScoreAboveAvg, Score: ScoreAboveAvg},
-							{Value: 10, Score: ScoreExcellent},
-						},
-					},
+			{
+				Name:   "duplication_rate",
+				Weight: MetricWeightStandard,
+				Breakpoints: []Breakpoint{
+					{Value: 0, Score: ScoreExcellent},
+					{Value: DupRateGood, Score: ScoreGood},
+					{Value: DupRateAdequate, Score: ScoreAdequate},
+					{Value: DupRateWeak, Score: ScoreWeak},
+					{Value: DupRateCritical, Score: ScoreMinimum},
 				},
 			},
 		},
-		Tiers: []tierConfig{
-			{Name: "Agent-Ready", MinScore: TierReadyMin},
-			{Name: "Agent-Assisted", MinScore: TierAssistedMin},
-			{Name: "Agent-Limited", MinScore: TierLimitedMin},
-			{Name: "Agent-Hostile", MinScore: TierHostileMin},
+	}
+}
+
+func defaultC2Config() CategoryConfig {
+	return CategoryConfig{
+		Name:   "Semantic Explicitness",
+		Weight: WeightSemantics,
+		Metrics: []MetricThresholds{
+			{
+				Name:   "type_annotation_coverage",
+				Weight: MetricWeightPrimary,
+				Breakpoints: []Breakpoint{
+					{Value: 0, Score: ScoreMinimum},
+					{Value: TypeAnnotationWeak, Score: ScoreWeak},
+					{Value: TypeAnnotationAdequate, Score: ScoreAdequate},
+					{Value: TypeAnnotationGood, Score: ScoreGood},
+					{Value: PercentPerfect, Score: ScoreExcellent},
+				},
+			},
+			{
+				Name:   "naming_consistency",
+				Weight: MetricWeightHigh,
+				Breakpoints: []Breakpoint{
+					{Value: 0, Score: ScoreMinimum},
+					{Value: NamingWeak, Score: ScoreWeak},
+					{Value: NamingAdequate, Score: ScoreAdequate},
+					{Value: NamingGood, Score: ScoreGood},
+					{Value: PercentPerfect, Score: ScoreExcellent},
+				},
+			},
+			{
+				Name:   "magic_number_ratio",
+				Weight: MetricWeightMedium,
+				Breakpoints: []Breakpoint{
+					{Value: 0, Score: ScoreExcellent},
+					{Value: MagicNumGood, Score: ScoreGood},
+					{Value: MagicNumAdequate, Score: ScoreAdequate},
+					{Value: MagicNumWeak, Score: ScoreWeak},
+					{Value: MagicNumCritical, Score: ScoreMinimum},
+				},
+			},
+			{
+				Name:   "type_strictness",
+				Weight: MetricWeightStandard,
+				Breakpoints: []Breakpoint{
+					{Value: 0, Score: ScoreWeak},
+					{Value: 1, Score: ScoreExcellent},
+				},
+			},
+			{
+				Name:   "null_safety",
+				Weight: MetricWeightLow,
+				Breakpoints: []Breakpoint{
+					{Value: 0, Score: ScoreMinimum},
+					{Value: NullSafetyWeak, Score: ScoreWeak},
+					{Value: NullSafetyAdequate, Score: ScoreAdequate},
+					{Value: NullSafetyGood, Score: ScoreGood},
+					{Value: PercentPerfect, Score: ScoreExcellent},
+				},
+			},
 		},
+	}
+}
+
+func defaultC3Config() CategoryConfig {
+	return CategoryConfig{
+		Name:   "Architecture",
+		Weight: WeightArchitecture,
+		Metrics: []MetricThresholds{
+			{
+				Name:   "max_dir_depth",
+				Weight: MetricWeightMedium,
+				Breakpoints: []Breakpoint{
+					{Value: 1, Score: ScoreExcellent},
+					{Value: DirDepthGood, Score: ScoreGood},
+					{Value: DirDepthAdequate, Score: ScoreAdequate},
+					{Value: DirDepthWeak, Score: ScoreWeak},
+					{Value: DirDepthCritical, Score: ScoreMinimum},
+				},
+			},
+			{
+				Name:   "module_fanout_avg",
+				Weight: MetricWeightMedium,
+				Breakpoints: []Breakpoint{
+					{Value: 0, Score: ScoreExcellent},
+					{Value: FanoutGood, Score: ScoreGood},
+					{Value: FanoutAdequate, Score: ScoreAdequate},
+					{Value: FanoutWeak, Score: ScoreWeak},
+					{Value: FanoutCritical, Score: ScoreMinimum},
+				},
+			},
+			{
+				Name:   "circular_deps",
+				Weight: MetricWeightHigh,
+				Breakpoints: []Breakpoint{
+					{Value: 0, Score: ScoreExcellent},
+					{Value: 1, Score: ScoreAdequate},
+					{Value: CircDepsAdequate, Score: ScoreWeak},
+					{Value: CircDepsPoor, Score: ScoreVeryPoor},
+					{Value: CircDepsCritical, Score: ScoreMinimum},
+				},
+			},
+			{
+				Name:   "import_complexity_avg",
+				Weight: MetricWeightStandard,
+				Breakpoints: []Breakpoint{
+					{Value: 1, Score: ScoreExcellent},
+					{Value: 2, Score: ScoreGood},
+					{Value: ImportCompGood, Score: ScoreAdequate},
+					{Value: ImportCompAdequate, Score: ScoreWeak},
+					{Value: ImportCompCritical, Score: ScoreMinimum},
+				},
+			},
+			{
+				Name:   "dead_exports",
+				Weight: MetricWeightMedium,
+				Breakpoints: []Breakpoint{
+					{Value: 0, Score: ScoreExcellent},
+					{Value: DeadExportsGood, Score: ScoreGood},
+					{Value: DeadExportsAdequate, Score: ScoreAdequate},
+					{Value: DeadExportsWeak, Score: ScoreWeak},
+					{Value: DeadExportsCritical, Score: ScoreMinimum},
+				},
+			},
+		},
+	}
+}
+
+func defaultC4Config() CategoryConfig {
+	return CategoryConfig{
+		Name:   "Documentation Quality",
+		Weight: WeightDocumentation,
+		Metrics: []MetricThresholds{
+			{
+				Name:   "readme_word_count",
+				Weight: MetricWeightStandard,
+				Breakpoints: []Breakpoint{
+					{Value: 0, Score: ScoreMinimum},
+					{Value: ReadmeWordsWeak, Score: ScoreWeak},
+					{Value: ReadmeWordsAdequate, Score: ScoreAdequate},
+					{Value: ReadmeWordsGood, Score: ScoreGood},
+					{Value: ReadmeWordsExcel, Score: ScoreExcellent},
+				},
+			},
+			{
+				Name:   "comment_density",
+				Weight: MetricWeightMedium,
+				Breakpoints: []Breakpoint{
+					{Value: 0, Score: ScoreMinimum},
+					{Value: CommentDensityWeak, Score: ScoreWeak},
+					{Value: CommentDensityAdequate, Score: ScoreAdequate},
+					{Value: CommentDensityGood, Score: ScoreGood},
+					{Value: CommentDensityExcel, Score: ScoreExcellent},
+				},
+			},
+			{
+				Name:   "api_doc_coverage",
+				Weight: MetricWeightHigh,
+				Breakpoints: []Breakpoint{
+					{Value: 0, Score: ScoreMinimum},
+					{Value: APIDocWeak, Score: ScoreWeak},
+					{Value: APIDocAdequate, Score: ScoreAdequate},
+					{Value: APIDocGood, Score: ScoreGood},
+					{Value: PercentPerfect, Score: ScoreExcellent},
+				},
+			},
+			{
+				Name:   "changelog_present",
+				Weight: MetricWeightLow,
+				Breakpoints: []Breakpoint{
+					{Value: 0, Score: ScoreWeak},
+					{Value: 1, Score: ScoreExcellent},
+				},
+			},
+			{
+				Name:   "examples_present",
+				Weight: MetricWeightStandard,
+				Breakpoints: []Breakpoint{
+					{Value: 0, Score: ScoreWeak},
+					{Value: 1, Score: ScoreExcellent},
+				},
+			},
+			{
+				Name:   "contributing_present",
+				Weight: MetricWeightLow,
+				Breakpoints: []Breakpoint{
+					{Value: 0, Score: ScoreWeak},
+					{Value: 1, Score: ScoreExcellent},
+				},
+			},
+			{
+				Name:   "diagrams_present",
+				Weight: MetricWeightMinimal,
+				Breakpoints: []Breakpoint{
+					{Value: 0, Score: ScoreBelowAvg},
+					{Value: 1, Score: ScoreExcellent},
+				},
+			},
+		},
+	}
+}
+
+func defaultC5Config() CategoryConfig {
+	return CategoryConfig{
+		Name:   "Temporal Dynamics",
+		Weight: WeightTemporal,
+		Metrics: []MetricThresholds{
+			{
+				Name:   "churn_rate",
+				Weight: MetricWeightMedium,
+				Breakpoints: []Breakpoint{
+					{Value: ChurnExcel, Score: ScoreExcellent},
+					{Value: ChurnGood, Score: ScoreGood},
+					{Value: ChurnAdequate, Score: ScoreAdequate},
+					{Value: ChurnWeak, Score: ScoreWeak},
+					{Value: ChurnCritical, Score: ScoreMinimum},
+				},
+			},
+			{
+				Name:   "temporal_coupling_pct",
+				Weight: MetricWeightHigh,
+				Breakpoints: []Breakpoint{
+					{Value: 0, Score: ScoreExcellent},
+					{Value: TempCouplingGood, Score: ScoreGood},
+					{Value: TempCouplingAdequate, Score: ScoreAdequate},
+					{Value: TempCouplingWeak, Score: ScoreWeak},
+					{Value: TempCouplingCritical, Score: ScoreMinimum},
+				},
+			},
+			{
+				Name:   "author_fragmentation",
+				Weight: MetricWeightMedium,
+				Breakpoints: []Breakpoint{
+					{Value: 1, Score: ScoreExcellent},
+					{Value: 2, Score: ScoreGood},
+					{Value: AuthorFragGood, Score: ScoreAdequate},
+					{Value: AuthorFragWeak, Score: ScoreWeak},
+					{Value: AuthorFragCritical, Score: ScoreMinimum},
+				},
+			},
+			{
+				Name:   "commit_stability",
+				Weight: MetricWeightStandard,
+				Breakpoints: []Breakpoint{
+					{Value: CommitStabMinimum, Score: ScoreMinimum},
+					{Value: 1, Score: ScoreWeak},
+					{Value: CommitStabAdequate, Score: ScoreAdequate},
+					{Value: CommitStabGood, Score: ScoreGood},
+					{Value: CommitStabExcel, Score: ScoreExcellent},
+				},
+			},
+			{
+				Name:   "hotspot_concentration",
+				Weight: MetricWeightMedium,
+				Breakpoints: []Breakpoint{
+					{Value: HotspotExcel, Score: ScoreExcellent},
+					{Value: HotspotGood, Score: ScoreGood},
+					{Value: HotspotAdequate, Score: ScoreAdequate},
+					{Value: HotspotWeak, Score: ScoreWeak},
+					{Value: HotspotCritical, Score: ScoreMinimum},
+				},
+			},
+		},
+	}
+}
+
+func defaultC6Config() CategoryConfig {
+	return CategoryConfig{
+		Name:   "Testing",
+		Weight: WeightTesting,
+		Metrics: []MetricThresholds{
+			{
+				Name:   "test_to_code_ratio",
+				Weight: MetricWeightHigh,
+				Breakpoints: []Breakpoint{
+					{Value: 0, Score: ScoreMinimum},
+					{Value: TestRatioPoor, Score: ScorePoor},
+					{Value: TestRatioAdequate, Score: ScoreAdequate},
+					{Value: TestRatioGood, Score: ScoreGood},
+					{Value: TestRatioExcel, Score: ScoreExcellent},
+				},
+			},
+			{
+				Name:   "coverage_percent",
+				Weight: MetricWeightPrimary,
+				Breakpoints: []Breakpoint{
+					{Value: 0, Score: ScoreMinimum},
+					{Value: CoveragePoor, Score: ScorePoor},
+					{Value: CoverageAdequate, Score: ScoreAdequate},
+					{Value: CoverageGood, Score: ScoreGood},
+					{Value: CoverageExcel, Score: ScoreExcellent},
+				},
+			},
+			{
+				Name:   "test_isolation",
+				Weight: MetricWeightStandard,
+				Breakpoints: []Breakpoint{
+					{Value: 0, Score: ScoreMinimum},
+					{Value: IsolationPoor, Score: ScorePoor},
+					{Value: IsolationAdequate, Score: ScoreAdequate},
+					{Value: IsolationGood, Score: ScoreGood},
+					{Value: IsolationExcel, Score: ScoreExcellent},
+				},
+			},
+			{
+				Name:   "assertion_density_avg",
+				Weight: MetricWeightStandard,
+				Breakpoints: []Breakpoint{
+					{Value: 0, Score: ScoreMinimum},
+					{Value: 1, Score: ScorePoor},
+					{Value: 2, Score: ScoreAdequate},
+					{Value: AssertDensityAdequate, Score: ScoreGood},
+					{Value: AssertDensityExcel, Score: ScoreExcellent},
+				},
+			},
+			{
+				Name:   "test_file_ratio",
+				Weight: MetricWeightStandard,
+				Breakpoints: []Breakpoint{
+					{Value: 0, Score: ScoreMinimum},
+					{Value: TestFileRatioPoor, Score: ScorePoor},
+					{Value: TestFileRatioAdequate, Score: ScoreAdequate},
+					{Value: TestFileRatioGood, Score: ScoreGood},
+					{Value: TestFileRatioExcel, Score: ScoreExcellent},
+				},
+			},
+		},
+	}
+}
+
+func defaultC7Config() CategoryConfig {
+	return CategoryConfig{
+		Name:   "Agent Evaluation",
+		Weight: WeightAgentEval,
+		Metrics: []MetricThresholds{
+			// M1: Task Execution Consistency
+			{
+				Name:   "task_execution_consistency",
+				Weight: MetricWeightMedium,
+				Breakpoints: []Breakpoint{
+					{Value: 1, Score: ScoreMinimum},
+					{Value: C7ScorePoor, Score: ScorePoor},
+					{Value: C7ScoreAboveAvg, Score: ScoreAboveAvg},
+					{Value: 10, Score: ScoreExcellent},
+				},
+			},
+			// M2: Code Behavior Comprehension
+			{
+				Name:   "code_behavior_comprehension",
+				Weight: MetricWeightHigh,
+				Breakpoints: []Breakpoint{
+					{Value: 1, Score: ScoreMinimum},
+					{Value: C7ScorePoor, Score: ScorePoor},
+					{Value: C7ScoreAboveAvg, Score: ScoreAboveAvg},
+					{Value: 10, Score: ScoreExcellent},
+				},
+			},
+			// M3: Cross-File Navigation
+			{
+				Name:   "cross_file_navigation",
+				Weight: MetricWeightHigh,
+				Breakpoints: []Breakpoint{
+					{Value: 1, Score: ScoreMinimum},
+					{Value: C7ScorePoor, Score: ScorePoor},
+					{Value: C7ScoreAboveAvg, Score: ScoreAboveAvg},
+					{Value: 10, Score: ScoreExcellent},
+				},
+			},
+			// M4: Identifier Interpretability
+			{
+				Name:   "identifier_interpretability",
+				Weight: MetricWeightStandard,
+				Breakpoints: []Breakpoint{
+					{Value: 1, Score: ScoreMinimum},
+					{Value: C7ScorePoor, Score: ScorePoor},
+					{Value: C7ScoreAboveAvg, Score: ScoreAboveAvg},
+					{Value: 10, Score: ScoreExcellent},
+				},
+			},
+			// M5: Documentation Accuracy Detection
+			{
+				Name:   "documentation_accuracy_detection",
+				Weight: MetricWeightStandard,
+				Breakpoints: []Breakpoint{
+					{Value: 1, Score: ScoreMinimum},
+					{Value: C7ScorePoor, Score: ScorePoor},
+					{Value: C7ScoreAboveAvg, Score: ScoreAboveAvg},
+					{Value: 10, Score: ScoreExcellent},
+				},
+			},
+		},
+	}
+}
+
+func defaultTiers() []tierConfig {
+	return []tierConfig{
+		{Name: "Agent-Ready", MinScore: TierReadyMin},
+		{Name: "Agent-Assisted", MinScore: TierAssistedMin},
+		{Name: "Agent-Limited", MinScore: TierLimitedMin},
+		{Name: "Agent-Hostile", MinScore: TierHostileMin},
 	}
 }
 

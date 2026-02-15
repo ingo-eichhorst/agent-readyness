@@ -49,63 +49,80 @@ func renderC7(w io.Writer, ar *types.AnalysisResult, verbose bool) {
 		return
 	}
 
-	// New MECE metrics (1-10 scale)
+	renderC7Metrics(w, m)
+	renderC7Summary(w, m)
+
+	if verbose && len(m.TaskResults) > 0 {
+		renderC7VerboseTasks(w, m, bold)
+	}
+}
+
+// renderC7Metrics renders either MECE or legacy metric scores.
+func renderC7Metrics(w io.Writer, m *types.C7Metrics) {
 	if m.TaskExecutionConsistency > 0 || m.CodeBehaviorComprehension > 0 ||
 		m.CrossFileNavigation > 0 || m.IdentifierInterpretability > 0 ||
 		m.DocumentationAccuracyDetection > 0 {
-		// Show new MECE metrics
-		m1c := c7ScoreColor(m.TaskExecutionConsistency * c7ScoreScale)
-		m1c.Fprintf(w, "  M1 Exec Consistency:  %d/10\n", m.TaskExecutionConsistency)
-
-		m2c := c7ScoreColor(m.CodeBehaviorComprehension * c7ScoreScale)
-		m2c.Fprintf(w, "  M2 Comprehension:     %d/10\n", m.CodeBehaviorComprehension)
-
-		m3c := c7ScoreColor(m.CrossFileNavigation * c7ScoreScale)
-		m3c.Fprintf(w, "  M3 Navigation:        %d/10\n", m.CrossFileNavigation)
-
-		m4c := c7ScoreColor(m.IdentifierInterpretability * c7ScoreScale)
-		m4c.Fprintf(w, "  M4 Identifiers:       %d/10\n", m.IdentifierInterpretability)
-
-		m5c := c7ScoreColor(m.DocumentationAccuracyDetection * c7ScoreScale)
-		m5c.Fprintf(w, "  M5 Documentation:     %d/10\n", m.DocumentationAccuracyDetection)
+		renderC7MECEMetrics(w, m)
 	} else {
-		// Fallback to legacy metrics for backward compatibility
-		ic := c7ScoreColor(m.IntentClarity)
-		ic.Fprintf(w, "  Intent clarity:       %d/100\n", m.IntentClarity)
-
-		mc := c7ScoreColor(m.ModificationConfidence)
-		mc.Fprintf(w, "  Modification conf:    %d/100\n", m.ModificationConfidence)
-
-		cfc := c7ScoreColor(m.CrossFileCoherence)
-		cfc.Fprintf(w, "  Cross-file coherence: %d/100\n", m.CrossFileCoherence)
-
-		sc := c7ScoreColor(m.SemanticCompleteness)
-		sc.Fprintf(w, "  Semantic complete:    %d/100\n", m.SemanticCompleteness)
+		renderC7LegacyMetrics(w, m)
 	}
+}
 
-	// Summary metrics
+// renderC7MECEMetrics renders the 5 MECE metric scores.
+func renderC7MECEMetrics(w io.Writer, m *types.C7Metrics) {
+	m1c := c7ScoreColor(m.TaskExecutionConsistency * c7ScoreScale)
+	m1c.Fprintf(w, "  M1 Exec Consistency:  %d/10\n", m.TaskExecutionConsistency)
+
+	m2c := c7ScoreColor(m.CodeBehaviorComprehension * c7ScoreScale)
+	m2c.Fprintf(w, "  M2 Comprehension:     %d/10\n", m.CodeBehaviorComprehension)
+
+	m3c := c7ScoreColor(m.CrossFileNavigation * c7ScoreScale)
+	m3c.Fprintf(w, "  M3 Navigation:        %d/10\n", m.CrossFileNavigation)
+
+	m4c := c7ScoreColor(m.IdentifierInterpretability * c7ScoreScale)
+	m4c.Fprintf(w, "  M4 Identifiers:       %d/10\n", m.IdentifierInterpretability)
+
+	m5c := c7ScoreColor(m.DocumentationAccuracyDetection * c7ScoreScale)
+	m5c.Fprintf(w, "  M5 Documentation:     %d/10\n", m.DocumentationAccuracyDetection)
+}
+
+// renderC7LegacyMetrics renders legacy 0-100 scale metrics.
+func renderC7LegacyMetrics(w io.Writer, m *types.C7Metrics) {
+	ic := c7ScoreColor(m.IntentClarity)
+	ic.Fprintf(w, "  Intent clarity:       %d/100\n", m.IntentClarity)
+
+	mc := c7ScoreColor(m.ModificationConfidence)
+	mc.Fprintf(w, "  Modification conf:    %d/100\n", m.ModificationConfidence)
+
+	cfc := c7ScoreColor(m.CrossFileCoherence)
+	cfc.Fprintf(w, "  Cross-file coherence: %d/100\n", m.CrossFileCoherence)
+
+	sc := c7ScoreColor(m.SemanticCompleteness)
+	sc.Fprintf(w, "  Semantic complete:    %d/100\n", m.SemanticCompleteness)
+}
+
+// renderC7Summary renders the summary score line, duration, and cost.
+func renderC7Summary(w io.Writer, m *types.C7Metrics) {
 	fmt.Fprintln(w, "  ─────────────────────────────────────")
 	if m.MECEScore > 0 {
-		// Show MECE score (weighted average of 5 metrics, 1-10 scale)
 		os := c7ScoreColor(int(m.MECEScore * float64(c7ScoreScale)))
 		os.Fprintf(w, "  MECE Score:           %.1f/10\n", m.MECEScore)
 	} else {
-		// Show legacy overall score (0-100 scale)
 		os := c7ScoreColor(int(m.OverallScore))
 		os.Fprintf(w, "  Overall score:        %.1f/100\n", m.OverallScore)
 	}
 	fmt.Fprintf(w, "  Duration:             %.1fs\n", m.TotalDuration)
 	fmt.Fprintf(w, "  Estimated cost:       $%.4f\n", m.CostUSD)
+}
 
-	// Verbose: per-task breakdown
-	if verbose && len(m.TaskResults) > 0 {
-		fmt.Fprintln(w)
-		bold.Fprintln(w, "  Per-task results:")
-		for _, tr := range m.TaskResults {
-			fmt.Fprintf(w, "    %s: score=%d status=%s (%.1fs)\n", tr.TaskName, tr.Score, tr.Status, tr.Duration)
-			if tr.Reasoning != "" {
-				fmt.Fprintf(w, "      Reasoning: %s\n", tr.Reasoning)
-			}
+// renderC7VerboseTasks renders per-task breakdown in verbose mode.
+func renderC7VerboseTasks(w io.Writer, m *types.C7Metrics, bold *color.Color) {
+	fmt.Fprintln(w)
+	bold.Fprintln(w, "  Per-task results:")
+	for _, tr := range m.TaskResults {
+		fmt.Fprintf(w, "    %s: score=%d status=%s (%.1fs)\n", tr.TaskName, tr.Score, tr.Status, tr.Duration)
+		if tr.Reasoning != "" {
+			fmt.Fprintf(w, "      Reasoning: %s\n", tr.Reasoning)
 		}
 	}
 }

@@ -248,132 +248,133 @@ func filterCitationsByCategory(citations []citation, categoryName string) []cita
 // 2. Evidence attachment (top offenders per metric from scoring phase)
 // 3. Trace modal generation (breakpoint interpolation details for debugging)
 // 4. Improvement prompt generation (actionable suggestions with commands)
-//
-// Why consolidate? It minimizes passes over the data and keeps related display
-// logic together. The alternative (separate functions for each concern) would
-// require multiple iterations and make it harder to ensure consistency.
 func buildHTMLSubScores(categoryName string, subScores []types.SubScore, trace *TraceData) []htmlSubScore {
 	result := make([]htmlSubScore, 0, len(subScores))
-
-	// Extract C7 metric results if this is the C7 category and trace data is available
-	//
-	// C7 metrics use live agent evaluation, so traces include actual prompts sent to
-	// Claude CLI and the responses received. This differs from C1-C6 which use static
-	// breakpoint interpolation. Extracting C7 results separately handles this distinction.
-	var c7MetricResults []types.C7MetricResult
-	if categoryName == "C7" && trace != nil && trace.AnalysisResults != nil {
-		for _, ar := range trace.AnalysisResults {
-			if ar.Category == "C7" {
-				if c7Raw, ok := ar.Metrics["c7"]; ok {
-					if c7m, ok := c7Raw.(*types.C7Metrics); ok {
-						c7MetricResults = c7m.MetricResults
-					}
-				}
-				break
-			}
-		}
-	}
+	c7MetricResults := extractC7MetricResults(categoryName, trace)
 
 	for _, ss := range subScores {
-		// Skip metrics with zero weight (e.g., deprecated overall_score in C7)
-		//
-		// Zero-weight metrics are kept in the data model for backward compatibility
-		// (old JSON files may reference them) but hidden from HTML display to avoid
-		// confusing users with inactive metrics. This is preferable to removing them
-		// entirely, which would break JSON schema compatibility.
 		if ss.Weight == 0.0 {
 			continue
 		}
 
-		desc := getMetricDescription(ss.MetricName)
-		hss := htmlSubScore{
-			Key:                 ss.MetricName,
-			MetricName:          ss.MetricName,
-			DisplayName:         metricDisplayName(ss.MetricName),
-			RawValue:            ss.RawValue,
-			FormattedValue:      formatMetricValue(ss.MetricName, ss.RawValue, ss.Available),
-			Score:               ss.Score,
-			ScoreClass:          scoreToClass(ss.Score),
-			WeightPct:           ss.Weight * weightToPercent,
-			Available:           ss.Available,
-			BriefDescription:    desc.Brief,
-			DetailedDescription: desc.Detailed,
-			ShouldExpand:        ss.Score < desc.Threshold,
-		}
-
-		// Populate C7 trace data if available
-		if categoryName == "C7" && len(c7MetricResults) > 0 {
-			traceHTML := renderC7Trace(ss.MetricName, c7MetricResults)
-			if traceHTML != "" {
-				hss.TraceHTML = template.HTML(traceHTML)
-				hss.HasTrace = true
-			}
-		}
-
-		// Populate C1-C6 breakpoint trace data
-		var breakpoints []scoring.Breakpoint
-		if categoryName != "C7" && trace != nil && trace.ScoringConfig != nil {
-			catCfg := trace.ScoringConfig.Category(categoryName)
-			for _, mt := range catCfg.Metrics {
-				if mt.Name == ss.MetricName {
-					breakpoints = mt.Breakpoints
-					break
-				}
-			}
-			traceHTML := renderBreakpointTrace(ss.MetricName, ss.RawValue, ss.Score, breakpoints, ss.Evidence)
-			if traceHTML != "" {
-				hss.TraceHTML = template.HTML(traceHTML)
-				hss.HasTrace = true
-			}
-		}
-
-		// Populate improvement prompt (for metrics scoring below 9.0)
-		if ss.Available && ss.Score < promptScoreThreshold && trace != nil {
-			// Determine language for build commands
-			lang := ""
-			if len(trace.Languages) > 0 {
-				lang = trace.Languages[0]
-			}
-
-			// For C7 metrics, look up breakpoints separately
-			if categoryName == "C7" && trace.ScoringConfig != nil && len(breakpoints) == 0 {
-				catCfg := trace.ScoringConfig.Category(categoryName)
-				for _, mt := range catCfg.Metrics {
-					if mt.Name == ss.MetricName {
-						breakpoints = mt.Breakpoints
-						break
-					}
-				}
-			}
-
-			// Calculate target
-			targetValue, targetScore := nextTarget(ss.Score, breakpoints)
-
-			promptHTML := renderImprovementPrompt(promptParams{
-				CategoryName:    categoryName,
-				CategoryDisplay: categoryDisplayName(categoryName),
-				CategoryImpact:  categoryImpact(categoryName),
-				MetricName:      ss.MetricName,
-				MetricDisplay:   metricDisplayName(ss.MetricName),
-				RawValue:        ss.RawValue,
-				FormattedValue:  formatMetricValue(ss.MetricName, ss.RawValue, ss.Available),
-				Score:           ss.Score,
-				TargetScore:     targetScore,
-				TargetValue:     targetValue,
-				HasBreakpoints:  len(breakpoints) > 0,
-				Evidence:        ss.Evidence,
-				Language:        lang,
-			})
-			if promptHTML != "" {
-				hss.PromptHTML = template.HTML(promptHTML)
-				hss.HasPrompt = true
-			}
-		}
-
+		hss := buildBaseSubScore(ss)
+		breakpoints := populateTraceData(&hss, categoryName, ss, c7MetricResults, trace)
+		populateImprovementPrompt(&hss, categoryName, ss, breakpoints, trace)
 		result = append(result, hss)
 	}
 
 	return result
+}
+
+// extractC7MetricResults extracts C7 metric results from trace data if applicable.
+func extractC7MetricResults(categoryName string, trace *TraceData) []types.C7MetricResult {
+	if categoryName != "C7" || trace == nil || trace.AnalysisResults == nil {
+		return nil
+	}
+	for _, ar := range trace.AnalysisResults {
+		if ar.Category == "C7" {
+			if c7Raw, ok := ar.Metrics["c7"]; ok {
+				if c7m, ok := c7Raw.(*types.C7Metrics); ok {
+					return c7m.MetricResults
+				}
+			}
+			break
+		}
+	}
+	return nil
+}
+
+// buildBaseSubScore creates an htmlSubScore with basic metric display fields.
+func buildBaseSubScore(ss types.SubScore) htmlSubScore {
+	desc := getMetricDescription(ss.MetricName)
+	return htmlSubScore{
+		Key:                 ss.MetricName,
+		MetricName:          ss.MetricName,
+		DisplayName:         metricDisplayName(ss.MetricName),
+		RawValue:            ss.RawValue,
+		FormattedValue:      formatMetricValue(ss.MetricName, ss.RawValue, ss.Available),
+		Score:               ss.Score,
+		ScoreClass:          scoreToClass(ss.Score),
+		WeightPct:           ss.Weight * weightToPercent,
+		Available:           ss.Available,
+		BriefDescription:    desc.Brief,
+		DetailedDescription: desc.Detailed,
+		ShouldExpand:        ss.Score < desc.Threshold,
+	}
+}
+
+// populateTraceData adds C7 or breakpoint trace HTML to the sub-score.
+// Returns the resolved breakpoints for use by improvement prompt generation.
+func populateTraceData(hss *htmlSubScore, categoryName string, ss types.SubScore, c7MetricResults []types.C7MetricResult, trace *TraceData) []scoring.Breakpoint {
+	// C7 trace
+	if categoryName == "C7" && len(c7MetricResults) > 0 {
+		traceHTML := renderC7Trace(ss.MetricName, c7MetricResults)
+		if traceHTML != "" {
+			hss.TraceHTML = template.HTML(traceHTML)
+			hss.HasTrace = true
+		}
+	}
+
+	// C1-C6 breakpoint trace
+	var breakpoints []scoring.Breakpoint
+	if categoryName != "C7" && trace != nil && trace.ScoringConfig != nil {
+		breakpoints = lookupBreakpoints(trace, categoryName, ss.MetricName)
+		traceHTML := renderBreakpointTrace(ss.MetricName, ss.RawValue, ss.Score, breakpoints, ss.Evidence)
+		if traceHTML != "" {
+			hss.TraceHTML = template.HTML(traceHTML)
+			hss.HasTrace = true
+		}
+	}
+	return breakpoints
+}
+
+// populateImprovementPrompt adds improvement prompt HTML for metrics scoring below threshold.
+func populateImprovementPrompt(hss *htmlSubScore, categoryName string, ss types.SubScore, breakpoints []scoring.Breakpoint, trace *TraceData) {
+	if !ss.Available || ss.Score >= promptScoreThreshold || trace == nil {
+		return
+	}
+
+	lang := ""
+	if len(trace.Languages) > 0 {
+		lang = trace.Languages[0]
+	}
+
+	// For C7 metrics, look up breakpoints if not already resolved
+	if categoryName == "C7" && trace.ScoringConfig != nil && len(breakpoints) == 0 {
+		breakpoints = lookupBreakpoints(trace, categoryName, ss.MetricName)
+	}
+
+	targetValue, targetScore := nextTarget(ss.Score, breakpoints)
+	promptHTML := renderImprovementPrompt(promptParams{
+		CategoryName:    categoryName,
+		CategoryDisplay: categoryDisplayName(categoryName),
+		CategoryImpact:  categoryImpact(categoryName),
+		MetricName:      ss.MetricName,
+		MetricDisplay:   metricDisplayName(ss.MetricName),
+		RawValue:        ss.RawValue,
+		FormattedValue:  formatMetricValue(ss.MetricName, ss.RawValue, ss.Available),
+		Score:           ss.Score,
+		TargetScore:     targetScore,
+		TargetValue:     targetValue,
+		HasBreakpoints:  len(breakpoints) > 0,
+		Evidence:        ss.Evidence,
+		Language:        lang,
+	})
+	if promptHTML != "" {
+		hss.PromptHTML = template.HTML(promptHTML)
+		hss.HasPrompt = true
+	}
+}
+
+// lookupBreakpoints finds breakpoints for a metric in the scoring config.
+func lookupBreakpoints(trace *TraceData, categoryName, metricName string) []scoring.Breakpoint {
+	catCfg := trace.ScoringConfig.Category(categoryName)
+	for _, mt := range catCfg.Metrics {
+		if mt.Name == metricName {
+			return mt.Breakpoints
+		}
+	}
+	return nil
 }
 
 // buildHTMLRecommendations converts recommendations to HTML display format.

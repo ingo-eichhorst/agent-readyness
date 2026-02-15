@@ -42,126 +42,12 @@ func (a *C3Analyzer) SetGoPackages(pkgs []*parser.ParsedPackage) {
 func (a *C3Analyzer) Analyze(targets []*arstypes.AnalysisTarget) (*arstypes.AnalysisResult, error) {
 	metrics := &arstypes.C3Metrics{}
 
-	// Go analysis (existing logic)
 	if a.pkgs != nil {
-		goMetrics := a.analyzeGoC3()
-		metrics = goMetrics
+		metrics = a.analyzeGoC3()
 	}
 
-	// Python/TypeScript analysis via targets
 	for _, target := range targets {
-		switch target.Language {
-		case arstypes.LangPython:
-			if a.tsParser == nil {
-				continue
-			}
-			parsed, err := a.tsParser.ParseTargetFiles(target)
-			if err != nil {
-				continue
-			}
-			defer parser.CloseAll(parsed)
-
-			srcFiles := pyFilterSourceFiles(parsed)
-
-			pyGraph := pyBuildImportGraph(parsed)
-			pyDead := pyDetectDeadCode(parsed)
-			pyMaxDepth, pyAvgDepth := pyAnalyzeDirectoryDepth(parsed, target.RootDir)
-
-			// Merge Python results into metrics
-			if pyMaxDepth > metrics.MaxDirectoryDepth {
-				metrics.MaxDirectoryDepth = pyMaxDepth
-			}
-			if pyAvgDepth > metrics.AvgDirectoryDepth {
-				metrics.AvgDirectoryDepth = pyAvgDepth
-			}
-
-			// Import graph metrics
-			pyCycles := detectCircularDeps(pyGraph)
-			metrics.CircularDeps = append(metrics.CircularDeps, pyCycles...)
-
-			// Module fanout from Python import graph
-			if len(srcFiles) > 0 {
-				totalFanout := 0
-				maxFanout := 0
-				maxEntity := ""
-				for file, deps := range pyGraph.Forward {
-					fanout := len(deps)
-					totalFanout += fanout
-					if fanout > maxFanout {
-						maxFanout = fanout
-						maxEntity = file
-					}
-				}
-				if len(pyGraph.Forward) > 0 {
-					pyFanout := arstypes.MetricSummary{
-						Avg:       float64(totalFanout) / float64(len(pyGraph.Forward)),
-						Max:       maxFanout,
-						MaxEntity: maxEntity,
-					}
-					// Merge: if Go had fanout, pick higher max
-					if pyFanout.Max > metrics.ModuleFanout.Max {
-						metrics.ModuleFanout = pyFanout
-					}
-				}
-			}
-
-			metrics.DeadExports = append(metrics.DeadExports, pyDead...)
-
-		case arstypes.LangTypeScript:
-			if a.tsParser == nil {
-				continue
-			}
-			parsed, err := a.tsParser.ParseTargetFiles(target)
-			if err != nil {
-				continue
-			}
-			defer parser.CloseAll(parsed)
-
-			srcFiles := tsFilterSourceFiles(parsed)
-
-			tsGraph := tsBuildImportGraph(parsed)
-			tsDead := tsDetectDeadCode(parsed)
-			tsMaxDepth, tsAvgDepth := tsAnalyzeDirectoryDepth(parsed, target.RootDir)
-
-			// Merge TypeScript results into metrics
-			if tsMaxDepth > metrics.MaxDirectoryDepth {
-				metrics.MaxDirectoryDepth = tsMaxDepth
-			}
-			if tsAvgDepth > metrics.AvgDirectoryDepth {
-				metrics.AvgDirectoryDepth = tsAvgDepth
-			}
-
-			// Import graph metrics
-			tsCycles := detectCircularDeps(tsGraph)
-			metrics.CircularDeps = append(metrics.CircularDeps, tsCycles...)
-
-			// Module fanout from TypeScript import graph
-			if len(srcFiles) > 0 {
-				totalFanout := 0
-				maxFanout := 0
-				maxEntity := ""
-				for file, deps := range tsGraph.Forward {
-					fanout := len(deps)
-					totalFanout += fanout
-					if fanout > maxFanout {
-						maxFanout = fanout
-						maxEntity = file
-					}
-				}
-				if len(tsGraph.Forward) > 0 {
-					tsFanout := arstypes.MetricSummary{
-						Avg:       float64(totalFanout) / float64(len(tsGraph.Forward)),
-						Max:       maxFanout,
-						MaxEntity: maxEntity,
-					}
-					if tsFanout.Max > metrics.ModuleFanout.Max {
-						metrics.ModuleFanout = tsFanout
-					}
-				}
-			}
-
-			metrics.DeadExports = append(metrics.DeadExports, tsDead...)
-		}
+		a.analyzeTarget(target, metrics)
 	}
 
 	return &arstypes.AnalysisResult{
@@ -169,6 +55,87 @@ func (a *C3Analyzer) Analyze(targets []*arstypes.AnalysisTarget) (*arstypes.Anal
 		Category: "C3",
 		Metrics:  map[string]arstypes.CategoryMetrics{"c3": metrics},
 	}, nil
+}
+
+// analyzeTarget dispatches a single analysis target to the appropriate language handler.
+func (a *C3Analyzer) analyzeTarget(target *arstypes.AnalysisTarget, metrics *arstypes.C3Metrics) {
+	if a.tsParser == nil {
+		return
+	}
+
+	switch target.Language {
+	case arstypes.LangPython:
+		parsed, err := a.tsParser.ParseTargetFiles(target)
+		if err != nil {
+			return
+		}
+		defer parser.CloseAll(parsed)
+		maxD, avgD := pyAnalyzeDirectoryDepth(parsed, target.RootDir)
+		mergeTargetMetrics(metrics, pyBuildImportGraph(parsed), pyDetectDeadCode(parsed),
+			maxD, avgD, len(pyFilterSourceFiles(parsed)))
+
+	case arstypes.LangTypeScript:
+		parsed, err := a.tsParser.ParseTargetFiles(target)
+		if err != nil {
+			return
+		}
+		defer parser.CloseAll(parsed)
+		maxD, avgD := tsAnalyzeDirectoryDepth(parsed, target.RootDir)
+		mergeTargetMetrics(metrics, tsBuildImportGraph(parsed), tsDetectDeadCode(parsed),
+			maxD, avgD, len(tsFilterSourceFiles(parsed)))
+	}
+}
+
+// mergeTargetMetrics merges language-specific analysis results into the combined metrics.
+func mergeTargetMetrics(metrics *arstypes.C3Metrics, graph *shared.ImportGraph, dead []arstypes.DeadExport, maxDepth int, avgDepth float64, srcFileCount int) {
+	mergeDepthMetrics(metrics, maxDepth, avgDepth)
+	mergeCycleDeps(metrics, graph)
+	mergeFanoutMetrics(metrics, graph, srcFileCount)
+	metrics.DeadExports = append(metrics.DeadExports, dead...)
+}
+
+// mergeDepthMetrics updates directory depth metrics with higher values.
+func mergeDepthMetrics(metrics *arstypes.C3Metrics, maxDepth int, avgDepth float64) {
+	if maxDepth > metrics.MaxDirectoryDepth {
+		metrics.MaxDirectoryDepth = maxDepth
+	}
+	if avgDepth > metrics.AvgDirectoryDepth {
+		metrics.AvgDirectoryDepth = avgDepth
+	}
+}
+
+// mergeCycleDeps appends circular dependency cycles from the import graph.
+func mergeCycleDeps(metrics *arstypes.C3Metrics, graph *shared.ImportGraph) {
+	cycles := detectCircularDeps(graph)
+	metrics.CircularDeps = append(metrics.CircularDeps, cycles...)
+}
+
+// mergeFanoutMetrics computes module fanout from an import graph and merges into metrics.
+func mergeFanoutMetrics(metrics *arstypes.C3Metrics, graph *shared.ImportGraph, srcFileCount int) {
+	if srcFileCount == 0 || len(graph.Forward) == 0 {
+		return
+	}
+
+	totalFanout := 0
+	maxFanout := 0
+	maxEntity := ""
+	for file, deps := range graph.Forward {
+		fanout := len(deps)
+		totalFanout += fanout
+		if fanout > maxFanout {
+			maxFanout = fanout
+			maxEntity = file
+		}
+	}
+
+	fanout := arstypes.MetricSummary{
+		Avg:       float64(totalFanout) / float64(len(graph.Forward)),
+		Max:       maxFanout,
+		MaxEntity: maxEntity,
+	}
+	if fanout.Max > metrics.ModuleFanout.Max {
+		metrics.ModuleFanout = fanout
+	}
 }
 
 // analyzeGoC3 runs Go-specific C3 analysis.
@@ -287,9 +254,25 @@ func detectCircularDeps(graph *shared.ImportGraph) [][]string {
 		black        // fully processed
 	)
 
-	color := make(map[string]int)
+	color := initializeColorMap(graph)
 	parent := make(map[string]string)
 	var cycles [][]string
+
+	dfs := buildCycleDFS(color, parent, &cycles, graph)
+
+	for node := range color {
+		if color[node] == white {
+			dfs(node)
+		}
+	}
+
+	return cycles
+}
+
+// initializeColorMap creates a color map for all nodes in the graph.
+func initializeColorMap(graph *shared.ImportGraph) map[string]int {
+	const white = 0
+	color := make(map[string]int)
 
 	// Initialize all nodes as white.
 	for node := range graph.Forward {
@@ -303,45 +286,50 @@ func detectCircularDeps(graph *shared.ImportGraph) [][]string {
 			}
 		}
 	}
+	return color
+}
+
+// buildCycleDFS constructs the DFS function for cycle detection.
+func buildCycleDFS(color map[string]int, parent map[string]string, cycles *[][]string, graph *shared.ImportGraph) func(string) {
+	const (
+		white = iota
+		gray
+		black
+	)
 
 	var dfs func(node string)
 	dfs = func(node string) {
-		// Mark node as gray: currently being explored (on the DFS stack)
 		color[node] = gray
 
 		for _, neighbor := range graph.Forward[node] {
 			switch color[neighbor] {
 			case white:
-				// Unvisited node: record parent and explore recursively
 				parent[neighbor] = node
 				dfs(neighbor)
 			case gray:
-				// Back-edge detected: neighbor is in current DFS path, forming a cycle
-				// Trace back from current node to neighbor to reconstruct the cycle
-				cycle := []string{neighbor}
-				cur := node
-				for cur != neighbor {
-					cycle = append(cycle, cur)
-					cur = parent[cur]
-				}
-				for i, j := 0, len(cycle)-1; i < j; i, j = i+1, j-1 {
-					cycle[i], cycle[j] = cycle[j], cycle[i]
-				}
-				cycles = append(cycles, cycle)
+				cycle := reconstructCycle(node, neighbor, parent)
+				*cycles = append(*cycles, cycle)
 			}
 		}
 
-		// Mark node as black: fully processed (all descendants explored)
 		color[node] = black
 	}
+	return dfs
+}
 
-	for node := range color {
-		if color[node] == white {
-			dfs(node)
-		}
+// reconstructCycle traces back from current node to the cycle start node.
+func reconstructCycle(current, cycleStart string, parent map[string]string) []string {
+	cycle := []string{cycleStart}
+	cur := current
+	for cur != cycleStart {
+		cycle = append(cycle, cur)
+		cur = parent[cur]
 	}
-
-	return cycles
+	// Reverse to get correct cycle order
+	for i, j := 0, len(cycle)-1; i < j; i, j = i+1, j-1 {
+		cycle[i], cycle[j] = cycle[j], cycle[i]
+	}
+	return cycle
 }
 
 // analyzeImportComplexity computes the maximum import path depth across all packages.
@@ -397,89 +385,107 @@ func analyzeImportComplexity(pkgs []*parser.ParsedPackage, modulePath string) ar
 //
 // Uses go/types TypesInfo.Uses to track cross-package references via type-checker.
 // An exported object with no uses from other packages is considered dead.
+// exportedSymbol represents a single exported symbol from a Go package.
+type exportedSymbol struct {
+	pkg  string
+	name string
+	file string
+	line int
+	kind string
+	obj  types.Object
+}
+
 func detectDeadCode(pkgs []*parser.ParsedPackage) []arstypes.DeadExport {
-	type exportedSymbol struct {
-		pkg  string
-		name string
-		file string
-		line int
-		kind string
-		obj  types.Object
-	}
+	exports := collectExportedSymbols(pkgs)
+	crossPkgRef := buildCrossPackageRefs(pkgs)
+	return filterDeadExports(exports, crossPkgRef, len(pkgs))
+}
 
+// collectExportedSymbols gathers all exported funcs and types from packages.
+func collectExportedSymbols(pkgs []*parser.ParsedPackage) []exportedSymbol {
 	var exports []exportedSymbol
-
 	for _, pkg := range pkgs {
 		if pkg.Types == nil || pkg.TypesInfo == nil {
 			continue
 		}
-		scope := pkg.Types.Scope()
-		for _, name := range scope.Names() {
-			obj := scope.Lookup(name)
-			if !obj.Exported() {
-				continue
-			}
-
-			var kind string
-			switch obj.(type) {
-			case *types.Func:
-				kind = "func"
-				if name == "main" || name == "init" {
-					continue
-				}
-			case *types.TypeName:
-				kind = "type"
-			default:
-				continue // Skip vars and consts.
-			}
-
-			pos := obj.Pos()
-			file := ""
-			line := 0
-			if pos.IsValid() && pkg.Fset != nil {
-				position := pkg.Fset.Position(pos)
-				file = position.Filename
-				line = position.Line
-			}
-
-			exports = append(exports, exportedSymbol{
-				pkg:  pkg.PkgPath,
-				name: name,
-				file: file,
-				line: line,
-				kind: kind,
-				obj:  obj,
-			})
-		}
+		exports = append(exports, collectPackageExports(pkg)...)
 	}
+	return exports
+}
 
-	// Build cross-package reference set: objects referenced from a different package.
-	// TypesInfo.Uses contains all identifier uses; filter for cross-package references only
+// collectPackageExports extracts exported funcs and types from a single package scope.
+func collectPackageExports(pkg *parser.ParsedPackage) []exportedSymbol {
+	var exports []exportedSymbol
+	scope := pkg.Types.Scope()
+	for _, name := range scope.Names() {
+		obj := scope.Lookup(name)
+		if !obj.Exported() {
+			continue
+		}
+		kind, skip := classifyExportedObject(obj, name)
+		if skip {
+			continue
+		}
+		file, line := objectPosition(obj, pkg)
+		exports = append(exports, exportedSymbol{
+			pkg: pkg.PkgPath, name: name, file: file, line: line, kind: kind, obj: obj,
+		})
+	}
+	return exports
+}
+
+// classifyExportedObject returns the kind string for an exported object.
+// Returns skip=true if the object should be excluded from dead code detection.
+func classifyExportedObject(obj types.Object, name string) (kind string, skip bool) {
+	switch obj.(type) {
+	case *types.Func:
+		if name == "main" || name == "init" {
+			return "", true
+		}
+		return "func", false
+	case *types.TypeName:
+		return "type", false
+	default:
+		return "", true
+	}
+}
+
+// objectPosition extracts file and line from a types.Object position.
+func objectPosition(obj types.Object, pkg *parser.ParsedPackage) (string, int) {
+	pos := obj.Pos()
+	if pos.IsValid() && pkg.Fset != nil {
+		position := pkg.Fset.Position(pos)
+		return position.Filename, position.Line
+	}
+	return "", 0
+}
+
+// buildCrossPackageRefs builds a set of objects referenced from a different package.
+func buildCrossPackageRefs(pkgs []*parser.ParsedPackage) map[types.Object]bool {
 	crossPkgRef := make(map[types.Object]bool)
 	for _, pkg := range pkgs {
 		if pkg.TypesInfo == nil {
 			continue
 		}
 		for _, obj := range pkg.TypesInfo.Uses {
-			// Check if object's package differs from current package (cross-package reference)
 			if obj.Pkg() != nil && obj.Pkg().Path() != pkg.PkgPath {
 				crossPkgRef[obj] = true
 			}
 		}
 	}
+	return crossPkgRef
+}
 
-	// Flag exports with no cross-package reference.
+// filterDeadExports returns exports that have no cross-package references.
+func filterDeadExports(exports []exportedSymbol, crossPkgRef map[types.Object]bool, pkgCount int) []arstypes.DeadExport {
+	if pkgCount <= 1 {
+		return nil
+	}
 	var dead []arstypes.DeadExport
 	for _, exp := range exports {
 		if crossPkgRef[exp.obj] {
 			continue
 		}
-
-		// For single-package modules, skip (no cross-package possible).
-		if len(pkgs) <= 1 {
-			continue
-		}
-
 		dead = append(dead, arstypes.DeadExport{
 			Package: exp.pkg,
 			Name:    exp.name,
@@ -488,7 +494,6 @@ func detectDeadCode(pkgs []*parser.ParsedPackage) []arstypes.DeadExport {
 			Kind:    exp.kind,
 		})
 	}
-
 	return dead
 }
 

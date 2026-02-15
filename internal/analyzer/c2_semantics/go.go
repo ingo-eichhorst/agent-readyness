@@ -168,59 +168,79 @@ func analyzeNamingConsistency(pkgs []*parser.ParsedPackage) namingResult {
 
 	for _, pkg := range pkgs {
 		for _, f := range pkg.Syntax {
-			// Check function declarations
 			ast.Inspect(f, func(n ast.Node) bool {
-				switch node := n.(type) {
-				case *ast.FuncDecl:
-					if node.Name == nil {
-						return true
-					}
-					name := node.Name.Name
-					if shouldSkipName(name) {
-						return true
-					}
-					result.totalChecked++
-					if isConsistentGoName(name, ast.IsExported(name)) {
-						result.consistent++
-					}
-
-				case *ast.TypeSpec:
-					if node.Name == nil {
-						return true
-					}
-					name := node.Name.Name
-					if shouldSkipName(name) {
-						return true
-					}
-					result.totalChecked++
-					if isConsistentGoName(name, ast.IsExported(name)) {
-						result.consistent++
-					}
-
-				case *ast.ValueSpec:
-					for _, ident := range node.Names {
-						name := ident.Name
-						if shouldSkipName(name) {
-							continue
-						}
-						result.totalChecked++
-						if isConsistentGoName(name, ast.IsExported(name)) {
-							result.consistent++
-						}
-					}
-				}
+				checkNamingConsistencyForNode(n, &result)
 				return true
 			})
 		}
 	}
 
-	if result.totalChecked == 0 {
-		result.consistencyPercent = toPercentGo
-	} else {
-		result.consistencyPercent = float64(result.consistent) / float64(result.totalChecked) * toPercentGo
-	}
-
+	result.consistencyPercent = computeConsistencyPercent(result.consistent, result.totalChecked)
 	return result
+}
+
+// checkNamingConsistencyForNode validates naming for a single AST node.
+func checkNamingConsistencyForNode(n ast.Node, result *namingResult) {
+	switch node := n.(type) {
+	case *ast.FuncDecl:
+		checkFuncDeclNaming(node, result)
+	case *ast.TypeSpec:
+		checkTypeSpecNaming(node, result)
+	case *ast.ValueSpec:
+		checkValueSpecNaming(node, result)
+	}
+}
+
+// checkFuncDeclNaming validates function declaration naming.
+func checkFuncDeclNaming(node *ast.FuncDecl, result *namingResult) {
+	if node.Name == nil {
+		return
+	}
+	name := node.Name.Name
+	if shouldSkipName(name) {
+		return
+	}
+	result.totalChecked++
+	if isConsistentGoName(name, ast.IsExported(name)) {
+		result.consistent++
+	}
+}
+
+// checkTypeSpecNaming validates type specification naming.
+func checkTypeSpecNaming(node *ast.TypeSpec, result *namingResult) {
+	if node.Name == nil {
+		return
+	}
+	name := node.Name.Name
+	if shouldSkipName(name) {
+		return
+	}
+	result.totalChecked++
+	if isConsistentGoName(name, ast.IsExported(name)) {
+		result.consistent++
+	}
+}
+
+// checkValueSpecNaming validates variable/constant specification naming.
+func checkValueSpecNaming(node *ast.ValueSpec, result *namingResult) {
+	for _, ident := range node.Names {
+		name := ident.Name
+		if shouldSkipName(name) {
+			continue
+		}
+		result.totalChecked++
+		if isConsistentGoName(name, ast.IsExported(name)) {
+			result.consistent++
+		}
+	}
+}
+
+// computeConsistencyPercent calculates the consistency percentage.
+func computeConsistencyPercent(consistent, totalChecked int) float64 {
+	if totalChecked == 0 {
+		return toPercentGo
+	}
+	return float64(consistent) / float64(totalChecked) * toPercentGo
 }
 
 // shouldSkipName returns true if the identifier should be excluded from naming checks.

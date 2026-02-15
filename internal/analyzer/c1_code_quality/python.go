@@ -51,70 +51,17 @@ func pyWalkFunctions(node *tree_sitter.Node, content []byte, file string, classN
 		return
 	}
 
-	kind := node.Kind()
-
-	if kind == "class_definition" {
-		nameNode := node.ChildByFieldName("name")
-		clsName := ""
-		if nameNode != nil {
-			clsName = shared.NodeText(nameNode, content)
-		}
-		body := node.ChildByFieldName("body")
-		if body != nil {
-			for i := uint(0); i < body.ChildCount(); i++ {
-				child := body.Child(i)
-				if child != nil {
-					pyWalkFunctions(child, content, file, clsName, results)
-				}
-			}
-		}
+	switch node.Kind() {
+	case "class_definition":
+		pyWalkClassBody(node, content, file, results)
 		return
-	}
 
-	// Handle decorated_definition: unwrap to inner function/class
-	if kind == "decorated_definition" {
-		for i := uint(0); i < node.ChildCount(); i++ {
-			child := node.Child(i)
-			if child != nil {
-				childKind := child.Kind()
-				if childKind == "function_definition" || childKind == "class_definition" {
-					pyWalkFunctions(child, content, file, className, results)
-				}
-			}
-		}
+	case "decorated_definition":
+		pyWalkDecoratedDef(node, content, file, className, results)
 		return
-	}
 
-	if kind == "function_definition" {
-		nameNode := node.ChildByFieldName("name")
-		name := ""
-		if nameNode != nil {
-			name = shared.NodeText(nameNode, content)
-		}
-
-		if className != "" {
-			name = className + "." + name
-		}
-
-		startRow := int(node.StartPosition().Row)
-		endRow := int(node.EndPosition().Row)
-		lineCount := endRow - startRow + 1
-
-		complexity := pyComputeComplexity(node)
-
-		*results = append(*results, types.FunctionMetric{
-			Name:       name,
-			File:       file,
-			Line:       startRow + 1,
-			Complexity: complexity,
-			LineCount:  lineCount,
-		})
-
-		// Walk body for nested function/class definitions only
-		body := node.ChildByFieldName("body")
-		if body != nil {
-			pyWalkFunctionsInBody(body, content, file, className, results)
-		}
+	case "function_definition":
+		pyRecordFunction(node, content, file, className, results)
 		return
 	}
 
@@ -125,6 +72,70 @@ func pyWalkFunctions(node *tree_sitter.Node, content []byte, file string, classN
 			pyWalkFunctions(child, content, file, className, results)
 		}
 	}
+}
+
+// pyWalkClassBody walks a class definition's body, passing the class name to child walkers.
+func pyWalkClassBody(node *tree_sitter.Node, content []byte, file string, results *[]types.FunctionMetric) {
+	nameNode := node.ChildByFieldName("name")
+	clsName := ""
+	if nameNode != nil {
+		clsName = shared.NodeText(nameNode, content)
+	}
+	body := node.ChildByFieldName("body")
+	if body != nil {
+		for i := uint(0); i < body.ChildCount(); i++ {
+			child := body.Child(i)
+			if child != nil {
+				pyWalkFunctions(child, content, file, clsName, results)
+			}
+		}
+	}
+}
+
+// pyWalkDecoratedDef unwraps a decorated_definition to find inner function/class definitions.
+func pyWalkDecoratedDef(node *tree_sitter.Node, content []byte, file string, className string, results *[]types.FunctionMetric) {
+	for i := uint(0); i < node.ChildCount(); i++ {
+		child := node.Child(i)
+		if child != nil {
+			childKind := child.Kind()
+			if childKind == "function_definition" || childKind == "class_definition" {
+				pyWalkFunctions(child, content, file, className, results)
+			}
+		}
+	}
+}
+
+// pyRecordFunction records a function metric and walks the body for nested definitions.
+func pyRecordFunction(node *tree_sitter.Node, content []byte, file string, className string, results *[]types.FunctionMetric) {
+	name := pyExtractFuncName(node, content, className)
+	startRow := int(node.StartPosition().Row)
+	endRow := int(node.EndPosition().Row)
+
+	*results = append(*results, types.FunctionMetric{
+		Name:       name,
+		File:       file,
+		Line:       startRow + 1,
+		Complexity: pyComputeComplexity(node),
+		LineCount:  endRow - startRow + 1,
+	})
+
+	body := node.ChildByFieldName("body")
+	if body != nil {
+		pyWalkFunctionsInBody(body, content, file, className, results)
+	}
+}
+
+// pyExtractFuncName extracts the function name, prefixed with className if inside a class.
+func pyExtractFuncName(node *tree_sitter.Node, content []byte, className string) string {
+	nameNode := node.ChildByFieldName("name")
+	name := ""
+	if nameNode != nil {
+		name = shared.NodeText(nameNode, content)
+	}
+	if className != "" {
+		name = className + "." + name
+	}
+	return name
 }
 
 // pyWalkFunctionsInBody finds nested function/class definitions inside a function body.
@@ -261,6 +272,16 @@ type pyDupSeq struct {
 //
 // Returns duplicate blocks and duplication rate (% of lines duplicated).
 func pyAnalyzeDuplication(files []*parser.ParsedTreeSitterFile) ([]types.DuplicateBlock, float64) {
+	sequences, totalLines := pyCollectAllDupSequences(files)
+	groups := pyGroupSequencesByHash(sequences)
+	blocks, duplicatedLines := pyFindDuplicateBlocks(groups)
+	rate := pyCalculateDuplicationRate(duplicatedLines, totalLines)
+
+	return blocks, rate
+}
+
+// pyCollectAllDupSequences collects duplicate sequences from all files.
+func pyCollectAllDupSequences(files []*parser.ParsedTreeSitterFile) ([]pyDupSeq, int) {
 	var sequences []pyDupSeq
 	totalLines := 0
 
@@ -270,12 +291,20 @@ func pyAnalyzeDuplication(files []*parser.ParsedTreeSitterFile) ([]types.Duplica
 		pyCollectDupSequences(root, f.RelPath, f.Content, dupMinStatements, dupMinLines, &sequences)
 	}
 
-	// Group by hash
+	return sequences, totalLines
+}
+
+// pyGroupSequencesByHash groups sequences by their hash value.
+func pyGroupSequencesByHash(sequences []pyDupSeq) map[uint64][]pyDupSeq {
 	groups := make(map[uint64][]pyDupSeq)
 	for _, seq := range sequences {
 		groups[seq.hash] = append(groups[seq.hash], seq)
 	}
+	return groups
+}
 
+// pyFindDuplicateBlocks finds duplicate blocks from grouped sequences.
+func pyFindDuplicateBlocks(groups map[uint64][]pyDupSeq) ([]types.DuplicateBlock, map[string]map[int]bool) {
 	var blocks []types.DuplicateBlock
 	duplicatedLines := make(map[string]map[int]bool)
 
@@ -284,47 +313,65 @@ func pyAnalyzeDuplication(files []*parser.ParsedTreeSitterFile) ([]types.Duplica
 			continue
 		}
 
-		for i := 0; i < len(group); i++ {
-			for j := i + 1; j < len(group); j++ {
-				a, b := group[i], group[j]
-
-				if a.file == b.file && a.startLine < b.endLine && b.startLine < a.endLine {
-					continue
-				}
-
-				blocks = append(blocks, types.DuplicateBlock{
-					FileA:     a.file,
-					StartA:    a.startLine,
-					EndA:      a.endLine,
-					FileB:     b.file,
-					StartB:    b.startLine,
-					EndB:      b.endLine,
-					LineCount: a.endLine - a.startLine + 1,
-				})
-
-				for _, s := range []pyDupSeq{a, b} {
-					if duplicatedLines[s.file] == nil {
-						duplicatedLines[s.file] = make(map[int]bool)
-					}
-					for l := s.startLine; l <= s.endLine; l++ {
-						duplicatedLines[s.file][l] = true
-					}
-				}
-			}
-		}
+		pyProcessDuplicateGroup(group, &blocks, duplicatedLines)
 	}
 
+	return blocks, duplicatedLines
+}
+
+// pyProcessDuplicateGroup processes a group of duplicate sequences.
+func pyProcessDuplicateGroup(group []pyDupSeq, blocks *[]types.DuplicateBlock, duplicatedLines map[string]map[int]bool) {
+	for i := 0; i < len(group); i++ {
+		for j := i + 1; j < len(group); j++ {
+			a, b := group[i], group[j]
+
+			if pySequencesOverlap(a, b) {
+				continue
+			}
+
+			*blocks = append(*blocks, types.DuplicateBlock{
+				FileA:     a.file,
+				StartA:    a.startLine,
+				EndA:      a.endLine,
+				FileB:     b.file,
+				StartB:    b.startLine,
+				EndB:      b.endLine,
+				LineCount: a.endLine - a.startLine + 1,
+			})
+
+			pyMarkDuplicatedLines([]pyDupSeq{a, b}, duplicatedLines)
+		}
+	}
+}
+
+// pySequencesOverlap checks if two sequences overlap in the same file.
+func pySequencesOverlap(a, b pyDupSeq) bool {
+	return a.file == b.file && a.startLine < b.endLine && b.startLine < a.endLine
+}
+
+// pyMarkDuplicatedLines marks lines as duplicated in the tracking map.
+func pyMarkDuplicatedLines(seqs []pyDupSeq, duplicatedLines map[string]map[int]bool) {
+	for _, s := range seqs {
+		if duplicatedLines[s.file] == nil {
+			duplicatedLines[s.file] = make(map[int]bool)
+		}
+		for l := s.startLine; l <= s.endLine; l++ {
+			duplicatedLines[s.file][l] = true
+		}
+	}
+}
+
+// pyCalculateDuplicationRate calculates the duplication rate from duplicated lines.
+func pyCalculateDuplicationRate(duplicatedLines map[string]map[int]bool, totalLines int) float64 {
 	dupLineCount := 0
 	for _, lines := range duplicatedLines {
 		dupLineCount += len(lines)
 	}
 
-	var rate float64
 	if totalLines > 0 {
-		rate = float64(dupLineCount) / float64(totalLines) * toPercentC1Py
+		return float64(dupLineCount) / float64(totalLines) * toPercentC1Py
 	}
-
-	return blocks, rate
+	return 0
 }
 
 // pyCollectDupSequences walks the AST collecting hashed statement sequences from block nodes.

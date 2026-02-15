@@ -62,44 +62,17 @@ func (m *m5Documentation) SampleCount() int { return m.sampleCount }
 func (m *m5Documentation) SelectSamples(targets []*types.AnalysisTarget) []Sample {
 	var candidates []Sample
 
-	// Pattern for comment lines (language-agnostic basics)
 	lineCommentPattern := regexp.MustCompile(`(?m)^\s*(?://|#)`)
 	blockCommentStart := regexp.MustCompile(`/\*`)
 	blockCommentEnd := regexp.MustCompile(`\*/`)
 
 	for _, target := range targets {
 		for _, file := range target.Files {
-			if file.Class != types.ClassSource {
-				continue
-			}
-			if file.Lines < m5MinFileLOC { // Skip very small files
+			if file.Class != types.ClassSource || file.Lines < m5MinFileLOC {
 				continue
 			}
 
-			content := string(file.Content)
-			lines := strings.Split(content, "\n")
-
-			// Count comment lines
-			commentLines := 0
-
-			// Count line comments
-			for _, line := range lines {
-				if lineCommentPattern.MatchString(line) {
-					commentLines++
-				}
-			}
-
-			// Count block comment lines (rough estimation)
-			blockStarts := len(blockCommentStart.FindAllString(content, -1))
-			blockEnds := len(blockCommentEnd.FindAllString(content, -1))
-			// Estimate average block comment is 3 lines
-			blockLines := min(blockStarts, blockEnds) * m5BlockCommentLinesEst
-			commentLines += blockLines
-
-			// Calculate comment density
-			density := float64(commentLines) / float64(file.Lines)
-
-			// Skip files with very low comment density
+			density, commentLines := m5CalculateCommentDensity(&file, lineCommentPattern, blockCommentStart, blockCommentEnd)
 			if density < m5MinCommentDensity {
 				continue
 			}
@@ -112,13 +85,47 @@ func (m *m5Documentation) SelectSamples(targets []*types.AnalysisTarget) []Sampl
 		}
 	}
 
-	// Sort by density descending
+	return m5SelectTopCandidates(candidates, m.sampleCount)
+}
+
+// m5CalculateCommentDensity counts line and block comments to compute density.
+func m5CalculateCommentDensity(file *types.SourceFile, linePattern, blockStart, blockEnd *regexp.Regexp) (float64, int) {
+	content := string(file.Content)
+	lines := strings.Split(content, "\n")
+
+	commentLines := m5CountLineComments(lines, linePattern)
+	commentLines += m5CountBlockComments(content, blockStart, blockEnd)
+
+	density := float64(commentLines) / float64(file.Lines)
+	return density, commentLines
+}
+
+// m5CountLineComments counts single-line comments.
+func m5CountLineComments(lines []string, pattern *regexp.Regexp) int {
+	count := 0
+	for _, line := range lines {
+		if pattern.MatchString(line) {
+			count++
+		}
+	}
+	return count
+}
+
+// m5CountBlockComments estimates block comment lines.
+func m5CountBlockComments(content string, blockStart, blockEnd *regexp.Regexp) int {
+	blockStarts := len(blockStart.FindAllString(content, -1))
+	blockEnds := len(blockEnd.FindAllString(content, -1))
+	return min(blockStarts, blockEnds) * m5BlockCommentLinesEst
+}
+
+// m5SelectTopCandidates sorts and limits candidates by score.
+func m5SelectTopCandidates(candidates []Sample, limit int) []Sample {
 	sort.Slice(candidates, func(i, j int) bool {
 		return candidates[i].SelectionScore > candidates[j].SelectionScore
 	})
 
-	if len(candidates) > m.sampleCount {
-		candidates = candidates[:m.sampleCount]
+	if len(candidates) > limit {
+		candidates = candidates[:limit]
 	}
 	return candidates
 }

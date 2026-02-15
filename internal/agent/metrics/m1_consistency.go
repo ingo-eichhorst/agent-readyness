@@ -77,9 +77,19 @@ func (m *m1Consistency) SampleCount() int { return m.sampleCount }
 // SelectSamples picks 1 file with moderate size (50-200 LOC) and 3-10 functions.
 // Uses deterministic heuristics: count `func ` occurrences, prefer moderate complexity.
 func (m *m1Consistency) SelectSamples(targets []*types.AnalysisTarget) []Sample {
-	var candidates []Sample
-
 	funcPattern := regexp.MustCompile(`(?m)^func\s+`)
+	candidates := m1CollectPrimaryCandidates(targets, funcPattern)
+
+	if len(candidates) == 0 {
+		candidates = m1CollectFallbackCandidates(targets)
+	}
+
+	return m1SelectTopCandidates(candidates, m.sampleCount)
+}
+
+// m1CollectPrimaryCandidates gathers files matching size and function count criteria.
+func m1CollectPrimaryCandidates(targets []*types.AnalysisTarget, funcPattern *regexp.Regexp) []Sample {
+	var candidates []Sample
 
 	for _, target := range targets {
 		for _, file := range target.Files {
@@ -87,25 +97,16 @@ func (m *m1Consistency) SelectSamples(targets []*types.AnalysisTarget) []Sample 
 				continue
 			}
 
-			// Skip files outside ideal size range
 			if file.Lines < m1MinFileLOC || file.Lines > m1MaxFileLOC {
 				continue
 			}
 
-			content := string(file.Content)
-			funcMatches := funcPattern.FindAllString(content, -1)
-			funcCount := len(funcMatches)
-
-			// Prefer files with moderate function count
+			funcCount := len(funcPattern.FindAllString(string(file.Content), -1))
 			if funcCount < m1MinFuncCount || funcCount > m1MaxFuncCount {
 				continue
 			}
 
-			// Score: prefer files closer to middle of range
-			sizeScore := 1.0 - float64(abs(file.Lines-m1IdealFileLOC))/float64(m1IdealFileLOC)
-			funcScore := 1.0 - float64(abs(funcCount-m1IdealFuncCount))/float64(m1IdealFuncCount)
-			score := (sizeScore + funcScore) / 2
-
+			score := m1ComputeSelectionScore(file.Lines, funcCount)
 			candidates = append(candidates, Sample{
 				FilePath:       file.RelPath,
 				SelectionScore: score,
@@ -113,29 +114,41 @@ func (m *m1Consistency) SelectSamples(targets []*types.AnalysisTarget) []Sample 
 			})
 		}
 	}
+	return candidates
+}
 
-	if len(candidates) == 0 {
-		// Fallback: take any source file
-		for _, target := range targets {
-			for _, file := range target.Files {
-				if file.Class != types.ClassSource && file.Lines > m1FallbackMinLOC {
-					candidates = append(candidates, Sample{
-						FilePath:       file.RelPath,
-						SelectionScore: float64(file.Lines),
-						Description:    fmt.Sprintf("Fallback selection (%d LOC)", file.Lines),
-					})
-				}
+// m1ComputeSelectionScore calculates score based on proximity to ideal values.
+func m1ComputeSelectionScore(lines, funcCount int) float64 {
+	sizeScore := 1.0 - float64(abs(lines-m1IdealFileLOC))/float64(m1IdealFileLOC)
+	funcScore := 1.0 - float64(abs(funcCount-m1IdealFuncCount))/float64(m1IdealFuncCount)
+	return (sizeScore + funcScore) / 2
+}
+
+// m1CollectFallbackCandidates returns source files when no primary candidates found.
+func m1CollectFallbackCandidates(targets []*types.AnalysisTarget) []Sample {
+	var candidates []Sample
+	for _, target := range targets {
+		for _, file := range target.Files {
+			if file.Class != types.ClassSource && file.Lines > m1FallbackMinLOC {
+				candidates = append(candidates, Sample{
+					FilePath:       file.RelPath,
+					SelectionScore: float64(file.Lines),
+					Description:    fmt.Sprintf("Fallback selection (%d LOC)", file.Lines),
+				})
 			}
 		}
 	}
+	return candidates
+}
 
-	// Sort by score descending
+// m1SelectTopCandidates sorts and limits candidates by score.
+func m1SelectTopCandidates(candidates []Sample, limit int) []Sample {
 	sort.Slice(candidates, func(i, j int) bool {
 		return candidates[i].SelectionScore > candidates[j].SelectionScore
 	})
 
-	if len(candidates) > m.sampleCount {
-		candidates = candidates[:m.sampleCount]
+	if len(candidates) > limit {
+		candidates = candidates[:limit]
 	}
 	return candidates
 }
@@ -154,106 +167,104 @@ func (m *m1Consistency) Execute(ctx context.Context, workDir string, samples []S
 		return result
 	}
 
-	sample := samples[0]
-
-	// Run the same task multiple times
-	var runResults []SampleResult
-	scores := make([]int, 0, m.runs)
-
-	for i := 0; i < m.runs; i++ {
-		runCtx, cancel := context.WithTimeout(ctx, m.timeout/time.Duration(m.runs))
-
-		prompt := fmt.Sprintf(`Read the file at %s and list all function names defined in it.
-Return ONLY a JSON array of function names, e.g.: ["func1", "func2"]
-Do not include any explanation, just the JSON array.`, sample.FilePath)
-
-		response, err := executor.ExecutePrompt(runCtx, workDir, prompt, "Read", m.timeout/time.Duration(m.runs))
-		cancel()
-
-		sr := SampleResult{
-			Sample:   sample,
-			Response: response,
-			Prompt:   prompt,
-		}
-
-		if err != nil {
-			sr.Error = err.Error()
-			sr.Score = 0
-		} else {
-			// Score based on response validity (does it look like a JSON array?)
-			response = strings.TrimSpace(response)
-			trace := ScoreTrace{BaseScore: 0}
-
-			if strings.HasPrefix(response, "[") && strings.HasSuffix(response, "]") {
-				trace.Indicators = append(trace.Indicators, IndicatorMatch{
-					Name: "json_array_exact", Matched: true, Delta: m1DeltaExactJSON,
-				})
-			} else if strings.Contains(response, "[") {
-				trace.Indicators = append(trace.Indicators, IndicatorMatch{
-					Name: "json_array_exact", Matched: false, Delta: 0,
-				})
-				trace.Indicators = append(trace.Indicators, IndicatorMatch{
-					Name: "json_array_partial", Matched: true, Delta: m1DeltaPartialJSON,
-				})
-			} else if len(response) > 0 {
-				trace.Indicators = append(trace.Indicators, IndicatorMatch{
-					Name: "json_array_exact", Matched: false, Delta: 0,
-				})
-				trace.Indicators = append(trace.Indicators, IndicatorMatch{
-					Name: "json_array_partial", Matched: false, Delta: 0,
-				})
-				trace.Indicators = append(trace.Indicators, IndicatorMatch{
-					Name: "non_empty_response", Matched: true, Delta: m1DeltaNonEmpty,
-				})
-			} else {
-				trace.Indicators = append(trace.Indicators, IndicatorMatch{
-					Name: "json_array_exact", Matched: false, Delta: 0,
-				})
-				trace.Indicators = append(trace.Indicators, IndicatorMatch{
-					Name: "json_array_partial", Matched: false, Delta: 0,
-				})
-				trace.Indicators = append(trace.Indicators, IndicatorMatch{
-					Name: "non_empty_response", Matched: false, Delta: 0,
-				})
-				trace.Indicators = append(trace.Indicators, IndicatorMatch{
-					Name: "empty_response", Matched: true, Delta: m1DeltaEmpty,
-				})
-			}
-
-			sr.Score = computeScore(&trace)
-			sr.ScoreTrace = trace
-			scores = append(scores, sr.Score)
-		}
-
-		runResults = append(runResults, sr)
-	}
-
+	runResults, scores := m.runConsistencyTrials(ctx, workDir, samples[0], executor)
 	result.Samples = runResults
 	result.Duration = time.Since(startTime)
 
-	// Calculate variance-based score
 	if len(scores) == 0 {
 		result.Score = 0
 		result.Error = "all runs failed"
 		return result
 	}
 
-	variance := calculateVariance(scores)
-	variancePct := (variance / m1VarianceNorm) * m1VarianceNorm // Normalize to percentage
+	result.Score = m1VarianceScore(scores)
+	return result
+}
 
-	// Score based on variance thresholds from research
-	switch {
-	case variancePct < m1LowVariance:
-		result.Score = maxScore
-	case variancePct < m1MedVariance:
-		result.Score = 7
-	case variancePct < m1HighVariance:
-		result.Score = 4
-	default:
-		result.Score = minScore
+func (m *m1Consistency) runConsistencyTrials(ctx context.Context, workDir string, sample Sample, executor Executor) ([]SampleResult, []int) {
+	var runResults []SampleResult
+	scores := make([]int, 0, m.runs)
+	perRunTimeout := m.timeout / time.Duration(m.runs)
+
+	for i := 0; i < m.runs; i++ {
+		runCtx, cancel := context.WithTimeout(ctx, perRunTimeout)
+
+		prompt := fmt.Sprintf(`Read the file at %s and list all function names defined in it.
+Return ONLY a JSON array of function names, e.g.: ["func1", "func2"]
+Do not include any explanation, just the JSON array.`, sample.FilePath)
+
+		response, err := executor.ExecutePrompt(runCtx, workDir, prompt, "Read", perRunTimeout)
+		cancel()
+
+		sr := SampleResult{Sample: sample, Response: response, Prompt: prompt}
+		if err != nil {
+			sr.Error = err.Error()
+			sr.Score = 0
+		} else {
+			sr.ScoreTrace = m1ScoreResponse(strings.TrimSpace(response))
+			sr.Score = computeScore(&sr.ScoreTrace)
+			scores = append(scores, sr.Score)
+		}
+		runResults = append(runResults, sr)
+	}
+	return runResults, scores
+}
+
+func m1ScoreResponse(response string) ScoreTrace {
+	trace := ScoreTrace{BaseScore: 0}
+
+	if strings.HasPrefix(response, "[") && strings.HasSuffix(response, "]") {
+		trace.Indicators = append(trace.Indicators, IndicatorMatch{
+			Name: "json_array_exact", Matched: true, Delta: m1DeltaExactJSON,
+		})
+		return trace
 	}
 
-	return result
+	trace.Indicators = append(trace.Indicators, IndicatorMatch{
+		Name: "json_array_exact", Matched: false, Delta: 0,
+	})
+
+	if strings.Contains(response, "[") {
+		trace.Indicators = append(trace.Indicators, IndicatorMatch{
+			Name: "json_array_partial", Matched: true, Delta: m1DeltaPartialJSON,
+		})
+		return trace
+	}
+
+	trace.Indicators = append(trace.Indicators, IndicatorMatch{
+		Name: "json_array_partial", Matched: false, Delta: 0,
+	})
+
+	if len(response) > 0 {
+		trace.Indicators = append(trace.Indicators, IndicatorMatch{
+			Name: "non_empty_response", Matched: true, Delta: m1DeltaNonEmpty,
+		})
+	} else {
+		trace.Indicators = append(trace.Indicators, IndicatorMatch{
+			Name: "non_empty_response", Matched: false, Delta: 0,
+		})
+		trace.Indicators = append(trace.Indicators, IndicatorMatch{
+			Name: "empty_response", Matched: true, Delta: m1DeltaEmpty,
+		})
+	}
+
+	return trace
+}
+
+func m1VarianceScore(scores []int) int {
+	variance := calculateVariance(scores)
+	variancePct := (variance / m1VarianceNorm) * m1VarianceNorm
+
+	switch {
+	case variancePct < m1LowVariance:
+		return maxScore
+	case variancePct < m1MedVariance:
+		return 7
+	case variancePct < m1HighVariance:
+		return 4
+	default:
+		return minScore
+	}
 }
 
 // calculateVariance computes the variance of a slice of integers.

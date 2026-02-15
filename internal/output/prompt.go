@@ -37,15 +37,28 @@ type promptParams struct {
 // renderImprovementPrompt builds HTML containing a copyable prompt with
 // 4 sections: Context, Build & Test, Task, and Verification.
 func renderImprovementPrompt(params promptParams) string {
-	var b strings.Builder
+	promptText := buildPromptText(params)
+	return wrapPromptInHTML(promptText)
+}
 
-	// Build the plain-text prompt content
+// buildPromptText constructs the plain-text prompt content.
+func buildPromptText(params promptParams) string {
 	var prompt strings.Builder
 
-	// Section 1: Context
+	writeContextSection(&prompt, params)
+	writeBuildTestSection(&prompt, params.Language)
+	writeTaskSection(&prompt, params)
+	writeVerificationSection(&prompt, params)
+
+	return prompt.String()
+}
+
+// writeContextSection writes the Context section to the prompt.
+func writeContextSection(prompt *strings.Builder, params promptParams) {
 	prompt.WriteString("## Context\n\n")
 	prompt.WriteString(fmt.Sprintf("I'm working on improving the %s metric in this codebase.\n", params.MetricDisplay))
 	prompt.WriteString(fmt.Sprintf("Current score: %.1f/10 (raw value: %s)\n", params.Score, params.FormattedValue))
+
 	if params.HasBreakpoints {
 		prompt.WriteString(fmt.Sprintf("Target score: %.1f/10 (target value: %.4g)\n", params.TargetScore, params.TargetValue))
 	} else {
@@ -55,40 +68,53 @@ func renderImprovementPrompt(params promptParams) string {
 		}
 		prompt.WriteString(fmt.Sprintf("Target score: Improve score above %.1f/10\n", targetScore))
 	}
+
 	prompt.WriteString(fmt.Sprintf("\nCategory: %s\n", params.CategoryDisplay))
 	prompt.WriteString(fmt.Sprintf("Why it matters: %s\n", params.CategoryImpact))
+}
 
-	// Section 2: Build & Test Commands
+// writeBuildTestSection writes the Build & Test Commands section.
+func writeBuildTestSection(prompt *strings.Builder, language string) {
 	prompt.WriteString("\n## Build & Test Commands\n\n")
-	prompt.WriteString(languageBuildCommands(params.Language))
+	prompt.WriteString(languageBuildCommands(language))
 	prompt.WriteString("\n")
+}
 
-	// Section 3: Task
+// writeTaskSection writes the Task section including Files to Focus On.
+func writeTaskSection(prompt *strings.Builder, params promptParams) {
 	prompt.WriteString("\n## Task\n\n")
 	prompt.WriteString(getMetricTaskGuidance(params.MetricName, params.RawValue, params.TargetValue, params.HasBreakpoints))
 
-	// Files to Focus On (only if evidence exists)
 	if len(params.Evidence) > 0 {
-		prompt.WriteString("\n### Files to Focus On\n\n")
-		limit := len(params.Evidence)
-		if limit > maxEvidenceItems {
-			limit = maxEvidenceItems
-		}
-		for i := 0; i < limit; i++ {
-			ev := params.Evidence[i]
-			prompt.WriteString(fmt.Sprintf("%d. %s:%d - %s (value: %.4g)\n", i+1, ev.FilePath, ev.Line, ev.Description, ev.Value))
-		}
+		writeEvidenceList(prompt, params.Evidence)
 	}
+}
 
-	// Section 4: Verification
+// writeEvidenceList writes the Files to Focus On subsection.
+func writeEvidenceList(prompt *strings.Builder, evidence []types.EvidenceItem) {
+	prompt.WriteString("\n### Files to Focus On\n\n")
+	limit := len(evidence)
+	if limit > maxEvidenceItems {
+		limit = maxEvidenceItems
+	}
+	for i := 0; i < limit; i++ {
+		ev := evidence[i]
+		prompt.WriteString(fmt.Sprintf("%d. %s:%d - %s (value: %.4g)\n", i+1, ev.FilePath, ev.Line, ev.Description, ev.Value))
+	}
+}
+
+// writeVerificationSection writes the Verification section.
+func writeVerificationSection(prompt *strings.Builder, params promptParams) {
 	prompt.WriteString("\n## Verification\n\n")
 	prompt.WriteString("After making changes:\n")
 	prompt.WriteString(languageTestCommand(params.Language))
 	prompt.WriteString("\nThen re-scan: ars scan . --output-html /tmp/report.html\n")
 	prompt.WriteString(fmt.Sprintf("Check that the %s score has improved above %.1f.\n", params.MetricDisplay, params.TargetScore))
+}
 
-	// Wrap in HTML container with copy button
-	promptText := prompt.String()
+// wrapPromptInHTML wraps the prompt text in an HTML container with copy button.
+func wrapPromptInHTML(promptText string) string {
+	var b strings.Builder
 	escapedPrompt := template.HTMLEscapeString(promptText)
 
 	b.WriteString(`<div class="prompt-copy-container">`)

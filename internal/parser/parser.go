@@ -34,7 +34,18 @@ type GoPackagesParser struct{}
 // It returns source packages and test packages separately identified via ForTest.
 // Packages with errors are skipped with a log warning.
 func (p *GoPackagesParser) Parse(rootDir string) ([]*ParsedPackage, error) {
-	cfg := &packages.Config{
+	cfg := createPackageConfig(rootDir)
+	pkgs, err := packages.Load(cfg, "./...")
+	if err != nil {
+		return nil, fmt.Errorf("packages.Load: %w", err)
+	}
+
+	return deduplicateAndConvertPackages(pkgs), nil
+}
+
+// createPackageConfig creates a packages.Config for loading Go packages.
+func createPackageConfig(rootDir string) *packages.Config {
+	return &packages.Config{
 		Mode: packages.NeedName |
 			packages.NeedFiles |
 			packages.NeedImports |
@@ -46,55 +57,66 @@ func (p *GoPackagesParser) Parse(rootDir string) ([]*ParsedPackage, error) {
 		Dir:   rootDir,
 		Tests: true,
 	}
+}
 
-	pkgs, err := packages.Load(cfg, "./...")
-	if err != nil {
-		return nil, fmt.Errorf("packages.Load: %w", err)
-	}
-
-	// Deduplicate by PkgPath. For each PkgPath, prefer the non-test variant
-	// for source analysis. Test variants (ForTest != "") are kept separately.
-	// This avoids the go/packages test-package duplication issue.
+// deduplicateAndConvertPackages converts and deduplicates loaded packages.
+func deduplicateAndConvertPackages(pkgs []*packages.Package) []*ParsedPackage {
 	seen := make(map[string]*ParsedPackage)
 	var result []*ParsedPackage
 
 	for _, pkg := range pkgs {
-		// Skip packages with errors but log them
-		if len(pkg.Errors) > 0 {
-			for _, e := range pkg.Errors {
-				log.Printf("warning: package %s: %s", pkg.PkgPath, e)
-			}
-			// Still include if we got useful data (partial results)
-			if pkg.Types == nil || len(pkg.Syntax) == 0 {
-				continue
-			}
+		if !isValidPackage(pkg) {
+			continue
 		}
 
-		parsed := &ParsedPackage{
-			ID:        pkg.ID,
-			Name:      pkg.Name,
-			PkgPath:   pkg.PkgPath,
-			GoFiles:   pkg.GoFiles,
-			Syntax:    pkg.Syntax,
-			Fset:      pkg.Fset,
-			Types:     pkg.Types,
-			TypesInfo: pkg.TypesInfo,
-			Imports:   pkg.Imports,
-			ForTest:   pkg.ForTest,
-		}
-
-		// Deduplication: if this is a test package, always add it
-		// (test packages have ForTest set). For source packages,
-		// keep only one per PkgPath.
-		if pkg.ForTest != "" {
-			result = append(result, parsed)
-		} else {
-			if _, exists := seen[pkg.PkgPath]; !exists {
-				seen[pkg.PkgPath] = parsed
-				result = append(result, parsed)
-			}
-		}
+		parsed := convertToParsedPackage(pkg)
+		addPackageToResult(parsed, &result, seen)
 	}
 
-	return result, nil
+	return result
+}
+
+// isValidPackage checks if a package has valid data or logs errors.
+func isValidPackage(pkg *packages.Package) bool {
+	if len(pkg.Errors) > 0 {
+		for _, e := range pkg.Errors {
+			log.Printf("warning: package %s: %s", pkg.PkgPath, e)
+		}
+		// Still include if we got useful data (partial results)
+		if pkg.Types == nil || len(pkg.Syntax) == 0 {
+			return false
+		}
+	}
+	return true
+}
+
+// convertToParsedPackage converts a packages.Package to ParsedPackage.
+func convertToParsedPackage(pkg *packages.Package) *ParsedPackage {
+	return &ParsedPackage{
+		ID:        pkg.ID,
+		Name:      pkg.Name,
+		PkgPath:   pkg.PkgPath,
+		GoFiles:   pkg.GoFiles,
+		Syntax:    pkg.Syntax,
+		Fset:      pkg.Fset,
+		Types:     pkg.Types,
+		TypesInfo: pkg.TypesInfo,
+		Imports:   pkg.Imports,
+		ForTest:   pkg.ForTest,
+	}
+}
+
+// addPackageToResult adds a package to the result, handling deduplication.
+func addPackageToResult(parsed *ParsedPackage, result *[]*ParsedPackage, seen map[string]*ParsedPackage) {
+	// Test packages (ForTest != "") are always added
+	if parsed.ForTest != "" {
+		*result = append(*result, parsed)
+		return
+	}
+
+	// Source packages: keep only one per PkgPath
+	if _, exists := seen[parsed.PkgPath]; !exists {
+		seen[parsed.PkgPath] = parsed
+		*result = append(*result, parsed)
+	}
 }

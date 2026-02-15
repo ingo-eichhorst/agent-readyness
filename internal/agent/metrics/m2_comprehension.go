@@ -59,10 +59,13 @@ func (m *m2Comprehension) SampleCount() int { return m.sampleCount }
 // SelectSamples picks complex functions by counting complexity indicators
 // (if/for/switch/case statements). Score = complexity_count * (1/sqrt(Lines)).
 func (m *m2Comprehension) SelectSamples(targets []*types.AnalysisTarget) []Sample {
-	var candidates []Sample
+	complexityPatterns := buildComplexityPatterns()
+	candidates := m.collectComplexityCandidates(targets, complexityPatterns)
+	return m.selectTopCandidates(candidates)
+}
 
-	// Patterns for complexity indicators across languages
-	complexityPatterns := []*regexp.Regexp{
+func buildComplexityPatterns() []*regexp.Regexp {
+	return []*regexp.Regexp{
 		regexp.MustCompile(`\bif\b`),
 		regexp.MustCompile(`\bfor\b`),
 		regexp.MustCompile(`\bswitch\b`),
@@ -72,32 +75,23 @@ func (m *m2Comprehension) SelectSamples(targets []*types.AnalysisTarget) []Sampl
 		regexp.MustCompile(`\bcatch\b`),
 		regexp.MustCompile(`\belse\b`),
 	}
+}
+
+func (m *m2Comprehension) collectComplexityCandidates(targets []*types.AnalysisTarget, patterns []*regexp.Regexp) []Sample {
+	var candidates []Sample
 
 	for _, target := range targets {
 		for _, file := range target.Files {
-			if file.Class != types.ClassSource {
-				continue
-			}
-			if file.Lines < m2MinFileLOC { // Skip very small files
+			if file.Class != types.ClassSource || file.Lines < m2MinFileLOC {
 				continue
 			}
 
-			content := string(file.Content)
-
-			// Count complexity indicators
-			complexityCount := 0
-			for _, pattern := range complexityPatterns {
-				matches := pattern.FindAllString(content, -1)
-				complexityCount += len(matches)
-			}
-
-			if complexityCount < m2MinComplexity { // Skip simple files
+			complexityCount := countComplexityIndicators(string(file.Content), patterns)
+			if complexityCount < m2MinComplexity {
 				continue
 			}
 
-			// Score = complexity / sqrt(lines) - favors dense complexity
 			score := float64(complexityCount) / math.Sqrt(float64(file.Lines))
-
 			candidates = append(candidates, Sample{
 				FilePath:       file.RelPath,
 				SelectionScore: score,
@@ -106,7 +100,19 @@ func (m *m2Comprehension) SelectSamples(targets []*types.AnalysisTarget) []Sampl
 		}
 	}
 
-	// Sort by score descending
+	return candidates
+}
+
+func countComplexityIndicators(content string, patterns []*regexp.Regexp) int {
+	count := 0
+	for _, pattern := range patterns {
+		matches := pattern.FindAllString(content, -1)
+		count += len(matches)
+	}
+	return count
+}
+
+func (m *m2Comprehension) selectTopCandidates(candidates []Sample) []Sample {
 	sort.Slice(candidates, func(i, j int) bool {
 		return candidates[i].SelectionScore > candidates[j].SelectionScore
 	})

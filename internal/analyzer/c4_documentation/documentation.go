@@ -86,56 +86,45 @@ func (a *C4Analyzer) Analyze(targets []*types.AnalysisTarget) (*types.AnalysisRe
 	rootDir := targets[0].RootDir
 
 	metrics := &types.C4Metrics{
-		ChangelogDaysOld: -1, // Default to -1 (not present)
+		ChangelogDaysOld: -1,
 	}
 
-	// C4-01: README presence and word count
+	analyzeStaticDocs(rootDir, metrics)
+	a.analyzeCodeMetrics(targets, metrics)
+
+	if a.evaluator != nil {
+		a.runLLMAnalysis(rootDir, metrics)
+	}
+
+	metrics.Available = true
+
+	return &types.AnalysisResult{
+		Name:     "C4: Documentation Quality",
+		Category: "C4",
+		Metrics:  map[string]types.CategoryMetrics{"c4": metrics},
+	}, nil
+}
+
+// analyzeStaticDocs checks for presence of documentation artifacts (README, CHANGELOG, etc.).
+func analyzeStaticDocs(rootDir string, metrics *types.C4Metrics) {
 	metrics.ReadmePresent, metrics.ReadmeWordCount = analyzeReadme(rootDir)
-
-	// C4-04: CHANGELOG presence
 	metrics.ChangelogPresent = analyzeChangelog(rootDir)
-
-	// C4-05: Examples presence
 	metrics.ExamplesPresent = analyzeExamples(rootDir)
-
-	// C4-06: CONTRIBUTING presence
 	metrics.ContributingPresent = analyzeContributing(rootDir)
-
-	// C4-07: Diagrams presence
 	metrics.DiagramsPresent = analyzeDiagrams(rootDir)
+}
 
-	// C4-02 & C4-03: Comment density and API doc coverage across all languages
+// analyzeCodeMetrics computes comment density and API doc coverage across all language targets.
+func (a *C4Analyzer) analyzeCodeMetrics(targets []*types.AnalysisTarget, metrics *types.C4Metrics) {
 	totalLines, commentLines := 0, 0
 	publicAPIs, documentedAPIs := 0, 0
 
 	for _, target := range targets {
-		switch target.Language {
-		case types.LangGo:
-			tl, cl := analyzeGoComments(target)
-			totalLines += tl
-			commentLines += cl
-			pa, da := analyzeGoAPIDocs(target)
-			publicAPIs += pa
-			documentedAPIs += da
-		case types.LangPython:
-			if a.tsParser != nil {
-				tl, cl := analyzePythonComments(target, a.tsParser)
-				totalLines += tl
-				commentLines += cl
-				pa, da := analyzePythonAPIDocs(target, a.tsParser)
-				publicAPIs += pa
-				documentedAPIs += da
-			}
-		case types.LangTypeScript:
-			if a.tsParser != nil {
-				tl, cl := analyzeTypeScriptComments(target, a.tsParser)
-				totalLines += tl
-				commentLines += cl
-				pa, da := analyzeTypeScriptAPIDocs(target, a.tsParser)
-				publicAPIs += pa
-				documentedAPIs += da
-			}
-		}
+		tl, cl, pa, da := a.analyzeTargetCodeMetrics(target)
+		totalLines += tl
+		commentLines += cl
+		publicAPIs += pa
+		documentedAPIs += da
 	}
 
 	metrics.TotalSourceLines = totalLines
@@ -149,20 +138,26 @@ func (a *C4Analyzer) Analyze(targets []*types.AnalysisTarget) (*types.AnalysisRe
 	if publicAPIs > 0 {
 		metrics.APIDocCoverage = float64(documentedAPIs) / float64(publicAPIs) * toPercentC4
 	}
+}
 
-	// LLM-based content quality evaluation (if enabled)
-	if a.evaluator != nil {
-		a.runLLMAnalysis(rootDir, metrics)
+// analyzeTargetCodeMetrics returns comment and API doc counts for a single language target.
+func (a *C4Analyzer) analyzeTargetCodeMetrics(target *types.AnalysisTarget) (totalLines, commentLines, publicAPIs, documentedAPIs int) {
+	switch target.Language {
+	case types.LangGo:
+		totalLines, commentLines = analyzeGoComments(target)
+		publicAPIs, documentedAPIs = analyzeGoAPIDocs(target)
+	case types.LangPython:
+		if a.tsParser != nil {
+			totalLines, commentLines = analyzePythonComments(target, a.tsParser)
+			publicAPIs, documentedAPIs = analyzePythonAPIDocs(target, a.tsParser)
+		}
+	case types.LangTypeScript:
+		if a.tsParser != nil {
+			totalLines, commentLines = analyzeTypeScriptComments(target, a.tsParser)
+			publicAPIs, documentedAPIs = analyzeTypeScriptAPIDocs(target, a.tsParser)
+		}
 	}
-
-	// Static metrics are always available (even without LLM)
-	metrics.Available = true
-
-	return &types.AnalysisResult{
-		Name:     "C4: Documentation Quality",
-		Category: "C4",
-		Metrics:  map[string]types.CategoryMetrics{"c4": metrics},
-	}, nil
+	return
 }
 
 // runLLMAnalysis performs LLM-based content quality evaluation using Claude CLI.
@@ -180,55 +175,79 @@ func (a *C4Analyzer) runLLMAnalysis(rootDir string, metrics *types.C4Metrics) {
 	ctx, cancel := context.WithTimeout(context.Background(), llmAnalysisTimeout)
 	defer cancel()
 
-	totalTokens := 0
+	totalTokens := evaluateReadmeClarity(ctx, a.evaluator, rootDir, metrics)
+	totalTokens += evaluateExampleQuality(ctx, a.evaluator, rootDir, metrics)
+	totalTokens += evaluateCompleteness(ctx, a.evaluator, rootDir, metrics)
+	totalTokens += evaluateCrossRefCoherence(ctx, a.evaluator, rootDir, metrics)
 
-	// 1. README clarity evaluation
-	if metrics.ReadmePresent {
-		readmeContent := readReadmeContent(rootDir)
-		if readmeContent != "" {
-			eval, err := a.evaluator.EvaluateWithRetry(ctx, agent.ReadmeClarityPrompt, readmeContent)
-			if err == nil {
-				metrics.ReadmeClarity = eval.Score
-				totalTokens += estimateTokens(readmeContent)
-			}
-		}
+	finalizeLLMMetrics(metrics, totalTokens, rootDir)
+}
+
+func evaluateReadmeClarity(ctx context.Context, evaluator *agent.Evaluator, rootDir string, metrics *types.C4Metrics) int {
+	if !metrics.ReadmePresent {
+		return 0
 	}
 
-	// 2. Example quality evaluation (from README examples or examples directory)
+	readmeContent := readReadmeContent(rootDir)
+	if readmeContent == "" {
+		return 0
+	}
+
+	eval, err := evaluator.EvaluateWithRetry(ctx, agent.ReadmeClarityPrompt, readmeContent)
+	if err == nil {
+		metrics.ReadmeClarity = eval.Score
+		return estimateTokens(readmeContent)
+	}
+	return 0
+}
+
+func evaluateExampleQuality(ctx context.Context, evaluator *agent.Evaluator, rootDir string, metrics *types.C4Metrics) int {
 	exampleContent := collectExampleContent(rootDir)
-	if exampleContent != "" {
-		eval, err := a.evaluator.EvaluateWithRetry(ctx, agent.ExampleQualityPrompt, exampleContent)
-		if err == nil {
-			metrics.ExampleQuality = eval.Score
-			totalTokens += estimateTokens(exampleContent)
-		}
+	if exampleContent == "" {
+		return 0
 	}
 
-	// 3. Completeness evaluation (overall documentation)
+	eval, err := evaluator.EvaluateWithRetry(ctx, agent.ExampleQualityPrompt, exampleContent)
+	if err == nil {
+		metrics.ExampleQuality = eval.Score
+		return estimateTokens(exampleContent)
+	}
+	return 0
+}
+
+func evaluateCompleteness(ctx context.Context, evaluator *agent.Evaluator, rootDir string, metrics *types.C4Metrics) int {
 	docsContent := collectDocsSummary(rootDir, metrics)
-	if docsContent != "" {
-		eval, err := a.evaluator.EvaluateWithRetry(ctx, agent.CompletenessPrompt, docsContent)
-		if err == nil {
-			metrics.Completeness = eval.Score
-			totalTokens += estimateTokens(docsContent)
-		}
+	if docsContent == "" {
+		return 0
 	}
 
-	// 4. Cross-reference coherence evaluation
-	if metrics.ReadmePresent {
-		readmeContent := readReadmeContent(rootDir)
-		if readmeContent != "" {
-			eval, err := a.evaluator.EvaluateWithRetry(ctx, agent.CrossRefCoherencePrompt, readmeContent)
-			if err == nil {
-				metrics.CrossRefCoherence = eval.Score
-				totalTokens += estimateTokens(readmeContent)
-			}
-		}
+	eval, err := evaluator.EvaluateWithRetry(ctx, agent.CompletenessPrompt, docsContent)
+	if err == nil {
+		metrics.Completeness = eval.Score
+		return estimateTokens(docsContent)
+	}
+	return 0
+}
+
+func evaluateCrossRefCoherence(ctx context.Context, evaluator *agent.Evaluator, rootDir string, metrics *types.C4Metrics) int {
+	if !metrics.ReadmePresent {
+		return 0
 	}
 
-	// Calculate approximate cost (CLI uses Sonnet pricing, higher than Haiku)
-	// Sonnet pricing: ~$3/MTok input, ~$15/MTok output
-	// Simplified: ~$0.005 per 1000 tokens blended
+	readmeContent := readReadmeContent(rootDir)
+	if readmeContent == "" {
+		return 0
+	}
+
+	eval, err := evaluator.EvaluateWithRetry(ctx, agent.CrossRefCoherencePrompt, readmeContent)
+	if err == nil {
+		metrics.CrossRefCoherence = eval.Score
+		return estimateTokens(readmeContent)
+	}
+	return 0
+}
+
+func finalizeLLMMetrics(metrics *types.C4Metrics, totalTokens int, rootDir string) {
 	metrics.LLMTokensUsed = totalTokens
 	metrics.LLMCostUSD = float64(totalTokens) / 1_000_000 * llmCostPerMTok
 	metrics.LLMFilesSampled = countSampledFiles(rootDir)
@@ -260,58 +279,69 @@ func readReadmeContent(rootDir string) string {
 func collectExampleContent(rootDir string) string {
 	var examples strings.Builder
 
-	// Check examples directory
+	if !collectExamplesFromDirectory(rootDir, &examples) {
+		collectExamplesFromReadme(rootDir, &examples)
+	}
+
+	return truncateExampleContent(examples.String())
+}
+
+func collectExamplesFromDirectory(rootDir string, examples *strings.Builder) bool {
 	examplesDirs := []string{
 		filepath.Join(rootDir, "examples"),
 		filepath.Join(rootDir, "example"),
 	}
 
 	for _, dir := range examplesDirs {
-		entries, err := os.ReadDir(dir)
-		if err != nil {
+		if collectExampleFilesFromDir(dir, examples) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func collectExampleFilesFromDir(dir string, examples *strings.Builder) bool {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return false
+	}
+
+	count := 0
+	for _, entry := range entries {
+		if entry.IsDir() || count >= maxExampleFiles {
 			continue
 		}
-
-		// Collect first few example files
-		count := 0
-		for _, entry := range entries {
-			if entry.IsDir() || count >= maxExampleFiles {
-				continue
-			}
-			ext := strings.ToLower(filepath.Ext(entry.Name()))
-			if ext == ".go" || ext == ".py" || ext == ".ts" || ext == ".js" {
-				content, err := os.ReadFile(filepath.Join(dir, entry.Name()))
-				if err == nil {
-					examples.WriteString(fmt.Sprintf("=== %s ===\n%s\n\n", entry.Name(), string(content)))
-					count++
-				}
+		ext := strings.ToLower(filepath.Ext(entry.Name()))
+		if ext == ".go" || ext == ".py" || ext == ".ts" || ext == ".js" {
+			content, err := os.ReadFile(filepath.Join(dir, entry.Name()))
+			if err == nil {
+				examples.WriteString(fmt.Sprintf("=== %s ===\n%s\n\n", entry.Name(), string(content)))
+				count++
 			}
 		}
-		if count > 0 {
+	}
+
+	return count > 0
+}
+
+func collectExamplesFromReadme(rootDir string, examples *strings.Builder) {
+	readmeContent := readReadmeContent(rootDir)
+	codeBlocks := extractCodeBlocks(readmeContent)
+
+	for i, block := range codeBlocks {
+		if i >= maxExampleFiles {
 			break
 		}
+		examples.WriteString(fmt.Sprintf("=== README Example %d ===\n%s\n\n", i+1, block))
 	}
+}
 
-	// If no examples dir, extract code blocks from README
-	if examples.Len() == 0 {
-		readmeContent := readReadmeContent(rootDir)
-		codeBlocks := extractCodeBlocks(readmeContent)
-		if len(codeBlocks) > 0 {
-			for i, block := range codeBlocks {
-				if i >= maxExampleFiles {
-					break
-				}
-				examples.WriteString(fmt.Sprintf("=== README Example %d ===\n%s\n\n", i+1, block))
-			}
-		}
+func truncateExampleContent(content string) string {
+	if len(content) > exampleContentLimit {
+		return content[:exampleContentLimit]
 	}
-
-	result := examples.String()
-	// Truncate to save tokens
-	if len(result) > exampleContentLimit {
-		result = result[:exampleContentLimit]
-	}
-	return result
+	return content
 }
 
 // extractCodeBlocks extracts fenced code blocks from markdown.

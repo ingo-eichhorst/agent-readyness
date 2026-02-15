@@ -67,82 +67,87 @@ type identifierCandidate struct {
 // SelectSamples extracts exported identifiers and selects those with longer,
 // more semantically rich names. Longer names = more semantic content to test.
 func (m *m4Identifiers) SelectSamples(targets []*types.AnalysisTarget) []Sample {
-	var candidates []identifierCandidate
+	candidates := m4CollectCandidates(targets)
 
-	// Patterns for exported identifiers by language
-	goExportedFunc := regexp.MustCompile(`(?m)^func\s+([A-Z][a-zA-Z0-9_]*)\s*\(`)
-	goExportedType := regexp.MustCompile(`(?m)^type\s+([A-Z][a-zA-Z0-9_]*)\s+`)
-	goExportedVar := regexp.MustCompile(`(?m)^(?:var|const)\s+([A-Z][a-zA-Z0-9_]*)`)
-	tsExported := regexp.MustCompile(`(?m)^export\s+(?:function|class|const|let|var|interface|type)\s+([a-zA-Z_][a-zA-Z0-9_]*)`)
-	pyPublic := regexp.MustCompile(`(?m)^(?:def|class)\s+([a-zA-Z][a-zA-Z0-9_]*)`) // Python uses convention, not export
-
-	for _, target := range targets {
-		var patterns []*regexp.Regexp
-
-		switch target.Language {
-		case types.LangGo:
-			patterns = []*regexp.Regexp{goExportedFunc, goExportedType, goExportedVar}
-		case types.LangTypeScript:
-			patterns = []*regexp.Regexp{tsExported}
-		case types.LangPython:
-			patterns = []*regexp.Regexp{pyPublic}
-		default:
-			continue
-		}
-
-		for _, file := range target.Files {
-			if file.Class != types.ClassSource {
-				continue
-			}
-
-			content := string(file.Content)
-			lines := strings.Split(content, "\n")
-
-			for _, pattern := range patterns {
-				matches := pattern.FindAllStringSubmatchIndex(content, -1)
-				for _, match := range matches {
-					if len(match) >= 4 {
-						name := content[match[2]:match[3]]
-
-						// Skip very short names (less semantic content)
-						if len(name) < m4MinNameLength {
-							continue
-						}
-
-						// Skip obvious test/example identifiers
-						nameLower := strings.ToLower(name)
-						if strings.HasPrefix(nameLower, "test") ||
-							strings.HasPrefix(nameLower, "example") ||
-							strings.HasPrefix(nameLower, "mock") {
-							continue
-						}
-
-						// Calculate line number
-						lineNum := 1 + strings.Count(content[:match[0]], "\n")
-
-						// Score based on name length and word count (camelCase/snake_case words)
-						wordCount := countIdentifierWords(name)
-						score := float64(len(name)) * float64(wordCount)
-
-						candidates = append(candidates, identifierCandidate{
-							name:     name,
-							filePath: file.RelPath,
-							line:     lineNum,
-							score:    score,
-						})
-					}
-				}
-			}
-			_ = lines // Used above for reference
-		}
-	}
-
-	// Sort by score descending (longer, more complex names first)
 	sort.Slice(candidates, func(i, j int) bool {
 		return candidates[i].score > candidates[j].score
 	})
 
-	// Deduplicate by name (keep highest scored occurrence)
+	unique := m4Deduplicate(candidates)
+	return m4ConvertToSamples(unique, m.sampleCount)
+}
+
+var (
+	m4GoExportedFunc = regexp.MustCompile(`(?m)^func\s+([A-Z][a-zA-Z0-9_]*)\s*\(`)
+	m4GoExportedType = regexp.MustCompile(`(?m)^type\s+([A-Z][a-zA-Z0-9_]*)\s+`)
+	m4GoExportedVar  = regexp.MustCompile(`(?m)^(?:var|const)\s+([A-Z][a-zA-Z0-9_]*)`)
+	m4TsExported     = regexp.MustCompile(`(?m)^export\s+(?:function|class|const|let|var|interface|type)\s+([a-zA-Z_][a-zA-Z0-9_]*)`)
+	m4PyPublic       = regexp.MustCompile(`(?m)^(?:def|class)\s+([a-zA-Z][a-zA-Z0-9_]*)`)
+)
+
+func m4PatternsForLang(lang types.Language) []*regexp.Regexp {
+	switch lang {
+	case types.LangGo:
+		return []*regexp.Regexp{m4GoExportedFunc, m4GoExportedType, m4GoExportedVar}
+	case types.LangTypeScript:
+		return []*regexp.Regexp{m4TsExported}
+	case types.LangPython:
+		return []*regexp.Regexp{m4PyPublic}
+	default:
+		return nil
+	}
+}
+
+func m4CollectCandidates(targets []*types.AnalysisTarget) []identifierCandidate {
+	var candidates []identifierCandidate
+	for _, target := range targets {
+		patterns := m4PatternsForLang(target.Language)
+		if patterns == nil {
+			continue
+		}
+		for _, file := range target.Files {
+			if file.Class != types.ClassSource {
+				continue
+			}
+			candidates = append(candidates, m4ExtractFromFile(file, patterns)...)
+		}
+	}
+	return candidates
+}
+
+func m4ExtractFromFile(file types.SourceFile, patterns []*regexp.Regexp) []identifierCandidate {
+	content := string(file.Content)
+	var candidates []identifierCandidate
+	for _, pattern := range patterns {
+		matches := pattern.FindAllStringSubmatchIndex(content, -1)
+		for _, match := range matches {
+			if len(match) < 4 {
+				continue
+			}
+			name := content[match[2]:match[3]]
+			if len(name) < m4MinNameLength {
+				continue
+			}
+			nameLower := strings.ToLower(name)
+			if strings.HasPrefix(nameLower, "test") ||
+				strings.HasPrefix(nameLower, "example") ||
+				strings.HasPrefix(nameLower, "mock") {
+				continue
+			}
+			lineNum := 1 + strings.Count(content[:match[0]], "\n")
+			wordCount := countIdentifierWords(name)
+			candidates = append(candidates, identifierCandidate{
+				name:     name,
+				filePath: file.RelPath,
+				line:     lineNum,
+				score:    float64(len(name)) * float64(wordCount),
+			})
+		}
+	}
+	return candidates
+}
+
+func m4Deduplicate(candidates []identifierCandidate) []identifierCandidate {
 	seen := make(map[string]bool)
 	var unique []identifierCandidate
 	for _, c := range candidates {
@@ -151,11 +156,13 @@ func (m *m4Identifiers) SelectSamples(targets []*types.AnalysisTarget) []Sample 
 			unique = append(unique, c)
 		}
 	}
+	return unique
+}
 
-	// Convert to samples
+func m4ConvertToSamples(unique []identifierCandidate, maxCount int) []Sample {
 	var samples []Sample
 	for i, c := range unique {
-		if i >= m.sampleCount {
+		if i >= maxCount {
 			break
 		}
 		samples = append(samples, Sample{
@@ -166,7 +173,6 @@ func (m *m4Identifiers) SelectSamples(targets []*types.AnalysisTarget) []Sample 
 			Description:    fmt.Sprintf("Exported identifier '%s' with %d chars", c.name, len(c.name)),
 		})
 	}
-
 	return samples
 }
 

@@ -211,86 +211,23 @@ Be specific and reference actual code elements.`, sample.FilePath)
 // This prevents saturation where many overlapping indicators all score individually.
 func (m *m2Comprehension) scoreComprehensionResponse(response string) (int, ScoreTrace) {
 	responseLower := strings.ToLower(response)
-
 	trace := ScoreTrace{BaseScore: m2BaseScore}
 
-	// Thematic indicator groups: each group +1 if ANY member matches.
-	type indicatorGroup struct {
-		name    string
-		members []string
-	}
 	groups := []indicatorGroup{
-		{"behavior_understanding", []string{"returns", "return value", "returns the"}},
-		{"error_handling", []string{"error", "handles", "handling"}},
-		{"control_flow", []string{"if ", "when ", "condition"}},
-		{"edge_awareness", []string{"edge case", "corner case", "boundary"}},
-		{"side_effects", []string{"side effect", "modifies", "updates"}},
-		{"validation", []string{"validates", "checks", "ensures"}},
+		{name: "group:behavior_understanding", patterns: []string{"returns", "return value", "returns the"}, delta: 1},
+		{name: "group:error_handling", patterns: []string{"error", "handles", "handling"}, delta: 1},
+		{name: "group:control_flow", patterns: []string{"if ", "when ", "condition"}, delta: 1},
+		{name: "group:edge_awareness", patterns: []string{"edge case", "corner case", "boundary"}, delta: 1},
+		{name: "group:side_effects", patterns: []string{"side effect", "modifies", "updates"}, delta: 1},
+		{name: "group:validation", patterns: []string{"validates", "checks", "ensures"}, delta: 1},
+		{name: "negative:i don't know", patterns: []string{"i don't know"}, delta: -1},
+		{name: "negative:unclear", patterns: []string{"unclear"}, delta: -1},
+		{name: "negative:cannot determine", patterns: []string{"cannot determine"}, delta: -1},
+		{name: "negative:not sure", patterns: []string{"not sure"}, delta: -1},
+		{name: "negative:unsure", patterns: []string{"unsure"}, delta: -1},
+		{name: "group:hedging_language", patterns: []string{"might", "probably", "seems to"}, delta: -1},
 	}
+	checkGroups(&trace, responseLower, groups)
 
-	for _, group := range groups {
-		groupMatched := false
-		for _, member := range group.members {
-			if strings.Contains(responseLower, member) {
-				groupMatched = true
-				break
-			}
-		}
-		delta := 0
-		if groupMatched {
-			delta = 1
-		}
-		trace.Indicators = append(trace.Indicators, IndicatorMatch{
-			Name: "group:" + group.name, Matched: groupMatched, Delta: delta,
-		})
-	}
-
-	// Negative indicators (superficial or wrong) - individual penalties
-	negativeIndicators := []string{
-		"i don't know", "unclear", "cannot determine",
-		"not sure", "unsure",
-	}
-
-	for _, indicator := range negativeIndicators {
-		matched := strings.Contains(responseLower, indicator)
-		delta := 0
-		if matched {
-			delta = -1
-		}
-		trace.Indicators = append(trace.Indicators, IndicatorMatch{
-			Name: "negative:" + indicator, Matched: matched, Delta: delta,
-		})
-	}
-
-	// Hedging penalty group: suggests uncertainty about the explanation
-	hedgingIndicators := []string{"might", "probably", "seems to"}
-	hedgingMatched := false
-	for _, indicator := range hedgingIndicators {
-		if strings.Contains(responseLower, indicator) {
-			hedgingMatched = true
-			break
-		}
-	}
-	hedgingDelta := 0
-	if hedgingMatched {
-		hedgingDelta = -1
-	}
-	trace.Indicators = append(trace.Indicators, IndicatorMatch{
-		Name: "group:hedging_language", Matched: hedgingMatched, Delta: hedgingDelta,
-	})
-
-	// Compute final score from trace
-	score := trace.BaseScore
-	for _, ind := range trace.Indicators {
-		score += ind.Delta
-	}
-	if score < minScore {
-		score = minScore
-	}
-	if score > maxScore {
-		score = maxScore
-	}
-	trace.FinalScore = score
-
-	return score, trace
+	return computeTraceScore(&trace), trace
 }

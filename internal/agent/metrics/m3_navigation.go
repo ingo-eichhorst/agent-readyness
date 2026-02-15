@@ -204,90 +204,43 @@ Reference actual file paths and function names from the codebase.`, sample.FileP
 // This prevents saturation where many overlapping indicators all score individually.
 func (m *m3Navigation) scoreNavigationResponse(response string) (int, ScoreTrace) {
 	responseLower := strings.ToLower(response)
-
 	trace := ScoreTrace{BaseScore: m3BaseScore}
 
-	// Thematic indicator groups: each group +1 if ANY member matches.
-	type indicatorGroup struct {
-		name    string
-		members []string
-	}
 	groups := []indicatorGroup{
-		{"import_awareness", []string{"import", "from"}},
-		{"cross_file_refs", []string{".go", ".py", ".ts", ".js"}},
-		{"data_flow", []string{"->", "flow"}},
-		{"purpose_mapping", []string{"module", "provides", "exports", "purpose"}},
+		{name: "group:import_awareness", patterns: []string{"import", "from"}, delta: 1},
+		{name: "group:cross_file_refs", patterns: []string{".go", ".py", ".ts", ".js"}, delta: 1},
+		{name: "group:data_flow", patterns: []string{"->", "flow"}, delta: 1},
+		{name: "group:purpose_mapping", patterns: []string{"module", "provides", "exports", "purpose"}, delta: 1},
 	}
+	checkGroups(&trace, responseLower, groups)
 
-	for _, group := range groups {
-		groupMatched := false
-		for _, member := range group.members {
-			if strings.Contains(responseLower, member) {
-				groupMatched = true
-				break
-			}
-		}
-		delta := 0
-		if groupMatched {
-			delta = 1
-		}
-		trace.Indicators = append(trace.Indicators, IndicatorMatch{
-			Name: "group:" + group.name, Matched: groupMatched, Delta: delta,
-		})
-	}
-
-	// Depth group: based on file path reference count
+	// Depth: based on file path reference count
 	pathCount := strings.Count(response, "/")
-
-	matchedDepth := pathCount > m3DepthPathCount
-	deltaDepth := 0
-	if matchedDepth {
-		deltaDepth = 1
+	depthMatched := pathCount > m3DepthPathCount
+	depthDelta := 0
+	if depthMatched {
+		depthDelta = 1
 	}
-	trace.Indicators = append(trace.Indicators, IndicatorMatch{
-		Name: "group:depth", Matched: matchedDepth, Delta: deltaDepth,
-	})
+	trace.Indicators = append(trace.Indicators, IndicatorMatch{Name: "group:depth", Matched: depthMatched, Delta: depthDelta})
 
-	// Extensive depth group: lengthy response with many paths
+	// Extensive depth: lengthy response with many paths
 	wordCount := len(strings.Fields(response))
-	matchedExtensive := wordCount > m3ExtensiveWordCount
-	deltaExtensive := 0
-	if matchedExtensive {
-		deltaExtensive = 1
+	extMatched := wordCount > m3ExtensiveWordCount
+	extDelta := 0
+	if extMatched {
+		extDelta = 1
 	}
-	trace.Indicators = append(trace.Indicators, IndicatorMatch{
-		Name: "group:extensive_depth", Matched: matchedExtensive, Delta: deltaExtensive,
-	})
+	trace.Indicators = append(trace.Indicators, IndicatorMatch{Name: "group:extensive_depth", Matched: extMatched, Delta: extDelta})
 
-	// Negative indicators - individual penalties
-	negativeIndicators := []string{
-		"cannot find", "not found", "no file",
-		"unable to", "cannot trace", "unknown",
+	negatives := []indicatorGroup{
+		{name: "negative:cannot find", patterns: []string{"cannot find"}, delta: -1},
+		{name: "negative:not found", patterns: []string{"not found"}, delta: -1},
+		{name: "negative:no file", patterns: []string{"no file"}, delta: -1},
+		{name: "negative:unable to", patterns: []string{"unable to"}, delta: -1},
+		{name: "negative:cannot trace", patterns: []string{"cannot trace"}, delta: -1},
+		{name: "negative:unknown", patterns: []string{"unknown"}, delta: -1},
 	}
+	checkGroups(&trace, responseLower, negatives)
 
-	for _, indicator := range negativeIndicators {
-		matched := strings.Contains(responseLower, indicator)
-		delta := 0
-		if matched {
-			delta = -1
-		}
-		trace.Indicators = append(trace.Indicators, IndicatorMatch{
-			Name: "negative:" + indicator, Matched: matched, Delta: delta,
-		})
-	}
-
-	// Compute final score from trace
-	score := trace.BaseScore
-	for _, ind := range trace.Indicators {
-		score += ind.Delta
-	}
-	if score < minScore {
-		score = minScore
-	}
-	if score > maxScore {
-		score = maxScore
-	}
-	trace.FinalScore = score
-
-	return score, trace
+	return computeTraceScore(&trace), trace
 }

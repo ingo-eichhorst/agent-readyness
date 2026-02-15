@@ -10,6 +10,7 @@ package metrics
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/ingo-eichhorst/agent-readyness/pkg/types"
@@ -81,6 +82,41 @@ type MetricResult struct {
 // Executor abstracts Claude CLI execution for testability.
 type Executor interface {
 	ExecutePrompt(ctx context.Context, workDir, prompt, tools string, timeout time.Duration) (response string, err error)
+}
+
+// indicatorGroup represents a thematic group of indicator patterns.
+type indicatorGroup struct {
+	name     string
+	patterns []string
+	delta    int // typically +1 or -1
+}
+
+// checkGroup tests if any pattern in the group matches the lowered response.
+func checkGroup(responseLower string, g indicatorGroup) IndicatorMatch {
+	for _, p := range g.patterns {
+		if strings.Contains(responseLower, p) {
+			return IndicatorMatch{Name: g.name, Matched: true, Delta: g.delta}
+		}
+	}
+	return IndicatorMatch{Name: g.name, Matched: false}
+}
+
+// computeTraceScore sums up all indicator deltas and clamps to [minScore, maxScore].
+func computeTraceScore(trace *ScoreTrace) int {
+	score := trace.BaseScore
+	for _, ind := range trace.Indicators {
+		score += ind.Delta
+	}
+	score = max(minScore, min(maxScore, score))
+	trace.FinalScore = score
+	return score
+}
+
+// checkGroups applies multiple indicator groups and appends results to the trace.
+func checkGroups(trace *ScoreTrace, responseLower string, groups []indicatorGroup) {
+	for _, g := range groups {
+		trace.Indicators = append(trace.Indicators, checkGroup(responseLower, g))
+	}
 }
 
 // Metric constructors - these return the real implementations.

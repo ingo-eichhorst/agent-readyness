@@ -142,10 +142,7 @@ func (m *m1Consistency) SelectSamples(targets []*types.AnalysisTarget) []Sample 
 
 // Execute runs the same task 3 times and measures variance.
 func (m *m1Consistency) Execute(ctx context.Context, workDir string, samples []Sample, executor Executor) MetricResult {
-	result := MetricResult{
-		MetricID:   m.ID(),
-		MetricName: m.Name(),
-	}
+	result := MetricResult{MetricID: m.ID(), MetricName: m.Name()}
 	startTime := time.Now()
 
 	if len(samples) == 0 {
@@ -154,117 +151,89 @@ func (m *m1Consistency) Execute(ctx context.Context, workDir string, samples []S
 		return result
 	}
 
-	sample := samples[0]
+	runResults, scores := m.runConsistencyTrials(ctx, workDir, samples[0], executor)
+	result.Samples = runResults
+	result.Duration = time.Since(startTime)
 
-	// Run the same task multiple times
+	if len(scores) == 0 {
+		result.Error = "all runs failed"
+		return result
+	}
+
+	result.Score = m.varianceScore(scores)
+	return result
+}
+
+func (m *m1Consistency) runConsistencyTrials(ctx context.Context, workDir string, sample Sample, executor Executor) ([]SampleResult, []int) {
 	var runResults []SampleResult
 	scores := make([]int, 0, m.runs)
 
 	for i := 0; i < m.runs; i++ {
-		runCtx, cancel := context.WithTimeout(ctx, m.timeout/time.Duration(m.runs))
+		perRunTimeout := m.timeout / time.Duration(m.runs)
+		runCtx, cancel := context.WithTimeout(ctx, perRunTimeout)
 
 		prompt := fmt.Sprintf(`Read the file at %s and list all function names defined in it.
 Return ONLY a JSON array of function names, e.g.: ["func1", "func2"]
 Do not include any explanation, just the JSON array.`, sample.FilePath)
 
-		response, err := executor.ExecutePrompt(runCtx, workDir, prompt, "Read", m.timeout/time.Duration(m.runs))
+		response, err := executor.ExecutePrompt(runCtx, workDir, prompt, "Read", perRunTimeout)
 		cancel()
 
-		sr := SampleResult{
-			Sample:   sample,
-			Response: response,
-			Prompt:   prompt,
-		}
-
+		sr := SampleResult{Sample: sample, Response: response, Prompt: prompt}
 		if err != nil {
 			sr.Error = err.Error()
-			sr.Score = 0
 		} else {
-			// Score based on response validity (does it look like a JSON array?)
-			response = strings.TrimSpace(response)
-			trace := ScoreTrace{BaseScore: 0}
-
-			if strings.HasPrefix(response, "[") && strings.HasSuffix(response, "]") {
-				trace.Indicators = append(trace.Indicators, IndicatorMatch{
-					Name: "json_array_exact", Matched: true, Delta: m1DeltaExactJSON,
-				})
-			} else if strings.Contains(response, "[") {
-				trace.Indicators = append(trace.Indicators, IndicatorMatch{
-					Name: "json_array_exact", Matched: false, Delta: 0,
-				})
-				trace.Indicators = append(trace.Indicators, IndicatorMatch{
-					Name: "json_array_partial", Matched: true, Delta: m1DeltaPartialJSON,
-				})
-			} else if len(response) > 0 {
-				trace.Indicators = append(trace.Indicators, IndicatorMatch{
-					Name: "json_array_exact", Matched: false, Delta: 0,
-				})
-				trace.Indicators = append(trace.Indicators, IndicatorMatch{
-					Name: "json_array_partial", Matched: false, Delta: 0,
-				})
-				trace.Indicators = append(trace.Indicators, IndicatorMatch{
-					Name: "non_empty_response", Matched: true, Delta: m1DeltaNonEmpty,
-				})
-			} else {
-				trace.Indicators = append(trace.Indicators, IndicatorMatch{
-					Name: "json_array_exact", Matched: false, Delta: 0,
-				})
-				trace.Indicators = append(trace.Indicators, IndicatorMatch{
-					Name: "json_array_partial", Matched: false, Delta: 0,
-				})
-				trace.Indicators = append(trace.Indicators, IndicatorMatch{
-					Name: "non_empty_response", Matched: false, Delta: 0,
-				})
-				trace.Indicators = append(trace.Indicators, IndicatorMatch{
-					Name: "empty_response", Matched: true, Delta: m1DeltaEmpty,
-				})
-			}
-
-			score := trace.BaseScore
-			for _, ind := range trace.Indicators {
-				score += ind.Delta
-			}
-			if score < minScore {
-				score = minScore
-			}
-			if score > maxScore {
-				score = maxScore
-			}
-			trace.FinalScore = score
-			sr.Score = score
-			sr.ScoreTrace = trace
+			sr.Score, sr.ScoreTrace = scoreM1Response(response)
 			scores = append(scores, sr.Score)
 		}
-
 		runResults = append(runResults, sr)
 	}
+	return runResults, scores
+}
 
-	result.Samples = runResults
-	result.Duration = time.Since(startTime)
+func scoreM1Response(response string) (int, ScoreTrace) {
+	response = strings.TrimSpace(response)
+	trace := ScoreTrace{BaseScore: 0}
 
-	// Calculate variance-based score
-	if len(scores) == 0 {
-		result.Score = 0
-		result.Error = "all runs failed"
-		return result
+	switch {
+	case strings.HasPrefix(response, "[") && strings.HasSuffix(response, "]"):
+		trace.Indicators = append(trace.Indicators, IndicatorMatch{Name: "json_array_exact", Matched: true, Delta: m1DeltaExactJSON})
+	case strings.Contains(response, "["):
+		trace.Indicators = append(trace.Indicators, IndicatorMatch{Name: "json_array_exact", Matched: false})
+		trace.Indicators = append(trace.Indicators, IndicatorMatch{Name: "json_array_partial", Matched: true, Delta: m1DeltaPartialJSON})
+	case len(response) > 0:
+		trace.Indicators = append(trace.Indicators, IndicatorMatch{Name: "json_array_exact", Matched: false})
+		trace.Indicators = append(trace.Indicators, IndicatorMatch{Name: "json_array_partial", Matched: false})
+		trace.Indicators = append(trace.Indicators, IndicatorMatch{Name: "non_empty_response", Matched: true, Delta: m1DeltaNonEmpty})
+	default:
+		trace.Indicators = append(trace.Indicators, IndicatorMatch{Name: "json_array_exact", Matched: false})
+		trace.Indicators = append(trace.Indicators, IndicatorMatch{Name: "json_array_partial", Matched: false})
+		trace.Indicators = append(trace.Indicators, IndicatorMatch{Name: "non_empty_response", Matched: false})
+		trace.Indicators = append(trace.Indicators, IndicatorMatch{Name: "empty_response", Matched: true, Delta: m1DeltaEmpty})
 	}
 
-	variance := calculateVariance(scores)
-	variancePct := (variance / m1VarianceNorm) * m1VarianceNorm // Normalize to percentage
+	score := trace.BaseScore
+	for _, ind := range trace.Indicators {
+		score += ind.Delta
+	}
+	score = max(minScore, min(maxScore, score))
+	trace.FinalScore = score
+	return score, trace
+}
 
-	// Score based on variance thresholds from research
+func (m *m1Consistency) varianceScore(scores []int) int {
+	variance := calculateVariance(scores)
+	variancePct := (variance / m1VarianceNorm) * m1VarianceNorm
 	switch {
 	case variancePct < m1LowVariance:
-		result.Score = maxScore
+		return maxScore
 	case variancePct < m1MedVariance:
-		result.Score = 7
+		return 7
 	case variancePct < m1HighVariance:
-		result.Score = 4
+		return 4
 	default:
-		result.Score = minScore
+		return minScore
 	}
-
-	return result
 }
 
 // calculateVariance computes the variance of a slice of integers.

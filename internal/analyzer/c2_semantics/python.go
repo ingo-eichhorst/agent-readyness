@@ -35,88 +35,82 @@ func newC2PythonAnalyzer(p *parser.TreeSitterParser) *c2PythonAnalyzer {
 func (a *c2PythonAnalyzer) Analyze(target *types.AnalysisTarget) (*types.C2LanguageMetrics, error) {
 	metrics := &types.C2LanguageMetrics{}
 
-	// Filter to source files only (skip test files)
-	var sourceFiles []types.SourceFile
-	for _, sf := range target.Files {
-		if sf.Class == types.ClassSource {
-			sourceFiles = append(sourceFiles, sf)
-		}
-	}
-
+	sourceFiles := pyFilterSourceFiles(target.Files)
 	if len(sourceFiles) == 0 {
 		return metrics, nil
 	}
 
-	var (
-		totalAnnotatedParams  int
-		totalAnnotatedReturns int
-		totalParams           int
-		totalFunctions        int
-		totalIdentifiers      int
-		consistentNames       int
-		magicNumberCount      int
-		totalLOC              int
-	)
+	stats := pyAnalyzeSourceFiles(a.tsParser, sourceFiles)
+	pyPopulateMetrics(metrics, stats, target.RootDir)
 
+	return metrics, nil
+}
+
+type pyAnalysisStats struct {
+	totalAnnotatedParams  int
+	totalAnnotatedReturns int
+	totalParams           int
+	totalFunctions        int
+	totalIdentifiers      int
+	consistentNames       int
+	magicNumberCount      int
+	totalLOC              int
+}
+
+func pyFilterSourceFiles(files []types.SourceFile) []types.SourceFile {
+	var sourceFiles []types.SourceFile
+	for _, sf := range files {
+		if sf.Class == types.ClassSource {
+			sourceFiles = append(sourceFiles, sf)
+		}
+	}
+	return sourceFiles
+}
+
+func pyAnalyzeSourceFiles(tsParser *parser.TreeSitterParser, sourceFiles []types.SourceFile) pyAnalysisStats {
+	var stats pyAnalysisStats
 	for _, sf := range sourceFiles {
 		content, err := os.ReadFile(sf.Path)
 		if err != nil {
 			continue
 		}
-
 		ext := strings.ToLower(filepath.Ext(sf.Path))
-		tree, err := a.tsParser.ParseFile(types.LangPython, ext, content)
+		tree, err := tsParser.ParseFile(types.LangPython, ext, content)
 		if err != nil {
 			continue
 		}
-
 		root := tree.RootNode()
-		lines := shared.CountLines(content)
-		totalLOC += lines
-
-		// C2-PY-01: Type annotation coverage
+		stats.totalLOC += shared.CountLines(content)
 		ap, ar, tp, tf := pyTypeAnnotations(root, content)
-		totalAnnotatedParams += ap
-		totalAnnotatedReturns += ar
-		totalParams += tp
-		totalFunctions += tf
-
-		// C2-PY-02: Naming consistency (PEP 8)
+		stats.totalAnnotatedParams += ap
+		stats.totalAnnotatedReturns += ar
+		stats.totalParams += tp
+		stats.totalFunctions += tf
 		consistent, total := pyNamingConsistency(root, content)
-		consistentNames += consistent
-		totalIdentifiers += total
-
-		// C2-PY-03: Magic numbers
-		magicNumberCount += pyMagicNumbers(root, content)
-
+		stats.consistentNames += consistent
+		stats.totalIdentifiers += total
+		stats.magicNumberCount += pyMagicNumbers(root, content)
 		tree.Close()
 	}
+	return stats
+}
 
-	// Type annotation coverage score
-	denominator := totalParams + totalFunctions
+func pyPopulateMetrics(metrics *types.C2LanguageMetrics, stats pyAnalysisStats, rootDir string) {
+	denominator := stats.totalParams + stats.totalFunctions
 	if denominator > 0 {
-		metrics.TypeAnnotationCoverage = float64(totalAnnotatedParams+totalAnnotatedReturns) / float64(denominator) * toPercentPy
+		metrics.TypeAnnotationCoverage = float64(stats.totalAnnotatedParams+stats.totalAnnotatedReturns) / float64(denominator) * toPercentPy
 	}
-
-	// Naming consistency score
-	if totalIdentifiers > 0 {
-		metrics.NamingConsistency = float64(consistentNames) / float64(totalIdentifiers) * toPercentPy
+	if stats.totalIdentifiers > 0 {
+		metrics.NamingConsistency = float64(stats.consistentNames) / float64(stats.totalIdentifiers) * toPercentPy
 	}
-
-	// Magic number ratio per 1000 LOC
-	metrics.MagicNumberCount = magicNumberCount
-	if totalLOC > 0 {
-		metrics.MagicNumberRatio = float64(magicNumberCount) / float64(totalLOC) * toPerKLOCPy
+	metrics.MagicNumberCount = stats.magicNumberCount
+	if stats.totalLOC > 0 {
+		metrics.MagicNumberRatio = float64(stats.magicNumberCount) / float64(stats.totalLOC) * toPerKLOCPy
 	}
-
-	// C2-PY-04: mypy/pyright config detection
-	metrics.TypeStrictness = pyDetectTypeChecker(target.RootDir)
-
-	metrics.TotalFunctions = totalFunctions
-	metrics.TotalIdentifiers = totalIdentifiers
-	metrics.LOC = totalLOC
-
-	return metrics, nil
+	metrics.TypeStrictness = pyDetectTypeChecker(rootDir)
+	metrics.TotalFunctions = stats.totalFunctions
+	metrics.TotalIdentifiers = stats.totalIdentifiers
+	metrics.LOC = stats.totalLOC
 }
 
 // pyTypeAnnotations counts type annotations in Python functions.
@@ -125,84 +119,71 @@ func pyTypeAnnotations(root *tree_sitter.Node, content []byte) (int, int, int, i
 	var annotatedParams, annotatedReturns, totalParams, totalFunctions int
 
 	shared.WalkTree(root, func(node *tree_sitter.Node) {
-		nodeType := node.Kind()
-		if nodeType != "function_definition" {
+		if node.Kind() != "function_definition" {
 			return
 		}
-
 		totalFunctions++
-
-		// Check return type annotation
 		if returnType := node.ChildByFieldName("return_type"); returnType != nil {
 			annotatedReturns++
 		}
-
-		// Check parameters
 		params := node.ChildByFieldName("parameters")
 		if params == nil {
 			return
 		}
-
-		for i := uint(0); i < params.ChildCount(); i++ {
-			child := params.Child(i)
-			if child == nil {
-				continue
-			}
-
-			childKind := child.Kind()
-			switch childKind {
-			case "identifier":
-				// Plain parameter without type annotation
-				paramName := shared.NodeText(child, content)
-				if paramName == "self" || paramName == "cls" {
-					continue
-				}
-				totalParams++
-
-			case "typed_parameter":
-				// Parameter with type annotation
-				// Check if it's self/cls
-				nameNode := child.ChildByFieldName("name")
-				if nameNode != nil {
-					paramName := shared.NodeText(nameNode, content)
-					if paramName == "self" || paramName == "cls" {
-						continue
-					}
-				}
-				totalParams++
-				annotatedParams++
-
-			case "default_parameter":
-				// Default parameter -- check if it has a type annotation
-				nameNode := child.ChildByFieldName("name")
-				if nameNode != nil {
-					paramName := shared.NodeText(nameNode, content)
-					if paramName == "self" || paramName == "cls" {
-						continue
-					}
-				}
-				totalParams++
-				// default_parameter with type becomes typed_default_parameter in tree-sitter
-
-			case "typed_default_parameter":
-				nameNode := child.ChildByFieldName("name")
-				if nameNode != nil {
-					paramName := shared.NodeText(nameNode, content)
-					if paramName == "self" || paramName == "cls" {
-						continue
-					}
-				}
-				totalParams++
-				annotatedParams++
-
-			case "list_splat_pattern", "dictionary_splat_pattern":
-				// *args, **kwargs
-				totalParams++
-			}
-		}
+		pyProcessParameters(params, content, &annotatedParams, &totalParams)
 	})
 
 	return annotatedParams, annotatedReturns, totalParams, totalFunctions
+}
+
+func pyProcessParameters(params *tree_sitter.Node, content []byte, annotatedParams, totalParams *int) {
+	for i := uint(0); i < params.ChildCount(); i++ {
+		child := params.Child(i)
+		if child == nil {
+			continue
+		}
+		pyProcessParameter(child, content, annotatedParams, totalParams)
+	}
+}
+
+func pyProcessParameter(child *tree_sitter.Node, content []byte, annotatedParams, totalParams *int) {
+	childKind := child.Kind()
+	switch childKind {
+	case "identifier":
+		paramName := shared.NodeText(child, content)
+		if paramName == "self" || paramName == "cls" {
+			return
+		}
+		*totalParams++
+	case "typed_parameter":
+		if pyIsSelfOrCls(child, content) {
+			return
+		}
+		*totalParams++
+		*annotatedParams++
+	case "default_parameter":
+		if pyIsSelfOrCls(child, content) {
+			return
+		}
+		*totalParams++
+	case "typed_default_parameter":
+		if pyIsSelfOrCls(child, content) {
+			return
+		}
+		*totalParams++
+		*annotatedParams++
+	case "list_splat_pattern", "dictionary_splat_pattern":
+		*totalParams++
+	}
+}
+
+func pyIsSelfOrCls(child *tree_sitter.Node, content []byte) bool {
+	nameNode := child.ChildByFieldName("name")
+	if nameNode != nil {
+		paramName := shared.NodeText(nameNode, content)
+		return paramName == "self" || paramName == "cls"
+	}
+	return false
 }
 
 // pyNamingConsistency checks Python naming conventions (PEP 8).

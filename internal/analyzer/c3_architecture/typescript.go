@@ -82,84 +82,75 @@ func tsBuildImportGraph(files []*parser.ParsedTreeSitterFile) *shared.ImportGrap
 		Reverse: make(map[string][]string),
 	}
 
-	// Build set of known project files by their relative path (without extension)
-	knownFiles := make(map[string]string) // normalized path -> original relPath
-	for _, f := range files {
-		normalized := tsNormalizePath(f.RelPath)
-		knownFiles[normalized] = f.RelPath
-	}
+	knownFiles := tsBuildKnownFilesMap(files)
 
 	for _, f := range files {
 		root := f.Tree.RootNode()
 		fromFile := tsNormalizePath(f.RelPath)
 		fromDir := filepath.Dir(f.RelPath)
-
-		shared.WalkTree(root, func(node *tree_sitter.Node) {
-			kind := node.Kind()
-
-			var modulePath string
-
-			switch kind {
-			case "import_statement":
-				// ESM: import { foo } from "./bar"
-				src := node.ChildByFieldName("source")
-				if src != nil {
-					modulePath = tsStripQuotes(shared.NodeText(src, f.Content))
-				}
-
-			case "call_expression":
-				// CommonJS: require("./bar")
-				fn := node.ChildByFieldName("function")
-				if fn == nil {
-					return
-				}
-				if shared.NodeText(fn, f.Content) != "require" {
-					return
-				}
-				args := node.ChildByFieldName("arguments")
-				if args == nil {
-					return
-				}
-				// Get first argument (string)
-				for i := uint(0); i < args.ChildCount(); i++ {
-					child := args.Child(i)
-					if child != nil && child.Kind() == "string" {
-						modulePath = tsStripQuotes(shared.NodeText(child, f.Content))
-						break
-					}
-				}
-
-			default:
-				return
-			}
-
-			if modulePath == "" {
-				return
-			}
-
-			// Only track relative imports (intra-project)
-			if !strings.HasPrefix(modulePath, ".") {
-				return
-			}
-
-			// Resolve relative path
-			resolved := filepath.Join(fromDir, modulePath)
-			resolved = filepath.Clean(resolved)
-			// Normalize separators
-			resolved = strings.ReplaceAll(resolved, string(os.PathSeparator), "/")
-
-			// Try to match against known files
-			normalizedResolved := tsNormalizePath(resolved)
-			if _, ok := knownFiles[normalizedResolved]; ok {
-				if normalizedResolved != fromFile {
-					g.Forward[fromFile] = appendUnique(g.Forward[fromFile], normalizedResolved)
-					g.Reverse[normalizedResolved] = appendUnique(g.Reverse[normalizedResolved], fromFile)
-				}
-			}
-		})
+		tsExtractImports(root, f.Content, fromFile, fromDir, knownFiles, g)
 	}
 
 	return g
+}
+
+func tsBuildKnownFilesMap(files []*parser.ParsedTreeSitterFile) map[string]string {
+	knownFiles := make(map[string]string)
+	for _, f := range files {
+		normalized := tsNormalizePath(f.RelPath)
+		knownFiles[normalized] = f.RelPath
+	}
+	return knownFiles
+}
+
+func tsExtractImports(root *tree_sitter.Node, content []byte, fromFile string, fromDir string, knownFiles map[string]string, g *shared.ImportGraph) {
+	shared.WalkTree(root, func(node *tree_sitter.Node) {
+		modulePath := tsExtractModulePath(node, content)
+		if modulePath == "" || !strings.HasPrefix(modulePath, ".") {
+			return
+		}
+		tsAddImportEdge(modulePath, fromFile, fromDir, knownFiles, g)
+	})
+}
+
+func tsExtractModulePath(node *tree_sitter.Node, content []byte) string {
+	kind := node.Kind()
+	switch kind {
+	case "import_statement":
+		src := node.ChildByFieldName("source")
+		if src != nil {
+			return tsStripQuotes(shared.NodeText(src, content))
+		}
+	case "call_expression":
+		fn := node.ChildByFieldName("function")
+		if fn == nil || shared.NodeText(fn, content) != "require" {
+			return ""
+		}
+		args := node.ChildByFieldName("arguments")
+		if args == nil {
+			return ""
+		}
+		for i := uint(0); i < args.ChildCount(); i++ {
+			child := args.Child(i)
+			if child != nil && child.Kind() == "string" {
+				return tsStripQuotes(shared.NodeText(child, content))
+			}
+		}
+	}
+	return ""
+}
+
+func tsAddImportEdge(modulePath string, fromFile string, fromDir string, knownFiles map[string]string, g *shared.ImportGraph) {
+	resolved := filepath.Join(fromDir, modulePath)
+	resolved = filepath.Clean(resolved)
+	resolved = strings.ReplaceAll(resolved, string(os.PathSeparator), "/")
+	normalizedResolved := tsNormalizePath(resolved)
+	if _, ok := knownFiles[normalizedResolved]; ok {
+		if normalizedResolved != fromFile {
+			g.Forward[fromFile] = appendUnique(g.Forward[fromFile], normalizedResolved)
+			g.Reverse[normalizedResolved] = appendUnique(g.Reverse[normalizedResolved], fromFile)
+		}
+	}
 }
 
 // tsNormalizePath normalizes a TypeScript file path for import graph matching.

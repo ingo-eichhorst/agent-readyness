@@ -67,82 +67,100 @@ type identifierCandidate struct {
 // SelectSamples extracts exported identifiers and selects those with longer,
 // more semantically rich names. Longer names = more semantic content to test.
 func (m *m4Identifiers) SelectSamples(targets []*types.AnalysisTarget) []Sample {
-	var candidates []identifierCandidate
+	candidates := m4ExtractCandidates(targets)
+	candidates = m4SortAndDeduplicate(candidates)
+	return m4ConvertToSamples(candidates, m.sampleCount)
+}
 
-	// Patterns for exported identifiers by language
-	goExportedFunc := regexp.MustCompile(`(?m)^func\s+([A-Z][a-zA-Z0-9_]*)\s*\(`)
-	goExportedType := regexp.MustCompile(`(?m)^type\s+([A-Z][a-zA-Z0-9_]*)\s+`)
-	goExportedVar := regexp.MustCompile(`(?m)^(?:var|const)\s+([A-Z][a-zA-Z0-9_]*)`)
-	tsExported := regexp.MustCompile(`(?m)^export\s+(?:function|class|const|let|var|interface|type)\s+([a-zA-Z_][a-zA-Z0-9_]*)`)
-	pyPublic := regexp.MustCompile(`(?m)^(?:def|class)\s+([a-zA-Z][a-zA-Z0-9_]*)`) // Python uses convention, not export
+func m4ExtractCandidates(targets []*types.AnalysisTarget) []identifierCandidate {
+	var candidates []identifierCandidate
+	patterns := m4CompilePatterns()
 
 	for _, target := range targets {
-		var patterns []*regexp.Regexp
-
-		switch target.Language {
-		case types.LangGo:
-			patterns = []*regexp.Regexp{goExportedFunc, goExportedType, goExportedVar}
-		case types.LangTypeScript:
-			patterns = []*regexp.Regexp{tsExported}
-		case types.LangPython:
-			patterns = []*regexp.Regexp{pyPublic}
-		default:
+		targetPatterns := m4SelectPatternsForLanguage(patterns, target.Language)
+		if targetPatterns == nil {
 			continue
 		}
-
 		for _, file := range target.Files {
 			if file.Class != types.ClassSource {
 				continue
 			}
-
-			content := string(file.Content)
-			lines := strings.Split(content, "\n")
-
-			for _, pattern := range patterns {
-				matches := pattern.FindAllStringSubmatchIndex(content, -1)
-				for _, match := range matches {
-					if len(match) >= 4 {
-						name := content[match[2]:match[3]]
-
-						// Skip very short names (less semantic content)
-						if len(name) < m4MinNameLength {
-							continue
-						}
-
-						// Skip obvious test/example identifiers
-						nameLower := strings.ToLower(name)
-						if strings.HasPrefix(nameLower, "test") ||
-							strings.HasPrefix(nameLower, "example") ||
-							strings.HasPrefix(nameLower, "mock") {
-							continue
-						}
-
-						// Calculate line number
-						lineNum := 1 + strings.Count(content[:match[0]], "\n")
-
-						// Score based on name length and word count (camelCase/snake_case words)
-						wordCount := countIdentifierWords(name)
-						score := float64(len(name)) * float64(wordCount)
-
-						candidates = append(candidates, identifierCandidate{
-							name:     name,
-							filePath: file.RelPath,
-							line:     lineNum,
-							score:    score,
-						})
-					}
-				}
-			}
-			_ = lines // Used above for reference
+			m4ExtractFromFile(file, targetPatterns, &candidates)
 		}
 	}
+	return candidates
+}
 
-	// Sort by score descending (longer, more complex names first)
+type m4Patterns struct {
+	goFunc *regexp.Regexp
+	goType *regexp.Regexp
+	goVar  *regexp.Regexp
+	ts     *regexp.Regexp
+	py     *regexp.Regexp
+}
+
+func m4CompilePatterns() m4Patterns {
+	return m4Patterns{
+		goFunc: regexp.MustCompile(`(?m)^func\s+([A-Z][a-zA-Z0-9_]*)\s*\(`),
+		goType: regexp.MustCompile(`(?m)^type\s+([A-Z][a-zA-Z0-9_]*)\s+`),
+		goVar:  regexp.MustCompile(`(?m)^(?:var|const)\s+([A-Z][a-zA-Z0-9_]*)`),
+		ts:     regexp.MustCompile(`(?m)^export\s+(?:function|class|const|let|var|interface|type)\s+([a-zA-Z_][a-zA-Z0-9_]*)`),
+		py:     regexp.MustCompile(`(?m)^(?:def|class)\s+([a-zA-Z][a-zA-Z0-9_]*)`),
+	}
+}
+
+func m4SelectPatternsForLanguage(patterns m4Patterns, lang types.Language) []*regexp.Regexp {
+	switch lang {
+	case types.LangGo:
+		return []*regexp.Regexp{patterns.goFunc, patterns.goType, patterns.goVar}
+	case types.LangTypeScript:
+		return []*regexp.Regexp{patterns.ts}
+	case types.LangPython:
+		return []*regexp.Regexp{patterns.py}
+	default:
+		return nil
+	}
+}
+
+func m4ExtractFromFile(file types.SourceFile, patterns []*regexp.Regexp, candidates *[]identifierCandidate) {
+	content := string(file.Content)
+	for _, pattern := range patterns {
+		matches := pattern.FindAllStringSubmatchIndex(content, -1)
+		for _, match := range matches {
+			if len(match) < 4 {
+				continue
+			}
+			name := content[match[2]:match[3]]
+			if !m4IsValidIdentifier(name) {
+				continue
+			}
+			lineNum := 1 + strings.Count(content[:match[0]], "\n")
+			wordCount := countIdentifierWords(name)
+			score := float64(len(name)) * float64(wordCount)
+			*candidates = append(*candidates, identifierCandidate{
+				name:     name,
+				filePath: file.RelPath,
+				line:     lineNum,
+				score:    score,
+			})
+		}
+	}
+}
+
+func m4IsValidIdentifier(name string) bool {
+	if len(name) < m4MinNameLength {
+		return false
+	}
+	nameLower := strings.ToLower(name)
+	return !strings.HasPrefix(nameLower, "test") &&
+		!strings.HasPrefix(nameLower, "example") &&
+		!strings.HasPrefix(nameLower, "mock")
+}
+
+func m4SortAndDeduplicate(candidates []identifierCandidate) []identifierCandidate {
 	sort.Slice(candidates, func(i, j int) bool {
 		return candidates[i].score > candidates[j].score
 	})
-
-	// Deduplicate by name (keep highest scored occurrence)
 	seen := make(map[string]bool)
 	var unique []identifierCandidate
 	for _, c := range candidates {
@@ -151,11 +169,13 @@ func (m *m4Identifiers) SelectSamples(targets []*types.AnalysisTarget) []Sample 
 			unique = append(unique, c)
 		}
 	}
+	return unique
+}
 
-	// Convert to samples
+func m4ConvertToSamples(candidates []identifierCandidate, sampleCount int) []Sample {
 	var samples []Sample
-	for i, c := range unique {
-		if i >= m.sampleCount {
+	for i, c := range candidates {
+		if i >= sampleCount {
 			break
 		}
 		samples = append(samples, Sample{
@@ -166,7 +186,6 @@ func (m *m4Identifiers) SelectSamples(targets []*types.AnalysisTarget) []Sample 
 			Description:    fmt.Sprintf("Exported identifier '%s' with %d chars", c.name, len(c.name)),
 		})
 	}
-
 	return samples
 }
 

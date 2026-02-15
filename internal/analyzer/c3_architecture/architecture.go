@@ -370,8 +370,13 @@ func detectDeadCode(pkgs []*parser.ParsedPackage) []arstypes.DeadExport {
 		obj  types.Object
 	}
 
-	var exports []exportedSymbol
+	exports := c3CollectExportedSymbols(pkgs)
+	crossPkgRef := c3BuildCrossPackageRefs(pkgs)
+	return c3FlagDeadExports(exports, crossPkgRef, len(pkgs))
+}
 
+func c3CollectExportedSymbols(pkgs []*parser.ParsedPackage) []c3ExportedSymbol {
+	var exports []c3ExportedSymbol
 	for _, pkg := range pkgs {
 		if pkg.Types == nil || pkg.TypesInfo == nil {
 			continue
@@ -382,30 +387,12 @@ func detectDeadCode(pkgs []*parser.ParsedPackage) []arstypes.DeadExport {
 			if !obj.Exported() {
 				continue
 			}
-
-			var kind string
-			switch obj.(type) {
-			case *types.Func:
-				kind = "func"
-				if name == "main" || name == "init" {
-					continue
-				}
-			case *types.TypeName:
-				kind = "type"
-			default:
-				continue // Skip vars and consts.
+			kind := c3DetermineExportKind(obj, name)
+			if kind == "" {
+				continue
 			}
-
-			pos := obj.Pos()
-			file := ""
-			line := 0
-			if pos.IsValid() && pkg.Fset != nil {
-				position := pkg.Fset.Position(pos)
-				file = position.Filename
-				line = position.Line
-			}
-
-			exports = append(exports, exportedSymbol{
+			file, line := c3GetObjPosition(obj, pkg)
+			exports = append(exports, c3ExportedSymbol{
 				pkg:  pkg.PkgPath,
 				name: name,
 				file: file,
@@ -415,34 +402,65 @@ func detectDeadCode(pkgs []*parser.ParsedPackage) []arstypes.DeadExport {
 			})
 		}
 	}
+	return exports
+}
 
-	// Build cross-package reference set: objects referenced from a different package.
-	// TypesInfo.Uses contains all identifier uses; filter for cross-package references only
+type c3ExportedSymbol struct {
+	pkg  string
+	name string
+	file string
+	line int
+	kind string
+	obj  types.Object
+}
+
+func c3DetermineExportKind(obj types.Object, name string) string {
+	switch obj.(type) {
+	case *types.Func:
+		if name == "main" || name == "init" {
+			return ""
+		}
+		return "func"
+	case *types.TypeName:
+		return "type"
+	default:
+		return ""
+	}
+}
+
+func c3GetObjPosition(obj types.Object, pkg *parser.ParsedPackage) (string, int) {
+	pos := obj.Pos()
+	if pos.IsValid() && pkg.Fset != nil {
+		position := pkg.Fset.Position(pos)
+		return position.Filename, position.Line
+	}
+	return "", 0
+}
+
+func c3BuildCrossPackageRefs(pkgs []*parser.ParsedPackage) map[types.Object]bool {
 	crossPkgRef := make(map[types.Object]bool)
 	for _, pkg := range pkgs {
 		if pkg.TypesInfo == nil {
 			continue
 		}
 		for _, obj := range pkg.TypesInfo.Uses {
-			// Check if object's package differs from current package (cross-package reference)
 			if obj.Pkg() != nil && obj.Pkg().Path() != pkg.PkgPath {
 				crossPkgRef[obj] = true
 			}
 		}
 	}
+	return crossPkgRef
+}
 
-	// Flag exports with no cross-package reference.
+func c3FlagDeadExports(exports []c3ExportedSymbol, crossPkgRef map[types.Object]bool, pkgCount int) []arstypes.DeadExport {
+	if pkgCount <= 1 {
+		return nil
+	}
 	var dead []arstypes.DeadExport
 	for _, exp := range exports {
 		if crossPkgRef[exp.obj] {
 			continue
 		}
-
-		// For single-package modules, skip (no cross-package possible).
-		if len(pkgs) <= 1 {
-			continue
-		}
-
 		dead = append(dead, arstypes.DeadExport{
 			Package: exp.pkg,
 			Name:    exp.name,
@@ -451,7 +469,6 @@ func detectDeadCode(pkgs []*parser.ParsedPackage) []arstypes.DeadExport {
 			Kind:    exp.kind,
 		})
 	}
-
 	return dead
 }
 

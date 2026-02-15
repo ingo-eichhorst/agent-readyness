@@ -86,56 +86,43 @@ func (a *C4Analyzer) Analyze(targets []*types.AnalysisTarget) (*types.AnalysisRe
 	rootDir := targets[0].RootDir
 
 	metrics := &types.C4Metrics{
-		ChangelogDaysOld: -1, // Default to -1 (not present)
+		ChangelogDaysOld: -1,
 	}
 
-	// C4-01: README presence and word count
+	c4AnalyzeStaticArtifacts(rootDir, metrics)
+	c4AnalyzeCodeMetrics(a, targets, metrics)
+
+	if a.evaluator != nil {
+		a.runLLMAnalysis(rootDir, metrics)
+	}
+
+	metrics.Available = true
+
+	return &types.AnalysisResult{
+		Name:     "C4: Documentation Quality",
+		Category: "C4",
+		Metrics:  map[string]types.CategoryMetrics{"c4": metrics},
+	}, nil
+}
+
+func c4AnalyzeStaticArtifacts(rootDir string, metrics *types.C4Metrics) {
 	metrics.ReadmePresent, metrics.ReadmeWordCount = analyzeReadme(rootDir)
-
-	// C4-04: CHANGELOG presence
 	metrics.ChangelogPresent = analyzeChangelog(rootDir)
-
-	// C4-05: Examples presence
 	metrics.ExamplesPresent = analyzeExamples(rootDir)
-
-	// C4-06: CONTRIBUTING presence
 	metrics.ContributingPresent = analyzeContributing(rootDir)
-
-	// C4-07: Diagrams presence
 	metrics.DiagramsPresent = analyzeDiagrams(rootDir)
+}
 
-	// C4-02 & C4-03: Comment density and API doc coverage across all languages
+func c4AnalyzeCodeMetrics(a *C4Analyzer, targets []*types.AnalysisTarget, metrics *types.C4Metrics) {
 	totalLines, commentLines := 0, 0
 	publicAPIs, documentedAPIs := 0, 0
 
 	for _, target := range targets {
-		switch target.Language {
-		case types.LangGo:
-			tl, cl := analyzeGoComments(target)
-			totalLines += tl
-			commentLines += cl
-			pa, da := analyzeGoAPIDocs(target)
-			publicAPIs += pa
-			documentedAPIs += da
-		case types.LangPython:
-			if a.tsParser != nil {
-				tl, cl := analyzePythonComments(target, a.tsParser)
-				totalLines += tl
-				commentLines += cl
-				pa, da := analyzePythonAPIDocs(target, a.tsParser)
-				publicAPIs += pa
-				documentedAPIs += da
-			}
-		case types.LangTypeScript:
-			if a.tsParser != nil {
-				tl, cl := analyzeTypeScriptComments(target, a.tsParser)
-				totalLines += tl
-				commentLines += cl
-				pa, da := analyzeTypeScriptAPIDocs(target, a.tsParser)
-				publicAPIs += pa
-				documentedAPIs += da
-			}
-		}
+		tl, cl, pa, da := c4AnalyzeTargetLanguage(a, target)
+		totalLines += tl
+		commentLines += cl
+		publicAPIs += pa
+		documentedAPIs += da
 	}
 
 	metrics.TotalSourceLines = totalLines
@@ -149,20 +136,25 @@ func (a *C4Analyzer) Analyze(targets []*types.AnalysisTarget) (*types.AnalysisRe
 	if publicAPIs > 0 {
 		metrics.APIDocCoverage = float64(documentedAPIs) / float64(publicAPIs) * toPercentC4
 	}
+}
 
-	// LLM-based content quality evaluation (if enabled)
-	if a.evaluator != nil {
-		a.runLLMAnalysis(rootDir, metrics)
+func c4AnalyzeTargetLanguage(a *C4Analyzer, target *types.AnalysisTarget) (totalLines, commentLines, publicAPIs, documentedAPIs int) {
+	switch target.Language {
+	case types.LangGo:
+		totalLines, commentLines = analyzeGoComments(target)
+		publicAPIs, documentedAPIs = analyzeGoAPIDocs(target)
+	case types.LangPython:
+		if a.tsParser != nil {
+			totalLines, commentLines = analyzePythonComments(target, a.tsParser)
+			publicAPIs, documentedAPIs = analyzePythonAPIDocs(target, a.tsParser)
+		}
+	case types.LangTypeScript:
+		if a.tsParser != nil {
+			totalLines, commentLines = analyzeTypeScriptComments(target, a.tsParser)
+			publicAPIs, documentedAPIs = analyzeTypeScriptAPIDocs(target, a.tsParser)
+		}
 	}
-
-	// Static metrics are always available (even without LLM)
-	metrics.Available = true
-
-	return &types.AnalysisResult{
-		Name:     "C4: Documentation Quality",
-		Category: "C4",
-		Metrics:  map[string]types.CategoryMetrics{"c4": metrics},
-	}, nil
+	return
 }
 
 // runLLMAnalysis performs LLM-based content quality evaluation using Claude CLI.

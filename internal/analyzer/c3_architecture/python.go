@@ -202,10 +202,9 @@ func pyResolveRelativeImport(fromModule, relImport string) string {
 // Limitation: Jupyter notebooks cannot be analyzed (dynamic execution model).
 func pyDetectDeadCode(files []*parser.ParsedTreeSitterFile) []types.DeadExport {
 	if len(files) <= 1 {
-		return nil // Single file: no cross-file analysis possible
+		return nil
 	}
 
-	// Collect all top-level definitions
 	type definition struct {
 		name string
 		file string
@@ -213,7 +212,13 @@ func pyDetectDeadCode(files []*parser.ParsedTreeSitterFile) []types.DeadExport {
 		kind string
 	}
 
-	var defs []definition
+	defs := pyCollectTopLevelDefs(files)
+	importedNames := pyCollectImportedNames(files)
+	return pyFlagUnimportedDefs(defs, importedNames)
+}
+
+func pyCollectTopLevelDefs(files []*parser.ParsedTreeSitterFile) []pyDefinition {
+	var defs []pyDefinition
 	for _, f := range files {
 		if isTestFileByPath(f.RelPath) {
 			continue
@@ -224,47 +229,15 @@ func pyDetectDeadCode(files []*parser.ParsedTreeSitterFile) []types.DeadExport {
 			if child == nil {
 				continue
 			}
-
-			kind := child.Kind()
-			var nameNode *tree_sitter.Node
-			var defKind string
-
-			switch kind {
-			case "function_definition":
-				nameNode = child.ChildByFieldName("name")
-				defKind = "func"
-			case "class_definition":
-				nameNode = child.ChildByFieldName("name")
-				defKind = "type"
-			case "decorated_definition":
-				// Unwrap to find inner definition
-				for j := uint(0); j < child.ChildCount(); j++ {
-					inner := child.Child(j)
-					if inner == nil {
-						continue
-					}
-					switch inner.Kind() {
-					case "function_definition":
-						nameNode = inner.ChildByFieldName("name")
-						defKind = "func"
-					case "class_definition":
-						nameNode = inner.ChildByFieldName("name")
-						defKind = "type"
-					}
-				}
-			}
-
+			nameNode, defKind := pyExtractDefInfo(child)
 			if nameNode == nil {
 				continue
 			}
-
 			name := shared.NodeText(nameNode, f.Content)
-			// Skip private names
 			if strings.HasPrefix(name, "_") {
 				continue
 			}
-
-			defs = append(defs, definition{
+			defs = append(defs, pyDefinition{
 				name: name,
 				file: f.RelPath,
 				line: int(nameNode.StartPosition().Row) + 1,
@@ -272,8 +245,46 @@ func pyDetectDeadCode(files []*parser.ParsedTreeSitterFile) []types.DeadExport {
 			})
 		}
 	}
+	return defs
+}
 
-	// Collect all imported names across files
+type pyDefinition struct {
+	name string
+	file string
+	line int
+	kind string
+}
+
+func pyExtractDefInfo(node *tree_sitter.Node) (*tree_sitter.Node, string) {
+	kind := node.Kind()
+	switch kind {
+	case "function_definition":
+		return node.ChildByFieldName("name"), "func"
+	case "class_definition":
+		return node.ChildByFieldName("name"), "type"
+	case "decorated_definition":
+		return pyExtractDecoratedDefInfo(node)
+	}
+	return nil, ""
+}
+
+func pyExtractDecoratedDefInfo(node *tree_sitter.Node) (*tree_sitter.Node, string) {
+	for j := uint(0); j < node.ChildCount(); j++ {
+		inner := node.Child(j)
+		if inner == nil {
+			continue
+		}
+		switch inner.Kind() {
+		case "function_definition":
+			return inner.ChildByFieldName("name"), "func"
+		case "class_definition":
+			return inner.ChildByFieldName("name"), "type"
+		}
+	}
+	return nil, ""
+}
+
+func pyCollectImportedNames(files []*parser.ParsedTreeSitterFile) map[string]bool {
 	importedNames := make(map[string]bool)
 	for _, f := range files {
 		root := f.Tree.RootNode()
@@ -281,36 +292,37 @@ func pyDetectDeadCode(files []*parser.ParsedTreeSitterFile) []types.DeadExport {
 			if node.Kind() != "import_from_statement" {
 				return
 			}
-			// Collect imported names
-			for i := uint(0); i < node.ChildCount(); i++ {
-				child := node.Child(i)
-				if child == nil {
-					continue
-				}
-				switch child.Kind() {
-				case "aliased_import":
-					nameNode := child.ChildByFieldName("name")
-					if nameNode != nil {
-						importedNames[shared.NodeText(nameNode, f.Content)] = true
-					}
-				case "dotted_name":
-					// This might be the module name, not an imported name
-					// Only count if after "import" keyword in the statement
-				case "identifier":
-					// Check if this identifier is part of the import list
-					parent := child.Parent()
-					if parent != nil && parent.Kind() == "import_from_statement" {
-						name := shared.NodeText(child, f.Content)
-						if name != "import" && name != "from" && name != "as" {
-							importedNames[name] = true
-						}
-					}
-				}
-			}
+			pyExtractImportedNamesFromStmt(node, f.Content, importedNames)
 		})
 	}
+	return importedNames
+}
 
-	// Flag definitions not imported by any other file
+func pyExtractImportedNamesFromStmt(node *tree_sitter.Node, content []byte, importedNames map[string]bool) {
+	for i := uint(0); i < node.ChildCount(); i++ {
+		child := node.Child(i)
+		if child == nil {
+			continue
+		}
+		switch child.Kind() {
+		case "aliased_import":
+			nameNode := child.ChildByFieldName("name")
+			if nameNode != nil {
+				importedNames[shared.NodeText(nameNode, content)] = true
+			}
+		case "identifier":
+			parent := child.Parent()
+			if parent != nil && parent.Kind() == "import_from_statement" {
+				name := shared.NodeText(child, content)
+				if name != "import" && name != "from" && name != "as" {
+					importedNames[name] = true
+				}
+			}
+		}
+	}
+}
+
+func pyFlagUnimportedDefs(defs []pyDefinition, importedNames map[string]bool) []types.DeadExport {
 	var dead []types.DeadExport
 	for _, d := range defs {
 		if !importedNames[d.name] {
@@ -323,7 +335,6 @@ func pyDetectDeadCode(files []*parser.ParsedTreeSitterFile) []types.DeadExport {
 			})
 		}
 	}
-
 	return dead
 }
 

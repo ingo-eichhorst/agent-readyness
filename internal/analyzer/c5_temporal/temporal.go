@@ -5,6 +5,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -103,10 +104,24 @@ type fileChange struct {
 // Timeout: 25s context timeout with graceful degradation (returns partial results on timeout).
 // Binary files: Skipped (git shows "-" for added/deleted counts).
 func runGitLog(rootDir string, months int) ([]commitInfo, error) {
-	since := fmt.Sprintf("--since=%d months ago", months)
 	ctx, cancel := context.WithTimeout(context.Background(), gitLogTimeout)
 	defer cancel()
 
+	cmd := setupGitLogCommand(ctx, rootDir, months)
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return nil, fmt.Errorf("git log stdout pipe: %w", err)
+	}
+	if err := cmd.Start(); err != nil {
+		return nil, fmt.Errorf("git log start: %w", err)
+	}
+
+	commits := parseGitLogOutput(stdout)
+	return handleGitLogCompletion(ctx, cmd, commits)
+}
+
+func setupGitLogCommand(ctx context.Context, rootDir string, months int) *exec.Cmd {
+	since := fmt.Sprintf("--since=%d months ago", months)
 	cmd := exec.CommandContext(ctx, "git", "log",
 		"--pretty=format:%H|%ae|%at",
 		"--numstat",
@@ -114,23 +129,16 @@ func runGitLog(rootDir string, months int) ([]commitInfo, error) {
 		"--no-merges",
 	)
 	cmd.Dir = rootDir
+	return cmd
+}
 
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		return nil, fmt.Errorf("git log stdout pipe: %w", err)
-	}
-
-	if err := cmd.Start(); err != nil {
-		return nil, fmt.Errorf("git log start: %w", err)
-	}
-
+func parseGitLogOutput(stdout io.ReadCloser) []commitInfo {
 	var commits []commitInfo
 	var current *commitInfo
 	scanner := bufio.NewScanner(stdout)
 
 	for scanner.Scan() {
 		line := scanner.Text()
-
 		if line == "" {
 			if current != nil {
 				commits = append(commits, *current)
@@ -139,69 +147,73 @@ func runGitLog(rootDir string, months int) ([]commitInfo, error) {
 			continue
 		}
 
-		// Header line: hash|author|timestamp
-		// Check hash length (>=40 chars) to distinguish from numstat lines with pipes
-		if parts := strings.SplitN(line, "|", numstatFieldCount); len(parts) == numstatFieldCount && len(parts[0]) >= gitSHAMinLength {
+		if isCommitHeader(line) {
 			if current != nil {
 				commits = append(commits, *current)
 			}
-			ts, _ := strconv.ParseInt(parts[2], 10, 64)
-			current = &commitInfo{
-				Hash:      parts[0],
-				Author:    parts[1],
-				Timestamp: ts,
-			}
+			current = parseCommitHeader(line)
 			continue
 		}
 
-		// Numstat line: added\tdeleted\tpath
 		if current != nil && strings.Contains(line, "\t") {
-			parts := strings.SplitN(line, "\t", numstatFieldCount)
-			if len(parts) == numstatFieldCount {
-				// Skip binary files: git numstat shows "-" for added/deleted counts on binary files
-				// Binary files would skew churn metrics since we can't measure meaningful line changes
-				if parts[0] == "-" || parts[1] == "-" {
-					continue
-				}
-
-				added, err1 := strconv.Atoi(parts[0])
-				deleted, err2 := strconv.Atoi(parts[1])
-				if err1 != nil || err2 != nil {
-					continue
-				}
-
-				path := parts[2]
-				// Handle renames: {old => new} syntax
-				path = resolveRenamePath(path)
-				path = filepath.ToSlash(path)
-
-				current.Files = append(current.Files, fileChange{
-					Added:   added,
-					Deleted: deleted,
-					Path:    path,
-				})
-			}
+			parseNumstatLine(line, current)
 		}
 	}
 
-	// Don't forget the last commit if no trailing blank line
 	if current != nil {
 		commits = append(commits, *current)
 	}
+	return commits
+}
 
-	// Read all output first, THEN wait
+func isCommitHeader(line string) bool {
+	parts := strings.SplitN(line, "|", numstatFieldCount)
+	return len(parts) == numstatFieldCount && len(parts[0]) >= gitSHAMinLength
+}
+
+func parseCommitHeader(line string) *commitInfo {
+	parts := strings.SplitN(line, "|", numstatFieldCount)
+	ts, _ := strconv.ParseInt(parts[2], 10, 64)
+	return &commitInfo{
+		Hash:      parts[0],
+		Author:    parts[1],
+		Timestamp: ts,
+	}
+}
+
+func parseNumstatLine(line string, current *commitInfo) {
+	parts := strings.SplitN(line, "\t", numstatFieldCount)
+	if len(parts) != numstatFieldCount {
+		return
+	}
+	if parts[0] == "-" || parts[1] == "-" {
+		return
+	}
+	added, err1 := strconv.Atoi(parts[0])
+	deleted, err2 := strconv.Atoi(parts[1])
+	if err1 != nil || err2 != nil {
+		return
+	}
+	path := parts[2]
+	path = resolveRenamePath(path)
+	path = filepath.ToSlash(path)
+	current.Files = append(current.Files, fileChange{
+		Added:   added,
+		Deleted: deleted,
+		Path:    path,
+	})
+}
+
+func handleGitLogCompletion(ctx context.Context, cmd *exec.Cmd, commits []commitInfo) ([]commitInfo, error) {
 	if err := cmd.Wait(); err != nil {
-		// If context was cancelled (timeout), return what we have
 		if ctx.Err() != nil {
 			return commits, nil
 		}
-		// If git returned error but we got some commits, use them
 		if len(commits) > 0 {
 			return commits, nil
 		}
 		return nil, fmt.Errorf("git log: %w", err)
 	}
-
 	return commits, nil
 }
 

@@ -97,94 +97,85 @@ func tsWalkFunctions(node *tree_sitter.Node, content []byte, file string, classN
 
 	switch kind {
 	case "class_declaration":
-		nameNode := node.ChildByFieldName("name")
-		clsName := ""
-		if nameNode != nil {
-			clsName = shared.NodeText(nameNode, content)
-		}
-		body := node.ChildByFieldName("body")
-		if body != nil {
-			for i := uint(0); i < body.ChildCount(); i++ {
-				child := body.Child(i)
-				if child != nil {
-					tsWalkFunctions(child, content, file, clsName, results)
-				}
-			}
-		}
+		tsProcessClassDeclaration(node, content, file, results)
 		return
-
 	case "function_declaration":
-		nameNode := node.ChildByFieldName("name")
-		name := ""
-		if nameNode != nil {
-			name = shared.NodeText(nameNode, content)
-		}
-		if className != "" {
-			name = className + "." + name
-		}
-
-		startRow := int(node.StartPosition().Row)
-		endRow := int(node.EndPosition().Row)
-		lineCount := endRow - startRow + 1
-		complexity := tsComputeComplexity(node, content)
-
-		*results = append(*results, types.FunctionMetric{
-			Name:       name,
-			File:       file,
-			Line:       startRow + 1,
-			Complexity: complexity,
-			LineCount:  lineCount,
-		})
+		tsProcessFunctionDeclaration(node, content, file, className, results)
 		return
-
 	case "method_definition":
-		nameNode := node.ChildByFieldName("name")
-		name := ""
-		if nameNode != nil {
-			name = shared.NodeText(nameNode, content)
-		}
-		if className != "" {
-			name = className + "." + name
-		}
-
-		startRow := int(node.StartPosition().Row)
-		endRow := int(node.EndPosition().Row)
-		lineCount := endRow - startRow + 1
-		complexity := tsComputeComplexity(node, content)
-
-		*results = append(*results, types.FunctionMetric{
-			Name:       name,
-			File:       file,
-			Line:       startRow + 1,
-			Complexity: complexity,
-			LineCount:  lineCount,
-		})
+		tsProcessMethodDefinition(node, content, file, className, results)
 		return
-
 	case "arrow_function":
-		name := tsArrowFunctionName(node, content)
-		startRow := int(node.StartPosition().Row)
-		endRow := int(node.EndPosition().Row)
-		lineCount := endRow - startRow + 1
-		complexity := tsComputeComplexity(node, content)
-
-		*results = append(*results, types.FunctionMetric{
-			Name:       name,
-			File:       file,
-			Line:       startRow + 1,
-			Complexity: complexity,
-			LineCount:  lineCount,
-		})
+		tsProcessArrowFunction(node, content, file, results)
 		return
 	}
 
-	// Default: recurse into children
 	for i := uint(0); i < node.ChildCount(); i++ {
 		child := node.Child(i)
 		if child != nil {
 			tsWalkFunctions(child, content, file, className, results)
 		}
 	}
+}
+
+func tsProcessClassDeclaration(node *tree_sitter.Node, content []byte, file string, results *[]types.FunctionMetric) {
+	nameNode := node.ChildByFieldName("name")
+	clsName := ""
+	if nameNode != nil {
+		clsName = shared.NodeText(nameNode, content)
+	}
+	body := node.ChildByFieldName("body")
+	if body != nil {
+		for i := uint(0); i < body.ChildCount(); i++ {
+			child := body.Child(i)
+			if child != nil {
+				tsWalkFunctions(child, content, file, clsName, results)
+			}
+		}
+	}
+}
+
+func tsProcessFunctionDeclaration(node *tree_sitter.Node, content []byte, file string, className string, results *[]types.FunctionMetric) {
+	nameNode := node.ChildByFieldName("name")
+	name := ""
+	if nameNode != nil {
+		name = shared.NodeText(nameNode, content)
+	}
+	if className != "" {
+		name = className + "." + name
+	}
+	tsAppendFunctionMetric(node, name, file, content, results)
+}
+
+func tsProcessMethodDefinition(node *tree_sitter.Node, content []byte, file string, className string, results *[]types.FunctionMetric) {
+	nameNode := node.ChildByFieldName("name")
+	name := ""
+	if nameNode != nil {
+		name = shared.NodeText(nameNode, content)
+	}
+	if className != "" {
+		name = className + "." + name
+	}
+	tsAppendFunctionMetric(node, name, file, content, results)
+}
+
+func tsProcessArrowFunction(node *tree_sitter.Node, content []byte, file string, results *[]types.FunctionMetric) {
+	name := tsArrowFunctionName(node, content)
+	tsAppendFunctionMetric(node, name, file, content, results)
+}
+
+func tsAppendFunctionMetric(node *tree_sitter.Node, name string, file string, content []byte, results *[]types.FunctionMetric) {
+	startRow := int(node.StartPosition().Row)
+	endRow := int(node.EndPosition().Row)
+	lineCount := endRow - startRow + 1
+	complexity := tsComputeComplexity(node, content)
+	*results = append(*results, types.FunctionMetric{
+		Name:       name,
+		File:       file,
+		Line:       startRow + 1,
+		Complexity: complexity,
+		LineCount:  lineCount,
+	})
 }
 
 // tsArrowFunctionName tries to extract the name of an arrow function from its parent variable declarator.

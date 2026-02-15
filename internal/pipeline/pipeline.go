@@ -174,151 +174,29 @@ func (p *Pipeline) SetDebugDir(dir string) {
 
 // Run executes the full pipeline on the given directory.
 func (p *Pipeline) Run(dir string) error {
-	// Stage 1: Discover files
-	p.onProgress("discover", "Scanning files...")
-	walker := discovery.NewWalker()
-	result, err := walker.Discover(dir)
+	result, targets, pkgs, err := p.discoverAndParse(dir)
 	if err != nil {
 		return err
 	}
 
-	// Detect project languages
-	langs := discovery.DetectProjectLanguages(dir)
-	p.langs = langs
-	if len(langs) == 0 {
-		return fmt.Errorf("no recognized source files found in %s\nSupported languages: Go, Python, TypeScript", dir)
-	}
+	p.injectGoPackages(pkgs)
+	p.runAnalyzers(targets)
+	recs := p.scoreAndRecommend(dir)
 
-	// Determine which languages have source files
-	hasGo := false
-	for _, l := range langs {
-		if l == types.LangGo {
-			hasGo = true
-			break
-		}
-	}
-
-	// Stage 2: Parse Go packages (if Go is present)
-	var pkgs []*parser.ParsedPackage
-	if hasGo {
-		p.onProgress("parse", "Parsing Go packages...")
-		pkgs, err = p.parser.Parse(dir)
-		if err != nil {
-			// Go parsing failed; log warning but continue for other languages
-			fmt.Fprintf(p.writer, "Warning: Go parsing error: %v\n", err)
-		}
-	}
-
-	// Stage 2.5: Build AnalysisTargets for all languages
-	var targets []*types.AnalysisTarget
-
-	// Go targets from parsed packages
-	if len(pkgs) > 0 {
-		goTargets := buildGoTargets(dir, pkgs)
-		targets = append(targets, goTargets...)
-	}
-
-	// Python and TypeScript targets from discovered files
-	nonGoTargets := buildNonGoTargets(dir, result)
-	targets = append(targets, nonGoTargets...)
-
-	if len(targets) == 0 {
-		return fmt.Errorf("no analyzable source files found in %s", dir)
-	}
-
-	// Stage 2.6: Inject Go packages into goAwareAnalyzers
-	if len(pkgs) > 0 {
-		for _, a := range p.analyzers {
-			if ga, ok := a.(goAwareAnalyzer); ok {
-				ga.SetGoPackages(pkgs)
-			}
-		}
-	}
-
-	// Stage 3: Analyze packages in parallel -- errors are logged but do not abort the scan
-	p.onProgress("analyze", "Analyzing code...")
-	p.results = nil
-	g := new(errgroup.Group)
-	var mu sync.Mutex
-	var analysisResults []*types.AnalysisResult
-
-	for _, a := range p.analyzers {
-		a := a // capture loop variable
-		g.Go(func() error {
-			ar, err := a.Analyze(targets)
-			if err != nil {
-				fmt.Fprintf(p.writer, "Warning: %s analyzer error: %v\n", a.Name(), err)
-				return nil // don't abort other analyzers
-			}
-			mu.Lock()
-			analysisResults = append(analysisResults, ar)
-			mu.Unlock()
-			return nil
-		})
-	}
-	_ = g.Wait()
-
-	// Sort by category name for deterministic output (C1, C2, C3, C4, C5, C6)
-	sort.Slice(analysisResults, func(i, j int) bool {
-		return analysisResults[i].Category < analysisResults[j].Category
-	})
-	p.results = analysisResults
-
-	// Stage 3.5: Score results
-	p.onProgress("score", "Computing scores...")
-	scored, err := p.scorer.Score(p.results)
-	if err != nil {
-		fmt.Fprintf(p.writer, "Warning: scoring error: %v\n", err)
-	} else {
-		// Set project name from directory basename
-		scored.ProjectName = filepath.Base(dir)
-		p.scored = scored
-	}
-
-	// Stage 3.6: Generate recommendations
-	var recs []recommend.Recommendation
-	if p.scored != nil {
-		recs = recommend.Generate(p.scored, p.scorer.Config)
-	}
-
-	// Stage 3.7: C7 debug rendering (after analysis, before normal output)
 	if p.debugC7 && p.results != nil {
 		output.RenderC7Debug(p.debugWriter, p.results)
 	}
 
-	// Stage 4: Render output
-	p.onProgress("render", "Generating output...")
-	if p.jsonOutput {
-		// JSON mode: build report and render as JSON
-		if p.scored != nil {
-			report := output.BuildJSONReport(p.scored, recs, p.verbose, p.badgeOutput)
-			if err := output.RenderJSON(p.writer, report); err != nil {
-				return fmt.Errorf("render JSON: %w", err)
-			}
-		}
-	} else {
-		// Terminal mode: render summary, scores, then recommendations
-		output.RenderSummary(p.writer, result, p.results, p.verbose)
-		if p.scored != nil {
-			output.RenderScores(p.writer, p.scored, p.verbose)
-		}
-		if len(recs) > 0 {
-			output.RenderRecommendations(p.writer, recs)
-		}
-		// Render badge if requested
-		if p.badgeOutput && p.scored != nil {
-			output.RenderBadge(p.writer, p.scored)
-		}
+	if err := p.renderOutput(result, recs); err != nil {
+		return err
 	}
 
-	// Stage 4.5: Generate HTML report if requested
 	if p.htmlOutput != "" && p.scored != nil {
 		if err := p.generateHTMLReport(recs); err != nil {
 			return fmt.Errorf("generate HTML report: %w", err)
 		}
 	}
 
-	// Stage 5: Threshold check (AFTER rendering so output is always displayed)
 	if p.threshold > 0 && p.scored != nil && p.scored.Composite < p.threshold {
 		return &types.ExitError{
 			Code:    2,
@@ -326,6 +204,130 @@ func (p *Pipeline) Run(dir string) error {
 		}
 	}
 
+	return nil
+}
+
+// discoverAndParse runs file discovery, language detection, and parsing.
+func (p *Pipeline) discoverAndParse(dir string) (*types.ScanResult, []*types.AnalysisTarget, []*parser.ParsedPackage, error) {
+	p.onProgress("discover", "Scanning files...")
+	walker := discovery.NewWalker()
+	result, err := walker.Discover(dir)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	langs := discovery.DetectProjectLanguages(dir)
+	p.langs = langs
+	if len(langs) == 0 {
+		return nil, nil, nil, fmt.Errorf("no recognized source files found in %s\nSupported languages: Go, Python, TypeScript", dir)
+	}
+
+	pkgs := p.parseGoIfPresent(dir, langs)
+	targets := p.buildTargets(dir, result, pkgs)
+	if len(targets) == 0 {
+		return nil, nil, nil, fmt.Errorf("no analyzable source files found in %s", dir)
+	}
+
+	return result, targets, pkgs, nil
+}
+
+func (p *Pipeline) parseGoIfPresent(dir string, langs []types.Language) []*parser.ParsedPackage {
+	for _, l := range langs {
+		if l == types.LangGo {
+			p.onProgress("parse", "Parsing Go packages...")
+			pkgs, err := p.parser.Parse(dir)
+			if err != nil {
+				fmt.Fprintf(p.writer, "Warning: Go parsing error: %v\n", err)
+				return nil
+			}
+			return pkgs
+		}
+	}
+	return nil
+}
+
+func (p *Pipeline) buildTargets(dir string, result *types.ScanResult, pkgs []*parser.ParsedPackage) []*types.AnalysisTarget {
+	var targets []*types.AnalysisTarget
+	if len(pkgs) > 0 {
+		targets = append(targets, buildGoTargets(dir, pkgs)...)
+	}
+	targets = append(targets, buildNonGoTargets(dir, result)...)
+	return targets
+}
+
+func (p *Pipeline) injectGoPackages(pkgs []*parser.ParsedPackage) {
+	if len(pkgs) == 0 {
+		return
+	}
+	for _, a := range p.analyzers {
+		if ga, ok := a.(goAwareAnalyzer); ok {
+			ga.SetGoPackages(pkgs)
+		}
+	}
+}
+
+// runAnalyzers executes all analyzers in parallel and stores sorted results.
+func (p *Pipeline) runAnalyzers(targets []*types.AnalysisTarget) {
+	p.onProgress("analyze", "Analyzing code...")
+	p.results = nil
+	g := new(errgroup.Group)
+	var mu sync.Mutex
+	var results []*types.AnalysisResult
+
+	for _, a := range p.analyzers {
+		a := a
+		g.Go(func() error {
+			ar, err := a.Analyze(targets)
+			if err != nil {
+				fmt.Fprintf(p.writer, "Warning: %s analyzer error: %v\n", a.Name(), err)
+				return nil
+			}
+			mu.Lock()
+			results = append(results, ar)
+			mu.Unlock()
+			return nil
+		})
+	}
+	_ = g.Wait()
+
+	sort.Slice(results, func(i, j int) bool { return results[i].Category < results[j].Category })
+	p.results = results
+}
+
+func (p *Pipeline) scoreAndRecommend(dir string) []recommend.Recommendation {
+	p.onProgress("score", "Computing scores...")
+	scored, err := p.scorer.Score(p.results)
+	if err != nil {
+		fmt.Fprintf(p.writer, "Warning: scoring error: %v\n", err)
+		return nil
+	}
+	scored.ProjectName = filepath.Base(dir)
+	p.scored = scored
+	return recommend.Generate(p.scored, p.scorer.Config)
+}
+
+func (p *Pipeline) renderOutput(result *types.ScanResult, recs []recommend.Recommendation) error {
+	p.onProgress("render", "Generating output...")
+	if p.jsonOutput {
+		if p.scored != nil {
+			report := output.BuildJSONReport(p.scored, recs, p.verbose, p.badgeOutput)
+			if err := output.RenderJSON(p.writer, report); err != nil {
+				return fmt.Errorf("render JSON: %w", err)
+			}
+		}
+		return nil
+	}
+
+	output.RenderSummary(p.writer, result, p.results, p.verbose)
+	if p.scored != nil {
+		output.RenderScores(p.writer, p.scored, p.verbose)
+	}
+	if len(recs) > 0 {
+		output.RenderRecommendations(p.writer, recs)
+	}
+	if p.badgeOutput && p.scored != nil {
+		output.RenderBadge(p.writer, p.scored)
+	}
 	return nil
 }
 

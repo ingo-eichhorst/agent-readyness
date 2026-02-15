@@ -42,126 +42,12 @@ func (a *C3Analyzer) SetGoPackages(pkgs []*parser.ParsedPackage) {
 func (a *C3Analyzer) Analyze(targets []*arstypes.AnalysisTarget) (*arstypes.AnalysisResult, error) {
 	metrics := &arstypes.C3Metrics{}
 
-	// Go analysis (existing logic)
 	if a.pkgs != nil {
-		goMetrics := a.analyzeGoC3()
-		metrics = goMetrics
+		metrics = a.analyzeGoC3()
 	}
 
-	// Python/TypeScript analysis via targets
 	for _, target := range targets {
-		switch target.Language {
-		case arstypes.LangPython:
-			if a.tsParser == nil {
-				continue
-			}
-			parsed, err := a.tsParser.ParseTargetFiles(target)
-			if err != nil {
-				continue
-			}
-			defer parser.CloseAll(parsed)
-
-			srcFiles := pyFilterSourceFiles(parsed)
-
-			pyGraph := pyBuildImportGraph(parsed)
-			pyDead := pyDetectDeadCode(parsed)
-			pyMaxDepth, pyAvgDepth := pyAnalyzeDirectoryDepth(parsed, target.RootDir)
-
-			// Merge Python results into metrics
-			if pyMaxDepth > metrics.MaxDirectoryDepth {
-				metrics.MaxDirectoryDepth = pyMaxDepth
-			}
-			if pyAvgDepth > metrics.AvgDirectoryDepth {
-				metrics.AvgDirectoryDepth = pyAvgDepth
-			}
-
-			// Import graph metrics
-			pyCycles := detectCircularDeps(pyGraph)
-			metrics.CircularDeps = append(metrics.CircularDeps, pyCycles...)
-
-			// Module fanout from Python import graph
-			if len(srcFiles) > 0 {
-				totalFanout := 0
-				maxFanout := 0
-				maxEntity := ""
-				for file, deps := range pyGraph.Forward {
-					fanout := len(deps)
-					totalFanout += fanout
-					if fanout > maxFanout {
-						maxFanout = fanout
-						maxEntity = file
-					}
-				}
-				if len(pyGraph.Forward) > 0 {
-					pyFanout := arstypes.MetricSummary{
-						Avg:       float64(totalFanout) / float64(len(pyGraph.Forward)),
-						Max:       maxFanout,
-						MaxEntity: maxEntity,
-					}
-					// Merge: if Go had fanout, pick higher max
-					if pyFanout.Max > metrics.ModuleFanout.Max {
-						metrics.ModuleFanout = pyFanout
-					}
-				}
-			}
-
-			metrics.DeadExports = append(metrics.DeadExports, pyDead...)
-
-		case arstypes.LangTypeScript:
-			if a.tsParser == nil {
-				continue
-			}
-			parsed, err := a.tsParser.ParseTargetFiles(target)
-			if err != nil {
-				continue
-			}
-			defer parser.CloseAll(parsed)
-
-			srcFiles := tsFilterSourceFiles(parsed)
-
-			tsGraph := tsBuildImportGraph(parsed)
-			tsDead := tsDetectDeadCode(parsed)
-			tsMaxDepth, tsAvgDepth := tsAnalyzeDirectoryDepth(parsed, target.RootDir)
-
-			// Merge TypeScript results into metrics
-			if tsMaxDepth > metrics.MaxDirectoryDepth {
-				metrics.MaxDirectoryDepth = tsMaxDepth
-			}
-			if tsAvgDepth > metrics.AvgDirectoryDepth {
-				metrics.AvgDirectoryDepth = tsAvgDepth
-			}
-
-			// Import graph metrics
-			tsCycles := detectCircularDeps(tsGraph)
-			metrics.CircularDeps = append(metrics.CircularDeps, tsCycles...)
-
-			// Module fanout from TypeScript import graph
-			if len(srcFiles) > 0 {
-				totalFanout := 0
-				maxFanout := 0
-				maxEntity := ""
-				for file, deps := range tsGraph.Forward {
-					fanout := len(deps)
-					totalFanout += fanout
-					if fanout > maxFanout {
-						maxFanout = fanout
-						maxEntity = file
-					}
-				}
-				if len(tsGraph.Forward) > 0 {
-					tsFanout := arstypes.MetricSummary{
-						Avg:       float64(totalFanout) / float64(len(tsGraph.Forward)),
-						Max:       maxFanout,
-						MaxEntity: maxEntity,
-					}
-					if tsFanout.Max > metrics.ModuleFanout.Max {
-						metrics.ModuleFanout = tsFanout
-					}
-				}
-			}
-
-			metrics.DeadExports = append(metrics.DeadExports, tsDead...)
-		}
+		a.analyzeTargetC3(target, metrics)
 	}
 
 	return &arstypes.AnalysisResult{
@@ -169,6 +55,83 @@ func (a *C3Analyzer) Analyze(targets []*arstypes.AnalysisTarget) (*arstypes.Anal
 		Category: "C3",
 		Metrics:  map[string]arstypes.CategoryMetrics{"c3": metrics},
 	}, nil
+}
+
+// langC3Funcs groups language-specific C3 analysis functions.
+type langC3Funcs struct {
+	filterSrc  func([]*parser.ParsedTreeSitterFile) []*parser.ParsedTreeSitterFile
+	buildGraph func([]*parser.ParsedTreeSitterFile) *shared.ImportGraph
+	detectDead func([]*parser.ParsedTreeSitterFile) []arstypes.DeadExport
+	dirDepth   func([]*parser.ParsedTreeSitterFile, string) (int, float64)
+}
+
+var c3LangFuncs = map[arstypes.Language]langC3Funcs{
+	arstypes.LangPython: {
+		filterSrc:  pyFilterSourceFiles,
+		buildGraph: pyBuildImportGraph,
+		detectDead: pyDetectDeadCode,
+		dirDepth:   pyAnalyzeDirectoryDepth,
+	},
+	arstypes.LangTypeScript: {
+		filterSrc:  tsFilterSourceFiles,
+		buildGraph: tsBuildImportGraph,
+		detectDead: tsDetectDeadCode,
+		dirDepth:   tsAnalyzeDirectoryDepth,
+	},
+}
+
+func (a *C3Analyzer) analyzeTargetC3(target *arstypes.AnalysisTarget, metrics *arstypes.C3Metrics) {
+	funcs, ok := c3LangFuncs[target.Language]
+	if !ok || a.tsParser == nil {
+		return
+	}
+
+	parsed, err := a.tsParser.ParseTargetFiles(target)
+	if err != nil {
+		return
+	}
+	defer parser.CloseAll(parsed)
+
+	srcFiles := funcs.filterSrc(parsed)
+	graph := funcs.buildGraph(parsed)
+	dead := funcs.detectDead(parsed)
+	maxDepth, avgDepth := funcs.dirDepth(parsed, target.RootDir)
+
+	mergeDepthMetrics(metrics, maxDepth, avgDepth)
+	metrics.CircularDeps = append(metrics.CircularDeps, detectCircularDeps(graph)...)
+	mergeFanout(metrics, graph, len(srcFiles))
+	metrics.DeadExports = append(metrics.DeadExports, dead...)
+}
+
+func mergeDepthMetrics(metrics *arstypes.C3Metrics, maxDepth int, avgDepth float64) {
+	if maxDepth > metrics.MaxDirectoryDepth {
+		metrics.MaxDirectoryDepth = maxDepth
+	}
+	if avgDepth > metrics.AvgDirectoryDepth {
+		metrics.AvgDirectoryDepth = avgDepth
+	}
+}
+
+func mergeFanout(metrics *arstypes.C3Metrics, graph *shared.ImportGraph, srcCount int) {
+	if srcCount == 0 || len(graph.Forward) == 0 {
+		return
+	}
+	totalFanout, maxFanout, maxEntity := 0, 0, ""
+	for file, deps := range graph.Forward {
+		fanout := len(deps)
+		totalFanout += fanout
+		if fanout > maxFanout {
+			maxFanout = fanout
+			maxEntity = file
+		}
+	}
+	fanout := arstypes.MetricSummary{
+		Avg: float64(totalFanout) / float64(len(graph.Forward)),
+		Max: maxFanout, MaxEntity: maxEntity,
+	}
+	if fanout.Max > metrics.ModuleFanout.Max {
+		metrics.ModuleFanout = fanout
+	}
 }
 
 // analyzeGoC3 runs Go-specific C3 analysis.

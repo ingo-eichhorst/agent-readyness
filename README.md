@@ -50,7 +50,7 @@ Agent Readiness isn't a nice-to-have—it's the difference between an agent that
 ### Install
 
 ```bash
-go install github.com/ingo-eichhorst/agent-readyness@latest
+go install github.com/ingo-eichhorst/agent-readyness/cmd/ars@latest
 ```
 
 Make sure `$GOPATH/bin` (usually `~/go/bin`) is in your PATH.
@@ -189,7 +189,7 @@ For AI agents and detailed implementation guidance, see [CLAUDE.md](CLAUDE.md) a
 ### Via Go Install (Recommended)
 
 ```bash
-go install github.com/ingo-eichhorst/agent-readyness@latest
+go install github.com/ingo-eichhorst/agent-readyness/cmd/ars@latest
 ```
 
 The binary will be installed to `$GOPATH/bin` (usually `~/go/bin`). Make sure this is in your PATH.

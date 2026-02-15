@@ -20,7 +20,7 @@ This file provides precise, executable instructions for AI coding agents working
 ### Build & Test
 ```bash
 # Build binary
-go build -o ars .
+go build -o ars ./cmd/ars/
 
 # Run all tests
 go test ./... -v

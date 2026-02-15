@@ -260,8 +260,6 @@ func colorForIntInverse(val, redBelow, yellowBelow int) *color.Color {
 }
 
 func renderC1(w io.Writer, ar *types.AnalysisResult, verbose bool) {
-	bold := color.New(color.Bold)
-
 	raw, ok := ar.Metrics["c1"]
 	if !ok {
 		return
@@ -271,85 +269,87 @@ func renderC1(w io.Writer, ar *types.AnalysisResult, verbose bool) {
 		return
 	}
 
+	bold := color.New(color.Bold)
 	fmt.Fprintln(w)
 	bold.Fprintln(w, "C1: Code Health")
 	fmt.Fprintln(w, "────────────────────────────────────────")
 
-	// Complexity
-	cc := colorForFloat(m.CyclomaticComplexity.Avg, c1ComplexityAvgGreen, c1ComplexityAvgYellow)
-	cc.Fprintf(w, "  Complexity avg:      %.1f\n", m.CyclomaticComplexity.Avg)
-	cm := colorForInt(m.CyclomaticComplexity.Max, c1ComplexityMaxGreen, c1ComplexityMaxYellow)
-	cm.Fprintf(w, "  Complexity max:      %d", m.CyclomaticComplexity.Max)
-	if m.CyclomaticComplexity.MaxEntity != "" {
-		fmt.Fprintf(w, " (%s)", m.CyclomaticComplexity.MaxEntity)
-	}
-	fmt.Fprintln(w)
+	renderMetricSummaryFloat(w, "Complexity", m.CyclomaticComplexity, c1ComplexityAvgGreen, c1ComplexityAvgYellow, c1ComplexityMaxGreen, c1ComplexityMaxYellow)
+	renderMetricSummaryLines(w, "Func length", m.FunctionLength, c1FuncLenAvgGreen, c1FuncLenAvgYellow, c1FuncLenMaxGreen, c1FuncLenMaxYellow)
+	renderMetricSummarySize(w, "File size", m.FileSize, c1FileSizeAvgGreen, c1FileSizeAvgYellow, c1FileSizeMaxGreen, c1FileSizeMaxYellow)
 
-	// Function length
-	fl := colorForFloat(m.FunctionLength.Avg, c1FuncLenAvgGreen, c1FuncLenAvgYellow)
-	fl.Fprintf(w, "  Func length avg:     %.1f lines\n", m.FunctionLength.Avg)
-	flm := colorForInt(m.FunctionLength.Max, c1FuncLenMaxGreen, c1FuncLenMaxYellow)
-	flm.Fprintf(w, "  Func length max:     %d lines", m.FunctionLength.Max)
-	if m.FunctionLength.MaxEntity != "" {
-		fmt.Fprintf(w, " (%s)", m.FunctionLength.MaxEntity)
-	}
-	fmt.Fprintln(w)
-
-	// File size
-	fs := colorForFloat(m.FileSize.Avg, c1FileSizeAvgGreen, c1FileSizeAvgYellow)
-	fs.Fprintf(w, "  File size avg:       %.0f lines\n", m.FileSize.Avg)
-	fsm := colorForInt(m.FileSize.Max, c1FileSizeMaxGreen, c1FileSizeMaxYellow)
-	fsm.Fprintf(w, "  File size max:       %d lines", m.FileSize.Max)
-	if m.FileSize.MaxEntity != "" {
-		fmt.Fprintf(w, " (%s)", m.FileSize.MaxEntity)
-	}
-	fmt.Fprintln(w)
-
-	// Duplication
 	dc := colorForFloat(m.DuplicationRate, c1DuplicationGreen, c1DuplicationYellow)
 	dc.Fprintf(w, "  Duplication rate:    %.1f%%\n", m.DuplicationRate)
 
-	// Verbose: top 5 most complex and longest functions
-	//
-	// "Top offenders" lists help developers prioritize refactoring work by identifying
-	// the specific functions dragging down scores. Without this drill-down, users only
-	// see aggregate metrics (e.g., "avg complexity: 12") but don't know which functions
-	// to target. File:line references allow quick navigation via IDE jump-to-line features.
-	//
-	// Why limit to 5? Beyond 5 items, lists become overwhelming and users stop reading.
-	// The Pareto principle suggests 20% of functions cause 80% of problems - top 5
-	// captures the highest-leverage improvements. Users can always rerun with full
-	// evidence details in HTML reports if they need comprehensive listings.
 	if verbose && len(m.Functions) > 0 {
-		fmt.Fprintln(w)
-		bold.Fprintln(w, "  Top complex functions:")
-		byComplexity := make([]types.FunctionMetric, len(m.Functions))
-		copy(byComplexity, m.Functions)
-		sort.Slice(byComplexity, func(i, j int) bool {
-			return byComplexity[i].Complexity > byComplexity[j].Complexity
-		})
-		limit := verboseTopN
-		if len(byComplexity) < limit {
-			limit = len(byComplexity)
-		}
-		for _, f := range byComplexity[:limit] {
-			fmt.Fprintf(w, "    %s.%s  complexity=%d  (%s:%d)\n", f.Package, f.Name, f.Complexity, f.File, f.Line)
-		}
+		renderC1Verbose(w, bold, m.Functions)
+	}
+}
 
-		fmt.Fprintln(w)
-		bold.Fprintln(w, "  Top longest functions:")
-		byLength := make([]types.FunctionMetric, len(m.Functions))
-		copy(byLength, m.Functions)
-		sort.Slice(byLength, func(i, j int) bool {
-			return byLength[i].LineCount > byLength[j].LineCount
-		})
-		limit = verboseTopN
-		if len(byLength) < limit {
-			limit = len(byLength)
-		}
-		for _, f := range byLength[:limit] {
-			fmt.Fprintf(w, "    %s.%s  lines=%d  (%s:%d)\n", f.Package, f.Name, f.LineCount, f.File, f.Line)
-		}
+func renderMetricSummaryFloat(w io.Writer, label string, ms types.MetricSummary, avgGreen, avgYellow float64, maxGreen, maxYellow int) {
+	padded := fmt.Sprintf("%-19s", label+" avg:")
+	c := colorForFloat(ms.Avg, avgGreen, avgYellow)
+	c.Fprintf(w, "  %s%.1f\n", padded, ms.Avg)
+	padded = fmt.Sprintf("%-19s", label+" max:")
+	cm := colorForInt(ms.Max, maxGreen, maxYellow)
+	cm.Fprintf(w, "  %s%d", padded, ms.Max)
+	if ms.MaxEntity != "" {
+		fmt.Fprintf(w, " (%s)", ms.MaxEntity)
+	}
+	fmt.Fprintln(w)
+}
+
+func renderMetricSummaryLines(w io.Writer, label string, ms types.MetricSummary, avgGreen, avgYellow float64, maxGreen, maxYellow int) {
+	padded := fmt.Sprintf("%-19s", label+" avg:")
+	c := colorForFloat(ms.Avg, avgGreen, avgYellow)
+	c.Fprintf(w, "  %s%.1f lines\n", padded, ms.Avg)
+	padded = fmt.Sprintf("%-19s", label+" max:")
+	cm := colorForInt(ms.Max, maxGreen, maxYellow)
+	cm.Fprintf(w, "  %s%d lines", padded, ms.Max)
+	if ms.MaxEntity != "" {
+		fmt.Fprintf(w, " (%s)", ms.MaxEntity)
+	}
+	fmt.Fprintln(w)
+}
+
+func renderMetricSummarySize(w io.Writer, label string, ms types.MetricSummary, avgGreen, avgYellow float64, maxGreen, maxYellow int) {
+	padded := fmt.Sprintf("%-19s", label+" avg:")
+	c := colorForFloat(ms.Avg, avgGreen, avgYellow)
+	c.Fprintf(w, "  %s%.0f lines\n", padded, ms.Avg)
+	padded = fmt.Sprintf("%-19s", label+" max:")
+	cm := colorForInt(ms.Max, maxGreen, maxYellow)
+	cm.Fprintf(w, "  %s%d lines", padded, ms.Max)
+	if ms.MaxEntity != "" {
+		fmt.Fprintf(w, " (%s)", ms.MaxEntity)
+	}
+	fmt.Fprintln(w)
+}
+
+func renderC1Verbose(w io.Writer, bold *color.Color, funcs []types.FunctionMetric) {
+	fmt.Fprintln(w)
+	bold.Fprintln(w, "  Top complex functions:")
+	byComplexity := make([]types.FunctionMetric, len(funcs))
+	copy(byComplexity, funcs)
+	sort.Slice(byComplexity, func(i, j int) bool { return byComplexity[i].Complexity > byComplexity[j].Complexity })
+	limit := verboseTopN
+	if len(byComplexity) < limit {
+		limit = len(byComplexity)
+	}
+	for _, f := range byComplexity[:limit] {
+		fmt.Fprintf(w, "    %s.%s  complexity=%d  (%s:%d)\n", f.Package, f.Name, f.Complexity, f.File, f.Line)
+	}
+
+	fmt.Fprintln(w)
+	bold.Fprintln(w, "  Top longest functions:")
+	byLength := make([]types.FunctionMetric, len(funcs))
+	copy(byLength, funcs)
+	sort.Slice(byLength, func(i, j int) bool { return byLength[i].LineCount > byLength[j].LineCount })
+	limit = verboseTopN
+	if len(byLength) < limit {
+		limit = len(byLength)
+	}
+	for _, f := range byLength[:limit] {
+		fmt.Fprintf(w, "    %s.%s  lines=%d  (%s:%d)\n", f.Package, f.Name, f.LineCount, f.File, f.Line)
 	}
 }
 
@@ -528,10 +528,6 @@ func renderC5(w io.Writer, ar *types.AnalysisResult, verbose bool) {
 }
 
 func renderC4(w io.Writer, ar *types.AnalysisResult, verbose bool) {
-	bold := color.New(color.Bold)
-	green := color.New(color.FgGreen)
-	red := color.New(color.FgRed)
-
 	raw, ok := ar.Metrics["c4"]
 	if !ok {
 		return
@@ -541,6 +537,7 @@ func renderC4(w io.Writer, ar *types.AnalysisResult, verbose bool) {
 		return
 	}
 
+	bold := color.New(color.Bold)
 	fmt.Fprintln(w)
 	bold.Fprintln(w, "C4: Documentation Quality")
 	fmt.Fprintln(w, "────────────────────────────────────────")
@@ -550,83 +547,71 @@ func renderC4(w io.Writer, ar *types.AnalysisResult, verbose bool) {
 		return
 	}
 
-	// README
-	if m.ReadmePresent {
-		green.Fprintf(w, "  README:              present (%d words)\n", m.ReadmeWordCount)
-	} else {
-		red.Fprintln(w, "  README:              absent")
-	}
+	renderC4Presence(w, m)
+	renderC4LLM(w, bold, m)
 
-	// Comment density
+	if verbose {
+		renderC4Verbose(w, bold, m)
+	}
+}
+
+func renderC4Presence(w io.Writer, m *types.C4Metrics) {
+	green := color.New(color.FgGreen)
+	red := color.New(color.FgRed)
+
+	renderPresence(w, green, red, "README", m.ReadmePresent, fmt.Sprintf("present (%d words)", m.ReadmeWordCount))
+
 	cd := colorForFloatInverse(m.CommentDensity, c4CommentDensityRed, c4CommentDensityYellow)
 	cd.Fprintf(w, "  Comment density:     %.1f%%\n", m.CommentDensity)
-
-	// API doc coverage
 	ad := colorForFloatInverse(m.APIDocCoverage, c4APIDocRed, c4APIDocYellow)
 	ad.Fprintf(w, "  API doc coverage:    %.1f%%\n", m.APIDocCoverage)
 
-	// CHANGELOG
-	if m.ChangelogPresent {
-		green.Fprintln(w, "  CHANGELOG:           present")
-	} else {
-		red.Fprintln(w, "  CHANGELOG:           absent")
-	}
+	renderPresence(w, green, red, "CHANGELOG", m.ChangelogPresent, "present")
+	renderPresence(w, green, red, "Examples", m.ExamplesPresent, "present")
+	renderPresence(w, green, red, "CONTRIBUTING", m.ContributingPresent, "present")
+	renderPresence(w, green, color.New(color.FgYellow), "Diagrams", m.DiagramsPresent, "present")
+}
 
-	// Examples
-	if m.ExamplesPresent {
-		green.Fprintln(w, "  Examples:            present")
+func renderPresence(w io.Writer, green, red *color.Color, label string, present bool, presentText string) {
+	padded := fmt.Sprintf("%-19s", label+":")
+	if present {
+		green.Fprintf(w, "  %s%s\n", padded, presentText)
 	} else {
-		red.Fprintln(w, "  Examples:            absent")
+		red.Fprintf(w, "  %sabsent\n", padded)
 	}
+}
 
-	// CONTRIBUTING
-	if m.ContributingPresent {
-		green.Fprintln(w, "  CONTRIBUTING:        present")
-	} else {
-		red.Fprintln(w, "  CONTRIBUTING:        absent")
-	}
-
-	// Diagrams
-	if m.DiagramsPresent {
-		green.Fprintln(w, "  Diagrams:            present")
-	} else {
-		color.New(color.FgYellow).Fprintln(w, "  Diagrams:            absent")
-	}
-
-	// LLM-based metrics (if enabled)
+func renderC4LLM(w io.Writer, bold *color.Color, m *types.C4Metrics) {
 	fmt.Fprintln(w)
 	bold.Fprintln(w, "  LLM Analysis:")
-	if m.LLMEnabled {
-		rc := colorForIntInverse(m.ReadmeClarity, c4LLMScoreRed, c4LLMScoreYellow)
-		rc.Fprintf(w, "    README clarity:      %d/10\n", m.ReadmeClarity)
-		eq := colorForIntInverse(m.ExampleQuality, c4LLMScoreRed, c4LLMScoreYellow)
-		eq.Fprintf(w, "    Example quality:     %d/10\n", m.ExampleQuality)
-		cp := colorForIntInverse(m.Completeness, c4LLMScoreRed, c4LLMScoreYellow)
-		cp.Fprintf(w, "    Completeness:        %d/10\n", m.Completeness)
-		cr := colorForIntInverse(m.CrossRefCoherence, c4LLMScoreRed, c4LLMScoreYellow)
-		cr.Fprintf(w, "    Cross-ref coherence: %d/10\n", m.CrossRefCoherence)
-		fmt.Fprintf(w, "    LLM cost:            $%.4f (%d tokens)\n", m.LLMCostUSD, m.LLMTokensUsed)
-	} else {
-		color.New(color.FgHiBlack).Fprintln(w, "    README clarity:      n/a (Claude CLI not detected)")
-		color.New(color.FgHiBlack).Fprintln(w, "    Example quality:     n/a")
-		color.New(color.FgHiBlack).Fprintln(w, "    Completeness:        n/a")
-		color.New(color.FgHiBlack).Fprintln(w, "    Cross-ref coherence: n/a")
+	if !m.LLMEnabled {
+		dim := color.New(color.FgHiBlack)
+		dim.Fprintln(w, "    README clarity:      n/a (Claude CLI not detected)")
+		dim.Fprintln(w, "    Example quality:     n/a")
+		dim.Fprintln(w, "    Completeness:        n/a")
+		dim.Fprintln(w, "    Cross-ref coherence: n/a")
+		return
 	}
+	renderLLMScore(w, "README clarity", m.ReadmeClarity)
+	renderLLMScore(w, "Example quality", m.ExampleQuality)
+	renderLLMScore(w, "Completeness", m.Completeness)
+	renderLLMScore(w, "Cross-ref coherence", m.CrossRefCoherence)
+	fmt.Fprintf(w, "    LLM cost:            $%.4f (%d tokens)\n", m.LLMCostUSD, m.LLMTokensUsed)
+}
 
-	// Verbose: show counts
-	//
-	// These raw counts help developers understand the denominators behind
-	// percentages (e.g., "15% comment density" becomes concrete: "469 comment
-	// lines out of 3,127 total"). Concrete numbers make improvement targets
-	// actionable ("add 78 comment lines" vs "increase density 2.5%").
-	if verbose {
-		fmt.Fprintln(w)
-		bold.Fprintln(w, "  Detailed metrics:")
-		fmt.Fprintf(w, "    Total source lines:  %d\n", m.TotalSourceLines)
-		fmt.Fprintf(w, "    Comment lines:       %d\n", m.CommentLines)
-		fmt.Fprintf(w, "    Public APIs:         %d\n", m.PublicAPIs)
-		fmt.Fprintf(w, "    Documented APIs:     %d\n", m.DocumentedAPIs)
-	}
+func renderLLMScore(w io.Writer, label string, score int) {
+	padded := fmt.Sprintf("%-21s", label+":")
+	c := colorForIntInverse(score, c4LLMScoreRed, c4LLMScoreYellow)
+	c.Fprintf(w, "    %s%d/10\n", padded, score)
+}
+
+func renderC4Verbose(w io.Writer, bold *color.Color, m *types.C4Metrics) {
+	fmt.Fprintln(w)
+	bold.Fprintln(w, "  Detailed metrics:")
+	fmt.Fprintf(w, "    Total source lines:  %d\n", m.TotalSourceLines)
+	fmt.Fprintf(w, "    Comment lines:       %d\n", m.CommentLines)
+	fmt.Fprintf(w, "    Public APIs:         %d\n", m.PublicAPIs)
+	fmt.Fprintf(w, "    Documented APIs:     %d\n", m.DocumentedAPIs)
 }
 
 func renderC6(w io.Writer, ar *types.AnalysisResult, verbose bool) {

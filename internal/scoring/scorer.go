@@ -22,6 +22,51 @@ import (
 // evidenceTopN is the maximum number of evidence items retained per metric.
 const evidenceTopN = 5
 
+// topNItems returns up to evidenceTopN items from a pre-sorted slice using the provided
+// conversion function. The input should already be sorted by the desired criteria.
+func topNItems[T any](sorted []T, toEvidence func(T) types.EvidenceItem) []types.EvidenceItem {
+	limit := evidenceTopN
+	if len(sorted) < limit {
+		limit = len(sorted)
+	}
+	items := make([]types.EvidenceItem, limit)
+	for i := 0; i < limit; i++ {
+		items[i] = toEvidence(sorted[i])
+	}
+	return items
+}
+
+// couplingEvidence builds top-N evidence from a map[string]int (package->count).
+func couplingEvidence(m map[string]int, descFmt string) []types.EvidenceItem {
+	type pkgCount struct {
+		pkg   string
+		count int
+	}
+	entries := make([]pkgCount, 0, len(m))
+	for pkg, count := range m {
+		entries = append(entries, pkgCount{pkg, count})
+	}
+	sort.Slice(entries, func(i, j int) bool {
+		return entries[i].count > entries[j].count
+	})
+	return topNItems(entries, func(e pkgCount) types.EvidenceItem {
+		return types.EvidenceItem{
+			FilePath:    e.pkg,
+			Value:       float64(e.count),
+			Description: fmt.Sprintf(descFmt, e.count),
+		}
+	})
+}
+
+// ensureEvidenceKeys ensures all given keys have at least empty arrays (never nil).
+func ensureEvidenceKeys(evidence map[string][]types.EvidenceItem, keys []string) {
+	for _, key := range keys {
+		if evidence[key] == nil {
+			evidence[key] = []types.EvidenceItem{}
+		}
+	}
+}
+
 // Scorer computes scores from raw analysis metrics using configurable breakpoints.
 type Scorer struct {
 	Config *ScoringConfig
@@ -236,154 +281,14 @@ func extractC1(ar *types.AnalysisResult) (map[string]float64, map[string]bool, m
 		return nil, nil, nil
 	}
 
-	// Initialize evidence map for tracking top offenders per metric
 	evidence := make(map[string][]types.EvidenceItem)
-
-	// complexity_avg: top 5 functions by cyclomatic complexity (worst offenders)
-	if len(m.Functions) > 0 {
-		// Sort descending by complexity, then take top 5
-		sorted := make([]types.FunctionMetric, len(m.Functions))
-		copy(sorted, m.Functions)
-		sort.Slice(sorted, func(i, j int) bool {
-			return sorted[i].Complexity > sorted[j].Complexity
-		})
-		limit := evidenceTopN
-		if len(sorted) < limit {
-			limit = len(sorted)
-		}
-		items := make([]types.EvidenceItem, limit)
-		for i := 0; i < limit; i++ {
-			items[i] = types.EvidenceItem{
-				FilePath:    sorted[i].File,
-				Line:        sorted[i].Line,
-				Value:       float64(sorted[i].Complexity),
-				Description: fmt.Sprintf("%s has complexity %d", sorted[i].Name, sorted[i].Complexity),
-			}
-		}
-		evidence["complexity_avg"] = items
-	}
-
-	// func_length_avg: top 5 functions by line count
-	if len(m.Functions) > 0 {
-		sorted := make([]types.FunctionMetric, len(m.Functions))
-		copy(sorted, m.Functions)
-		sort.Slice(sorted, func(i, j int) bool {
-			return sorted[i].LineCount > sorted[j].LineCount
-		})
-		limit := evidenceTopN
-		if len(sorted) < limit {
-			limit = len(sorted)
-		}
-		items := make([]types.EvidenceItem, limit)
-		for i := 0; i < limit; i++ {
-			items[i] = types.EvidenceItem{
-				FilePath:    sorted[i].File,
-				Line:        sorted[i].Line,
-				Value:       float64(sorted[i].LineCount),
-				Description: fmt.Sprintf("%s is %d lines", sorted[i].Name, sorted[i].LineCount),
-			}
-		}
-		evidence["func_length_avg"] = items
-	}
-
-	// file_size_avg: single worst file
-	if m.FileSize.MaxEntity != "" {
-		evidence["file_size_avg"] = []types.EvidenceItem{{
-			FilePath:    m.FileSize.MaxEntity,
-			Line:        0,
-			Value:       float64(m.FileSize.Max),
-			Description: fmt.Sprintf("largest file: %d lines", m.FileSize.Max),
-		}}
-	}
-
-	// afferent_coupling_avg: top 5 packages by incoming dependency count
-	if len(m.AfferentCoupling) > 0 {
-		type pkgCount struct {
-			pkg   string
-			count int
-		}
-		entries := make([]pkgCount, 0, len(m.AfferentCoupling))
-		for pkg, count := range m.AfferentCoupling {
-			entries = append(entries, pkgCount{pkg, count})
-		}
-		sort.Slice(entries, func(i, j int) bool {
-			return entries[i].count > entries[j].count
-		})
-		limit := evidenceTopN
-		if len(entries) < limit {
-			limit = len(entries)
-		}
-		items := make([]types.EvidenceItem, limit)
-		for i := 0; i < limit; i++ {
-			items[i] = types.EvidenceItem{
-				FilePath:    entries[i].pkg,
-				Line:        0,
-				Value:       float64(entries[i].count),
-				Description: fmt.Sprintf("imported by %d packages", entries[i].count),
-			}
-		}
-		evidence["afferent_coupling_avg"] = items
-	}
-
-	// efferent_coupling_avg: top 5 packages by outgoing dependency count
-	if len(m.EfferentCoupling) > 0 {
-		type pkgCount struct {
-			pkg   string
-			count int
-		}
-		entries := make([]pkgCount, 0, len(m.EfferentCoupling))
-		for pkg, count := range m.EfferentCoupling {
-			entries = append(entries, pkgCount{pkg, count})
-		}
-		sort.Slice(entries, func(i, j int) bool {
-			return entries[i].count > entries[j].count
-		})
-		limit := evidenceTopN
-		if len(entries) < limit {
-			limit = len(entries)
-		}
-		items := make([]types.EvidenceItem, limit)
-		for i := 0; i < limit; i++ {
-			items[i] = types.EvidenceItem{
-				FilePath:    entries[i].pkg,
-				Line:        0,
-				Value:       float64(entries[i].count),
-				Description: fmt.Sprintf("imports %d packages", entries[i].count),
-			}
-		}
-		evidence["efferent_coupling_avg"] = items
-	}
-
-	// duplication_rate: top 5 duplicate blocks by line count
-	if len(m.DuplicatedBlocks) > 0 {
-		sorted := make([]types.DuplicateBlock, len(m.DuplicatedBlocks))
-		copy(sorted, m.DuplicatedBlocks)
-		sort.Slice(sorted, func(i, j int) bool {
-			return sorted[i].LineCount > sorted[j].LineCount
-		})
-		limit := evidenceTopN
-		if len(sorted) < limit {
-			limit = len(sorted)
-		}
-		items := make([]types.EvidenceItem, limit)
-		for i := 0; i < limit; i++ {
-			items[i] = types.EvidenceItem{
-				FilePath:    sorted[i].FileA,
-				Line:        sorted[i].StartA,
-				Value:       float64(sorted[i].LineCount),
-				Description: fmt.Sprintf("%d-line duplicate block", sorted[i].LineCount),
-			}
-		}
-		evidence["duplication_rate"] = items
-	}
-
-	// Ensure all 6 metric keys have at least empty arrays (never nil)
-	// This guarantees consistent JSON output and prevents null values in serialized reports
-	for _, key := range []string{"complexity_avg", "func_length_avg", "file_size_avg", "afferent_coupling_avg", "efferent_coupling_avg", "duplication_rate"} {
-		if evidence[key] == nil {
-			evidence[key] = []types.EvidenceItem{}
-		}
-	}
+	evidence["complexity_avg"] = c1ComplexityEvidence(m.Functions)
+	evidence["func_length_avg"] = c1FuncLengthEvidence(m.Functions)
+	evidence["file_size_avg"] = metricSummaryEvidence(m.FileSize, "largest file: %d lines")
+	evidence["afferent_coupling_avg"] = couplingEvidence(m.AfferentCoupling, "imported by %d packages")
+	evidence["efferent_coupling_avg"] = couplingEvidence(m.EfferentCoupling, "imports %d packages")
+	evidence["duplication_rate"] = c1DuplicationEvidence(m.DuplicatedBlocks)
+	ensureEvidenceKeys(evidence, []string{"complexity_avg", "func_length_avg", "file_size_avg", "afferent_coupling_avg", "efferent_coupling_avg", "duplication_rate"})
 
 	return map[string]float64{
 		"complexity_avg":        m.CyclomaticComplexity.Avg,
@@ -393,6 +298,62 @@ func extractC1(ar *types.AnalysisResult) (map[string]float64, map[string]bool, m
 		"efferent_coupling_avg": avgMapValues(m.EfferentCoupling),
 		"duplication_rate":      m.DuplicationRate,
 	}, nil, evidence
+}
+
+func c1ComplexityEvidence(funcs []types.FunctionMetric) []types.EvidenceItem {
+	if len(funcs) == 0 {
+		return nil
+	}
+	sorted := make([]types.FunctionMetric, len(funcs))
+	copy(sorted, funcs)
+	sort.Slice(sorted, func(i, j int) bool { return sorted[i].Complexity > sorted[j].Complexity })
+	return topNItems(sorted, func(f types.FunctionMetric) types.EvidenceItem {
+		return types.EvidenceItem{
+			FilePath: f.File, Line: f.Line, Value: float64(f.Complexity),
+			Description: fmt.Sprintf("%s has complexity %d", f.Name, f.Complexity),
+		}
+	})
+}
+
+func c1FuncLengthEvidence(funcs []types.FunctionMetric) []types.EvidenceItem {
+	if len(funcs) == 0 {
+		return nil
+	}
+	sorted := make([]types.FunctionMetric, len(funcs))
+	copy(sorted, funcs)
+	sort.Slice(sorted, func(i, j int) bool { return sorted[i].LineCount > sorted[j].LineCount })
+	return topNItems(sorted, func(f types.FunctionMetric) types.EvidenceItem {
+		return types.EvidenceItem{
+			FilePath: f.File, Line: f.Line, Value: float64(f.LineCount),
+			Description: fmt.Sprintf("%s is %d lines", f.Name, f.LineCount),
+		}
+	})
+}
+
+func c1DuplicationEvidence(blocks []types.DuplicateBlock) []types.EvidenceItem {
+	if len(blocks) == 0 {
+		return nil
+	}
+	sorted := make([]types.DuplicateBlock, len(blocks))
+	copy(sorted, blocks)
+	sort.Slice(sorted, func(i, j int) bool { return sorted[i].LineCount > sorted[j].LineCount })
+	return topNItems(sorted, func(b types.DuplicateBlock) types.EvidenceItem {
+		return types.EvidenceItem{
+			FilePath: b.FileA, Line: b.StartA, Value: float64(b.LineCount),
+			Description: fmt.Sprintf("%d-line duplicate block", b.LineCount),
+		}
+	})
+}
+
+// metricSummaryEvidence returns a single evidence item for a MetricSummary's max entity.
+func metricSummaryEvidence(ms types.MetricSummary, descFmt string) []types.EvidenceItem {
+	if ms.MaxEntity == "" {
+		return nil
+	}
+	return []types.EvidenceItem{{
+		FilePath: ms.MaxEntity, Value: float64(ms.Max),
+		Description: fmt.Sprintf(descFmt, ms.Max),
+	}}
 }
 
 // extractC2 extracts C2 (Semantic Explicitness) metrics from an AnalysisResult.
@@ -455,76 +416,11 @@ func extractC3(ar *types.AnalysisResult) (map[string]float64, map[string]bool, m
 	}
 
 	evidence := make(map[string][]types.EvidenceItem)
-
-	// max_dir_depth: no per-item data available
-	// module_fanout_avg: single worst module if available
-	if m.ModuleFanout.MaxEntity != "" {
-		evidence["module_fanout_avg"] = []types.EvidenceItem{{
-			FilePath:    m.ModuleFanout.MaxEntity,
-			Line:        0,
-			Value:       float64(m.ModuleFanout.Max),
-			Description: fmt.Sprintf("highest fanout: %d references", m.ModuleFanout.Max),
-		}}
-	}
-
-	// circular_deps: first 5 cycles
-	if len(m.CircularDeps) > 0 {
-		limit := evidenceTopN
-		if len(m.CircularDeps) < limit {
-			limit = len(m.CircularDeps)
-		}
-		items := make([]types.EvidenceItem, limit)
-		for i := 0; i < limit; i++ {
-			cycle := m.CircularDeps[i]
-			filePath := ""
-			if len(cycle) > 0 {
-				filePath = cycle[0]
-			}
-			items[i] = types.EvidenceItem{
-				FilePath:    filePath,
-				Line:        0,
-				Value:       float64(len(cycle)),
-				Description: fmt.Sprintf("cycle: %s", strings.Join(cycle, " -> ")),
-			}
-		}
-		evidence["circular_deps"] = items
-	}
-
-	// import_complexity_avg: single worst if available
-	if m.ImportComplexity.MaxEntity != "" {
-		evidence["import_complexity_avg"] = []types.EvidenceItem{{
-			FilePath:    m.ImportComplexity.MaxEntity,
-			Line:        0,
-			Value:       float64(m.ImportComplexity.Max),
-			Description: fmt.Sprintf("most complex imports: %d segments", m.ImportComplexity.Max),
-		}}
-	}
-
-	// dead_exports: first 5 unused exports
-	if len(m.DeadExports) > 0 {
-		limit := evidenceTopN
-		if len(m.DeadExports) < limit {
-			limit = len(m.DeadExports)
-		}
-		items := make([]types.EvidenceItem, limit)
-		for i := 0; i < limit; i++ {
-			de := m.DeadExports[i]
-			items[i] = types.EvidenceItem{
-				FilePath:    de.File,
-				Line:        de.Line,
-				Value:       1,
-				Description: fmt.Sprintf("unused %s: %s", de.Kind, de.Name),
-			}
-		}
-		evidence["dead_exports"] = items
-	}
-
-	// Ensure all 5 keys have at least empty arrays
-	for _, key := range []string{"max_dir_depth", "module_fanout_avg", "circular_deps", "import_complexity_avg", "dead_exports"} {
-		if evidence[key] == nil {
-			evidence[key] = []types.EvidenceItem{}
-		}
-	}
+	evidence["module_fanout_avg"] = metricSummaryEvidence(m.ModuleFanout, "highest fanout: %d references")
+	evidence["circular_deps"] = c3CircularDepsEvidence(m.CircularDeps)
+	evidence["import_complexity_avg"] = metricSummaryEvidence(m.ImportComplexity, "most complex imports: %d segments")
+	evidence["dead_exports"] = c3DeadExportsEvidence(m.DeadExports)
+	ensureEvidenceKeys(evidence, []string{"max_dir_depth", "module_fanout_avg", "circular_deps", "import_complexity_avg", "dead_exports"})
 
 	return map[string]float64{
 		"max_dir_depth":        float64(m.MaxDirectoryDepth),
@@ -533,6 +429,34 @@ func extractC3(ar *types.AnalysisResult) (map[string]float64, map[string]bool, m
 		"import_complexity_avg": m.ImportComplexity.Avg,
 		"dead_exports":          float64(len(m.DeadExports)),
 	}, nil, evidence
+}
+
+func c3CircularDepsEvidence(cycles [][]string) []types.EvidenceItem {
+	if len(cycles) == 0 {
+		return nil
+	}
+	return topNItems(cycles, func(cycle []string) types.EvidenceItem {
+		filePath := ""
+		if len(cycle) > 0 {
+			filePath = cycle[0]
+		}
+		return types.EvidenceItem{
+			FilePath: filePath, Value: float64(len(cycle)),
+			Description: fmt.Sprintf("cycle: %s", strings.Join(cycle, " -> ")),
+		}
+	})
+}
+
+func c3DeadExportsEvidence(exports []types.DeadExport) []types.EvidenceItem {
+	if len(exports) == 0 {
+		return nil
+	}
+	return topNItems(exports, func(de types.DeadExport) types.EvidenceItem {
+		return types.EvidenceItem{
+			FilePath: de.File, Line: de.Line, Value: 1,
+			Description: fmt.Sprintf("unused %s: %s", de.Kind, de.Name),
+		}
+	})
 }
 
 // extractC4 extracts C4 (Documentation Quality) metrics from an AnalysisResult.
@@ -596,83 +520,62 @@ func extractC6(ar *types.AnalysisResult) (map[string]float64, map[string]bool, m
 		return nil, nil, nil
 	}
 
-	// Compute test_file_ratio with zero-division guard
 	var testFileRatio float64
 	if m.SourceFileCount > 0 {
 		testFileRatio = float64(m.TestFileCount) / float64(m.SourceFileCount)
 	}
 
-	rawValues := map[string]float64{
-		"test_to_code_ratio":    m.TestToCodeRatio,
-		"coverage_percent":      m.CoveragePercent,
-		"test_isolation":        m.TestIsolation,
-		"assertion_density_avg": m.AssertionDensity.Avg,
-		"test_file_ratio":       testFileRatio,
-	}
-
-	// Mark coverage as unavailable if == -1
 	unavailable := map[string]bool{}
 	if m.CoveragePercent == -1 {
 		unavailable["coverage_percent"] = true
 	}
 
 	evidence := make(map[string][]types.EvidenceItem)
+	evidence["test_isolation"] = c6IsolationEvidence(m.TestFunctions)
+	evidence["assertion_density_avg"] = c6AssertionEvidence(m.TestFunctions)
+	c6Keys := []string{"test_to_code_ratio", "coverage_percent", "test_isolation", "assertion_density_avg", "test_file_ratio"}
+	ensureEvidenceKeys(evidence, c6Keys)
 
-	// test_isolation: top 5 tests with external dependencies
-	if len(m.TestFunctions) > 0 {
-		var withExtDep []types.TestFunctionMetric
-		for _, tf := range m.TestFunctions {
-			if tf.HasExternalDep {
-				withExtDep = append(withExtDep, tf)
-			}
-		}
-		limit := evidenceTopN
-		if len(withExtDep) < limit {
-			limit = len(withExtDep)
-		}
-		items := make([]types.EvidenceItem, limit)
-		for i := 0; i < limit; i++ {
-			items[i] = types.EvidenceItem{
-				FilePath:    withExtDep[i].File,
-				Line:        withExtDep[i].Line,
-				Value:       1,
-				Description: fmt.Sprintf("%s has external dependency", withExtDep[i].Name),
-			}
-		}
-		evidence["test_isolation"] = items
-	}
+	return map[string]float64{
+		"test_to_code_ratio":    m.TestToCodeRatio,
+		"coverage_percent":      m.CoveragePercent,
+		"test_isolation":        m.TestIsolation,
+		"assertion_density_avg": m.AssertionDensity.Avg,
+		"test_file_ratio":       testFileRatio,
+	}, unavailable, evidence
+}
 
-	// assertion_density_avg: top 5 tests with lowest assertion count (worst offenders)
-	if len(m.TestFunctions) > 0 {
-		sorted := make([]types.TestFunctionMetric, len(m.TestFunctions))
-		copy(sorted, m.TestFunctions)
-		sort.Slice(sorted, func(i, j int) bool {
-			return sorted[i].AssertionCount < sorted[j].AssertionCount
-		})
-		limit := evidenceTopN
-		if len(sorted) < limit {
-			limit = len(sorted)
-		}
-		items := make([]types.EvidenceItem, limit)
-		for i := 0; i < limit; i++ {
-			items[i] = types.EvidenceItem{
-				FilePath:    sorted[i].File,
-				Line:        sorted[i].Line,
-				Value:       float64(sorted[i].AssertionCount),
-				Description: fmt.Sprintf("%s has %d assertions", sorted[i].Name, sorted[i].AssertionCount),
-			}
-		}
-		evidence["assertion_density_avg"] = items
-	}
-
-	// Ensure all 5 keys have at least empty arrays
-	for _, key := range []string{"test_to_code_ratio", "coverage_percent", "test_isolation", "assertion_density_avg", "test_file_ratio"} {
-		if evidence[key] == nil {
-			evidence[key] = []types.EvidenceItem{}
+func c6IsolationEvidence(funcs []types.TestFunctionMetric) []types.EvidenceItem {
+	var withExtDep []types.TestFunctionMetric
+	for _, tf := range funcs {
+		if tf.HasExternalDep {
+			withExtDep = append(withExtDep, tf)
 		}
 	}
+	if len(withExtDep) == 0 {
+		return nil
+	}
+	return topNItems(withExtDep, func(tf types.TestFunctionMetric) types.EvidenceItem {
+		return types.EvidenceItem{
+			FilePath: tf.File, Line: tf.Line, Value: 1,
+			Description: fmt.Sprintf("%s has external dependency", tf.Name),
+		}
+	})
+}
 
-	return rawValues, unavailable, evidence
+func c6AssertionEvidence(funcs []types.TestFunctionMetric) []types.EvidenceItem {
+	if len(funcs) == 0 {
+		return nil
+	}
+	sorted := make([]types.TestFunctionMetric, len(funcs))
+	copy(sorted, funcs)
+	sort.Slice(sorted, func(i, j int) bool { return sorted[i].AssertionCount < sorted[j].AssertionCount })
+	return topNItems(sorted, func(tf types.TestFunctionMetric) types.EvidenceItem {
+		return types.EvidenceItem{
+			FilePath: tf.File, Line: tf.Line, Value: float64(tf.AssertionCount),
+			Description: fmt.Sprintf("%s has %d assertions", tf.Name, tf.AssertionCount),
+		}
+	})
 }
 
 // extractC5 extracts C5 (Temporal Dynamics) metrics from an AnalysisResult and collects evidence.
@@ -705,110 +608,22 @@ func extractC5(ar *types.AnalysisResult) (map[string]float64, map[string]bool, m
 		return nil, nil, nil
 	}
 
+	c5Keys := []string{"churn_rate", "temporal_coupling_pct", "author_fragmentation", "commit_stability", "hotspot_concentration"}
+
 	if !m.Available {
-		unavailable := map[string]bool{
-			"churn_rate":            true,
-			"temporal_coupling_pct": true,
-			"author_fragmentation":  true,
-			"commit_stability":      true,
-			"hotspot_concentration": true,
-		}
-		emptyEvidence := make(map[string][]types.EvidenceItem)
-		for k := range unavailable {
-			emptyEvidence[k] = []types.EvidenceItem{}
-		}
-		return map[string]float64{}, unavailable, emptyEvidence
+		return map[string]float64{}, markAllUnavailable(c5Keys), emptyEvidenceMap(c5Keys)
 	}
 
 	evidence := make(map[string][]types.EvidenceItem)
-
-	// churn_rate: top 5 hotspots by commit count
-	if len(m.TopHotspots) > 0 {
-		limit := evidenceTopN
-		if len(m.TopHotspots) < limit {
-			limit = len(m.TopHotspots)
-		}
-		items := make([]types.EvidenceItem, limit)
-		for i := 0; i < limit; i++ {
-			h := m.TopHotspots[i]
-			items[i] = types.EvidenceItem{
-				FilePath:    h.Path,
-				Line:        0,
-				Value:       float64(h.CommitCount),
-				Description: fmt.Sprintf("%d commits", h.CommitCount),
-			}
-		}
-		evidence["churn_rate"] = items
-	}
-
-	// temporal_coupling_pct: top 5 coupled pairs
-	if len(m.CoupledPairs) > 0 {
-		limit := evidenceTopN
-		if len(m.CoupledPairs) < limit {
-			limit = len(m.CoupledPairs)
-		}
-		items := make([]types.EvidenceItem, limit)
-		for i := 0; i < limit; i++ {
-			p := m.CoupledPairs[i]
-			items[i] = types.EvidenceItem{
-				FilePath:    p.FileA,
-				Line:        0,
-				Value:       p.Coupling,
-				Description: fmt.Sprintf("coupled with %s (%.0f%%)", p.FileB, p.Coupling),
-			}
-		}
-		evidence["temporal_coupling_pct"] = items
-	}
-
-	// author_fragmentation: top 5 hotspots by author count
-	if len(m.TopHotspots) > 0 {
-		sorted := make([]types.FileChurn, len(m.TopHotspots))
-		copy(sorted, m.TopHotspots)
-		sort.Slice(sorted, func(i, j int) bool {
-			return sorted[i].AuthorCount > sorted[j].AuthorCount
-		})
-		limit := evidenceTopN
-		if len(sorted) < limit {
-			limit = len(sorted)
-		}
-		items := make([]types.EvidenceItem, limit)
-		for i := 0; i < limit; i++ {
-			h := sorted[i]
-			items[i] = types.EvidenceItem{
-				FilePath:    h.Path,
-				Line:        0,
-				Value:       float64(h.AuthorCount),
-				Description: fmt.Sprintf("%d distinct authors", h.AuthorCount),
-			}
-		}
-		evidence["author_fragmentation"] = items
-	}
-
-	// hotspot_concentration: top 5 hotspots by total changes
-	if len(m.TopHotspots) > 0 {
-		limit := evidenceTopN
-		if len(m.TopHotspots) < limit {
-			limit = len(m.TopHotspots)
-		}
-		items := make([]types.EvidenceItem, limit)
-		for i := 0; i < limit; i++ {
-			h := m.TopHotspots[i]
-			items[i] = types.EvidenceItem{
-				FilePath:    h.Path,
-				Line:        0,
-				Value:       float64(h.TotalChanges),
-				Description: fmt.Sprintf("hotspot: %d changes", h.TotalChanges),
-			}
-		}
-		evidence["hotspot_concentration"] = items
-	}
-
-	// Ensure all 5 keys have at least empty arrays
-	for _, key := range []string{"churn_rate", "temporal_coupling_pct", "author_fragmentation", "commit_stability", "hotspot_concentration"} {
-		if evidence[key] == nil {
-			evidence[key] = []types.EvidenceItem{}
-		}
-	}
+	evidence["churn_rate"] = c5HotspotEvidence(m.TopHotspots, func(h types.FileChurn) (float64, string) {
+		return float64(h.CommitCount), fmt.Sprintf("%d commits", h.CommitCount)
+	})
+	evidence["temporal_coupling_pct"] = c5CouplingEvidence(m.CoupledPairs)
+	evidence["author_fragmentation"] = c5AuthorFragmentationEvidence(m.TopHotspots)
+	evidence["hotspot_concentration"] = c5HotspotEvidence(m.TopHotspots, func(h types.FileChurn) (float64, string) {
+		return float64(h.TotalChanges), fmt.Sprintf("hotspot: %d changes", h.TotalChanges)
+	})
+	ensureEvidenceKeys(evidence, c5Keys)
 
 	return map[string]float64{
 		"churn_rate":            m.ChurnRate,
@@ -817,6 +632,61 @@ func extractC5(ar *types.AnalysisResult) (map[string]float64, map[string]bool, m
 		"commit_stability":      m.CommitStability,
 		"hotspot_concentration": m.HotspotConcentration,
 	}, nil, evidence
+}
+
+func c5HotspotEvidence(hotspots []types.FileChurn, valDesc func(types.FileChurn) (float64, string)) []types.EvidenceItem {
+	if len(hotspots) == 0 {
+		return nil
+	}
+	return topNItems(hotspots, func(h types.FileChurn) types.EvidenceItem {
+		val, desc := valDesc(h)
+		return types.EvidenceItem{FilePath: h.Path, Value: val, Description: desc}
+	})
+}
+
+func c5CouplingEvidence(pairs []types.CoupledPair) []types.EvidenceItem {
+	if len(pairs) == 0 {
+		return nil
+	}
+	return topNItems(pairs, func(p types.CoupledPair) types.EvidenceItem {
+		return types.EvidenceItem{
+			FilePath: p.FileA, Value: p.Coupling,
+			Description: fmt.Sprintf("coupled with %s (%.0f%%)", p.FileB, p.Coupling),
+		}
+	})
+}
+
+func c5AuthorFragmentationEvidence(hotspots []types.FileChurn) []types.EvidenceItem {
+	if len(hotspots) == 0 {
+		return nil
+	}
+	sorted := make([]types.FileChurn, len(hotspots))
+	copy(sorted, hotspots)
+	sort.Slice(sorted, func(i, j int) bool { return sorted[i].AuthorCount > sorted[j].AuthorCount })
+	return topNItems(sorted, func(h types.FileChurn) types.EvidenceItem {
+		return types.EvidenceItem{
+			FilePath: h.Path, Value: float64(h.AuthorCount),
+			Description: fmt.Sprintf("%d distinct authors", h.AuthorCount),
+		}
+	})
+}
+
+// markAllUnavailable returns a map marking all given keys as unavailable.
+func markAllUnavailable(keys []string) map[string]bool {
+	m := make(map[string]bool, len(keys))
+	for _, k := range keys {
+		m[k] = true
+	}
+	return m
+}
+
+// emptyEvidenceMap returns an evidence map with empty slices for all keys.
+func emptyEvidenceMap(keys []string) map[string][]types.EvidenceItem {
+	m := make(map[string][]types.EvidenceItem, len(keys))
+	for _, k := range keys {
+		m[k] = []types.EvidenceItem{}
+	}
+	return m
 }
 
 // extractC7 extracts C7 (Agent Evaluation) metrics from an AnalysisResult.
@@ -830,27 +700,10 @@ func extractC7(ar *types.AnalysisResult) (map[string]float64, map[string]bool, m
 		return nil, nil, nil
 	}
 
-	if !m.Available {
-		unavailable := map[string]bool{
-			"task_execution_consistency":       true,
-			"code_behavior_comprehension":      true,
-			"cross_file_navigation":            true,
-			"identifier_interpretability":      true,
-			"documentation_accuracy_detection": true,
-		}
-		emptyEvidence := make(map[string][]types.EvidenceItem)
-		for k := range unavailable {
-			emptyEvidence[k] = []types.EvidenceItem{}
-		}
-		return map[string]float64{}, unavailable, emptyEvidence
-	}
+	c7Keys := []string{"task_execution_consistency", "code_behavior_comprehension", "cross_file_navigation", "identifier_interpretability", "documentation_accuracy_detection"}
 
-	evidence := map[string][]types.EvidenceItem{
-		"task_execution_consistency":       {},
-		"code_behavior_comprehension":      {},
-		"cross_file_navigation":            {},
-		"identifier_interpretability":      {},
-		"documentation_accuracy_detection": {},
+	if !m.Available {
+		return map[string]float64{}, markAllUnavailable(c7Keys), emptyEvidenceMap(c7Keys)
 	}
 
 	return map[string]float64{
@@ -859,7 +712,7 @@ func extractC7(ar *types.AnalysisResult) (map[string]float64, map[string]bool, m
 		"cross_file_navigation":            float64(m.CrossFileNavigation),
 		"identifier_interpretability":      float64(m.IdentifierInterpretability),
 		"documentation_accuracy_detection": float64(m.DocumentationAccuracyDetection),
-	}, nil, evidence
+	}, nil, emptyEvidenceMap(c7Keys)
 }
 
 // scoreMetrics is a generic scoring helper for any category.

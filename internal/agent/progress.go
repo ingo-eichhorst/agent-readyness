@@ -171,34 +171,13 @@ func (p *C7Progress) render() {
 
 	var parts []string
 	for _, id := range p.metricOrder {
-		m := p.metrics[id]
-		// Use short ID for display (e.g., "M1" from "task_execution_consistency")
-		shortID := shortMetricID(id)
-		switch m.Status {
-		case statusPending:
-			parts = append(parts, fmt.Sprintf("%s: Pending", shortID))
-		case statusRunning:
-			// Show percentage for progress visibility (C7-IMPL-06)
-			pct := 0
-			if m.TotalSamples > 0 {
-				pct = (m.CurrentSample * percentMultiplier) / m.TotalSamples
-			}
-			parts = append(parts, fmt.Sprintf("%s: %d%% (%d/%d)", shortID, pct, m.CurrentSample, m.TotalSamples))
-		case statusComplete:
-			parts = append(parts, fmt.Sprintf("%s: Done(%d)", shortID, m.Score))
-		case statusFailed:
-			parts = append(parts, fmt.Sprintf("%s: Failed", shortID))
-		}
+		parts = append(parts, formatMetricStatus(p.metrics[id]))
 	}
 
-	// Token count with comma formatting
+	elapsed := time.Since(p.startTime).Round(time.Second)
 	tokenStr := formatTokens(p.totalTokens)
-
-	// Cost estimation: Sonnet 4.5 blended rate ~$5/MTok
 	costUSD := float64(p.totalTokens) / tokensPerMillion * costRatePerMTok
 
-	// Build and write line - includes "progress" text for C7-IMPL-06 compliance
-	elapsed := time.Since(p.startTime).Round(time.Second)
 	line := fmt.Sprintf("\rC7 progress [%s]: ", elapsed)
 	for i, part := range parts {
 		if i > 0 {
@@ -208,8 +187,26 @@ func (p *C7Progress) render() {
 	}
 	line += fmt.Sprintf(" | Tokens: %s | Est. $%.2f", tokenStr, costUSD)
 
-	// Pad with spaces to clear previous longer lines, then write
 	fmt.Fprintf(p.writer, "%-*s", progressLineWidth, line)
+}
+
+// formatMetricStatus returns a display string for a single metric's progress.
+func formatMetricStatus(m *metricProgress) string {
+	shortID := shortMetricID(m.ID)
+	switch m.Status {
+	case statusRunning:
+		pct := 0
+		if m.TotalSamples > 0 {
+			pct = (m.CurrentSample * percentMultiplier) / m.TotalSamples
+		}
+		return fmt.Sprintf("%s: %d%% (%d/%d)", shortID, pct, m.CurrentSample, m.TotalSamples)
+	case statusComplete:
+		return fmt.Sprintf("%s: Done(%d)", shortID, m.Score)
+	case statusFailed:
+		return fmt.Sprintf("%s: Failed", shortID)
+	default:
+		return fmt.Sprintf("%s: Pending", shortID)
+	}
 }
 
 // Stop halts the progress display and prints a final summary.

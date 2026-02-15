@@ -28,89 +28,34 @@ func RunMetricsParallel(
 	executor metrics.Executor,
 ) ParallelResult {
 	allMetrics := metrics.AllMetrics()
-	result := ParallelResult{
-		Results: make([]metrics.MetricResult, len(allMetrics)),
-		Errors:  make([]error, 0),
-	}
-
-	// Use provided executor or create default CLI adapter
+	result := initResult(len(allMetrics))
 	if executor == nil {
 		executor = newCLIExecutorAdapter(workDir)
 	}
 
-	// Use errgroup for concurrent execution
 	g, ctx := errgroup.WithContext(ctx)
-	var mu sync.Mutex // Protect results slice and errors
+	var mu sync.Mutex
 
 	for i, m := range allMetrics {
-		i, m := i, m // Capture loop variables
-
+		i, m := i, m
 		g.Go(func() error {
-			// Select samples
-			samples := m.SelectSamples(targets)
-
-			// Update progress: starting
-			if progress != nil {
-				progress.SetMetricRunning(m.ID(), len(samples))
-			}
-
-			// Execute metric with progress callback
-			metricResult := executeMetricWithProgress(ctx, m, workDir, samples, executor, progress)
-
-			// Store result
+			mr := runSingleMetric(ctx, m, workDir, targets, executor, progress)
 			mu.Lock()
-			result.Results[i] = metricResult
-			if metricResult.Error != "" {
-				// Don't return error - we want all metrics to complete
-				// Just track that this one failed
-				if progress != nil {
-					progress.SetMetricFailed(m.ID(), metricResult.Error)
-				}
-			} else {
-				if progress != nil {
-					progress.SetMetricComplete(m.ID(), metricResult.Score)
-					progress.AddTokens(metricResult.TokensUsed)
-				}
-			}
+			result.Results[i] = mr
+			updateProgress(progress, m.ID(), mr)
 			mu.Unlock()
-
-			// Return nil - we don't want errgroup to cancel other goroutines
 			return nil
 		})
 	}
-
-	// Wait for all metrics to complete
 	_ = g.Wait()
 
-	// Sum up total tokens
 	for _, r := range result.Results {
 		result.TotalTokens += r.TokensUsed
 	}
-
-	return result
-}
-
-// executeMetricWithProgress runs a single metric and updates progress for each sample.
-func executeMetricWithProgress(
-	ctx context.Context,
-	m metrics.Metric,
-	workDir string,
-	samples []metrics.Sample,
-	executor metrics.Executor,
-	progress *C7Progress,
-) metrics.MetricResult {
-	// Execute the metric
-	result := m.Execute(ctx, workDir, samples, executor)
-
-	// Progress updates happen inside Execute() via callbacks,
-	// or we can track sample progress here if needed.
-	// For now, the metric handles its own sample iteration.
-
 	return result
 }
 
 // RunMetricsSequential executes all metrics sequentially (fallback/debugging).
-// If executor is nil, a default CLIExecutorAdapter is created for live CLI execution.
 func RunMetricsSequential(
 	ctx context.Context,
 	workDir string,
@@ -119,44 +64,56 @@ func RunMetricsSequential(
 	executor metrics.Executor,
 ) ParallelResult {
 	allMetrics := metrics.AllMetrics()
-	result := ParallelResult{
-		Results: make([]metrics.MetricResult, len(allMetrics)),
-		Errors:  make([]error, 0),
-	}
-
-	// Use provided executor or create default CLI adapter
+	result := initResult(len(allMetrics))
 	if executor == nil {
 		executor = newCLIExecutorAdapter(workDir)
 	}
 
 	for i, m := range allMetrics {
-		samples := m.SelectSamples(targets)
-
-		if progress != nil {
-			progress.SetMetricRunning(m.ID(), len(samples))
-		}
-
-		metricResult := m.Execute(ctx, workDir, samples, executor)
-		result.Results[i] = metricResult
-
-		if metricResult.Error != "" {
-			if progress != nil {
-				progress.SetMetricFailed(m.ID(), metricResult.Error)
-			}
-		} else {
-			if progress != nil {
-				progress.SetMetricComplete(m.ID(), metricResult.Score)
-				progress.AddTokens(metricResult.TokensUsed)
-			}
-		}
-
-		result.TotalTokens += metricResult.TokensUsed
-
-		// Check for context cancellation between metrics
+		mr := runSingleMetric(ctx, m, workDir, targets, executor, progress)
+		result.Results[i] = mr
+		result.TotalTokens += mr.TokensUsed
+		updateProgress(progress, m.ID(), mr)
 		if ctx.Err() != nil {
 			break
 		}
 	}
-
 	return result
+}
+
+// initResult creates an empty ParallelResult with pre-allocated slices.
+func initResult(count int) ParallelResult {
+	return ParallelResult{
+		Results: make([]metrics.MetricResult, count),
+		Errors:  make([]error, 0),
+	}
+}
+
+// runSingleMetric selects samples, reports progress, and executes a metric.
+func runSingleMetric(
+	ctx context.Context,
+	m metrics.Metric,
+	workDir string,
+	targets []*types.AnalysisTarget,
+	executor metrics.Executor,
+	progress *C7Progress,
+) metrics.MetricResult {
+	samples := m.SelectSamples(targets)
+	if progress != nil {
+		progress.SetMetricRunning(m.ID(), len(samples))
+	}
+	return m.Execute(ctx, workDir, samples, executor)
+}
+
+// updateProgress reports metric completion or failure to the progress display.
+func updateProgress(progress *C7Progress, id string, mr metrics.MetricResult) {
+	if progress == nil {
+		return
+	}
+	if mr.Error != "" {
+		progress.SetMetricFailed(id, mr.Error)
+	} else {
+		progress.SetMetricComplete(id, mr.Score)
+		progress.AddTokens(mr.TokensUsed)
+	}
 }

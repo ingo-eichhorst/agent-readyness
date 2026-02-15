@@ -52,68 +52,26 @@ type cliResponse struct {
 // ExecuteTask runs a single task against the Claude CLI.
 // Uses graceful timeout handling with SIGINT before force-kill.
 func (e *executor) ExecuteTask(ctx context.Context, t task) taskResult {
-	result := taskResult{
-		TaskID:    t.ID,
-		StartTime: time.Now(),
-	}
+	result := taskResult{TaskID: t.ID, StartTime: time.Now()}
 
-	// Default timeout if not specified
 	timeout := t.TimeoutSeconds
 	if timeout <= 0 {
 		timeout = defaultTaskTimeout
 	}
 
-	// Create timeout context
 	taskCtx, cancel := context.WithTimeout(ctx, time.Duration(timeout)*time.Second)
 	defer cancel()
 
-	// Build command with JSON output
-	args := []string{
-		"-p", t.Prompt,
-		"--output-format", "json",
-	}
-	if t.ToolsAllowed != "" {
-		args = append(args, "--allowedTools", t.ToolsAllowed)
-	}
-
-	cmd := exec.CommandContext(taskCtx, "claude", args...)
-	cmd.Dir = e.workDir
-
-	// Graceful cancellation: send SIGINT first (Go 1.20+)
-	cmd.Cancel = func() error {
-		return cmd.Process.Signal(os.Interrupt)
-	}
-	// Grace period before force-kill after SIGINT
-	cmd.WaitDelay = taskCommandGraceSec
-
-	// Capture both stdout and stderr for error diagnosis
+	cmd := e.buildCommand(taskCtx, t)
 	output, err := cmd.CombinedOutput()
 	result.EndTime = time.Now()
 	result.Duration = result.EndTime.Sub(result.StartTime)
 
-	// Handle execution errors
 	if err != nil {
-		if taskCtx.Err() == context.DeadlineExceeded {
-			result.Status = statusTimeout
-			result.Error = fmt.Sprintf("task timed out after %d seconds", timeout)
-			return result
-		}
-
-		// Check if CLI was not found
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			result.Status = statusError
-			result.Error = fmt.Sprintf("exit code %d: %s", exitErr.ExitCode(), string(output))
-		} else if _, lookErr := execLookPath("claude"); lookErr != nil {
-			result.Status = statusCLINotFound
-			result.Error = "claude CLI not found"
-		} else {
-			result.Status = statusError
-			result.Error = err.Error()
-		}
+		classifyExecError(&result, taskCtx, err, output, timeout)
 		return result
 	}
 
-	// Parse JSON response
 	parsed, parseErr := parseJSONOutput(output)
 	if parseErr != nil {
 		result.Status = statusError
@@ -125,6 +83,38 @@ func (e *executor) ExecuteTask(ctx context.Context, t task) taskResult {
 	result.Response = parsed.Result
 	result.SessionID = parsed.SessionID
 	return result
+}
+
+// buildCommand constructs the Claude CLI exec.Cmd with graceful cancellation.
+func (e *executor) buildCommand(ctx context.Context, t task) *exec.Cmd {
+	args := []string{"-p", t.Prompt, "--output-format", "json"}
+	if t.ToolsAllowed != "" {
+		args = append(args, "--allowedTools", t.ToolsAllowed)
+	}
+	cmd := exec.CommandContext(ctx, "claude", args...)
+	cmd.Dir = e.workDir
+	cmd.Cancel = func() error { return cmd.Process.Signal(os.Interrupt) }
+	cmd.WaitDelay = taskCommandGraceSec
+	return cmd
+}
+
+// classifyExecError sets the appropriate status and error on a task result.
+func classifyExecError(result *taskResult, taskCtx context.Context, err error, output []byte, timeout int) {
+	if taskCtx.Err() == context.DeadlineExceeded {
+		result.Status = statusTimeout
+		result.Error = fmt.Sprintf("task timed out after %d seconds", timeout)
+		return
+	}
+	if exitErr, ok := err.(*exec.ExitError); ok {
+		result.Status = statusError
+		result.Error = fmt.Sprintf("exit code %d: %s", exitErr.ExitCode(), string(output))
+	} else if _, lookErr := execLookPath("claude"); lookErr != nil {
+		result.Status = statusCLINotFound
+		result.Error = "claude CLI not found"
+	} else {
+		result.Status = statusError
+		result.Error = err.Error()
+	}
 }
 
 // parseJSONOutput extracts the response from Claude CLI JSON output.

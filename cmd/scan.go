@@ -42,99 +42,36 @@ Claude CLI is detected. Use --no-llm to disable all LLM features.`,
 		if err != nil {
 			return fmt.Errorf("cannot resolve path: %s", err)
 		}
-
 		if err := validateProject(dir); err != nil {
 			return err
 		}
-
-		// --debug-dir implies --debug
-		if debugDir != "" {
-			debug = true
-			absDir, absErr := filepath.Abs(debugDir)
-			if absErr != nil {
-				return fmt.Errorf("invalid debug-dir path: %w", absErr)
-			}
-			debugDir = absDir
+		if err := resolveDebugDir(); err != nil {
+			return err
 		}
 
-		// Load scoring config
-		cfg, err := scoring.LoadConfig("")
+		cfg, err := loadScoringConfig(dir)
 		if err != nil {
-			return fmt.Errorf("load scoring config: %w", err)
-		}
-
-		// Load project config (.arsrc.yml) and apply overrides
-		projectCfg, err := config.LoadProjectConfig(dir, configPath)
-		if err != nil {
-			return fmt.Errorf("load project config: %w", err)
-		}
-		if projectCfg != nil {
-			projectCfg.ApplyToScoringConfig(cfg)
-			// Apply threshold from project config if not set via CLI
-			if threshold == 0 && projectCfg.Scoring.Threshold > 0 {
-				threshold = projectCfg.Scoring.Threshold
-			}
+			return err
 		}
 
 		spinner := pipeline.NewSpinner(os.Stderr)
-		onProgress := func(stage, detail string) {
-			spinner.Update(detail)
-		}
 		spinner.Start("Scanning...")
 
-		p := pipeline.New(cmd.OutOrStdout(), verbose, cfg, threshold, jsonOutput, onProgress)
+		p := pipeline.New(cmd.OutOrStdout(), verbose, cfg, threshold, jsonOutput, func(_, detail string) {
+			spinner.Update(detail)
+		})
 
-		// Show CLI status and handle LLM feature enablement
-		cliStatus := p.GetCLIStatus()
-		if cliStatus.Available {
-			if noLLM {
-				p.DisableLLM()
-				fmt.Fprintf(cmd.OutOrStdout(), "LLM features disabled (--no-llm flag)\n")
-			} else {
-				fmt.Fprintf(cmd.OutOrStdout(), "Claude CLI detected (%s) - LLM features enabled\n", cliStatus.Version)
-			}
-		} else {
-			fmt.Fprintf(cmd.OutOrStdout(), "Claude CLI not found - LLM features disabled\n")
-			if verbose {
-				fmt.Fprintf(cmd.OutOrStdout(), "  %s\n", cliStatus.InstallHint)
-			}
-		}
+		configurePipeline(cmd, p)
 
-		// Configure debug output
-		if debug {
-			p.SetC7Debug(true)
-		}
-
-		// Configure C7 response persistence/replay
-		if debugDir != "" {
-			// Silently ignore if --no-llm is set
-			if !noLLM {
-				p.SetDebugDir(debugDir)
-			}
-		}
-
-		// Configure HTML output if requested
-		if outputHTML != "" {
-			p.SetHTMLOutput(outputHTML, baselinePath)
-		}
-
-		// Configure badge output if requested
-		if badgeOutput {
-			p.SetBadgeOutput(true)
-		}
-
-		err = p.Run(dir)
-		if err != nil {
-			spinner.Stop("") // clear spinner before error
+		if err := p.Run(dir); err != nil {
+			spinner.Stop("")
 			return err
 		}
 		spinner.Stop("Done.")
 
-		// Show HTML output path if generated
 		if outputHTML != "" {
 			fmt.Fprintf(cmd.OutOrStdout(), "\nHTML report generated: %s\n", outputHTML)
 		}
-
 		return nil
 	},
 }
@@ -150,6 +87,69 @@ func init() {
 	scanCmd.Flags().BoolVar(&badgeOutput, "badge", false, "generate shields.io badge markdown URL")
 	scanCmd.Flags().StringVar(&debugDir, "debug-dir", "", "directory for C7 response persistence and replay")
 	rootCmd.AddCommand(scanCmd)
+}
+
+// resolveDebugDir resolves the debug-dir flag and implies --debug.
+func resolveDebugDir() error {
+	if debugDir == "" {
+		return nil
+	}
+	debug = true
+	absDir, err := filepath.Abs(debugDir)
+	if err != nil {
+		return fmt.Errorf("invalid debug-dir path: %w", err)
+	}
+	debugDir = absDir
+	return nil
+}
+
+// loadScoringConfig loads scoring and project configs, applying overrides.
+func loadScoringConfig(dir string) (*scoring.ScoringConfig, error) {
+	cfg, err := scoring.LoadConfig("")
+	if err != nil {
+		return nil, fmt.Errorf("load scoring config: %w", err)
+	}
+	projectCfg, err := config.LoadProjectConfig(dir, configPath)
+	if err != nil {
+		return nil, fmt.Errorf("load project config: %w", err)
+	}
+	if projectCfg != nil {
+		projectCfg.ApplyToScoringConfig(cfg)
+		if threshold == 0 && projectCfg.Scoring.Threshold > 0 {
+			threshold = projectCfg.Scoring.Threshold
+		}
+	}
+	return cfg, nil
+}
+
+// configurePipeline sets up LLM, debug, HTML, and badge options on the pipeline.
+func configurePipeline(cmd *cobra.Command, p *pipeline.Pipeline) {
+	cliStatus := p.GetCLIStatus()
+	if cliStatus.Available {
+		if noLLM {
+			p.DisableLLM()
+			fmt.Fprintf(cmd.OutOrStdout(), "LLM features disabled (--no-llm flag)\n")
+		} else {
+			fmt.Fprintf(cmd.OutOrStdout(), "Claude CLI detected (%s) - LLM features enabled\n", cliStatus.Version)
+		}
+	} else {
+		fmt.Fprintf(cmd.OutOrStdout(), "Claude CLI not found - LLM features disabled\n")
+		if verbose {
+			fmt.Fprintf(cmd.OutOrStdout(), "  %s\n", cliStatus.InstallHint)
+		}
+	}
+	if debug {
+		p.SetC7Debug(true)
+	}
+	if debugDir != "" && !noLLM {
+		p.SetDebugDir(debugDir)
+	}
+	if outputHTML != "" {
+		p.SetHTMLOutput(outputHTML, baselinePath)
+	}
+	if badgeOutput {
+		p.SetBadgeOutput(true)
+	}
 }
 
 // validateProject checks that dir exists, is a directory, and contains recognized source files.

@@ -66,83 +66,95 @@ type identifierCandidate struct {
 
 // SelectSamples extracts exported identifiers and selects those with longer,
 // more semantically rich names. Longer names = more semantic content to test.
-func (m *m4Identifiers) SelectSamples(targets []*types.AnalysisTarget) []Sample {
-	var candidates []identifierCandidate
+// Compiled patterns for exported identifiers by language.
+var (
+	goExportedFunc = regexp.MustCompile(`(?m)^func\s+([A-Z][a-zA-Z0-9_]*)\s*\(`)
+	goExportedType = regexp.MustCompile(`(?m)^type\s+([A-Z][a-zA-Z0-9_]*)\s+`)
+	goExportedVar  = regexp.MustCompile(`(?m)^(?:var|const)\s+([A-Z][a-zA-Z0-9_]*)`)
+	tsExported     = regexp.MustCompile(`(?m)^export\s+(?:function|class|const|let|var|interface|type)\s+([a-zA-Z_][a-zA-Z0-9_]*)`)
+	pyPublic       = regexp.MustCompile(`(?m)^(?:def|class)\s+([a-zA-Z][a-zA-Z0-9_]*)`)
+)
 
-	// Patterns for exported identifiers by language
-	goExportedFunc := regexp.MustCompile(`(?m)^func\s+([A-Z][a-zA-Z0-9_]*)\s*\(`)
-	goExportedType := regexp.MustCompile(`(?m)^type\s+([A-Z][a-zA-Z0-9_]*)\s+`)
-	goExportedVar := regexp.MustCompile(`(?m)^(?:var|const)\s+([A-Z][a-zA-Z0-9_]*)`)
-	tsExported := regexp.MustCompile(`(?m)^export\s+(?:function|class|const|let|var|interface|type)\s+([a-zA-Z_][a-zA-Z0-9_]*)`)
-	pyPublic := regexp.MustCompile(`(?m)^(?:def|class)\s+([a-zA-Z][a-zA-Z0-9_]*)`) // Python uses convention, not export
-
-	for _, target := range targets {
-		var patterns []*regexp.Regexp
-
-		switch target.Language {
-		case types.LangGo:
-			patterns = []*regexp.Regexp{goExportedFunc, goExportedType, goExportedVar}
-		case types.LangTypeScript:
-			patterns = []*regexp.Regexp{tsExported}
-		case types.LangPython:
-			patterns = []*regexp.Regexp{pyPublic}
-		default:
-			continue
-		}
-
-		for _, file := range target.Files {
-			if file.Class != types.ClassSource {
-				continue
-			}
-
-			content := string(file.Content)
-			lines := strings.Split(content, "\n")
-
-			for _, pattern := range patterns {
-				matches := pattern.FindAllStringSubmatchIndex(content, -1)
-				for _, match := range matches {
-					if len(match) >= 4 {
-						name := content[match[2]:match[3]]
-
-						// Skip very short names (less semantic content)
-						if len(name) < m4MinNameLength {
-							continue
-						}
-
-						// Skip obvious test/example identifiers
-						nameLower := strings.ToLower(name)
-						if strings.HasPrefix(nameLower, "test") ||
-							strings.HasPrefix(nameLower, "example") ||
-							strings.HasPrefix(nameLower, "mock") {
-							continue
-						}
-
-						// Calculate line number
-						lineNum := 1 + strings.Count(content[:match[0]], "\n")
-
-						// Score based on name length and word count (camelCase/snake_case words)
-						wordCount := countIdentifierWords(name)
-						score := float64(len(name)) * float64(wordCount)
-
-						candidates = append(candidates, identifierCandidate{
-							name:     name,
-							filePath: file.RelPath,
-							line:     lineNum,
-							score:    score,
-						})
-					}
-				}
-			}
-			_ = lines // Used above for reference
-		}
+// patternsForLanguage returns identifier extraction patterns for a language.
+func patternsForLanguage(lang types.Language) []*regexp.Regexp {
+	switch lang {
+	case types.LangGo:
+		return []*regexp.Regexp{goExportedFunc, goExportedType, goExportedVar}
+	case types.LangTypeScript:
+		return []*regexp.Regexp{tsExported}
+	case types.LangPython:
+		return []*regexp.Regexp{pyPublic}
+	default:
+		return nil
 	}
+}
 
-	// Sort by score descending (longer, more complex names first)
+func (m *m4Identifiers) SelectSamples(targets []*types.AnalysisTarget) []Sample {
+	candidates := m.extractCandidates(targets)
+
 	sort.Slice(candidates, func(i, j int) bool {
 		return candidates[i].score > candidates[j].score
 	})
 
-	// Deduplicate by name (keep highest scored occurrence)
+	unique := deduplicateCandidates(candidates)
+	return candidatesToSamples(unique, m.sampleCount)
+}
+
+// extractCandidates extracts identifier candidates from all targets.
+func (m *m4Identifiers) extractCandidates(targets []*types.AnalysisTarget) []identifierCandidate {
+	var candidates []identifierCandidate
+	for _, target := range targets {
+		patterns := patternsForLanguage(target.Language)
+		if patterns == nil {
+			continue
+		}
+		for _, file := range target.Files {
+			if file.Class != types.ClassSource {
+				continue
+			}
+			candidates = extractFileIdentifiers(candidates, string(file.Content), file.RelPath, patterns)
+		}
+	}
+	return candidates
+}
+
+// extractFileIdentifiers extracts identifier candidates from a single file's content.
+func extractFileIdentifiers(candidates []identifierCandidate, content, relPath string, patterns []*regexp.Regexp) []identifierCandidate {
+	for _, pattern := range patterns {
+		matches := pattern.FindAllStringSubmatchIndex(content, -1)
+		for _, match := range matches {
+			if len(match) < 4 {
+				continue
+			}
+			name := content[match[2]:match[3]]
+			if !isValidIdentifier(name) {
+				continue
+			}
+			wordCount := countIdentifierWords(name)
+			candidates = append(candidates, identifierCandidate{
+				name:     name,
+				filePath: relPath,
+				line:     1 + strings.Count(content[:match[0]], "\n"),
+				score:    float64(len(name)) * float64(wordCount),
+			})
+		}
+	}
+	return candidates
+}
+
+// isValidIdentifier checks that an identifier is suitable for evaluation.
+func isValidIdentifier(name string) bool {
+	if len(name) < m4MinNameLength {
+		return false
+	}
+	nameLower := strings.ToLower(name)
+	return !strings.HasPrefix(nameLower, "test") &&
+		!strings.HasPrefix(nameLower, "example") &&
+		!strings.HasPrefix(nameLower, "mock")
+}
+
+// deduplicateCandidates removes duplicate names, keeping the first (highest scored).
+func deduplicateCandidates(candidates []identifierCandidate) []identifierCandidate {
 	seen := make(map[string]bool)
 	var unique []identifierCandidate
 	for _, c := range candidates {
@@ -151,11 +163,14 @@ func (m *m4Identifiers) SelectSamples(targets []*types.AnalysisTarget) []Sample 
 			unique = append(unique, c)
 		}
 	}
+	return unique
+}
 
-	// Convert to samples
+// candidatesToSamples converts identifier candidates to evaluation samples.
+func candidatesToSamples(candidates []identifierCandidate, maxCount int) []Sample {
 	var samples []Sample
-	for i, c := range unique {
-		if i >= m.sampleCount {
+	for i, c := range candidates {
+		if i >= maxCount {
 			break
 		}
 		samples = append(samples, Sample{
@@ -166,7 +181,6 @@ func (m *m4Identifiers) SelectSamples(targets []*types.AnalysisTarget) []Sample 
 			Description:    fmt.Sprintf("Exported identifier '%s' with %d chars", c.name, len(c.name)),
 		})
 	}
-
 	return samples
 }
 

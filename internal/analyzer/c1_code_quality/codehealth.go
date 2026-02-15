@@ -53,112 +53,44 @@ func (a *C1Analyzer) SetGoPackages(pkgs []*parser.ParsedPackage) {
 
 // Analyze runs all 6 C1 sub-analyses on the given packages and returns
 // a combined AnalysisResult with Category "C1".
+// c1Accumulator collects per-language C1 analysis results for merging.
+type c1Accumulator struct {
+	functions  []types.FunctionMetric
+	duplicates []types.DuplicateBlock
+	fileSizes  []types.MetricSummary
+	dupRateSum float64
+	dupCount   int
+}
+
+func (acc *c1Accumulator) addDupRate(rate float64) {
+	if rate > 0 {
+		acc.dupRateSum += rate
+		acc.dupCount++
+	}
+}
+
 func (a *C1Analyzer) Analyze(targets []*types.AnalysisTarget) (*types.AnalysisResult, error) {
 	metrics := &c1MetricsResult{
 		AfferentCoupling: make(map[string]int),
 		EfferentCoupling: make(map[string]int),
 	}
+	acc := &c1Accumulator{}
 
-	var allFunctions []types.FunctionMetric
-	var allDuplicates []types.DuplicateBlock
-	var totalDupRate float64
-	dupRateCount := 0
-	var allFileSizes []types.MetricSummary
-
-	// Go analysis (existing logic, via SetGoPackages)
 	if a.pkgs != nil {
-		goFunctions, goDuplicates, goDupRate, goFileSize, goCoupling := a.analyzeGoC1()
-		allFunctions = append(allFunctions, goFunctions...)
-		allDuplicates = append(allDuplicates, goDuplicates...)
-		if goDupRate > 0 {
-			totalDupRate += goDupRate
-			dupRateCount++
-		}
-		allFileSizes = append(allFileSizes, goFileSize)
-		// Apply Go coupling directly
-		for k, v := range goCoupling.afferent {
-			metrics.AfferentCoupling[k] = v
-		}
-		for k, v := range goCoupling.efferent {
-			metrics.EfferentCoupling[k] = v
-		}
+		a.accumulateGoC1(acc, metrics)
 	}
 
-	// Python/TypeScript analysis via targets
 	for _, target := range targets {
-		switch target.Language {
-		case types.LangPython:
-			if a.tsParser == nil {
-				continue
-			}
-			parsed, err := a.tsParser.ParseTargetFiles(target)
-			if err != nil {
-				continue
-			}
-			defer parser.CloseAll(parsed)
-
-			srcFiles := pyFilterSourceFiles(parsed)
-			pyFunctions := pyAnalyzeFunctions(srcFiles)
-			allFunctions = append(allFunctions, pyFunctions...)
-
-			pyFileSize := pyAnalyzeFileSizes(srcFiles)
-			allFileSizes = append(allFileSizes, pyFileSize)
-
-			pyDups, pyRate := pyAnalyzeDuplication(srcFiles)
-			allDuplicates = append(allDuplicates, pyDups...)
-			if pyRate > 0 {
-				totalDupRate += pyRate
-				dupRateCount++
-			}
-
-		case types.LangTypeScript:
-			if a.tsParser == nil {
-				continue
-			}
-			parsed, err := a.tsParser.ParseTargetFiles(target)
-			if err != nil {
-				continue
-			}
-			defer parser.CloseAll(parsed)
-
-			srcFiles := tsFilterSourceFiles(parsed)
-			tsFunctions := tsAnalyzeFunctions(srcFiles)
-			allFunctions = append(allFunctions, tsFunctions...)
-
-			tsFileSize := tsAnalyzeFileSizes(srcFiles)
-			allFileSizes = append(allFileSizes, tsFileSize)
-
-			tsDups, tsRate := tsAnalyzeDuplication(srcFiles)
-			allDuplicates = append(allDuplicates, tsDups...)
-			if tsRate > 0 {
-				totalDupRate += tsRate
-				dupRateCount++
-			}
-		}
+		a.accumulateTargetC1(target, acc)
 	}
 
-	// Build combined metrics
-	metrics.Functions = allFunctions
-	metrics.CyclomaticComplexity = computeComplexitySummary(allFunctions)
-	metrics.FunctionLength = computeFunctionLengthSummary(allFunctions)
-	metrics.DuplicatedBlocks = allDuplicates
-
-	// Merge file sizes: pick the best summary across languages
-	if len(allFileSizes) > 0 {
-		bestFileSize := allFileSizes[0]
-		for _, fs := range allFileSizes[1:] {
-			if fs.Max > bestFileSize.Max {
-				bestFileSize.Max = fs.Max
-				bestFileSize.MaxEntity = fs.MaxEntity
-			}
-			// Re-average would need total count; use max-based approach
-		}
-		metrics.FileSize = bestFileSize
-	}
-
-	// Average duplication rate
-	if dupRateCount > 0 {
-		metrics.DuplicationRate = totalDupRate / float64(dupRateCount)
+	metrics.Functions = acc.functions
+	metrics.CyclomaticComplexity = computeComplexitySummary(acc.functions)
+	metrics.FunctionLength = computeFunctionLengthSummary(acc.functions)
+	metrics.DuplicatedBlocks = acc.duplicates
+	metrics.FileSize = mergeFileSizes(acc.fileSizes)
+	if acc.dupCount > 0 {
+		metrics.DuplicationRate = acc.dupRateSum / float64(acc.dupCount)
 	}
 
 	return &types.AnalysisResult{
@@ -166,6 +98,65 @@ func (a *C1Analyzer) Analyze(targets []*types.AnalysisTarget) (*types.AnalysisRe
 		Category: "C1",
 		Metrics:  map[string]types.CategoryMetrics{"c1": metrics},
 	}, nil
+}
+
+// accumulateGoC1 runs Go C1 analysis and merges results into the accumulator.
+func (a *C1Analyzer) accumulateGoC1(acc *c1Accumulator, metrics *c1MetricsResult) {
+	goFunctions, goDuplicates, goDupRate, goFileSize, goCoupling := a.analyzeGoC1()
+	acc.functions = append(acc.functions, goFunctions...)
+	acc.duplicates = append(acc.duplicates, goDuplicates...)
+	acc.addDupRate(goDupRate)
+	acc.fileSizes = append(acc.fileSizes, goFileSize)
+	for k, v := range goCoupling.afferent {
+		metrics.AfferentCoupling[k] = v
+	}
+	for k, v := range goCoupling.efferent {
+		metrics.EfferentCoupling[k] = v
+	}
+}
+
+// accumulateTargetC1 runs Python or TypeScript C1 analysis and merges results.
+func (a *C1Analyzer) accumulateTargetC1(target *types.AnalysisTarget, acc *c1Accumulator) {
+	if a.tsParser == nil {
+		return
+	}
+	parsed, err := a.tsParser.ParseTargetFiles(target)
+	if err != nil {
+		return
+	}
+	defer parser.CloseAll(parsed)
+
+	switch target.Language {
+	case types.LangPython:
+		srcFiles := pyFilterSourceFiles(parsed)
+		acc.functions = append(acc.functions, pyAnalyzeFunctions(srcFiles)...)
+		acc.fileSizes = append(acc.fileSizes, pyAnalyzeFileSizes(srcFiles))
+		dups, rate := pyAnalyzeDuplication(srcFiles)
+		acc.duplicates = append(acc.duplicates, dups...)
+		acc.addDupRate(rate)
+	case types.LangTypeScript:
+		srcFiles := tsFilterSourceFiles(parsed)
+		acc.functions = append(acc.functions, tsAnalyzeFunctions(srcFiles)...)
+		acc.fileSizes = append(acc.fileSizes, tsAnalyzeFileSizes(srcFiles))
+		dups, rate := tsAnalyzeDuplication(srcFiles)
+		acc.duplicates = append(acc.duplicates, dups...)
+		acc.addDupRate(rate)
+	}
+}
+
+// mergeFileSizes picks the best file size summary across languages.
+func mergeFileSizes(sizes []types.MetricSummary) types.MetricSummary {
+	if len(sizes) == 0 {
+		return types.MetricSummary{}
+	}
+	best := sizes[0]
+	for _, fs := range sizes[1:] {
+		if fs.Max > best.Max {
+			best.Max = fs.Max
+			best.MaxEntity = fs.MaxEntity
+		}
+	}
+	return best
 }
 
 // goCouplingResult holds afferent and efferent coupling maps from Go analysis.
@@ -416,118 +407,111 @@ func detectModulePath(pkgs []*parser.ParsedPackage) string {
 // - dupMinLines=6: Focuses on substantial duplicated logic worth refactoring
 //
 // Returns the list of duplicate blocks and the duplication rate (% of lines duplicated).
-func analyzeDuplication(pkgs []*parser.ParsedPackage) ([]types.DuplicateBlock, float64) {
-	type stmtSeq struct {
-		hash      uint64
-		file      string
-		startLine int
-		endLine   int
-	}
+// stmtSeq represents a hashed sequence of statements for duplication detection.
+type stmtSeq struct {
+	hash      uint64
+	file      string
+	startLine int
+	endLine   int
+}
 
+func analyzeDuplication(pkgs []*parser.ParsedPackage) ([]types.DuplicateBlock, float64) {
+	sequences, totalLines := extractStatementSequences(pkgs)
+	blocks, dupLineCount := findDuplicatePairs(sequences)
+
+	var rate float64
+	if totalLines > 0 {
+		rate = float64(dupLineCount) / float64(totalLines) * toPercentC1
+	}
+	return blocks, rate
+}
+
+// extractStatementSequences hashes all statement subsequences across packages.
+func extractStatementSequences(pkgs []*parser.ParsedPackage) ([]stmtSeq, int) {
 	var sequences []stmtSeq
 	totalLines := 0
 
 	for _, pkg := range pkgs {
 		for _, f := range pkg.Syntax {
 			totalLines += pkg.Fset.Position(f.End()).Line
-
 			ast.Inspect(f, func(n ast.Node) bool {
 				block, ok := n.(*ast.BlockStmt)
 				if !ok {
 					return true
 				}
-
-				// Sliding window over statements: examine all subsequences of dupMinStatements or more
-				// Nested loop explores varying window sizes to capture duplicates of different lengths
-				for i := 0; i <= len(block.List)-dupMinStatements; i++ {
-					for windowSize := dupMinStatements; windowSize <= len(block.List)-i; windowSize++ {
-						stmts := block.List[i : i+windowSize]
-						start := pkg.Fset.Position(stmts[0].Pos())
-						end := pkg.Fset.Position(stmts[len(stmts)-1].End())
-						lineSpan := end.Line - start.Line + 1
-
-						if lineSpan < dupMinLines {
-							continue
-						}
-
-						h := hashStatements(pkg.Fset, stmts)
-						sequences = append(sequences, stmtSeq{
-							hash:      h,
-							file:      start.Filename,
-							startLine: start.Line,
-							endLine:   end.Line,
-						})
-					}
-				}
-
+				sequences = appendBlockSequences(sequences, pkg.Fset, block)
 				return true
 			})
 		}
 	}
+	return sequences, totalLines
+}
 
-	// Group by hash and find duplicates
+// appendBlockSequences adds all sliding-window statement sequences from a block.
+func appendBlockSequences(sequences []stmtSeq, fset *token.FileSet, block *ast.BlockStmt) []stmtSeq {
+	for i := 0; i <= len(block.List)-dupMinStatements; i++ {
+		for windowSize := dupMinStatements; windowSize <= len(block.List)-i; windowSize++ {
+			stmts := block.List[i : i+windowSize]
+			start := fset.Position(stmts[0].Pos())
+			end := fset.Position(stmts[len(stmts)-1].End())
+			if end.Line-start.Line+1 < dupMinLines {
+				continue
+			}
+			sequences = append(sequences, stmtSeq{
+				hash: hashStatements(fset, stmts), file: start.Filename,
+				startLine: start.Line, endLine: end.Line,
+			})
+		}
+	}
+	return sequences
+}
+
+// findDuplicatePairs groups sequences by hash and reports non-overlapping duplicate pairs.
+func findDuplicatePairs(sequences []stmtSeq) ([]types.DuplicateBlock, int) {
 	groups := make(map[uint64][]stmtSeq)
 	for _, seq := range sequences {
 		groups[seq.hash] = append(groups[seq.hash], seq)
 	}
 
 	var blocks []types.DuplicateBlock
-	duplicatedLines := make(map[string]map[int]bool) // file -> set of duplicated line numbers
+	duplicatedLines := make(map[string]map[int]bool)
 
 	for _, group := range groups {
 		if len(group) < 2 {
 			continue
 		}
-
-		// Report pairs, but only the largest non-overlapping match per pair
-		// For simplicity, report all pairs from the group
 		for i := 0; i < len(group); i++ {
 			for j := i + 1; j < len(group); j++ {
 				a, b := group[i], group[j]
-
-				// Skip self-overlapping matches (same file, overlapping lines)
-				// This prevents reporting the same code sequence matched against itself at different window sizes
 				if a.file == b.file && a.startLine < b.endLine && b.startLine < a.endLine {
 					continue
 				}
-
 				blocks = append(blocks, types.DuplicateBlock{
-					FileA:     a.file,
-					StartA:    a.startLine,
-					EndA:      a.endLine,
-					FileB:     b.file,
-					StartB:    b.startLine,
-					EndB:      b.endLine,
+					FileA: a.file, StartA: a.startLine, EndA: a.endLine,
+					FileB: b.file, StartB: b.startLine, EndB: b.endLine,
 					LineCount: a.endLine - a.startLine + 1,
 				})
-
-				// Track duplicated lines: build set of all line numbers involved in duplications
-				// Using a map[file]map[line]bool ensures each line is counted only once,
-				// even if it appears in multiple duplicate blocks (avoids double-counting)
-				for _, s := range []stmtSeq{a, b} {
-					if duplicatedLines[s.file] == nil {
-						duplicatedLines[s.file] = make(map[int]bool)
-					}
-					for l := s.startLine; l <= s.endLine; l++ {
-						duplicatedLines[s.file][l] = true
-					}
-				}
+				markDuplicatedLines(duplicatedLines, a)
+				markDuplicatedLines(duplicatedLines, b)
 			}
 		}
 	}
 
-	// Calculate duplication rate
 	dupLineCount := 0
 	for _, lines := range duplicatedLines {
 		dupLineCount += len(lines)
 	}
+	return blocks, dupLineCount
+}
 
-	var rate float64
-	if totalLines > 0 {
-		rate = float64(dupLineCount) / float64(totalLines) * toPercentC1
+// markDuplicatedLines records all line numbers in a sequence as duplicated.
+func markDuplicatedLines(m map[string]map[int]bool, s stmtSeq) {
+	if m[s.file] == nil {
+		m[s.file] = make(map[int]bool)
 	}
-
-	return blocks, rate
+	for l := s.startLine; l <= s.endLine; l++ {
+		m[s.file][l] = true
+	}
 }
 
 // hashStatements computes an FNV hash of a sequence of AST statements

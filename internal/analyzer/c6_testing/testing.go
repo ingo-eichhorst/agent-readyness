@@ -3,6 +3,7 @@ package c6
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/xml"
 	"fmt"
 	"go/ast"
@@ -14,6 +15,44 @@ import (
 	"github.com/ingo-eichhorst/agent-readyness/pkg/types"
 	"golang.org/x/tools/cover"
 )
+
+// countLOCByTestFunc counts test LOC and source LOC using the given test file predicate.
+func countLOCByTestFunc(files []*parser.ParsedTreeSitterFile, isTestFile func(string) bool) (testLOC, srcLOC int) {
+	for _, f := range files {
+		lines := bytes.Count(f.Content, []byte("\n")) + 1
+		if isTestFile(f.RelPath) {
+			testLOC += lines
+		} else {
+			srcLOC += lines
+		}
+	}
+	return
+}
+
+// updateAssertionDensity recomputes assertion density from all test functions in metrics.
+func updateAssertionDensity(metrics *types.C6Metrics) {
+	if len(metrics.TestFunctions) == 0 {
+		return
+	}
+
+	totalAssertions := 0
+	maxAssertions := 0
+	maxEntity := ""
+
+	for _, tf := range metrics.TestFunctions {
+		totalAssertions += tf.AssertionCount
+		if tf.AssertionCount > maxAssertions {
+			maxAssertions = tf.AssertionCount
+			maxEntity = tf.Name
+		}
+	}
+
+	metrics.AssertionDensity = types.MetricSummary{
+		Avg:       float64(totalAssertions) / float64(len(metrics.TestFunctions)),
+		Max:       maxAssertions,
+		MaxEntity: maxEntity,
+	}
+}
 
 // Constants for C6 metrics computation.
 const (
@@ -111,7 +150,7 @@ func (a *C6Analyzer) Analyze(targets []*types.AnalysisTarget) (*types.AnalysisRe
 			}
 
 			// Update assertion density
-			pyUpdateAssertionDensity(metrics)
+			updateAssertionDensity(metrics)
 
 		case types.LangTypeScript:
 			if a.tsParser == nil {
@@ -157,7 +196,7 @@ func (a *C6Analyzer) Analyze(targets []*types.AnalysisTarget) (*types.AnalysisRe
 			}
 
 			// Update assertion density
-			tsUpdateAssertionDensity(metrics)
+			updateAssertionDensity(metrics)
 		}
 	}
 

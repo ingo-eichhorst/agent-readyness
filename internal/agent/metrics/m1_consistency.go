@@ -220,18 +220,7 @@ Do not include any explanation, just the JSON array.`, sample.FilePath)
 				})
 			}
 
-			score := trace.BaseScore
-			for _, ind := range trace.Indicators {
-				score += ind.Delta
-			}
-			if score < minScore {
-				score = minScore
-			}
-			if score > maxScore {
-				score = maxScore
-			}
-			trace.FinalScore = score
-			sr.Score = score
+			sr.Score = computeScore(&trace)
 			sr.ScoreTrace = trace
 			scores = append(scores, sr.Score)
 		}

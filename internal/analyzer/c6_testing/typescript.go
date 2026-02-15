@@ -1,7 +1,6 @@
 package c6
 
 import (
-	"bytes"
 	"strings"
 
 	tree_sitter "github.com/tree-sitter/go-tree-sitter"
@@ -269,38 +268,5 @@ func tsAnalyzeIsolation(files []*parser.ParsedTreeSitterFile, testFuncs []types.
 
 // tsCountLOC counts test LOC and source LOC for TypeScript files.
 func tsCountLOC(files []*parser.ParsedTreeSitterFile) (testLOC, srcLOC int) {
-	for _, f := range files {
-		lines := bytes.Count(f.Content, []byte("\n")) + 1
-		if shared.TsIsTestFile(f.RelPath) {
-			testLOC += lines
-		} else {
-			srcLOC += lines
-		}
-	}
-	return
-}
-
-// tsUpdateAssertionDensity recomputes assertion density from all test functions in metrics.
-func tsUpdateAssertionDensity(metrics *types.C6Metrics) {
-	if len(metrics.TestFunctions) == 0 {
-		return
-	}
-
-	totalAssertions := 0
-	maxAssertions := 0
-	maxEntity := ""
-
-	for _, tf := range metrics.TestFunctions {
-		totalAssertions += tf.AssertionCount
-		if tf.AssertionCount > maxAssertions {
-			maxAssertions = tf.AssertionCount
-			maxEntity = tf.Name
-		}
-	}
-
-	metrics.AssertionDensity = types.MetricSummary{
-		Avg:       float64(totalAssertions) / float64(len(metrics.TestFunctions)),
-		Max:       maxAssertions,
-		MaxEntity: maxEntity,
-	}
+	return countLOCByTestFunc(files, shared.TsIsTestFile)
 }

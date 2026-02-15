@@ -127,28 +127,13 @@ Respond with JSON only: {"score": N, "reason": "brief explanation"}`
 
 // Execute asks the agent to trace dependencies for each sample.
 func (m *m3Navigation) Execute(ctx context.Context, workDir string, samples []Sample, executor Executor) MetricResult {
-	result := MetricResult{
-		MetricID:   m.ID(),
-		MetricName: m.Name(),
-	}
-	startTime := time.Now()
-
-	if len(samples) == 0 {
-		result.Error = "no samples available for evaluation"
-		result.Duration = time.Since(startTime)
-		return result
-	}
-
-	timePerSample := m.timeout / time.Duration(len(samples))
-	var sampleResults []SampleResult
-	var totalScore int
-	successCount := 0
-
-	for _, sample := range samples {
-		sampleStart := time.Now()
-		sampleCtx, cancel := context.WithTimeout(ctx, timePerSample)
-
-		prompt := fmt.Sprintf(`Examine the file at %s and trace its dependencies.
+	return executeStandardMetric(ctx, workDir, samples, executor, executeConfig{
+		metricID:   m.ID(),
+		metricName: m.Name(),
+		timeout:    m.timeout,
+		tools:      "Read,Glob,Grep",
+		buildPrompt: func(sample Sample) string {
+			return fmt.Sprintf(`Examine the file at %s and trace its dependencies.
 
 Your task:
 1. List all imports/dependencies in this file
@@ -161,40 +146,9 @@ Format your response as:
 - Data Flow Trace: [starting function] -> [calls in other files] -> [final destination]
 
 Reference actual file paths and function names from the codebase.`, sample.FilePath)
-
-		response, err := executor.ExecutePrompt(sampleCtx, workDir, prompt, "Read,Glob,Grep", timePerSample)
-		cancel()
-
-		sr := SampleResult{
-			Sample:   sample,
-			Response: response,
-			Prompt:   prompt,
-			Duration: time.Since(sampleStart),
-		}
-
-		if err != nil {
-			sr.Error = err.Error()
-			sr.Score = 0
-		} else {
-			sr.Score, sr.ScoreTrace = m.scoreNavigationResponse(response)
-			totalScore += sr.Score
-			successCount++
-		}
-
-		sampleResults = append(sampleResults, sr)
-	}
-
-	result.Samples = sampleResults
-	result.Duration = time.Since(startTime)
-
-	if successCount == 0 {
-		result.Score = 0
-		result.Error = "all samples failed"
-		return result
-	}
-
-	result.Score = totalScore / successCount
-	return result
+		},
+		scoreResponse: m.scoreNavigationResponse,
+	})
 }
 
 // scoreNavigationResponse uses grouped heuristics to score the navigation trace.
@@ -207,38 +161,15 @@ func (m *m3Navigation) scoreNavigationResponse(response string) (int, ScoreTrace
 
 	trace := ScoreTrace{BaseScore: m3BaseScore}
 
-	// Thematic indicator groups: each group +1 if ANY member matches.
-	type indicatorGroup struct {
-		name    string
-		members []string
-	}
-	groups := []indicatorGroup{
+	trace.Indicators = append(trace.Indicators, matchGroups(responseLower, []indicatorGroup{
 		{"import_awareness", []string{"import", "from"}},
 		{"cross_file_refs", []string{".go", ".py", ".ts", ".js"}},
 		{"data_flow", []string{"->", "flow"}},
 		{"purpose_mapping", []string{"module", "provides", "exports", "purpose"}},
-	}
-
-	for _, group := range groups {
-		groupMatched := false
-		for _, member := range group.members {
-			if strings.Contains(responseLower, member) {
-				groupMatched = true
-				break
-			}
-		}
-		delta := 0
-		if groupMatched {
-			delta = 1
-		}
-		trace.Indicators = append(trace.Indicators, IndicatorMatch{
-			Name: "group:" + group.name, Matched: groupMatched, Delta: delta,
-		})
-	}
+	})...)
 
 	// Depth group: based on file path reference count
 	pathCount := strings.Count(response, "/")
-
 	matchedDepth := pathCount > m3DepthPathCount
 	deltaDepth := 0
 	if matchedDepth {
@@ -259,35 +190,10 @@ func (m *m3Navigation) scoreNavigationResponse(response string) (int, ScoreTrace
 		Name: "group:extensive_depth", Matched: matchedExtensive, Delta: deltaExtensive,
 	})
 
-	// Negative indicators - individual penalties
-	negativeIndicators := []string{
+	trace.Indicators = append(trace.Indicators, matchNegativeIndicators(responseLower, []string{
 		"cannot find", "not found", "no file",
 		"unable to", "cannot trace", "unknown",
-	}
+	})...)
 
-	for _, indicator := range negativeIndicators {
-		matched := strings.Contains(responseLower, indicator)
-		delta := 0
-		if matched {
-			delta = -1
-		}
-		trace.Indicators = append(trace.Indicators, IndicatorMatch{
-			Name: "negative:" + indicator, Matched: matched, Delta: delta,
-		})
-	}
-
-	// Compute final score from trace
-	score := trace.BaseScore
-	for _, ind := range trace.Indicators {
-		score += ind.Delta
-	}
-	if score < minScore {
-		score = minScore
-	}
-	if score > maxScore {
-		score = maxScore
-	}
-	trace.FinalScore = score
-
-	return score, trace
+	return computeScore(&trace), trace
 }

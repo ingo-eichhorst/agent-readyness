@@ -24,8 +24,6 @@ const (
 )
 
 func renderC5(w io.Writer, ar *types.AnalysisResult, verbose bool) {
-	bold := color.New(color.Bold)
-
 	raw, ok := ar.Metrics["c5"]
 	if !ok {
 		return
@@ -35,6 +33,7 @@ func renderC5(w io.Writer, ar *types.AnalysisResult, verbose bool) {
 		return
 	}
 
+	bold := color.New(color.Bold)
 	fmt.Fprintln(w)
 	bold.Fprintln(w, "C5: Temporal Dynamics")
 	fmt.Fprintln(w, "────────────────────────────────────────")
@@ -44,32 +43,33 @@ func renderC5(w io.Writer, ar *types.AnalysisResult, verbose bool) {
 		return
 	}
 
+	renderC5Metrics(w, m)
+
+	if verbose {
+		renderC5Verbose(w, m, bold)
+	}
+}
+
+// renderC5Metrics renders the core C5 metric values.
+func renderC5Metrics(w io.Writer, m *types.C5Metrics) {
 	fmt.Fprintf(w, "  Total commits:       %d (%d-day window)\n", m.TotalCommits, m.TimeWindowDays)
+	colorForFloat(m.ChurnRate, c5ChurnGreen, c5ChurnYellow).Fprintf(w, "  Churn rate:          %.1f lines/commit\n", m.ChurnRate)
+	colorForFloat(m.TemporalCouplingPct, c5TemporalCouplingGreen, c5TemporalCouplingYellow).Fprintf(w, "  Temporal coupling:   %.1f%%\n", m.TemporalCouplingPct)
+	colorForFloat(m.AuthorFragmentation, c5AuthorFragGreen, c5AuthorFragYellow).Fprintf(w, "  Author fragmentation: %.2f avg authors/file\n", m.AuthorFragmentation)
+	colorForFloatInverse(m.CommitStability, c5CommitStabilityRed, c5CommitStabilityYellow).Fprintf(w, "  Commit stability:    %.1f days median\n", m.CommitStability)
+	colorForFloat(m.HotspotConcentration, c5HotspotGreen, c5HotspotYellow).Fprintf(w, "  Hotspot concentration: %.1f%%\n", m.HotspotConcentration)
+}
 
-	cr := colorForFloat(m.ChurnRate, c5ChurnGreen, c5ChurnYellow)
-	cr.Fprintf(w, "  Churn rate:          %.1f lines/commit\n", m.ChurnRate)
-
-	tc := colorForFloat(m.TemporalCouplingPct, c5TemporalCouplingGreen, c5TemporalCouplingYellow)
-	tc.Fprintf(w, "  Temporal coupling:   %.1f%%\n", m.TemporalCouplingPct)
-
-	af := colorForFloat(m.AuthorFragmentation, c5AuthorFragGreen, c5AuthorFragYellow)
-	af.Fprintf(w, "  Author fragmentation: %.2f avg authors/file\n", m.AuthorFragmentation)
-
-	cs := colorForFloatInverse(m.CommitStability, c5CommitStabilityRed, c5CommitStabilityYellow)
-	cs.Fprintf(w, "  Commit stability:    %.1f days median\n", m.CommitStability)
-
-	hc := colorForFloat(m.HotspotConcentration, c5HotspotGreen, c5HotspotYellow)
-	hc.Fprintf(w, "  Hotspot concentration: %.1f%%\n", m.HotspotConcentration)
-
-	// Verbose: show top hotspots and coupled pairs
-	if verbose && len(m.TopHotspots) > 0 {
+// renderC5Verbose renders hotspots and coupled pairs in verbose mode.
+func renderC5Verbose(w io.Writer, m *types.C5Metrics, bold *color.Color) {
+	if len(m.TopHotspots) > 0 {
 		fmt.Fprintln(w)
 		bold.Fprintln(w, "  Top hotspots:")
 		for _, h := range m.TopHotspots {
 			fmt.Fprintf(w, "    %s  changes=%d commits=%d authors=%d\n", h.Path, h.TotalChanges, h.CommitCount, h.AuthorCount)
 		}
 	}
-	if verbose && len(m.CoupledPairs) > 0 {
+	if len(m.CoupledPairs) > 0 {
 		fmt.Fprintln(w)
 		bold.Fprintln(w, "  Coupled pairs (>70%% co-change):")
 		limit := coupledPairsTopN

@@ -60,37 +60,63 @@ func BuildJSONReport(scored *types.ScoredResult, recs []recommend.Recommendation
 		Version:        "3",
 		CompositeScore: scored.Composite,
 		Tier:           scored.Tier,
+		Categories:     buildJSONCategories(scored.Categories),
+		Recommendations: buildJSONRecommendations(recs),
 	}
 
-	for _, cat := range scored.Categories {
+	if includeBadge && scored != nil {
+		badge := GenerateBadge(scored)
+		report.BadgeURL = badge.URL
+		report.BadgeMarkdown = badge.Markdown
+	}
+
+	return report
+}
+
+// buildJSONCategories converts scored categories to JSON format.
+func buildJSONCategories(categories []types.CategoryScore) []jsonCategory {
+	result := make([]jsonCategory, 0, len(categories))
+	for _, cat := range categories {
 		jc := jsonCategory{
 			Name:      cat.Name,
 			Score:     cat.Score,
 			Weight:    cat.Weight,
-			Available: cat.Score >= 0, // Infer from score
-			SubScores: make([]jsonMetric, 0, len(cat.SubScores)),
+			Available: cat.Score >= 0,
+			SubScores: buildJSONMetrics(cat.SubScores),
 		}
-
-		for _, ss := range cat.SubScores {
-			ev := ss.Evidence
-			if ev == nil {
-				ev = make([]types.EvidenceItem, 0)
-			}
-			jc.SubScores = append(jc.SubScores, jsonMetric{
-				Name:      ss.MetricName,
-				RawValue:  ss.RawValue,
-				Score:     ss.Score,
-				Weight:    ss.Weight,
-				Available: ss.Available,
-				Evidence:  ev,
-			})
-		}
-
-		report.Categories = append(report.Categories, jc)
+		result = append(result, jc)
 	}
+	return result
+}
 
+// buildJSONMetrics converts sub-scores to JSON metric format.
+func buildJSONMetrics(subScores []types.SubScore) []jsonMetric {
+	result := make([]jsonMetric, 0, len(subScores))
+	for _, ss := range subScores {
+		ev := ss.Evidence
+		if ev == nil {
+			ev = make([]types.EvidenceItem, 0)
+		}
+		result = append(result, jsonMetric{
+			Name:      ss.MetricName,
+			RawValue:  ss.RawValue,
+			Score:     ss.Score,
+			Weight:    ss.Weight,
+			Available: ss.Available,
+			Evidence:  ev,
+		})
+	}
+	return result
+}
+
+// buildJSONRecommendations converts recommendations to JSON format.
+func buildJSONRecommendations(recs []recommend.Recommendation) []jsonRecommendation {
+	if len(recs) == 0 {
+		return nil
+	}
+	result := make([]jsonRecommendation, 0, len(recs))
 	for _, rec := range recs {
-		report.Recommendations = append(report.Recommendations, jsonRecommendation{
+		result = append(result, jsonRecommendation{
 			Rank:             rec.Rank,
 			Category:         rec.Category,
 			MetricName:       rec.MetricName,
@@ -103,15 +129,7 @@ func BuildJSONReport(scored *types.ScoredResult, recs []recommend.Recommendation
 			Action:           rec.Action,
 		})
 	}
-
-	// Add badge information if requested
-	if includeBadge && scored != nil {
-		badge := GenerateBadge(scored)
-		report.BadgeURL = badge.URL
-		report.BadgeMarkdown = badge.Markdown
-	}
-
-	return report
+	return result
 }
 
 // RenderJSON writes the JSON report to w with pretty-printed indentation.

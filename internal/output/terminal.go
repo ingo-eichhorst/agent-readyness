@@ -46,21 +46,25 @@ const (
 // RenderSummary prints a formatted scan summary to w.
 func RenderSummary(w io.Writer, result *types.ScanResult, analysisResults []*types.AnalysisResult, verbose bool) {
 	bold := color.New(color.Bold)
-	green := color.New(color.FgGreen)
-	yellow := color.New(color.FgYellow)
 
-	// Header
 	bold.Fprintf(w, "ARS Scan: %s\n", result.RootDir)
 	fmt.Fprintln(w, "────────────────────────────────────────")
 
-	// Total count
+	renderFileCounts(w, result)
+
+	if verbose {
+		renderFileList(w, result, bold)
+	}
+
+	renderAnalysisCategories(w, analysisResults, verbose)
+}
+
+// renderFileCounts prints file count summary lines.
+func renderFileCounts(w io.Writer, result *types.ScanResult) {
 	fmt.Fprintf(w, "Files discovered: %d\n", result.TotalFiles)
+	color.New(color.FgGreen).Fprintf(w, "  Source files:        %d\n", result.SourceCount)
+	color.New(color.FgYellow).Fprintf(w, "  Test files:          %d\n", result.TestCount)
 
-	// Source and test counts (always shown)
-	green.Fprintf(w, "  Source files:        %d\n", result.SourceCount)
-	yellow.Fprintf(w, "  Test files:          %d\n", result.TestCount)
-
-	// Per-language file counts (if multi-language)
 	if len(result.PerLanguage) > 1 || (len(result.PerLanguage) == 1 && result.PerLanguage[types.LangGo] == 0) {
 		fmt.Fprintln(w, "  Per-language source files:")
 		for lang, count := range result.PerLanguage {
@@ -68,7 +72,6 @@ func RenderSummary(w io.Writer, result *types.ScanResult, analysisResults []*typ
 		}
 	}
 
-	// Excluded categories (only shown if non-zero)
 	if result.GeneratedCount > 0 {
 		fmt.Fprintf(w, "  Generated (excluded): %d\n", result.GeneratedCount)
 	}
@@ -78,22 +81,24 @@ func RenderSummary(w io.Writer, result *types.ScanResult, analysisResults []*typ
 	if result.GitignoreCount > 0 {
 		fmt.Fprintf(w, "  Gitignored (excluded): %d\n", result.GitignoreCount)
 	}
+}
 
-	// Verbose: list individual files
-	if verbose {
-		fmt.Fprintln(w)
-		bold.Fprintln(w, "Discovered files:")
-		for _, f := range result.Files {
-			tag := f.Class.String()
-			suffix := ""
-			if f.Class == types.ClassExcluded && f.ExcludeReason != "" {
-				suffix = fmt.Sprintf(" (%s)", f.ExcludeReason)
-			}
-			fmt.Fprintf(w, "  [%s] %s%s\n", tag, f.RelPath, suffix)
+// renderFileList prints individual file listing in verbose mode.
+func renderFileList(w io.Writer, result *types.ScanResult, bold *color.Color) {
+	fmt.Fprintln(w)
+	bold.Fprintln(w, "Discovered files:")
+	for _, f := range result.Files {
+		tag := f.Class.String()
+		suffix := ""
+		if f.Class == types.ClassExcluded && f.ExcludeReason != "" {
+			suffix = fmt.Sprintf(" (%s)", f.ExcludeReason)
 		}
+		fmt.Fprintf(w, "  [%s] %s%s\n", tag, f.RelPath, suffix)
 	}
+}
 
-	// Render analysis results
+// renderAnalysisCategories dispatches rendering for each analysis category.
+func renderAnalysisCategories(w io.Writer, analysisResults []*types.AnalysisResult, verbose bool) {
 	for _, ar := range analysisResults {
 		switch ar.Category {
 		case "C1":
@@ -222,37 +227,34 @@ func RenderScores(w io.Writer, scored *types.ScoredResult, verbose bool) {
 	bold.Fprintln(w, "Agent Readiness Score")
 	fmt.Fprintln(w, "\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550")
 
-	for _, cat := range scored.Categories {
+	renderCategoryScores(w, scored.Categories, verbose)
+
+	fmt.Fprintln(w, "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500")
+	scoreColor(scored.Composite).Fprintf(w, "  Composite Score:          %.1f / 10\n", scored.Composite)
+	fmt.Fprintf(w, "  Rating:                   ")
+	tierColor(scored.Tier).Fprintln(w, scored.Tier)
+}
+
+// renderCategoryScores prints each category's score line.
+func renderCategoryScores(w io.Writer, categories []types.CategoryScore, verbose bool) {
+	for _, cat := range categories {
 		displayName := categoryDisplayNames[cat.Name]
 		if displayName == "" {
 			displayName = cat.Name
 		}
 		label := fmt.Sprintf("%s: %-20s", cat.Name, displayName)
 
-		// Check for unavailable category
 		if cat.Score < 0 {
 			color.New(color.FgHiBlack).Fprintf(w, "  %sn/a\n", label)
 			continue
 		}
 
-		sc := scoreColor(cat.Score)
-		sc.Fprintf(w, "  %s%.1f / 10\n", label, cat.Score)
+		scoreColor(cat.Score).Fprintf(w, "  %s%.1f / 10\n", label, cat.Score)
 
 		if verbose {
 			renderSubScores(w, cat.SubScores)
 		}
 	}
-
-	fmt.Fprintln(w, "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500")
-
-	// Composite score
-	cc := scoreColor(scored.Composite)
-	cc.Fprintf(w, "  Composite Score:          %.1f / 10\n", scored.Composite)
-
-	// Tier rating
-	tc := tierColor(scored.Tier)
-	fmt.Fprintf(w, "  Rating:                   ")
-	tc.Fprintln(w, scored.Tier)
 }
 
 // renderSubScores prints per-metric sub-score details indented beneath a category.

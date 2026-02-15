@@ -5,6 +5,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -124,9 +125,23 @@ func runGitLog(rootDir string, months int) ([]commitInfo, error) {
 		return nil, fmt.Errorf("git log start: %w", err)
 	}
 
+	commits := parseGitLogOutput(stdout)
+
+	if err := cmd.Wait(); err != nil {
+		if ctx.Err() != nil || len(commits) > 0 {
+			return commits, nil
+		}
+		return nil, fmt.Errorf("git log: %w", err)
+	}
+
+	return commits, nil
+}
+
+// parseGitLogOutput parses combined --pretty/--numstat output into commit structs.
+func parseGitLogOutput(r io.Reader) []commitInfo {
 	var commits []commitInfo
 	var current *commitInfo
-	scanner := bufio.NewScanner(stdout)
+	scanner := bufio.NewScanner(r)
 
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -139,70 +154,60 @@ func runGitLog(rootDir string, months int) ([]commitInfo, error) {
 			continue
 		}
 
-		// Header line: hash|author|timestamp
-		// Check hash length (>=40 chars) to distinguish from numstat lines with pipes
-		if parts := strings.SplitN(line, "|", numstatFieldCount); len(parts) == numstatFieldCount && len(parts[0]) >= gitSHAMinLength {
+		if ci := parseCommitHeader(line); ci != nil {
 			if current != nil {
 				commits = append(commits, *current)
 			}
-			ts, _ := strconv.ParseInt(parts[2], 10, 64)
-			current = &commitInfo{
-				Hash:      parts[0],
-				Author:    parts[1],
-				Timestamp: ts,
-			}
+			current = ci
 			continue
 		}
 
-		// Numstat line: added\tdeleted\tpath
-		if current != nil && strings.Contains(line, "\t") {
-			parts := strings.SplitN(line, "\t", numstatFieldCount)
-			if len(parts) == numstatFieldCount {
-				// Skip binary files: git numstat shows "-" for added/deleted counts on binary files
-				// Binary files would skew churn metrics since we can't measure meaningful line changes
-				if parts[0] == "-" || parts[1] == "-" {
-					continue
-				}
-
-				added, err1 := strconv.Atoi(parts[0])
-				deleted, err2 := strconv.Atoi(parts[1])
-				if err1 != nil || err2 != nil {
-					continue
-				}
-
-				path := parts[2]
-				// Handle renames: {old => new} syntax
-				path = resolveRenamePath(path)
-				path = filepath.ToSlash(path)
-
-				current.Files = append(current.Files, fileChange{
-					Added:   added,
-					Deleted: deleted,
-					Path:    path,
-				})
+		if current != nil {
+			if fc, ok := parseNumstatLine(line); ok {
+				current.Files = append(current.Files, fc)
 			}
 		}
 	}
 
-	// Don't forget the last commit if no trailing blank line
 	if current != nil {
 		commits = append(commits, *current)
 	}
+	return commits
+}
 
-	// Read all output first, THEN wait
-	if err := cmd.Wait(); err != nil {
-		// If context was cancelled (timeout), return what we have
-		if ctx.Err() != nil {
-			return commits, nil
-		}
-		// If git returned error but we got some commits, use them
-		if len(commits) > 0 {
-			return commits, nil
-		}
-		return nil, fmt.Errorf("git log: %w", err)
+// parseCommitHeader attempts to parse a "hash|author|timestamp" line.
+func parseCommitHeader(line string) *commitInfo {
+	parts := strings.SplitN(line, "|", numstatFieldCount)
+	if len(parts) != numstatFieldCount || len(parts[0]) < gitSHAMinLength {
+		return nil
 	}
+	ts, _ := strconv.ParseInt(parts[2], 10, 64)
+	return &commitInfo{
+		Hash:      parts[0],
+		Author:    parts[1],
+		Timestamp: ts,
+	}
+}
 
-	return commits, nil
+// parseNumstatLine attempts to parse an "added\tdeleted\tpath" numstat line.
+func parseNumstatLine(line string) (fileChange, bool) {
+	if !strings.Contains(line, "\t") {
+		return fileChange{}, false
+	}
+	parts := strings.SplitN(line, "\t", numstatFieldCount)
+	if len(parts) != numstatFieldCount {
+		return fileChange{}, false
+	}
+	if parts[0] == "-" || parts[1] == "-" {
+		return fileChange{}, false
+	}
+	added, err1 := strconv.Atoi(parts[0])
+	deleted, err2 := strconv.Atoi(parts[1])
+	if err1 != nil || err2 != nil {
+		return fileChange{}, false
+	}
+	path := filepath.ToSlash(resolveRenamePath(parts[2]))
+	return fileChange{Added: added, Deleted: deleted, Path: path}, true
 }
 
 // resolveRenamePath handles git rename notation: prefix{old => new}suffix -> prefix + new + suffix

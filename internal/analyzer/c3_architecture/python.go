@@ -200,117 +200,22 @@ func pyResolveRelativeImport(fromModule, relImport string) string {
 // - Decorated definitions (@decorator) are unwrapped to find the actual def/class
 //
 // Limitation: Jupyter notebooks cannot be analyzed (dynamic execution model).
+// pyDefinition holds a top-level Python definition.
+type pyDefinition struct {
+	name string
+	file string
+	line int
+	kind string
+}
+
 func pyDetectDeadCode(files []*parser.ParsedTreeSitterFile) []types.DeadExport {
 	if len(files) <= 1 {
-		return nil // Single file: no cross-file analysis possible
+		return nil
 	}
 
-	// Collect all top-level definitions
-	type definition struct {
-		name string
-		file string
-		line int
-		kind string
-	}
+	defs := pyCollectDefinitions(files)
+	importedNames := pyCollectImports(files)
 
-	var defs []definition
-	for _, f := range files {
-		if isTestFileByPath(f.RelPath) {
-			continue
-		}
-		root := f.Tree.RootNode()
-		for i := uint(0); i < root.ChildCount(); i++ {
-			child := root.Child(i)
-			if child == nil {
-				continue
-			}
-
-			kind := child.Kind()
-			var nameNode *tree_sitter.Node
-			var defKind string
-
-			switch kind {
-			case "function_definition":
-				nameNode = child.ChildByFieldName("name")
-				defKind = "func"
-			case "class_definition":
-				nameNode = child.ChildByFieldName("name")
-				defKind = "type"
-			case "decorated_definition":
-				// Unwrap to find inner definition
-				for j := uint(0); j < child.ChildCount(); j++ {
-					inner := child.Child(j)
-					if inner == nil {
-						continue
-					}
-					switch inner.Kind() {
-					case "function_definition":
-						nameNode = inner.ChildByFieldName("name")
-						defKind = "func"
-					case "class_definition":
-						nameNode = inner.ChildByFieldName("name")
-						defKind = "type"
-					}
-				}
-			}
-
-			if nameNode == nil {
-				continue
-			}
-
-			name := shared.NodeText(nameNode, f.Content)
-			// Skip private names
-			if strings.HasPrefix(name, "_") {
-				continue
-			}
-
-			defs = append(defs, definition{
-				name: name,
-				file: f.RelPath,
-				line: int(nameNode.StartPosition().Row) + 1,
-				kind: defKind,
-			})
-		}
-	}
-
-	// Collect all imported names across files
-	importedNames := make(map[string]bool)
-	for _, f := range files {
-		root := f.Tree.RootNode()
-		shared.WalkTree(root, func(node *tree_sitter.Node) {
-			if node.Kind() != "import_from_statement" {
-				return
-			}
-			// Collect imported names
-			for i := uint(0); i < node.ChildCount(); i++ {
-				child := node.Child(i)
-				if child == nil {
-					continue
-				}
-				switch child.Kind() {
-				case "aliased_import":
-					nameNode := child.ChildByFieldName("name")
-					if nameNode != nil {
-						importedNames[shared.NodeText(nameNode, f.Content)] = true
-					}
-				case "dotted_name":
-					// This might be the module name, not an imported name
-					// Only count if after "import" keyword in the statement
-				case "identifier":
-					// Check if this identifier is part of the import list
-					parent := child.Parent()
-					if parent != nil && parent.Kind() == "import_from_statement" {
-						name := shared.NodeText(child, f.Content)
-						if name != "import" && name != "from" && name != "as" {
-							importedNames[name] = true
-						}
-					}
-				}
-			}
-		})
-	}
-
-	// Flag definitions not imported by any other file
 	var dead []types.DeadExport
 	for _, d := range defs {
 		if !importedNames[d.name] {
@@ -323,8 +228,100 @@ func pyDetectDeadCode(files []*parser.ParsedTreeSitterFile) []types.DeadExport {
 			})
 		}
 	}
-
 	return dead
+}
+
+// pyCollectDefinitions collects all public top-level definitions from non-test files.
+func pyCollectDefinitions(files []*parser.ParsedTreeSitterFile) []pyDefinition {
+	var defs []pyDefinition
+	for _, f := range files {
+		if isTestFileByPath(f.RelPath) {
+			continue
+		}
+		root := f.Tree.RootNode()
+		for i := uint(0); i < root.ChildCount(); i++ {
+			child := root.Child(i)
+			if child == nil {
+				continue
+			}
+			nameNode, defKind := pyExtractDefinition(child)
+			if nameNode == nil {
+				continue
+			}
+			name := shared.NodeText(nameNode, f.Content)
+			if strings.HasPrefix(name, "_") {
+				continue
+			}
+			defs = append(defs, pyDefinition{
+				name: name,
+				file: f.RelPath,
+				line: int(nameNode.StartPosition().Row) + 1,
+				kind: defKind,
+			})
+		}
+	}
+	return defs
+}
+
+// pyExtractDefinition extracts the name node and kind from a top-level AST node.
+func pyExtractDefinition(child *tree_sitter.Node) (*tree_sitter.Node, string) {
+	switch child.Kind() {
+	case "function_definition":
+		return child.ChildByFieldName("name"), "func"
+	case "class_definition":
+		return child.ChildByFieldName("name"), "type"
+	case "decorated_definition":
+		for j := uint(0); j < child.ChildCount(); j++ {
+			inner := child.Child(j)
+			if inner == nil {
+				continue
+			}
+			switch inner.Kind() {
+			case "function_definition":
+				return inner.ChildByFieldName("name"), "func"
+			case "class_definition":
+				return inner.ChildByFieldName("name"), "type"
+			}
+		}
+	}
+	return nil, ""
+}
+
+// pyCollectImports collects all imported names across files.
+func pyCollectImports(files []*parser.ParsedTreeSitterFile) map[string]bool {
+	importedNames := make(map[string]bool)
+	for _, f := range files {
+		root := f.Tree.RootNode()
+		shared.WalkTree(root, func(node *tree_sitter.Node) {
+			if node.Kind() != "import_from_statement" {
+				return
+			}
+			for i := uint(0); i < node.ChildCount(); i++ {
+				child := node.Child(i)
+				if child == nil {
+					continue
+				}
+				switch child.Kind() {
+				case "aliased_import":
+					nameNode := child.ChildByFieldName("name")
+					if nameNode != nil {
+						importedNames[shared.NodeText(nameNode, f.Content)] = true
+					}
+				case "dotted_name":
+					// Module name, not an imported name
+				case "identifier":
+					parent := child.Parent()
+					if parent != nil && parent.Kind() == "import_from_statement" {
+						name := shared.NodeText(child, f.Content)
+						if name != "import" && name != "from" && name != "as" {
+							importedNames[name] = true
+						}
+					}
+				}
+			}
+		})
+	}
+	return importedNames
 }
 
 // pyAnalyzeDirectoryDepth computes max and average directory depth from Python file paths.

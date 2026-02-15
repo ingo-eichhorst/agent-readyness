@@ -92,7 +92,6 @@ func (a *C6Analyzer) SetGoPackages(pkgs []*parser.ParsedPackage) {
 func (a *C6Analyzer) Analyze(targets []*types.AnalysisTarget) (*types.AnalysisResult, error) {
 	metrics := &types.C6Metrics{}
 
-	// Go analysis (existing logic)
 	if a.pkgs != nil {
 		goMetrics, err := a.analyzeGoC6()
 		if err != nil {
@@ -101,106 +100,10 @@ func (a *C6Analyzer) Analyze(targets []*types.AnalysisTarget) (*types.AnalysisRe
 		metrics = goMetrics
 	}
 
-	// Python/TypeScript analysis via targets
 	for _, target := range targets {
-		switch target.Language {
-		case types.LangPython:
-			if a.tsParser == nil {
-				continue
-			}
-			parsed, err := a.tsParser.ParseTargetFiles(target)
-			if err != nil {
-				continue
-			}
-			defer parser.CloseAll(parsed)
-
-			testFuncs, testFileCount, srcFileCount := pyDetectTests(parsed)
-			metrics.TestFileCount += testFileCount
-			metrics.SourceFileCount += srcFileCount
-			metrics.TestFunctions = append(metrics.TestFunctions, testFuncs...)
-
-			// Test-to-code ratio for Python
-			pyTestLOC, pySrcLOC := pyCountLOC(parsed)
-			if pySrcLOC > 0 {
-				// If Go ratio already set, blend; otherwise set directly
-				if metrics.TestToCodeRatio > 0 {
-					// Average of Go and Python ratios (simple approach)
-					pyRatio := float64(pyTestLOC) / float64(pySrcLOC)
-					metrics.TestToCodeRatio = (metrics.TestToCodeRatio + pyRatio) / 2
-				} else {
-					metrics.TestToCodeRatio = float64(pyTestLOC) / float64(pySrcLOC)
-				}
-			}
-
-			// Isolation
-			isolation := pyAnalyzeIsolation(parsed, testFuncs)
-			if metrics.TestIsolation > 0 {
-				metrics.TestIsolation = (metrics.TestIsolation + isolation) / 2
-			} else {
-				metrics.TestIsolation = isolation
-			}
-
-			// Coverage: reuse existing parseCoverage with target.RootDir
-			if target.RootDir != "" && metrics.CoveragePercent <= 0 {
-				pct, src, err := a.parseCoverage(target.RootDir)
-				if err == nil {
-					metrics.CoveragePercent = pct
-					metrics.CoverageSource = src
-				}
-			}
-
-			// Update assertion density
-			updateAssertionDensity(metrics)
-
-		case types.LangTypeScript:
-			if a.tsParser == nil {
-				continue
-			}
-			parsed, err := a.tsParser.ParseTargetFiles(target)
-			if err != nil {
-				continue
-			}
-			defer parser.CloseAll(parsed)
-
-			testFuncs, testFileCount, srcFileCount := tsDetectTests(parsed)
-			metrics.TestFileCount += testFileCount
-			metrics.SourceFileCount += srcFileCount
-			metrics.TestFunctions = append(metrics.TestFunctions, testFuncs...)
-
-			// Test-to-code ratio for TypeScript
-			tsTestLOC, tsSrcLOC := tsCountLOC(parsed)
-			if tsSrcLOC > 0 {
-				if metrics.TestToCodeRatio > 0 {
-					tsRatio := float64(tsTestLOC) / float64(tsSrcLOC)
-					metrics.TestToCodeRatio = (metrics.TestToCodeRatio + tsRatio) / 2
-				} else {
-					metrics.TestToCodeRatio = float64(tsTestLOC) / float64(tsSrcLOC)
-				}
-			}
-
-			// Isolation
-			isolation := tsAnalyzeIsolation(parsed, testFuncs)
-			if metrics.TestIsolation > 0 {
-				metrics.TestIsolation = (metrics.TestIsolation + isolation) / 2
-			} else {
-				metrics.TestIsolation = isolation
-			}
-
-			// Coverage: reuse existing parseCoverage with target.RootDir
-			if target.RootDir != "" && metrics.CoveragePercent <= 0 {
-				pct, src, err := a.parseCoverage(target.RootDir)
-				if err == nil {
-					metrics.CoveragePercent = pct
-					metrics.CoverageSource = src
-				}
-			}
-
-			// Update assertion density
-			updateAssertionDensity(metrics)
-		}
+		a.analyzeTargetC6(metrics, target)
 	}
 
-	// Ensure defaults if nothing was analyzed
 	if metrics.CoverageSource == "" {
 		metrics.CoveragePercent = -1
 		metrics.CoverageSource = "none"
@@ -213,6 +116,74 @@ func (a *C6Analyzer) Analyze(targets []*types.AnalysisTarget) (*types.AnalysisRe
 			"c6": metrics,
 		},
 	}, nil
+}
+
+// analyzeTargetC6 merges test metrics from a single language target into metrics.
+func (a *C6Analyzer) analyzeTargetC6(metrics *types.C6Metrics, target *types.AnalysisTarget) {
+	if a.tsParser == nil {
+		return
+	}
+
+	parsed, err := a.tsParser.ParseTargetFiles(target)
+	if err != nil {
+		return
+	}
+	defer parser.CloseAll(parsed)
+
+	switch target.Language {
+	case types.LangPython:
+		testFuncs, testFileCount, srcFileCount := pyDetectTests(parsed)
+		mergeTestCounts(metrics, testFuncs, testFileCount, srcFileCount)
+		pyTestLOC, pySrcLOC := pyCountLOC(parsed)
+		blendRatio(&metrics.TestToCodeRatio, pyTestLOC, pySrcLOC)
+		blendMetric(&metrics.TestIsolation, pyAnalyzeIsolation(parsed, testFuncs))
+	case types.LangTypeScript:
+		testFuncs, testFileCount, srcFileCount := tsDetectTests(parsed)
+		mergeTestCounts(metrics, testFuncs, testFileCount, srcFileCount)
+		tsTestLOC, tsSrcLOC := tsCountLOC(parsed)
+		blendRatio(&metrics.TestToCodeRatio, tsTestLOC, tsSrcLOC)
+		blendMetric(&metrics.TestIsolation, tsAnalyzeIsolation(parsed, testFuncs))
+	default:
+		return
+	}
+
+	if target.RootDir != "" && metrics.CoveragePercent <= 0 {
+		if pct, src, err := a.parseCoverage(target.RootDir); err == nil {
+			metrics.CoveragePercent = pct
+			metrics.CoverageSource = src
+		}
+	}
+
+	updateAssertionDensity(metrics)
+}
+
+// mergeTestCounts adds test function data into the aggregate metrics.
+func mergeTestCounts(metrics *types.C6Metrics, testFuncs []types.TestFunctionMetric, testFileCount, srcFileCount int) {
+	metrics.TestFileCount += testFileCount
+	metrics.SourceFileCount += srcFileCount
+	metrics.TestFunctions = append(metrics.TestFunctions, testFuncs...)
+}
+
+// blendRatio blends a test-to-code ratio from LOC counts into an existing ratio.
+func blendRatio(ratio *float64, testLOC, srcLOC int) {
+	if srcLOC <= 0 {
+		return
+	}
+	newRatio := float64(testLOC) / float64(srcLOC)
+	if *ratio > 0 {
+		*ratio = (*ratio + newRatio) / 2
+	} else {
+		*ratio = newRatio
+	}
+}
+
+// blendMetric averages a new value into an existing metric.
+func blendMetric(existing *float64, value float64) {
+	if *existing > 0 {
+		*existing = (*existing + value) / 2
+	} else {
+		*existing = value
+	}
 }
 
 // analyzeGoC6 runs Go-specific C6 analysis.

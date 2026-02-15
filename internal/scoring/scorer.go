@@ -204,6 +204,28 @@ func scoreMetrics(catConfig CategoryConfig, rawValues map[string]float64, unavai
 	return subScores, score
 }
 
+// topNEvidence builds up to evidenceTopN evidence items from a source slice using a converter function.
+func topNEvidence(count int, convert func(i int) types.EvidenceItem) []types.EvidenceItem {
+	limit := evidenceTopN
+	if count < limit {
+		limit = count
+	}
+	items := make([]types.EvidenceItem, limit)
+	for i := 0; i < limit; i++ {
+		items[i] = convert(i)
+	}
+	return items
+}
+
+// ensureEvidenceKeys ensures all given keys have at least empty arrays in the evidence map.
+func ensureEvidenceKeys(evidence map[string][]types.EvidenceItem, keys []string) {
+	for _, key := range keys {
+		if evidence[key] == nil {
+			evidence[key] = []types.EvidenceItem{}
+		}
+	}
+}
+
 // avgMapValues computes the average of all values in a map[string]int.
 // Returns 0 for nil or empty maps.
 func avgMapValues(m map[string]int) float64 {

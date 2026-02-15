@@ -19,109 +19,16 @@ func extractC5(ar *types.AnalysisResult) (map[string]float64, map[string]bool, m
 	}
 
 	if !m.Available {
-		unavailable := map[string]bool{
-			"churn_rate":            true,
-			"temporal_coupling_pct": true,
-			"author_fragmentation":  true,
-			"commit_stability":      true,
-			"hotspot_concentration": true,
-		}
-		emptyEvidence := make(map[string][]types.EvidenceItem)
-		for k := range unavailable {
-			emptyEvidence[k] = []types.EvidenceItem{}
-		}
-		return map[string]float64{}, unavailable, emptyEvidence
+		return extractC5Unavailable()
 	}
 
 	evidence := make(map[string][]types.EvidenceItem)
+	extractC5Churn(m, evidence)
+	extractC5Coupling(m, evidence)
+	extractC5Authors(m, evidence)
+	extractC5Hotspots(m, evidence)
 
-	// churn_rate: top 5 hotspots by commit count
-	if len(m.TopHotspots) > 0 {
-		limit := evidenceTopN
-		if len(m.TopHotspots) < limit {
-			limit = len(m.TopHotspots)
-		}
-		items := make([]types.EvidenceItem, limit)
-		for i := 0; i < limit; i++ {
-			h := m.TopHotspots[i]
-			items[i] = types.EvidenceItem{
-				FilePath:    h.Path,
-				Line:        0,
-				Value:       float64(h.CommitCount),
-				Description: fmt.Sprintf("%d commits", h.CommitCount),
-			}
-		}
-		evidence["churn_rate"] = items
-	}
-
-	// temporal_coupling_pct: top 5 coupled pairs
-	if len(m.CoupledPairs) > 0 {
-		limit := evidenceTopN
-		if len(m.CoupledPairs) < limit {
-			limit = len(m.CoupledPairs)
-		}
-		items := make([]types.EvidenceItem, limit)
-		for i := 0; i < limit; i++ {
-			p := m.CoupledPairs[i]
-			items[i] = types.EvidenceItem{
-				FilePath:    p.FileA,
-				Line:        0,
-				Value:       p.Coupling,
-				Description: fmt.Sprintf("coupled with %s (%.0f%%)", p.FileB, p.Coupling),
-			}
-		}
-		evidence["temporal_coupling_pct"] = items
-	}
-
-	// author_fragmentation: top 5 hotspots by author count
-	if len(m.TopHotspots) > 0 {
-		sorted := make([]types.FileChurn, len(m.TopHotspots))
-		copy(sorted, m.TopHotspots)
-		sort.Slice(sorted, func(i, j int) bool {
-			return sorted[i].AuthorCount > sorted[j].AuthorCount
-		})
-		limit := evidenceTopN
-		if len(sorted) < limit {
-			limit = len(sorted)
-		}
-		items := make([]types.EvidenceItem, limit)
-		for i := 0; i < limit; i++ {
-			h := sorted[i]
-			items[i] = types.EvidenceItem{
-				FilePath:    h.Path,
-				Line:        0,
-				Value:       float64(h.AuthorCount),
-				Description: fmt.Sprintf("%d distinct authors", h.AuthorCount),
-			}
-		}
-		evidence["author_fragmentation"] = items
-	}
-
-	// hotspot_concentration: top 5 hotspots by total changes
-	if len(m.TopHotspots) > 0 {
-		limit := evidenceTopN
-		if len(m.TopHotspots) < limit {
-			limit = len(m.TopHotspots)
-		}
-		items := make([]types.EvidenceItem, limit)
-		for i := 0; i < limit; i++ {
-			h := m.TopHotspots[i]
-			items[i] = types.EvidenceItem{
-				FilePath:    h.Path,
-				Line:        0,
-				Value:       float64(h.TotalChanges),
-				Description: fmt.Sprintf("hotspot: %d changes", h.TotalChanges),
-			}
-		}
-		evidence["hotspot_concentration"] = items
-	}
-
-	// Ensure all 5 keys have at least empty arrays
-	for _, key := range []string{"churn_rate", "temporal_coupling_pct", "author_fragmentation", "commit_stability", "hotspot_concentration"} {
-		if evidence[key] == nil {
-			evidence[key] = []types.EvidenceItem{}
-		}
-	}
+	ensureEvidenceKeys(evidence, c5MetricKeys)
 
 	return map[string]float64{
 		"churn_rate":            m.ChurnRate,
@@ -130,4 +37,75 @@ func extractC5(ar *types.AnalysisResult) (map[string]float64, map[string]bool, m
 		"commit_stability":      m.CommitStability,
 		"hotspot_concentration": m.HotspotConcentration,
 	}, nil, evidence
+}
+
+var c5MetricKeys = []string{
+	"churn_rate", "temporal_coupling_pct", "author_fragmentation",
+	"commit_stability", "hotspot_concentration",
+}
+
+func extractC5Unavailable() (map[string]float64, map[string]bool, map[string][]types.EvidenceItem) {
+	unavailable := make(map[string]bool)
+	emptyEvidence := make(map[string][]types.EvidenceItem)
+	for _, k := range c5MetricKeys {
+		unavailable[k] = true
+		emptyEvidence[k] = []types.EvidenceItem{}
+	}
+	return map[string]float64{}, unavailable, emptyEvidence
+}
+
+func extractC5Churn(m *types.C5Metrics, evidence map[string][]types.EvidenceItem) {
+	if len(m.TopHotspots) == 0 {
+		return
+	}
+	evidence["churn_rate"] = topNEvidence(len(m.TopHotspots), func(i int) types.EvidenceItem {
+		h := m.TopHotspots[i]
+		return types.EvidenceItem{
+			FilePath: h.Path, Value: float64(h.CommitCount),
+			Description: fmt.Sprintf("%d commits", h.CommitCount),
+		}
+	})
+}
+
+func extractC5Coupling(m *types.C5Metrics, evidence map[string][]types.EvidenceItem) {
+	if len(m.CoupledPairs) == 0 {
+		return
+	}
+	evidence["temporal_coupling_pct"] = topNEvidence(len(m.CoupledPairs), func(i int) types.EvidenceItem {
+		p := m.CoupledPairs[i]
+		return types.EvidenceItem{
+			FilePath: p.FileA, Value: p.Coupling,
+			Description: fmt.Sprintf("coupled with %s (%.0f%%)", p.FileB, p.Coupling),
+		}
+	})
+}
+
+func extractC5Authors(m *types.C5Metrics, evidence map[string][]types.EvidenceItem) {
+	if len(m.TopHotspots) == 0 {
+		return
+	}
+	sorted := make([]types.FileChurn, len(m.TopHotspots))
+	copy(sorted, m.TopHotspots)
+	sort.Slice(sorted, func(i, j int) bool {
+		return sorted[i].AuthorCount > sorted[j].AuthorCount
+	})
+	evidence["author_fragmentation"] = topNEvidence(len(sorted), func(i int) types.EvidenceItem {
+		return types.EvidenceItem{
+			FilePath: sorted[i].Path, Value: float64(sorted[i].AuthorCount),
+			Description: fmt.Sprintf("%d distinct authors", sorted[i].AuthorCount),
+		}
+	})
+}
+
+func extractC5Hotspots(m *types.C5Metrics, evidence map[string][]types.EvidenceItem) {
+	if len(m.TopHotspots) == 0 {
+		return
+	}
+	evidence["hotspot_concentration"] = topNEvidence(len(m.TopHotspots), func(i int) types.EvidenceItem {
+		h := m.TopHotspots[i]
+		return types.EvidenceItem{
+			FilePath: h.Path, Value: float64(h.TotalChanges),
+			Description: fmt.Sprintf("hotspot: %d changes", h.TotalChanges),
+		}
+	})
 }

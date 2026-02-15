@@ -20,74 +20,48 @@ func extractC3(ar *types.AnalysisResult) (map[string]float64, map[string]bool, m
 
 	evidence := make(map[string][]types.EvidenceItem)
 
-	// module_fanout_avg: single worst module if available
 	if m.ModuleFanout.MaxEntity != "" {
 		evidence["module_fanout_avg"] = []types.EvidenceItem{{
-			FilePath:    m.ModuleFanout.MaxEntity,
-			Line:        0,
-			Value:       float64(m.ModuleFanout.Max),
+			FilePath: m.ModuleFanout.MaxEntity, Value: float64(m.ModuleFanout.Max),
 			Description: fmt.Sprintf("highest fanout: %d references", m.ModuleFanout.Max),
 		}}
 	}
 
-	// circular_deps: first 5 cycles
 	if len(m.CircularDeps) > 0 {
-		limit := evidenceTopN
-		if len(m.CircularDeps) < limit {
-			limit = len(m.CircularDeps)
-		}
-		items := make([]types.EvidenceItem, limit)
-		for i := 0; i < limit; i++ {
+		evidence["circular_deps"] = topNEvidence(len(m.CircularDeps), func(i int) types.EvidenceItem {
 			cycle := m.CircularDeps[i]
 			filePath := ""
 			if len(cycle) > 0 {
 				filePath = cycle[0]
 			}
-			items[i] = types.EvidenceItem{
-				FilePath:    filePath,
-				Line:        0,
-				Value:       float64(len(cycle)),
+			return types.EvidenceItem{
+				FilePath: filePath, Value: float64(len(cycle)),
 				Description: fmt.Sprintf("cycle: %s", strings.Join(cycle, " -> ")),
 			}
-		}
-		evidence["circular_deps"] = items
+		})
 	}
 
-	// import_complexity_avg: single worst if available
 	if m.ImportComplexity.MaxEntity != "" {
 		evidence["import_complexity_avg"] = []types.EvidenceItem{{
-			FilePath:    m.ImportComplexity.MaxEntity,
-			Line:        0,
-			Value:       float64(m.ImportComplexity.Max),
+			FilePath: m.ImportComplexity.MaxEntity, Value: float64(m.ImportComplexity.Max),
 			Description: fmt.Sprintf("most complex imports: %d segments", m.ImportComplexity.Max),
 		}}
 	}
 
-	// dead_exports: first 5 unused exports
 	if len(m.DeadExports) > 0 {
-		limit := evidenceTopN
-		if len(m.DeadExports) < limit {
-			limit = len(m.DeadExports)
-		}
-		items := make([]types.EvidenceItem, limit)
-		for i := 0; i < limit; i++ {
+		evidence["dead_exports"] = topNEvidence(len(m.DeadExports), func(i int) types.EvidenceItem {
 			de := m.DeadExports[i]
-			items[i] = types.EvidenceItem{
-				FilePath:    de.File,
-				Line:        de.Line,
-				Value:       1,
+			return types.EvidenceItem{
+				FilePath: de.File, Line: de.Line, Value: 1,
 				Description: fmt.Sprintf("unused %s: %s", de.Kind, de.Name),
 			}
-		}
-		evidence["dead_exports"] = items
+		})
 	}
 
-	// Ensure all 5 keys have at least empty arrays
-	for _, key := range []string{"max_dir_depth", "module_fanout_avg", "circular_deps", "import_complexity_avg", "dead_exports"} {
-		if evidence[key] == nil {
-			evidence[key] = []types.EvidenceItem{}
-		}
-	}
+	ensureEvidenceKeys(evidence, []string{
+		"max_dir_depth", "module_fanout_avg", "circular_deps",
+		"import_complexity_avg", "dead_exports",
+	})
 
 	return map[string]float64{
 		"max_dir_depth":        float64(m.MaxDirectoryDepth),

@@ -13,8 +13,8 @@ import (
 	"github.com/ingo-eichhorst/agent-readyness/internal/agent/metrics"
 )
 
-// DebugResponse represents a single captured C7 metric response for persistence and replay.
-type DebugResponse struct {
+// debugResponse represents a single captured C7 metric response for persistence and replay.
+type debugResponse struct {
 	MetricID    string  `json:"metric_id"`
 	SampleIndex int     `json:"sample_index"`
 	FilePath    string  `json:"file_path"`
@@ -33,7 +33,7 @@ func SaveResponses(debugDir string, results []metrics.MetricResult) error {
 
 	for _, mr := range results {
 		for sampleIdx, sr := range mr.Samples {
-			resp := DebugResponse{
+			resp := debugResponse{
 				MetricID:    mr.MetricID,
 				SampleIndex: sampleIdx,
 				FilePath:    sr.Sample.FilePath,
@@ -62,13 +62,13 @@ func SaveResponses(debugDir string, results []metrics.MetricResult) error {
 
 // LoadResponses reads all JSON response files from debugDir and returns them keyed by
 // "{metric_id}_{sample_index}".
-func LoadResponses(debugDir string) (map[string]DebugResponse, error) {
+func LoadResponses(debugDir string) (map[string]debugResponse, error) {
 	entries, err := os.ReadDir(debugDir)
 	if err != nil {
 		return nil, fmt.Errorf("read debug dir: %w", err)
 	}
 
-	responses := make(map[string]DebugResponse)
+	responses := make(map[string]debugResponse)
 	for _, entry := range entries {
 		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".json") {
 			continue
@@ -80,7 +80,7 @@ func LoadResponses(debugDir string) (map[string]DebugResponse, error) {
 			return nil, fmt.Errorf("read %s: %w", entry.Name(), err)
 		}
 
-		var resp DebugResponse
+		var resp debugResponse
 		if err := json.Unmarshal(data, &resp); err != nil {
 			return nil, fmt.Errorf("unmarshal %s: %w", entry.Name(), err)
 		}
@@ -92,17 +92,17 @@ func LoadResponses(debugDir string) (map[string]DebugResponse, error) {
 	return responses, nil
 }
 
-// ReplayExecutor replays previously captured responses instead of calling Claude CLI.
+// replayExecutor replays previously captured responses instead of calling Claude CLI.
 // It implements the metrics.Executor interface.
-type ReplayExecutor struct {
-	responses map[string]DebugResponse
+type replayExecutor struct {
+	responses map[string]debugResponse
 	callIndex map[string]int // tracks per-metric call count for sample indexing
 	mu        sync.Mutex
 }
 
-// NewReplayExecutor creates a ReplayExecutor from a map of captured responses.
-func NewReplayExecutor(responses map[string]DebugResponse) *ReplayExecutor {
-	return &ReplayExecutor{
+// NewReplayExecutor creates a replayExecutor from a map of captured responses.
+func NewReplayExecutor(responses map[string]debugResponse) *replayExecutor {
+	return &replayExecutor{
 		responses: responses,
 		callIndex: make(map[string]int),
 	}
@@ -110,7 +110,7 @@ func NewReplayExecutor(responses map[string]DebugResponse) *ReplayExecutor {
 
 // ExecutePrompt replays a captured response by identifying the metric from the prompt text.
 // Implements metrics.Executor interface.
-func (r *ReplayExecutor) ExecutePrompt(ctx context.Context, workDir, prompt, tools string, timeout time.Duration) (string, error) {
+func (r *replayExecutor) ExecutePrompt(ctx context.Context, workDir, prompt, tools string, timeout time.Duration) (string, error) {
 	r.mu.Lock()
 	metricID := identifyMetricFromPrompt(prompt)
 	idx := r.callIndex[metricID]
@@ -150,5 +150,5 @@ func identifyMetricFromPrompt(prompt string) string {
 	}
 }
 
-// Compile-time check that ReplayExecutor implements metrics.Executor.
-var _ metrics.Executor = (*ReplayExecutor)(nil)
+// Compile-time check that replayExecutor implements metrics.Executor.
+var _ metrics.Executor = (*replayExecutor)(nil)

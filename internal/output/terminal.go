@@ -1008,7 +1008,7 @@ func RenderBadge(w io.Writer, scored *types.ScoredResult) {
 	}
 
 	bold := color.New(color.Bold)
-	badge := GenerateBadge(scored)
+	badge := generateBadge(scored)
 
 	fmt.Fprintln(w)
 	bold.Fprintln(w, "Badge")

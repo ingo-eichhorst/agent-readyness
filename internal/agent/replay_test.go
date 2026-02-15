@@ -109,7 +109,7 @@ func TestSaveLoadResponses(t *testing.T) {
 }
 
 func TestReplayExecutor(t *testing.T) {
-	responses := map[string]DebugResponse{
+	responses := map[string]debugResponse{
 		"code_behavior_comprehension_0": {
 			MetricID:    "code_behavior_comprehension",
 			SampleIndex: 0,
@@ -140,7 +140,7 @@ func TestReplayExecutor(t *testing.T) {
 }
 
 func TestReplayExecutor_NotFound(t *testing.T) {
-	executor := NewReplayExecutor(make(map[string]DebugResponse))
+	executor := NewReplayExecutor(make(map[string]debugResponse))
 	ctx := context.Background()
 
 	_, err := executor.ExecutePrompt(ctx, "/tmp", "some unknown prompt", "", 30*time.Second)
@@ -153,7 +153,7 @@ func TestReplayExecutor_NotFound(t *testing.T) {
 }
 
 func TestReplayExecutor_ReplayedError(t *testing.T) {
-	responses := map[string]DebugResponse{
+	responses := map[string]debugResponse{
 		"unknown_0": {
 			MetricID:    "unknown",
 			SampleIndex: 0,

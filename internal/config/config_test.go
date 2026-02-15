@@ -122,7 +122,7 @@ scoring:
 func TestProjectConfig_ApplyToScoringConfig(t *testing.T) {
 	sc := scoring.DefaultConfig()
 
-	pc := &ProjectConfig{
+	pc := &projectConfig{
 		Version: 1,
 		Scoring: scoringOverrides{
 			Weights: map[string]float64{
@@ -172,7 +172,7 @@ scoring:
 }
 
 func TestValidate_NegativeThreshold(t *testing.T) {
-	cfg := &ProjectConfig{
+	cfg := &projectConfig{
 		Version: 1,
 		Scoring: scoringOverrides{
 			Threshold: -1.0,

@@ -9,11 +9,11 @@ import (
 	tree_sitter "github.com/tree-sitter/go-tree-sitter"
 )
 
-// Type alias for backward compatibility.
-type ImportGraph = shared.ImportGraph
+// importGraph is a type alias for backward compatibility.
+type importGraph = shared.ImportGraph
 
-// BuildImportGraph re-exports the shared utility.
-func BuildImportGraph(pkgs []*parser.ParsedPackage, modulePath string) *ImportGraph {
+// buildImportGraph re-exports the shared utility.
+func buildImportGraph(pkgs []*parser.ParsedPackage, modulePath string) *importGraph {
 	return shared.BuildImportGraph(pkgs, modulePath)
 }
 

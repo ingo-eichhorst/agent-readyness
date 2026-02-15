@@ -14,23 +14,23 @@ import (
 	"github.com/ingo-eichhorst/agent-readyness/internal/parser"
 )
 
-// C1Analyzer is the C1 (Code Quality) analyzer type.
-type C1Analyzer = c1.C1Analyzer
+// c1Analyzer is the C1 (Code Quality) analyzer type.
+type c1Analyzer = c1.C1Analyzer
 
-// C2Analyzer is the C2 (Semantic Explicitness) analyzer type.
-type C2Analyzer = c2.C2Analyzer
+// c2Analyzer is the C2 (Semantic Explicitness) analyzer type.
+type c2Analyzer = c2.C2Analyzer
 
-// C3Analyzer is the C3 (Architectural Navigability) analyzer type.
-type C3Analyzer = c3.C3Analyzer
+// c3Analyzer is the C3 (Architectural Navigability) analyzer type.
+type c3Analyzer = c3.C3Analyzer
 
 // C4Analyzer is the C4 (Documentation) analyzer type.
 type C4Analyzer = c4.C4Analyzer
 
-// C5Analyzer is the C5 (Temporal History) analyzer type.
-type C5Analyzer = c5.C5Analyzer
+// c5Analyzer is the C5 (Temporal History) analyzer type.
+type c5Analyzer = c5.C5Analyzer
 
-// C6Analyzer is the C6 (Testing) analyzer type.
-type C6Analyzer = c6.C6Analyzer
+// c6Analyzer is the C6 (Testing) analyzer type.
+type c6Analyzer = c6.C6Analyzer
 
 // C7Analyzer is the C7 (Agent Evaluation) analyzer type.
 type C7Analyzer = c7.C7Analyzer
@@ -40,17 +40,17 @@ type C7Analyzer = c7.C7Analyzer
 // after the constructors are moved to subdirectories.
 
 // NewC1Analyzer creates a C1 (Code Health) analyzer.
-func NewC1Analyzer(tsParser *parser.TreeSitterParser) *C1Analyzer {
+func NewC1Analyzer(tsParser *parser.TreeSitterParser) *c1Analyzer {
 	return c1.NewC1Analyzer(tsParser)
 }
 
 // NewC2Analyzer creates a C2 (Semantic Explicitness) analyzer.
-func NewC2Analyzer(tsParser *parser.TreeSitterParser) *C2Analyzer {
+func NewC2Analyzer(tsParser *parser.TreeSitterParser) *c2Analyzer {
 	return c2.NewC2Analyzer(tsParser)
 }
 
 // NewC3Analyzer creates a C3 (Architecture) analyzer.
-func NewC3Analyzer(tsParser *parser.TreeSitterParser) *C3Analyzer {
+func NewC3Analyzer(tsParser *parser.TreeSitterParser) *c3Analyzer {
 	return c3.NewC3Analyzer(tsParser)
 }
 
@@ -60,12 +60,12 @@ func NewC4Analyzer(tsParser *parser.TreeSitterParser) *C4Analyzer {
 }
 
 // NewC5Analyzer creates a C5 (Temporal/Git) analyzer.
-func NewC5Analyzer() *C5Analyzer {
+func NewC5Analyzer() *c5Analyzer {
 	return c5.NewC5Analyzer()
 }
 
 // NewC6Analyzer creates a C6 (Testing) analyzer.
-func NewC6Analyzer(tsParser *parser.TreeSitterParser) *C6Analyzer {
+func NewC6Analyzer(tsParser *parser.TreeSitterParser) *c6Analyzer {
 	return c6.NewC6Analyzer(tsParser)
 }
 

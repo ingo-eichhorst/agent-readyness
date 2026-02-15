@@ -9,12 +9,12 @@ import (
 	"github.com/mattn/go-isatty"
 )
 
-// ProgressFunc is a callback for pipeline stage progress updates.
-type ProgressFunc func(stage string, detail string)
+// progressFunc is a callback for pipeline stage progress updates.
+type progressFunc func(stage string, detail string)
 
-// Spinner displays an animated spinner on stderr for long-running operations.
+// spinner displays an animated spinner on stderr for long-running operations.
 // It is automatically suppressed when stderr is not a TTY (piped output, CI).
-type Spinner struct {
+type spinner struct {
 	mu      sync.Mutex
 	frames  []string
 	current int
@@ -26,9 +26,9 @@ type Spinner struct {
 	done    chan struct{}
 }
 
-// NewSpinner creates a new Spinner that writes to the given file (typically os.Stderr).
-func NewSpinner(w *os.File) *Spinner {
-	return &Spinner{
+// NewSpinner creates a new spinner that writes to the given file (typically os.Stderr).
+func NewSpinner(w *os.File) *spinner {
+	return &spinner{
 		frames: []string{"|", "/", "-", "\\"},
 		writer: w,
 		isTTY:  isatty.IsTerminal(w.Fd()) || isatty.IsCygwinTerminal(w.Fd()),
@@ -38,7 +38,7 @@ func NewSpinner(w *os.File) *Spinner {
 
 // Start begins displaying the spinner with the given message.
 // If the writer is not a TTY, Start is a no-op.
-func (s *Spinner) Start(message string) {
+func (s *spinner) Start(message string) {
 	if !s.isTTY {
 		return
 	}
@@ -72,7 +72,7 @@ func (s *Spinner) Start(message string) {
 }
 
 // Update changes the spinner message. The next tick will display the new message.
-func (s *Spinner) Update(message string) {
+func (s *spinner) Update(message string) {
 	s.mu.Lock()
 	s.message = message
 	s.mu.Unlock()
@@ -80,7 +80,7 @@ func (s *Spinner) Update(message string) {
 
 // Stop halts the spinner and optionally prints a final message.
 // If the writer is not a TTY, Stop is a no-op.
-func (s *Spinner) Stop(finalMessage string) {
+func (s *spinner) Stop(finalMessage string) {
 	if !s.isTTY {
 		return
 	}

@@ -19,8 +19,8 @@ const (
 	scoreMax           = 10                // Maximum valid evaluation score
 )
 
-// EvaluationResult holds the result of content quality evaluation.
-type EvaluationResult struct {
+// evaluationResult holds the result of content quality evaluation.
+type evaluationResult struct {
 	Score  int    `json:"score"`  // 1-10
 	Reason string `json:"reason"` // Brief explanation
 }
@@ -60,7 +60,7 @@ func (e *Evaluator) SetCommandRunner(fn commandRunnerFunc) {
 
 // EvaluateContent runs content evaluation using the Claude CLI.
 // The systemPrompt provides evaluation criteria, and content is the material to evaluate.
-func (e *Evaluator) EvaluateContent(ctx context.Context, systemPrompt, content string) (EvaluationResult, error) {
+func (e *Evaluator) EvaluateContent(ctx context.Context, systemPrompt, content string) (evaluationResult, error) {
 	// Build JSON schema for structured output
 	schema := `{"type":"object","properties":{"score":{"type":"integer","minimum":1,"maximum":10},"reason":{"type":"string"}},"required":["score","reason"]}`
 
@@ -80,14 +80,14 @@ func (e *Evaluator) EvaluateContent(ctx context.Context, systemPrompt, content s
 	output, err := e.runCommand(evalCtx, "claude", args...)
 	if err != nil {
 		if evalCtx.Err() == context.DeadlineExceeded {
-			return EvaluationResult{}, fmt.Errorf("evaluation timed out after %v", e.timeout)
+			return evaluationResult{}, fmt.Errorf("evaluation timed out after %v", e.timeout)
 		}
 		// Include output in error for debugging
 		preview := string(output)
 		if len(preview) > errorPreviewMax {
 			preview = preview[:errorPreviewMax] + "..."
 		}
-		return EvaluationResult{}, fmt.Errorf("CLI execution failed: %w (output: %s)", err, preview)
+		return evaluationResult{}, fmt.Errorf("CLI execution failed: %w (output: %s)", err, preview)
 	}
 
 	// Parse JSON response
@@ -95,7 +95,7 @@ func (e *Evaluator) EvaluateContent(ctx context.Context, systemPrompt, content s
 	var resp struct {
 		SessionID        string           `json:"session_id"`
 		Result           string           `json:"result"`
-		StructuredOutput EvaluationResult `json:"structured_output"`
+		StructuredOutput evaluationResult `json:"structured_output"`
 	}
 
 	if err := json.Unmarshal(output, &resp); err != nil {
@@ -103,19 +103,19 @@ func (e *Evaluator) EvaluateContent(ctx context.Context, systemPrompt, content s
 		if len(preview) > errorPreviewMax {
 			preview = preview[:errorPreviewMax] + "..."
 		}
-		return EvaluationResult{}, fmt.Errorf("failed to parse CLI response: %w (got: %s)", err, preview)
+		return evaluationResult{}, fmt.Errorf("failed to parse CLI response: %w (got: %s)", err, preview)
 	}
 
 	// Validate score range
 	if resp.StructuredOutput.Score < scoreMin || resp.StructuredOutput.Score > scoreMax {
-		return EvaluationResult{}, fmt.Errorf("score out of range (1-10): %d", resp.StructuredOutput.Score)
+		return evaluationResult{}, fmt.Errorf("score out of range (1-10): %d", resp.StructuredOutput.Score)
 	}
 
 	return resp.StructuredOutput, nil
 }
 
 // EvaluateWithRetry runs EvaluateContent with one retry on failure.
-func (e *Evaluator) EvaluateWithRetry(ctx context.Context, systemPrompt, content string) (EvaluationResult, error) {
+func (e *Evaluator) EvaluateWithRetry(ctx context.Context, systemPrompt, content string) (evaluationResult, error) {
 	result, err := e.EvaluateContent(ctx, systemPrompt, content)
 	if err == nil {
 		return result, nil
@@ -123,20 +123,20 @@ func (e *Evaluator) EvaluateWithRetry(ctx context.Context, systemPrompt, content
 
 	// Check if context is already canceled
 	if ctx.Err() != nil {
-		return EvaluationResult{}, ctx.Err()
+		return evaluationResult{}, ctx.Err()
 	}
 
 	// Wait before retry
 	select {
 	case <-ctx.Done():
-		return EvaluationResult{}, ctx.Err()
+		return evaluationResult{}, ctx.Err()
 	case <-time.After(retryDelay):
 	}
 
 	// Retry once
 	result, err = e.EvaluateContent(ctx, systemPrompt, content)
 	if err != nil {
-		return EvaluationResult{}, fmt.Errorf("evaluation failed after retry: %w", err)
+		return evaluationResult{}, fmt.Errorf("evaluation failed after retry: %w", err)
 	}
 
 	return result, nil

@@ -24,9 +24,9 @@ func TestClassifyGoFile(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := ClassifyGoFile(tt.filename)
+			got := classifyGoFile(tt.filename)
 			if got != tt.want {
-				t.Errorf("ClassifyGoFile(%q) = %v, want %v", tt.filename, got, tt.want)
+				t.Errorf("classifyGoFile(%q) = %v, want %v", tt.filename, got, tt.want)
 			}
 		})
 	}

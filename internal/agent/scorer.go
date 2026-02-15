@@ -38,7 +38,7 @@ func (s *scorer) Score(ctx context.Context, t task, response string) (scoreResul
 	// Scale from 1-10 to 0-100
 	return scoreResult{
 		Score:     eval.Score * scoreScaleToPercent,
-		Reasoning: eval.Reason, // EvaluationResult uses Reason, not Reasoning
+		Reasoning: eval.Reason, // evaluationResult uses Reason, not Reasoning
 	}, nil
 }
 

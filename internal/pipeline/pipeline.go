@@ -28,8 +28,8 @@ const (
 	bytesPerKB       = 1024             // Bytes per kilobyte for file size display
 )
 
-// Pipeline orchestrates the scan workflow: discover -> parse -> analyze -> score -> output.
-type Pipeline struct {
+// pipeline orchestrates the scan workflow: discover -> parse -> analyze -> score -> output.
+type pipeline struct {
 	verbose      bool
 	writer       io.Writer
 	parser       parseProvider
@@ -40,7 +40,7 @@ type Pipeline struct {
 	scored       *types.ScoredResult
 	threshold    float64
 	jsonOutput   bool
-	onProgress   ProgressFunc
+	onProgress   progressFunc
 	evaluator    *agent.Evaluator // CLI-based evaluator for LLM analysis
 	cliStatus    agent.CLIStatus  // cached CLI availability status
 	htmlOutput   string           // optional path for HTML report output
@@ -52,11 +52,11 @@ type Pipeline struct {
 	langs        []types.Language // detected project languages
 }
 
-// New creates a Pipeline with GoPackagesParser, all analyzers, and a scorer.
+// New creates a pipeline with GoPackagesParser, all analyzers, and a scorer.
 // If cfg is nil, DefaultConfig is used. If onProgress is nil, a no-op is used.
 // The pipeline auto-creates a Tree-sitter parser for Python/TypeScript analysis.
 // CLI availability is detected at startup; if available, LLM features are auto-enabled.
-func New(w io.Writer, verbose bool, cfg *scoring.ScoringConfig, threshold float64, jsonOutput bool, onProgress ProgressFunc) *Pipeline {
+func New(w io.Writer, verbose bool, cfg *scoring.ScoringConfig, threshold float64, jsonOutput bool, onProgress progressFunc) *pipeline {
 	if cfg == nil {
 		cfg = scoring.DefaultConfig()
 	}
@@ -87,7 +87,7 @@ func New(w io.Writer, verbose bool, cfg *scoring.ScoringConfig, threshold float6
 		c7Analyzer.SetEvaluator(evaluator) // Auto-enable C7 when CLI available
 	}
 
-	return &Pipeline{
+	return &pipeline{
 		verbose:     verbose,
 		writer:      w,
 		threshold:   threshold,
@@ -113,7 +113,7 @@ func New(w io.Writer, verbose bool, cfg *scoring.ScoringConfig, threshold float6
 
 // DisableLLM disables LLM features even when CLI is available.
 // This is called when --no-llm flag is set.
-func (p *Pipeline) DisableLLM() {
+func (p *pipeline) DisableLLM() {
 	p.evaluator = nil
 	// Find and disable C4 analyzer's LLM evaluation
 	for _, a := range p.analyzers {
@@ -128,12 +128,12 @@ func (p *Pipeline) DisableLLM() {
 }
 
 // GetCLIStatus returns the cached CLI availability status.
-func (p *Pipeline) GetCLIStatus() agent.CLIStatus {
+func (p *pipeline) GetCLIStatus() agent.CLIStatus {
 	return p.cliStatus
 }
 
 // SetC7Enabled enables C7 agent evaluation using the CLI-based evaluator.
-func (p *Pipeline) SetC7Enabled() {
+func (p *pipeline) SetC7Enabled() {
 	if p.c7Analyzer != nil && p.evaluator != nil {
 		p.c7Analyzer.Enable(p.evaluator)
 	}
@@ -142,19 +142,19 @@ func (p *Pipeline) SetC7Enabled() {
 // SetHTMLOutput configures HTML report generation.
 // If htmlPath is non-empty, an HTML report will be generated at that path.
 // If baselinePath is non-empty, the report will include trend comparison.
-func (p *Pipeline) SetHTMLOutput(htmlPath, baselinePath string) {
+func (p *pipeline) SetHTMLOutput(htmlPath, baselinePath string) {
 	p.htmlOutput = htmlPath
 	p.baselinePath = baselinePath
 }
 
 // SetBadgeOutput enables shields.io badge markdown generation in output.
-func (p *Pipeline) SetBadgeOutput(enabled bool) {
+func (p *pipeline) SetBadgeOutput(enabled bool) {
 	p.badgeOutput = enabled
 }
 
 // SetC7Debug enables C7 debug mode. Debug output goes to stderr via debugWriter.
 // This also enables C7 evaluation if not already enabled.
-func (p *Pipeline) SetC7Debug(enabled bool) {
+func (p *pipeline) SetC7Debug(enabled bool) {
 	p.debugC7 = enabled
 	if enabled {
 		p.debugWriter = os.Stderr
@@ -165,7 +165,7 @@ func (p *Pipeline) SetC7Debug(enabled bool) {
 }
 
 // SetDebugDir configures the directory for C7 response persistence and replay.
-func (p *Pipeline) SetDebugDir(dir string) {
+func (p *pipeline) SetDebugDir(dir string) {
 	p.debugDir = dir
 	if p.c7Analyzer != nil {
 		p.c7Analyzer.SetDebugDir(dir)
@@ -173,7 +173,7 @@ func (p *Pipeline) SetDebugDir(dir string) {
 }
 
 // Run executes the full pipeline on the given directory.
-func (p *Pipeline) Run(dir string) error {
+func (p *pipeline) Run(dir string) error {
 	// Stage 1: Discover files
 	p.onProgress("discover", "Scanning files...")
 	walker := discovery.NewWalker()
@@ -330,7 +330,7 @@ func (p *Pipeline) Run(dir string) error {
 }
 
 // generateHTMLReport creates an HTML report file at the configured path.
-func (p *Pipeline) generateHTMLReport(recs []recommend.Recommendation) error {
+func (p *pipeline) generateHTMLReport(recs []recommend.Recommendation) error {
 	// Load baseline if provided
 	var baseline *types.ScoredResult
 	if p.baselinePath != "" {

@@ -11,8 +11,8 @@ import (
 	"github.com/ingo-eichhorst/agent-readyness/internal/scoring"
 )
 
-// ProjectConfig represents the .arsrc.yml configuration file.
-type ProjectConfig struct {
+// projectConfig represents the .arsrc.yml configuration file.
+type projectConfig struct {
 	Version   int               `yaml:"version"`
 	Scoring   scoringOverrides  `yaml:"scoring"`
 	Languages []string          `yaml:"languages"`
@@ -35,7 +35,7 @@ type metricOverrides struct {
 // If explicitPath is provided (from --config flag), that file is loaded.
 // Otherwise, looks for .arsrc.yml then .arsrc.yaml in dir.
 // Returns nil (no error) if no config file is found.
-func LoadProjectConfig(dir string, explicitPath string) (*ProjectConfig, error) {
+func LoadProjectConfig(dir string, explicitPath string) (*projectConfig, error) {
 	var configPath string
 
 	if explicitPath != "" {
@@ -59,7 +59,7 @@ func LoadProjectConfig(dir string, explicitPath string) (*ProjectConfig, error) 
 		return nil, fmt.Errorf("read project config %s: %w", configPath, err)
 	}
 
-	cfg := &ProjectConfig{}
+	cfg := &projectConfig{}
 	// Use strict decoding to reject unknown fields
 	if err := yaml.Unmarshal(data, cfg); err != nil {
 		return nil, fmt.Errorf("parse project config %s: %w", configPath, err)
@@ -72,8 +72,8 @@ func LoadProjectConfig(dir string, explicitPath string) (*ProjectConfig, error) 
 	return cfg, nil
 }
 
-// Validate checks that the ProjectConfig values are valid.
-func (c *ProjectConfig) Validate() error {
+// Validate checks that the projectConfig values are valid.
+func (c *projectConfig) Validate() error {
 	if c.Version != 0 && c.Version != 1 {
 		return fmt.Errorf("unsupported config version %d (expected 1)", c.Version)
 	}
@@ -94,7 +94,7 @@ func (c *ProjectConfig) Validate() error {
 }
 
 // ApplyToScoringConfig applies project config overrides to a ScoringConfig.
-func (c *ProjectConfig) ApplyToScoringConfig(sc *scoring.ScoringConfig) {
+func (c *projectConfig) ApplyToScoringConfig(sc *scoring.ScoringConfig) {
 	if c == nil || sc == nil {
 		return
 	}

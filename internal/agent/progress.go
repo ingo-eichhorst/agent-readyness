@@ -40,9 +40,9 @@ type metricProgress struct {
 	Error         string
 }
 
-// C7Progress displays real-time progress for C7 agent evaluation.
+// c7Progress displays real-time progress for C7 agent evaluation.
 // Thread-safe for concurrent metric updates.
-type C7Progress struct {
+type c7Progress struct {
 	mu          sync.Mutex
 	metrics     map[string]*metricProgress
 	metricOrder []string // Preserve display order
@@ -57,7 +57,7 @@ type C7Progress struct {
 
 // NewC7Progress creates a new progress display.
 // If writer is not a TTY, display operations are no-ops.
-func NewC7Progress(w *os.File, metricIDs []string, metricNames []string) *C7Progress {
+func NewC7Progress(w *os.File, metricIDs []string, metricNames []string) *c7Progress {
 	metrics := make(map[string]*metricProgress, len(metricIDs))
 	for i, id := range metricIDs {
 		name := id
@@ -71,7 +71,7 @@ func NewC7Progress(w *os.File, metricIDs []string, metricNames []string) *C7Prog
 		}
 	}
 
-	return &C7Progress{
+	return &c7Progress{
 		metrics:     metrics,
 		metricOrder: metricIDs,
 		isTTY:       isatty.IsTerminal(w.Fd()) || isatty.IsCygwinTerminal(w.Fd()),
@@ -81,7 +81,7 @@ func NewC7Progress(w *os.File, metricIDs []string, metricNames []string) *C7Prog
 }
 
 // Start begins the progress display refresh loop.
-func (p *C7Progress) Start() {
+func (p *c7Progress) Start() {
 	if !p.isTTY {
 		return
 	}
@@ -105,7 +105,7 @@ func (p *C7Progress) Start() {
 }
 
 // SetMetricRunning marks a metric as running and sets total samples.
-func (p *C7Progress) SetMetricRunning(id string, totalSamples int) {
+func (p *c7Progress) SetMetricRunning(id string, totalSamples int) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if m, ok := p.metrics[id]; ok {
@@ -116,7 +116,7 @@ func (p *C7Progress) SetMetricRunning(id string, totalSamples int) {
 }
 
 // SetMetricSample updates the current sample number for a running metric.
-func (p *C7Progress) SetMetricSample(id string, current int) {
+func (p *c7Progress) SetMetricSample(id string, current int) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if m, ok := p.metrics[id]; ok {
@@ -125,7 +125,7 @@ func (p *C7Progress) SetMetricSample(id string, current int) {
 }
 
 // SetMetricComplete marks a metric as complete with its final score.
-func (p *C7Progress) SetMetricComplete(id string, score int) {
+func (p *c7Progress) SetMetricComplete(id string, score int) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if m, ok := p.metrics[id]; ok {
@@ -135,7 +135,7 @@ func (p *C7Progress) SetMetricComplete(id string, score int) {
 }
 
 // SetMetricFailed marks a metric as failed with an error message.
-func (p *C7Progress) SetMetricFailed(id string, err string) {
+func (p *c7Progress) SetMetricFailed(id string, err string) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if m, ok := p.metrics[id]; ok {
@@ -145,14 +145,14 @@ func (p *C7Progress) SetMetricFailed(id string, err string) {
 }
 
 // AddTokens adds to the running token count.
-func (p *C7Progress) AddTokens(tokens int) {
+func (p *c7Progress) AddTokens(tokens int) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.totalTokens += tokens
 }
 
 // TotalTokens returns the current token count.
-func (p *C7Progress) TotalTokens() int {
+func (p *c7Progress) TotalTokens() int {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	return p.totalTokens
@@ -161,7 +161,7 @@ func (p *C7Progress) TotalTokens() int {
 // render draws the current progress state.
 // Format includes "progress" text for CLI visibility requirement (C7-IMPL-06).
 // Example: "C7 progress [15s]: M1: 60% (3/5) | M2: Done(8) | M3: Pending | Tokens: 12,345 | Est. $0.15"
-func (p *C7Progress) render() {
+func (p *c7Progress) render() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -213,7 +213,7 @@ func (p *C7Progress) render() {
 }
 
 // Stop halts the progress display and prints a final summary.
-func (p *C7Progress) Stop() {
+func (p *c7Progress) Stop() {
 	if !p.isTTY {
 		return
 	}
@@ -237,7 +237,7 @@ func (p *C7Progress) Stop() {
 }
 
 // printSummary outputs a final summary of all metric results.
-func (p *C7Progress) printSummary() {
+func (p *c7Progress) printSummary() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 

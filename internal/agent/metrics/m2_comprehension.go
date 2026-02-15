@@ -150,7 +150,7 @@ func (m *m2Comprehension) Execute(ctx context.Context, workDir string, samples [
 	}
 
 	timePerSample := m.timeout / time.Duration(len(samples))
-	var sampleResults []SampleResult
+	var SampleResults []SampleResult
 	var totalScore int
 	successCount := 0
 
@@ -188,10 +188,10 @@ Be specific and reference actual code elements.`, sample.FilePath)
 			successCount++
 		}
 
-		sampleResults = append(sampleResults, sr)
+		SampleResults = append(SampleResults, sr)
 	}
 
-	result.Samples = sampleResults
+	result.Samples = SampleResults
 	result.Duration = time.Since(startTime)
 
 	if successCount == 0 {

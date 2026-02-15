@@ -1018,7 +1018,7 @@ func TestRenderBadge(t *testing.T) {
 	if !strings.Contains(out, "Badge") {
 		t.Error("output should contain Badge header")
 	}
-	// Output should contain markdown badge (exact format depends on GenerateBadge)
+	// Output should contain markdown badge (exact format depends on generateBadge)
 	if out == "" {
 		t.Error("output should not be empty")
 	}

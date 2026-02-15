@@ -226,7 +226,7 @@ func (m *m4Identifiers) Execute(ctx context.Context, workDir string, samples []S
 	}
 
 	timePerSample := m.timeout / time.Duration(len(samples))
-	var sampleResults []SampleResult
+	var SampleResults []SampleResult
 	var totalScore int
 	successCount := 0
 
@@ -267,10 +267,10 @@ Format:
 			successCount++
 		}
 
-		sampleResults = append(sampleResults, sr)
+		SampleResults = append(SampleResults, sr)
 	}
 
-	result.Samples = sampleResults
+	result.Samples = SampleResults
 	result.Duration = time.Since(startTime)
 
 	if successCount == 0 {

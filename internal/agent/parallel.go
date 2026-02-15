@@ -24,7 +24,7 @@ func RunMetricsParallel(
 	ctx context.Context,
 	workDir string,
 	targets []*types.AnalysisTarget,
-	progress *C7Progress,
+	progress *c7Progress,
 	executor metrics.Executor,
 ) ParallelResult {
 	allMetrics := metrics.AllMetrics()
@@ -97,7 +97,7 @@ func executeMetricWithProgress(
 	workDir string,
 	samples []metrics.Sample,
 	executor metrics.Executor,
-	progress *C7Progress,
+	progress *c7Progress,
 ) metrics.MetricResult {
 	// Execute the metric
 	result := m.Execute(ctx, workDir, samples, executor)
@@ -109,13 +109,13 @@ func executeMetricWithProgress(
 	return result
 }
 
-// RunMetricsSequential executes all metrics sequentially (fallback/debugging).
+// runMetricsSequential executes all metrics sequentially (fallback/debugging).
 // If executor is nil, a default CLIExecutorAdapter is created for live CLI execution.
-func RunMetricsSequential(
+func runMetricsSequential(
 	ctx context.Context,
 	workDir string,
 	targets []*types.AnalysisTarget,
-	progress *C7Progress,
+	progress *c7Progress,
 	executor metrics.Executor,
 ) ParallelResult {
 	allMetrics := metrics.AllMetrics()

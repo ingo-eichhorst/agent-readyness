@@ -160,7 +160,7 @@ func (g *htmlGenerator) GenerateReport(w io.Writer, scored *types.ScoredResult, 
 	}
 
 	// Generate badge info
-	badge := GenerateBadge(scored)
+	badge := generateBadge(scored)
 
 	// Build template data
 	data := htmlReportData{

@@ -111,7 +111,7 @@ func TestEvaluator_ContextCancellation(t *testing.T) {
 }
 
 func TestEvaluationResult_JSONUnmarshal(t *testing.T) {
-	// Test that EvaluationResult can unmarshal correctly
+	// Test that evaluationResult can unmarshal correctly
 	testCases := []struct {
 		name      string
 		json      string
@@ -140,8 +140,8 @@ func TestEvaluationResult_JSONUnmarshal(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			var result EvaluationResult
-			err := unmarshalEvaluationResult([]byte(tc.json), &result)
+			var result evaluationResult
+			err := unmarshalevaluationResult([]byte(tc.json), &result)
 			if tc.wantErr {
 				if err == nil {
 					t.Error("Expected error")
@@ -158,13 +158,13 @@ func TestEvaluationResult_JSONUnmarshal(t *testing.T) {
 	}
 }
 
-// unmarshalEvaluationResult is a test helper to unmarshal EvaluationResult.
-func unmarshalEvaluationResult(data []byte, r *EvaluationResult) error {
+// unmarshalevaluationResult is a test helper to unmarshal evaluationResult.
+func unmarshalevaluationResult(data []byte, r *evaluationResult) error {
 	return json.Unmarshal(data, r)
 }
 
 func TestEvaluationResult_JSONMarshaling(t *testing.T) {
-	result := EvaluationResult{
+	result := evaluationResult{
 		Score:  8,
 		Reason: "well-written content",
 	}
@@ -176,7 +176,7 @@ func TestEvaluationResult_JSONMarshaling(t *testing.T) {
 	}
 
 	// Unmarshal back
-	var decoded EvaluationResult
+	var decoded evaluationResult
 	if err := json.Unmarshal(data, &decoded); err != nil {
 		t.Fatalf("failed to unmarshal: %v", err)
 	}
@@ -190,7 +190,7 @@ func TestEvaluationResult_JSONMarshaling(t *testing.T) {
 }
 
 func TestEvaluationResult_ScoreValidation(t *testing.T) {
-	// Test that the EvaluationResult struct can hold scores 1-10
+	// Test that the evaluationResult struct can hold scores 1-10
 	tests := []struct {
 		score      int
 		shouldFail bool
@@ -205,7 +205,7 @@ func TestEvaluationResult_ScoreValidation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(string(rune('0'+tt.score)), func(t *testing.T) {
-			result := EvaluationResult{
+			result := evaluationResult{
 				Score:  tt.score,
 				Reason: "test",
 			}

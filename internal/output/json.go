@@ -106,7 +106,7 @@ func BuildJSONReport(scored *types.ScoredResult, recs []recommend.Recommendation
 
 	// Add badge information if requested
 	if includeBadge && scored != nil {
-		badge := GenerateBadge(scored)
+		badge := generateBadge(scored)
 		report.BadgeURL = badge.URL
 		report.BadgeMarkdown = badge.Markdown
 	}

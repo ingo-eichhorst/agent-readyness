@@ -6,7 +6,7 @@
 
 [![Go Reference](https://pkg.go.dev/badge/github.com/ingo-eichhorst/agent-readyness.svg)](https://pkg.go.dev/github.com/ingo-eichhorst/agent-readyness)
 [![Go Report Card](https://goreportcard.com/badge/github.com/ingo-eichhorst/agent-readyness)](https://goreportcard.com/report/github.com/ingo-eichhorst/agent-readyness)
-[![Coverage](https://img.shields.io/badge/coverage-78.9%25-green)](https://github.com/ingo-eichhorst/agent-readyness)
+[![Coverage](https://img.shields.io/badge/coverage-79.0%25-green)](https://github.com/ingo-eichhorst/agent-readyness)
 [![License](https://img.shields.io/github/license/ingo-eichhorst/agent-readyness)](https://github.com/ingo-eichhorst/agent-readyness/blob/main/LICENSE)
 [![Release](https://img.shields.io/github/release/ingo-eichhorst/agent-readyness)](https://github.com/ingo-eichhorst/agent-readyness/releases)
 

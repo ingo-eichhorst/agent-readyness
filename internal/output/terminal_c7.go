@@ -29,8 +29,6 @@ func c7ScoreColor(score int) *color.Color {
 }
 
 func renderC7(w io.Writer, ar *types.AnalysisResult, verbose bool) {
-	bold := color.New(color.Bold)
-
 	raw, ok := ar.Metrics["c7"]
 	if !ok {
 		return
@@ -40,6 +38,7 @@ func renderC7(w io.Writer, ar *types.AnalysisResult, verbose bool) {
 		return
 	}
 
+	bold := color.New(color.Bold)
 	fmt.Fprintln(w)
 	bold.Fprintln(w, "C7: Agent Evaluation")
 	fmt.Fprintln(w, "────────────────────────────────────────")
@@ -49,63 +48,66 @@ func renderC7(w io.Writer, ar *types.AnalysisResult, verbose bool) {
 		return
 	}
 
-	// New MECE metrics (1-10 scale)
-	if m.TaskExecutionConsistency > 0 || m.CodeBehaviorComprehension > 0 ||
-		m.CrossFileNavigation > 0 || m.IdentifierInterpretability > 0 ||
-		m.DocumentationAccuracyDetection > 0 {
-		// Show new MECE metrics
-		m1c := c7ScoreColor(m.TaskExecutionConsistency * c7ScoreScale)
-		m1c.Fprintf(w, "  M1 Exec Consistency:  %d/10\n", m.TaskExecutionConsistency)
+	renderC7Metrics(w, m)
+	renderC7Summary(w, m)
 
-		m2c := c7ScoreColor(m.CodeBehaviorComprehension * c7ScoreScale)
-		m2c.Fprintf(w, "  M2 Comprehension:     %d/10\n", m.CodeBehaviorComprehension)
-
-		m3c := c7ScoreColor(m.CrossFileNavigation * c7ScoreScale)
-		m3c.Fprintf(w, "  M3 Navigation:        %d/10\n", m.CrossFileNavigation)
-
-		m4c := c7ScoreColor(m.IdentifierInterpretability * c7ScoreScale)
-		m4c.Fprintf(w, "  M4 Identifiers:       %d/10\n", m.IdentifierInterpretability)
-
-		m5c := c7ScoreColor(m.DocumentationAccuracyDetection * c7ScoreScale)
-		m5c.Fprintf(w, "  M5 Documentation:     %d/10\n", m.DocumentationAccuracyDetection)
-	} else {
-		// Fallback to legacy metrics for backward compatibility
-		ic := c7ScoreColor(m.IntentClarity)
-		ic.Fprintf(w, "  Intent clarity:       %d/100\n", m.IntentClarity)
-
-		mc := c7ScoreColor(m.ModificationConfidence)
-		mc.Fprintf(w, "  Modification conf:    %d/100\n", m.ModificationConfidence)
-
-		cfc := c7ScoreColor(m.CrossFileCoherence)
-		cfc.Fprintf(w, "  Cross-file coherence: %d/100\n", m.CrossFileCoherence)
-
-		sc := c7ScoreColor(m.SemanticCompleteness)
-		sc.Fprintf(w, "  Semantic complete:    %d/100\n", m.SemanticCompleteness)
+	if verbose && len(m.TaskResults) > 0 {
+		renderC7Tasks(w, m, bold)
 	}
+}
 
-	// Summary metrics
+// renderC7Metrics renders the MECE or legacy metric scores.
+func renderC7Metrics(w io.Writer, m *types.C7Metrics) {
+	hasMECE := m.TaskExecutionConsistency > 0 || m.CodeBehaviorComprehension > 0 ||
+		m.CrossFileNavigation > 0 || m.IdentifierInterpretability > 0 ||
+		m.DocumentationAccuracyDetection > 0
+
+	if hasMECE {
+		renderC7MetricLine(w, "M1 Exec Consistency", m.TaskExecutionConsistency)
+		renderC7MetricLine(w, "M2 Comprehension", m.CodeBehaviorComprehension)
+		renderC7MetricLine(w, "M3 Navigation", m.CrossFileNavigation)
+		renderC7MetricLine(w, "M4 Identifiers", m.IdentifierInterpretability)
+		renderC7MetricLine(w, "M5 Documentation", m.DocumentationAccuracyDetection)
+	} else {
+		renderC7LegacyLine(w, "Intent clarity", m.IntentClarity)
+		renderC7LegacyLine(w, "Modification conf", m.ModificationConfidence)
+		renderC7LegacyLine(w, "Cross-file coherence", m.CrossFileCoherence)
+		renderC7LegacyLine(w, "Semantic complete", m.SemanticCompleteness)
+	}
+}
+
+func renderC7MetricLine(w io.Writer, label string, score int) {
+	c := c7ScoreColor(score * c7ScoreScale)
+	c.Fprintf(w, "  %-24s%d/10\n", label+":", score)
+}
+
+func renderC7LegacyLine(w io.Writer, label string, score int) {
+	c := c7ScoreColor(score)
+	c.Fprintf(w, "  %-24s%d/100\n", label+":", score)
+}
+
+// renderC7Summary renders overall score, duration, and cost.
+func renderC7Summary(w io.Writer, m *types.C7Metrics) {
 	fmt.Fprintln(w, "  ─────────────────────────────────────")
 	if m.MECEScore > 0 {
-		// Show MECE score (weighted average of 5 metrics, 1-10 scale)
-		os := c7ScoreColor(int(m.MECEScore * float64(c7ScoreScale)))
-		os.Fprintf(w, "  MECE Score:           %.1f/10\n", m.MECEScore)
+		c := c7ScoreColor(int(m.MECEScore * float64(c7ScoreScale)))
+		c.Fprintf(w, "  MECE Score:           %.1f/10\n", m.MECEScore)
 	} else {
-		// Show legacy overall score (0-100 scale)
-		os := c7ScoreColor(int(m.OverallScore))
-		os.Fprintf(w, "  Overall score:        %.1f/100\n", m.OverallScore)
+		c := c7ScoreColor(int(m.OverallScore))
+		c.Fprintf(w, "  Overall score:        %.1f/100\n", m.OverallScore)
 	}
 	fmt.Fprintf(w, "  Duration:             %.1fs\n", m.TotalDuration)
 	fmt.Fprintf(w, "  Estimated cost:       $%.4f\n", m.CostUSD)
+}
 
-	// Verbose: per-task breakdown
-	if verbose && len(m.TaskResults) > 0 {
-		fmt.Fprintln(w)
-		bold.Fprintln(w, "  Per-task results:")
-		for _, tr := range m.TaskResults {
-			fmt.Fprintf(w, "    %s: score=%d status=%s (%.1fs)\n", tr.TaskName, tr.Score, tr.Status, tr.Duration)
-			if tr.Reasoning != "" {
-				fmt.Fprintf(w, "      Reasoning: %s\n", tr.Reasoning)
-			}
+// renderC7Tasks renders verbose per-task breakdown.
+func renderC7Tasks(w io.Writer, m *types.C7Metrics, bold *color.Color) {
+	fmt.Fprintln(w)
+	bold.Fprintln(w, "  Per-task results:")
+	for _, tr := range m.TaskResults {
+		fmt.Fprintf(w, "    %s: score=%d status=%s (%.1fs)\n", tr.TaskName, tr.Score, tr.Status, tr.Duration)
+		if tr.Reasoning != "" {
+			fmt.Fprintf(w, "      Reasoning: %s\n", tr.Reasoning)
 		}
 	}
 }
@@ -113,75 +115,72 @@ func renderC7(w io.Writer, ar *types.AnalysisResult, verbose bool) {
 // RenderC7Debug renders detailed C7 debug data (prompts, responses, scores, traces)
 // to the provided writer. This is called only when --debug-c7 is active.
 func RenderC7Debug(w io.Writer, analysisResults []*types.AnalysisResult) {
-	// Find the C7 result
-	var c7Result *types.AnalysisResult
-	for _, ar := range analysisResults {
-		if ar.Category == "C7" {
-			c7Result = ar
-			break
-		}
-	}
-	if c7Result == nil {
-		return
-	}
-
-	raw, ok := c7Result.Metrics["c7"]
-	if !ok {
-		return
-	}
-	m, ok := raw.(*types.C7Metrics)
-	if !ok || !m.Available {
-		return
-	}
-	if len(m.MetricResults) == 0 {
+	m := findC7Metrics(analysisResults)
+	if m == nil || len(m.MetricResults) == 0 {
 		return
 	}
 
 	bold := color.New(color.Bold)
-	dim := color.New(color.FgHiBlack)
-	red := color.New(color.FgRed)
-
-	// Header
 	fmt.Fprintln(w)
 	bold.Fprintln(w, "C7 Debug: Agent Evaluation Details")
 	fmt.Fprintln(w, strings.Repeat("=", separatorWide))
 
 	for _, mr := range m.MetricResults {
-		fmt.Fprintln(w)
-		bold.Fprintf(w, "[%s] %s  score=%d/10  (%.1fs)\n", mr.MetricID, mr.MetricName, mr.Score, mr.Duration)
-		fmt.Fprintln(w, strings.Repeat("-", separatorNarrow))
+		renderC7DebugMetric(w, mr, bold)
+	}
+}
 
-		if len(mr.DebugSamples) == 0 {
-			dim.Fprintln(w, "  No debug samples captured")
+// findC7Metrics locates and returns C7 metrics from analysis results.
+func findC7Metrics(results []*types.AnalysisResult) *types.C7Metrics {
+	for _, ar := range results {
+		if ar.Category != "C7" {
 			continue
 		}
-
-		for i, ds := range mr.DebugSamples {
-			fmt.Fprintf(w, "  Sample %d: %s\n", i+1, ds.Description)
-			fmt.Fprintf(w, "  File:     %s\n", ds.FilePath)
-			fmt.Fprintf(w, "  Score:    %d/10  Duration: %.1fs\n", ds.Score, ds.Duration)
-
-			// Prompt (truncated, dim)
-			prompt := truncateString(ds.Prompt, truncateShort)
-			dim.Fprintf(w, "  Prompt:   %s\n", prompt)
-
-			// Response (truncated)
-			response := truncateString(ds.Response, truncateLong)
-			fmt.Fprintf(w, "  Response: %s\n", response)
-
-			// Score trace
-			renderScoreTrace(w, ds.ScoreTrace)
-
-			// Error (red, if present)
-			if ds.Error != "" {
-				red.Fprintf(w, "  Error: %s\n", ds.Error)
-			}
-
-			// Blank line between samples (but not after the last)
-			if i < len(mr.DebugSamples)-1 {
-				fmt.Fprintln(w)
-			}
+		raw, ok := ar.Metrics["c7"]
+		if !ok {
+			return nil
 		}
+		m, ok := raw.(*types.C7Metrics)
+		if !ok || !m.Available {
+			return nil
+		}
+		return m
+	}
+	return nil
+}
+
+// renderC7DebugMetric renders debug output for a single metric result.
+func renderC7DebugMetric(w io.Writer, mr types.C7MetricResult, bold *color.Color) {
+	dim := color.New(color.FgHiBlack)
+	red := color.New(color.FgRed)
+
+	fmt.Fprintln(w)
+	bold.Fprintf(w, "[%s] %s  score=%d/10  (%.1fs)\n", mr.MetricID, mr.MetricName, mr.Score, mr.Duration)
+	fmt.Fprintln(w, strings.Repeat("-", separatorNarrow))
+
+	if len(mr.DebugSamples) == 0 {
+		dim.Fprintln(w, "  No debug samples captured")
+		return
+	}
+
+	for i, ds := range mr.DebugSamples {
+		renderC7DebugSample(w, i, ds, dim, red)
+	}
+}
+
+// renderC7DebugSample renders debug output for a single sample.
+func renderC7DebugSample(w io.Writer, idx int, ds types.C7DebugSample, dim, red *color.Color) {
+	fmt.Fprintf(w, "  Sample %d: %s\n", idx+1, ds.Description)
+	fmt.Fprintf(w, "  File:     %s\n", ds.FilePath)
+	fmt.Fprintf(w, "  Score:    %d/10  Duration: %.1fs\n", ds.Score, ds.Duration)
+	dim.Fprintf(w, "  Prompt:   %s\n", truncateString(ds.Prompt, truncateShort))
+	fmt.Fprintf(w, "  Response: %s\n", truncateString(ds.Response, truncateLong))
+	renderScoreTrace(w, ds.ScoreTrace)
+	if ds.Error != "" {
+		red.Fprintf(w, "  Error: %s\n", ds.Error)
+	}
+	if idx < len(ds.Response)-1 {
+		fmt.Fprintln(w)
 	}
 }
 

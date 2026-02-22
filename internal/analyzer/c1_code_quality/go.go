@@ -301,84 +301,67 @@ func receiverTypeName(expr ast.Expr) string {
 	}
 }
 
-// computeComplexitySummary calculates avg and max cyclomatic complexity.
-func computeComplexitySummary(functions []types.FunctionMetric) types.MetricSummary {
-	if len(functions) == 0 {
+// computeMetricSummary is a generic helper that computes avg/max over a slice of items.
+// getVal extracts the numeric value; getEntity extracts the label for the max item.
+func computeMetricSummary[T any](items []T, getVal func(T) int, getEntity func(T) string) types.MetricSummary {
+	if len(items) == 0 {
 		return types.MetricSummary{}
 	}
-
-	sum := 0
-	maxVal := 0
+	sum, maxVal := 0, 0
 	maxEntity := ""
-
-	for _, f := range functions {
-		sum += f.Complexity
-		if f.Complexity > maxVal {
-			maxVal = f.Complexity
-			maxEntity = f.Name
+	for _, item := range items {
+		v := getVal(item)
+		sum += v
+		if v > maxVal {
+			maxVal = v
+			maxEntity = getEntity(item)
 		}
 	}
-
 	return types.MetricSummary{
-		Avg:       float64(sum) / float64(len(functions)),
+		Avg:       float64(sum) / float64(len(items)),
 		Max:       maxVal,
 		MaxEntity: maxEntity,
 	}
+}
+
+// computeComplexitySummary calculates avg and max cyclomatic complexity.
+func computeComplexitySummary(functions []types.FunctionMetric) types.MetricSummary {
+	return computeMetricSummary(functions,
+		func(f types.FunctionMetric) int { return f.Complexity },
+		func(f types.FunctionMetric) string { return f.Name },
+	)
 }
 
 // computeFunctionLengthSummary calculates avg and max function length.
 func computeFunctionLengthSummary(functions []types.FunctionMetric) types.MetricSummary {
-	if len(functions) == 0 {
-		return types.MetricSummary{}
-	}
+	return computeMetricSummary(functions,
+		func(f types.FunctionMetric) int { return f.LineCount },
+		func(f types.FunctionMetric) string { return f.Name },
+	)
+}
 
-	sum := 0
-	maxVal := 0
-	maxEntity := ""
-
-	for _, f := range functions {
-		sum += f.LineCount
-		if f.LineCount > maxVal {
-			maxVal = f.LineCount
-			maxEntity = f.Name
-		}
-	}
-
-	return types.MetricSummary{
-		Avg:       float64(sum) / float64(len(functions)),
-		Max:       maxVal,
-		MaxEntity: maxEntity,
-	}
+// fileEntry is a flat record of a single source file's line count and name,
+// used to feed analyzeFileSizes into the generic computeMetricSummary helper.
+type fileEntry struct {
+	lines int
+	name  string
 }
 
 // analyzeFileSizes measures lines per file across all source packages.
 func analyzeFileSizes(pkgs []*parser.ParsedPackage) types.MetricSummary {
-	var sum int
-	var count int
-	maxVal := 0
-	maxEntity := ""
-
+	var entries []fileEntry
 	for _, pkg := range pkgs {
 		for _, f := range pkg.Syntax {
-			lines := pkg.Fset.Position(f.End()).Line
-			sum += lines
-			count++
-			if lines > maxVal {
-				maxVal = lines
-				maxEntity = pkg.Fset.Position(f.Pos()).Filename
-			}
+			entries = append(entries, fileEntry{
+				lines: pkg.Fset.Position(f.End()).Line,
+				name:  pkg.Fset.Position(f.Pos()).Filename,
+			})
 		}
 	}
-
-	if count == 0 {
-		return types.MetricSummary{}
-	}
-
-	return types.MetricSummary{
-		Avg:       float64(sum) / float64(count),
-		Max:       maxVal,
-		MaxEntity: maxEntity,
-	}
+	return computeMetricSummary(entries,
+		func(e fileEntry) int { return e.lines },
+		func(e fileEntry) string { return e.name },
+	)
 }
 
 // detectModulePath extracts the module path from go.mod in the package directory,

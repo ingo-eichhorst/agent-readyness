@@ -3,6 +3,7 @@ package output
 import (
 	"encoding/json"
 	"io"
+	"time"
 
 	"github.com/ingo-eichhorst/agent-readyness/internal/recommend"
 	"github.com/ingo-eichhorst/agent-readyness/pkg/types"
@@ -11,12 +12,23 @@ import (
 // jsonReport is the top-level JSON output structure.
 type jsonReport struct {
 	Version         string               `json:"version"`
+	RepoMetadata    *jsonRepoMetadata    `json:"repo_metadata,omitempty"`
 	CompositeScore  float64              `json:"composite_score"`
 	Tier            string               `json:"tier"`
 	Categories      []jsonCategory       `json:"categories"`
 	Recommendations []jsonRecommendation `json:"recommendations"`
 	BadgeURL        string               `json:"badge_url,omitempty"`
 	BadgeMarkdown   string               `json:"badge_markdown,omitempty"`
+}
+
+// jsonRepoMetadata represents repository metadata in JSON output.
+type jsonRepoMetadata struct {
+	LinesOfCode       int                `json:"lines_of_code"`
+	FirstCommitDate   string             `json:"first_commit_date,omitempty"`
+	LastCommitDate    string             `json:"last_commit_date,omitempty"`
+	ContributorCount  int                `json:"contributor_count"`
+	TotalCommits      int                `json:"total_commits"`
+	LanguageBreakdown map[string]float64 `json:"language_breakdown"`
 }
 
 // jsonCategory represents a scoring category in JSON output.
@@ -55,8 +67,9 @@ type jsonRecommendation struct {
 // BuildJSONReport converts a ScoredResult and recommendations into a jsonReport.
 // The verbose parameter is deprecated; sub_scores are always included.
 // When includeBadge is true, badge URL and markdown are included.
-func BuildJSONReport(scored *types.ScoredResult, recs []recommend.Recommendation, verbose bool, includeBadge bool) *jsonReport {
+func BuildJSONReport(scored *types.ScoredResult, recs []recommend.Recommendation, verbose bool, includeBadge bool, meta *types.RepoMetadata) *jsonReport {
 	report := initializejsonReport(scored)
+	addRepoMetadata(report, meta)
 	buildCategories(report, scored.Categories)
 	buildRecommendations(report, recs)
 	addBadgeIfRequested(report, scored, includeBadge)
@@ -69,6 +82,28 @@ func initializejsonReport(scored *types.ScoredResult) *jsonReport {
 		CompositeScore: scored.Composite,
 		Tier:           scored.Tier,
 	}
+}
+
+func addRepoMetadata(report *jsonReport, meta *types.RepoMetadata) {
+	if meta == nil {
+		return
+	}
+	jm := &jsonRepoMetadata{
+		LinesOfCode:       meta.LinesOfCode,
+		ContributorCount:  meta.ContributorCount,
+		TotalCommits:      meta.TotalCommits,
+		LanguageBreakdown: make(map[string]float64),
+	}
+	if !meta.FirstCommitDate.IsZero() {
+		jm.FirstCommitDate = meta.FirstCommitDate.Format(time.RFC3339)
+	}
+	if !meta.LastCommitDate.IsZero() {
+		jm.LastCommitDate = meta.LastCommitDate.Format(time.RFC3339)
+	}
+	for lang, pct := range meta.LanguageBreakdown {
+		jm.LanguageBreakdown[string(lang)] = pct
+	}
+	report.RepoMetadata = jm
 }
 
 func buildCategories(report *jsonReport, categories []types.CategoryScore) {

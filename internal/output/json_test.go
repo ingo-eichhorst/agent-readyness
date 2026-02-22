@@ -79,7 +79,7 @@ func newTestRecommendations() []recommend.Recommendation {
 func TestJSONOutputValid(t *testing.T) {
 	scored := newTestScoredResult()
 	recs := newTestRecommendations()
-	report := BuildJSONReport(scored, recs, false, false)
+	report := BuildJSONReport(scored, recs, false, false, nil)
 
 	var buf bytes.Buffer
 	err := RenderJSON(&buf, report)
@@ -95,7 +95,7 @@ func TestJSONOutputValid(t *testing.T) {
 func TestJSONNoANSI(t *testing.T) {
 	scored := newTestScoredResult()
 	recs := newTestRecommendations()
-	report := BuildJSONReport(scored, recs, true, false)
+	report := BuildJSONReport(scored, recs, true, false, nil)
 
 	var buf bytes.Buffer
 	err := RenderJSON(&buf, report)
@@ -111,7 +111,7 @@ func TestJSONNoANSI(t *testing.T) {
 
 func TestJSONVersion(t *testing.T) {
 	scored := newTestScoredResult()
-	report := BuildJSONReport(scored, nil, false, false)
+	report := BuildJSONReport(scored, nil, false, false, nil)
 
 	var buf bytes.Buffer
 	if err := RenderJSON(&buf, report); err != nil {
@@ -130,7 +130,7 @@ func TestJSONVersion(t *testing.T) {
 
 func TestJSONAlwaysIncludesSubScores(t *testing.T) {
 	scored := newTestScoredResult()
-	report := BuildJSONReport(scored, nil, false, false)
+	report := BuildJSONReport(scored, nil, false, false, nil)
 	var buf bytes.Buffer
 	if err := RenderJSON(&buf, report); err != nil {
 		t.Fatalf("RenderJSON error: %v", err)
@@ -146,7 +146,7 @@ func TestJSONAlwaysIncludesSubScores(t *testing.T) {
 
 func TestJSONSubScoresIncludeMetricFields(t *testing.T) {
 	scored := newTestScoredResult()
-	report := BuildJSONReport(scored, nil, true, false)
+	report := BuildJSONReport(scored, nil, true, false, nil)
 
 	var buf bytes.Buffer
 	if err := RenderJSON(&buf, report); err != nil {
@@ -178,7 +178,7 @@ func TestJSONSubScoresIncludeMetricFields(t *testing.T) {
 func TestJSONIncludesRecommendations(t *testing.T) {
 	scored := newTestScoredResult()
 	recs := newTestRecommendations()
-	report := BuildJSONReport(scored, recs, false, false)
+	report := BuildJSONReport(scored, recs, false, false, nil)
 
 	var buf bytes.Buffer
 	if err := RenderJSON(&buf, report); err != nil {
@@ -211,7 +211,7 @@ func TestJSONIncludesRecommendations(t *testing.T) {
 
 func TestJSONCompositeAndTier(t *testing.T) {
 	scored := newTestScoredResult()
-	report := BuildJSONReport(scored, nil, false, false)
+	report := BuildJSONReport(scored, nil, false, false, nil)
 
 	var buf bytes.Buffer
 	if err := RenderJSON(&buf, report); err != nil {
@@ -233,7 +233,7 @@ func TestJSONCompositeAndTier(t *testing.T) {
 
 func TestJSONEmptyRecommendations(t *testing.T) {
 	scored := newTestScoredResult()
-	report := BuildJSONReport(scored, nil, false, false)
+	report := BuildJSONReport(scored, nil, false, false, nil)
 
 	var buf bytes.Buffer
 	if err := RenderJSON(&buf, report); err != nil {
@@ -253,7 +253,7 @@ func TestJSONEmptyRecommendations(t *testing.T) {
 
 func TestJSONIncludesBadge(t *testing.T) {
 	scored := newTestScoredResult()
-	report := BuildJSONReport(scored, nil, false, true)
+	report := BuildJSONReport(scored, nil, false, true, nil)
 
 	var buf bytes.Buffer
 	if err := RenderJSON(&buf, report); err != nil {
@@ -289,7 +289,7 @@ func TestJSONIncludesBadge(t *testing.T) {
 
 func TestJSONOmitsBadgeByDefault(t *testing.T) {
 	scored := newTestScoredResult()
-	report := BuildJSONReport(scored, nil, false, false)
+	report := BuildJSONReport(scored, nil, false, false, nil)
 
 	var buf bytes.Buffer
 	if err := RenderJSON(&buf, report); err != nil {
@@ -308,7 +308,7 @@ func TestJSONOmitsBadgeByDefault(t *testing.T) {
 
 func TestJSONEvidenceNotNull(t *testing.T) {
 	scored := newTestScoredResult()
-	report := BuildJSONReport(scored, nil, false, false)
+	report := BuildJSONReport(scored, nil, false, false, nil)
 	var buf bytes.Buffer
 	if err := RenderJSON(&buf, report); err != nil {
 		t.Fatalf("RenderJSON error: %v", err)
@@ -326,7 +326,7 @@ func TestJSONEvidenceNotNull(t *testing.T) {
 
 func TestJSONEvidenceWithData(t *testing.T) {
 	scored := newTestScoredResult()
-	report := BuildJSONReport(scored, nil, false, false)
+	report := BuildJSONReport(scored, nil, false, false, nil)
 	var buf bytes.Buffer
 	if err := RenderJSON(&buf, report); err != nil {
 		t.Fatalf("RenderJSON error: %v", err)
@@ -476,7 +476,7 @@ func TestJSONBaselineV1FullRoundTrip(t *testing.T) {
 	// Verify v2 marshal uses "sub_scores" not "metrics"
 	t.Run("v2 output uses sub_scores", func(t *testing.T) {
 		scored := newTestScoredResult()
-		report := BuildJSONReport(scored, nil, false, false)
+		report := BuildJSONReport(scored, nil, false, false, nil)
 
 		var buf bytes.Buffer
 		if err := RenderJSON(&buf, report); err != nil {

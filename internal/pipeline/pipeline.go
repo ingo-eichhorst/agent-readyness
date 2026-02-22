@@ -14,6 +14,7 @@ import (
 	"github.com/ingo-eichhorst/agent-readyness/internal/agent"
 	"github.com/ingo-eichhorst/agent-readyness/internal/analyzer"
 	"github.com/ingo-eichhorst/agent-readyness/internal/discovery"
+	"github.com/ingo-eichhorst/agent-readyness/internal/metadata"
 	"github.com/ingo-eichhorst/agent-readyness/internal/output"
 	"github.com/ingo-eichhorst/agent-readyness/internal/parser"
 	"github.com/ingo-eichhorst/agent-readyness/internal/recommend"
@@ -47,8 +48,9 @@ type pipeline struct {
 	badgeOutput  bool             // generate shields.io badge markdown
 	debugC7      bool             // C7 debug mode enabled
 	debugWriter  io.Writer        // io.Discard (normal) or os.Stderr (debug)
-	debugDir     string           // directory for C7 response persistence and replay
-	langs        []types.Language // detected project languages
+	debugDir     string              // directory for C7 response persistence and replay
+	langs        []types.Language   // detected project languages
+	repoMeta     *types.RepoMetadata // collected repository metadata
 }
 
 // New creates a Pipeline with GoPackagesParser, all analyzers, and a scorer.
@@ -170,6 +172,9 @@ func (p *pipeline) Run(dir string) error {
 	if err != nil {
 		return err
 	}
+
+	p.onProgress("metadata", "Collecting repository metadata...")
+	p.repoMeta = metadata.Collect(dir, result)
 
 	p.injectGoPackages(pkgs)
 	p.runAnalyzers(targets)
@@ -305,7 +310,7 @@ func (p *pipeline) renderOutput(result *types.ScanResult, recs []recommend.Recom
 	p.onProgress("render", "Generating output...")
 	if p.jsonOutput {
 		if p.scored != nil {
-			report := output.BuildJSONReport(p.scored, recs, p.verbose, p.badgeOutput)
+			report := output.BuildJSONReport(p.scored, recs, p.verbose, p.badgeOutput, p.repoMeta)
 			if err := output.RenderJSON(p.writer, report); err != nil {
 				return fmt.Errorf("render JSON: %w", err)
 			}
@@ -314,6 +319,9 @@ func (p *pipeline) renderOutput(result *types.ScanResult, recs []recommend.Recom
 	}
 
 	output.RenderSummary(p.writer, result, p.results, p.verbose)
+	if p.repoMeta != nil {
+		output.RenderRepoMetadata(p.writer, p.repoMeta)
+	}
 	if p.scored != nil {
 		output.RenderScores(p.writer, p.scored, p.verbose)
 	}

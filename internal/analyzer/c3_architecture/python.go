@@ -356,42 +356,6 @@ func pyFlagDeadExports(defs []pyDefinition, importedNames map[string]bool) []typ
 	return dead
 }
 
-// pyAnalyzeDirectoryDepth computes max and average directory depth from Python file paths.
-func pyAnalyzeDirectoryDepth(files []*parser.ParsedTreeSitterFile, rootDir string) (int, float64) {
-	if len(files) == 0 {
-		return 0, 0
-	}
-
-	maxDepth := 0
-	totalDepth := 0
-
-	for _, f := range files {
-		relPath := f.RelPath
-		if relPath == "" && rootDir != "" {
-			var err error
-			relPath, err = filepath.Rel(rootDir, f.Path)
-			if err != nil {
-				continue
-			}
-		}
-
-		// Count directory separators
-		depth := strings.Count(relPath, string(os.PathSeparator))
-		// Also count forward slashes
-		depth += strings.Count(relPath, "/") - strings.Count(relPath, string(os.PathSeparator))
-		if depth < 0 {
-			depth = 0
-		}
-
-		totalDepth += depth
-		if depth > maxDepth {
-			maxDepth = depth
-		}
-	}
-
-	avg := float64(totalDepth) / float64(len(files))
-	return maxDepth, avg
-}
 
 // appendUnique appends s to slice only if not already present.
 func appendUnique(slice []string, s string) []string {

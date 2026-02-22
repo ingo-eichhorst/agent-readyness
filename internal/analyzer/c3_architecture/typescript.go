@@ -396,37 +396,3 @@ func tsCollectImportedNames(importNode *tree_sitter.Node, content []byte, names 
 	}
 }
 
-// tsAnalyzeDirectoryDepth computes max and average directory depth from TypeScript file paths.
-func tsAnalyzeDirectoryDepth(files []*parser.ParsedTreeSitterFile, rootDir string) (int, float64) {
-	if len(files) == 0 {
-		return 0, 0
-	}
-
-	maxDepth := 0
-	totalDepth := 0
-
-	for _, f := range files {
-		relPath := f.RelPath
-		if relPath == "" && rootDir != "" {
-			var err error
-			relPath, err = filepath.Rel(rootDir, f.Path)
-			if err != nil {
-				continue
-			}
-		}
-
-		// Count directory separators
-		depth := strings.Count(relPath, "/")
-		if os.PathSeparator != '/' {
-			depth += strings.Count(relPath, string(os.PathSeparator))
-		}
-
-		totalDepth += depth
-		if depth > maxDepth {
-			maxDepth = depth
-		}
-	}
-
-	avg := float64(totalDepth) / float64(len(files))
-	return maxDepth, avg
-}

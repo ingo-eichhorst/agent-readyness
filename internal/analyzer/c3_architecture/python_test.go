@@ -5,6 +5,7 @@ import (
 	"runtime"
 	"testing"
 
+	"github.com/ingo-eichhorst/agent-readyness/internal/analyzer/shared"
 	"github.com/ingo-eichhorst/agent-readyness/internal/parser"
 	"github.com/ingo-eichhorst/agent-readyness/pkg/types"
 )
@@ -186,7 +187,7 @@ func TestPyAnalyzeDirectoryDepth(t *testing.T) {
 	}
 	defer parser.CloseAll(parsed)
 
-	maxDepth, avgDepth := pyAnalyzeDirectoryDepth(parsed, testDir)
+	maxDepth, avgDepth := shared.AnalyzeDirectoryDepth(parsed, testDir)
 
 	// Files are in root dir, so depth should be 0
 	if maxDepth != 0 {

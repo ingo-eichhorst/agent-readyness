@@ -4,6 +4,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/ingo-eichhorst/agent-readyness/internal/analyzer/shared"
 	"github.com/ingo-eichhorst/agent-readyness/internal/parser"
 	"github.com/ingo-eichhorst/agent-readyness/pkg/types"
 )
@@ -173,7 +174,7 @@ func TestTsAnalyzeDirectoryDepth(t *testing.T) {
 	}
 	defer parser.CloseAll(parsed)
 
-	maxDepth, avgDepth := tsAnalyzeDirectoryDepth(parsed, testDir)
+	maxDepth, avgDepth := shared.AnalyzeDirectoryDepth(parsed, testDir)
 
 	// Files are in src/ dir, so depth should be 1
 	if maxDepth != 1 {

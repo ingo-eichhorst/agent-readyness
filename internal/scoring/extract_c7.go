@@ -6,6 +6,8 @@ import (
 
 // extractC7 extracts C7 (Agent Evaluation) metrics from an AnalysisResult.
 func extractC7(ar *types.AnalysisResult) (map[string]float64, map[string]bool, map[string][]types.EvidenceItem) {
+	// Check availability before delegating to the generic helper so that the
+	// non-nil unavailable map is returned correctly when evaluation data is absent.
 	raw, ok := ar.Metrics["c7"]
 	if !ok {
 		return nil, nil, nil
@@ -14,7 +16,6 @@ func extractC7(ar *types.AnalysisResult) (map[string]float64, map[string]bool, m
 	if !ok {
 		return nil, nil, nil
 	}
-
 	if !m.Available {
 		unavailable := map[string]bool{
 			"task_execution_consistency":       true,
@@ -30,19 +31,16 @@ func extractC7(ar *types.AnalysisResult) (map[string]float64, map[string]bool, m
 		return map[string]float64{}, unavailable, emptyEvidence
 	}
 
-	evidence := map[string][]types.EvidenceItem{
-		"task_execution_consistency":       {},
-		"code_behavior_comprehension":      {},
-		"cross_file_navigation":            {},
-		"identifier_interpretability":      {},
-		"documentation_accuracy_detection": {},
-	}
+	return extractMetrics[types.C7Metrics, *types.C7Metrics](ar, "c7", func(m *types.C7Metrics) (map[string]float64, map[string][]types.EvidenceItem, []string) {
+		keys := []string{"task_execution_consistency", "code_behavior_comprehension", "cross_file_navigation", "identifier_interpretability", "documentation_accuracy_detection"}
+		evidence := make(map[string][]types.EvidenceItem)
 
-	return map[string]float64{
-		"task_execution_consistency":       float64(m.TaskExecutionConsistency),
-		"code_behavior_comprehension":      float64(m.CodeBehaviorComprehension),
-		"cross_file_navigation":            float64(m.CrossFileNavigation),
-		"identifier_interpretability":      float64(m.IdentifierInterpretability),
-		"documentation_accuracy_detection": float64(m.DocumentationAccuracyDetection),
-	}, nil, evidence
+		return map[string]float64{
+			"task_execution_consistency":       float64(m.TaskExecutionConsistency),
+			"code_behavior_comprehension":      float64(m.CodeBehaviorComprehension),
+			"cross_file_navigation":            float64(m.CrossFileNavigation),
+			"identifier_interpretability":      float64(m.IdentifierInterpretability),
+			"documentation_accuracy_detection": float64(m.DocumentationAccuracyDetection),
+		}, evidence, keys
+	})
 }

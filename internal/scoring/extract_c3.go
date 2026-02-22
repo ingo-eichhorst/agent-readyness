@@ -9,29 +9,21 @@ import (
 
 // extractC3 extracts C3 (Architecture) metrics from an AnalysisResult and collects evidence.
 func extractC3(ar *types.AnalysisResult) (map[string]float64, map[string]bool, map[string][]types.EvidenceItem) {
-	raw, ok := ar.Metrics["c3"]
-	if !ok {
-		return nil, nil, nil
-	}
-	m, ok := raw.(*types.C3Metrics)
-	if !ok {
-		return nil, nil, nil
-	}
+	return extractMetrics[types.C3Metrics, *types.C3Metrics](ar, "c3", func(m *types.C3Metrics) (map[string]float64, map[string][]types.EvidenceItem, []string) {
+		evidence := make(map[string][]types.EvidenceItem)
+		c3ModuleFanoutEvidence(evidence, m)
+		c3CircularDepsEvidence(evidence, m)
+		c3ImportComplexityEvidence(evidence, m)
+		c3DeadExportsEvidence(evidence, m)
 
-	evidence := make(map[string][]types.EvidenceItem)
-	c3ModuleFanoutEvidence(evidence, m)
-	c3CircularDepsEvidence(evidence, m)
-	c3ImportComplexityEvidence(evidence, m)
-	c3DeadExportsEvidence(evidence, m)
-	ensureEvidenceKeys(evidence, "max_dir_depth", "module_fanout_avg", "circular_deps", "import_complexity_avg", "dead_exports")
-
-	return map[string]float64{
-		"max_dir_depth":        float64(m.MaxDirectoryDepth),
-		"module_fanout_avg":    m.ModuleFanout.Avg,
-		"circular_deps":        float64(len(m.CircularDeps)),
-		"import_complexity_avg": m.ImportComplexity.Avg,
-		"dead_exports":          float64(len(m.DeadExports)),
-	}, nil, evidence
+		return map[string]float64{
+			"max_dir_depth":         float64(m.MaxDirectoryDepth),
+			"module_fanout_avg":     m.ModuleFanout.Avg,
+			"circular_deps":         float64(len(m.CircularDeps)),
+			"import_complexity_avg": m.ImportComplexity.Avg,
+			"dead_exports":          float64(len(m.DeadExports)),
+		}, evidence, []string{"max_dir_depth", "module_fanout_avg", "circular_deps", "import_complexity_avg", "dead_exports"}
+	})
 }
 
 // c3ModuleFanoutEvidence adds evidence for the worst module fanout.

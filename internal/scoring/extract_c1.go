@@ -9,36 +9,23 @@ import (
 
 // extractC1 extracts C1 (Code Health) metrics from an AnalysisResult and collects evidence.
 func extractC1(ar *types.AnalysisResult) (map[string]float64, map[string]bool, map[string][]types.EvidenceItem) {
-	raw, ok := ar.Metrics["c1"]
-	if !ok {
-		return nil, nil, nil
-	}
-	m, ok := raw.(*types.C1Metrics)
-	if !ok {
-		return nil, nil, nil
-	}
+	return extractMetrics[types.C1Metrics, *types.C1Metrics](ar, "c1", func(m *types.C1Metrics) (map[string]float64, map[string][]types.EvidenceItem, []string) {
+		evidence := make(map[string][]types.EvidenceItem)
+		c1ComplexityEvidence(m, evidence)
+		c1FuncLengthEvidence(m, evidence)
+		c1FileSizeEvidence(m, evidence)
+		c1CouplingEvidence(m, evidence)
+		c1DuplicationEvidence(m, evidence)
 
-	evidence := make(map[string][]types.EvidenceItem)
-	c1ComplexityEvidence(m, evidence)
-	c1FuncLengthEvidence(m, evidence)
-	c1FileSizeEvidence(m, evidence)
-	c1CouplingEvidence(m, evidence)
-	c1DuplicationEvidence(m, evidence)
-
-	for _, key := range []string{"complexity_avg", "func_length_avg", "file_size_avg", "afferent_coupling_avg", "efferent_coupling_avg", "duplication_rate"} {
-		if evidence[key] == nil {
-			evidence[key] = []types.EvidenceItem{}
-		}
-	}
-
-	return map[string]float64{
-		"complexity_avg":        m.CyclomaticComplexity.Avg,
-		"func_length_avg":      m.FunctionLength.Avg,
-		"file_size_avg":        m.FileSize.Avg,
-		"afferent_coupling_avg": avgMapValues(m.AfferentCoupling),
-		"efferent_coupling_avg": avgMapValues(m.EfferentCoupling),
-		"duplication_rate":      m.DuplicationRate,
-	}, nil, evidence
+		return map[string]float64{
+			"complexity_avg":        m.CyclomaticComplexity.Avg,
+			"func_length_avg":       m.FunctionLength.Avg,
+			"file_size_avg":         m.FileSize.Avg,
+			"afferent_coupling_avg": avgMapValues(m.AfferentCoupling),
+			"efferent_coupling_avg": avgMapValues(m.EfferentCoupling),
+			"duplication_rate":      m.DuplicationRate,
+		}, evidence, []string{"complexity_avg", "func_length_avg", "file_size_avg", "afferent_coupling_avg", "efferent_coupling_avg", "duplication_rate"}
+	})
 }
 
 func c1ComplexityEvidence(m *types.C1Metrics, evidence map[string][]types.EvidenceItem) {

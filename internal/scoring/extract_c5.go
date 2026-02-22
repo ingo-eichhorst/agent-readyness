@@ -9,6 +9,8 @@ import (
 
 // extractC5 extracts C5 (Temporal Dynamics) metrics from an AnalysisResult and collects evidence.
 func extractC5(ar *types.AnalysisResult) (map[string]float64, map[string]bool, map[string][]types.EvidenceItem) {
+	// Check availability before delegating to the generic helper so that the
+	// non-nil unavailable map is returned correctly when git data is absent.
 	raw, ok := ar.Metrics["c5"]
 	if !ok {
 		return nil, nil, nil
@@ -17,25 +19,25 @@ func extractC5(ar *types.AnalysisResult) (map[string]float64, map[string]bool, m
 	if !ok {
 		return nil, nil, nil
 	}
-
 	if !m.Available {
 		return c5Unavailable()
 	}
 
-	evidence := make(map[string][]types.EvidenceItem)
-	c5ChurnRateEvidence(evidence, m)
-	c5TemporalCouplingEvidence(evidence, m)
-	c5AuthorFragmentationEvidence(evidence, m)
-	c5HotspotConcentrationEvidence(evidence, m)
-	ensureEvidenceKeys(evidence, "churn_rate", "temporal_coupling_pct", "author_fragmentation", "commit_stability", "hotspot_concentration")
+	return extractMetrics[types.C5Metrics, *types.C5Metrics](ar, "c5", func(m *types.C5Metrics) (map[string]float64, map[string][]types.EvidenceItem, []string) {
+		evidence := make(map[string][]types.EvidenceItem)
+		c5ChurnRateEvidence(evidence, m)
+		c5TemporalCouplingEvidence(evidence, m)
+		c5AuthorFragmentationEvidence(evidence, m)
+		c5HotspotConcentrationEvidence(evidence, m)
 
-	return map[string]float64{
-		"churn_rate":            m.ChurnRate,
-		"temporal_coupling_pct": m.TemporalCouplingPct,
-		"author_fragmentation":  m.AuthorFragmentation,
-		"commit_stability":      m.CommitStability,
-		"hotspot_concentration": m.HotspotConcentration,
-	}, nil, evidence
+		return map[string]float64{
+			"churn_rate":            m.ChurnRate,
+			"temporal_coupling_pct": m.TemporalCouplingPct,
+			"author_fragmentation":  m.AuthorFragmentation,
+			"commit_stability":      m.CommitStability,
+			"hotspot_concentration": m.HotspotConcentration,
+		}, evidence, []string{"churn_rate", "temporal_coupling_pct", "author_fragmentation", "commit_stability", "hotspot_concentration"}
+	})
 }
 
 // c5Unavailable returns empty results when C5 data is not available.

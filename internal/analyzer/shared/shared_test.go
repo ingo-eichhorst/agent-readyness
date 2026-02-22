@@ -5,6 +5,9 @@ import (
 
 	"golang.org/x/tools/go/packages"
 
+	tree_sitter "github.com/tree-sitter/go-tree-sitter"
+	tree_sitter_python "github.com/tree-sitter/tree-sitter-python/bindings/go"
+
 	"github.com/ingo-eichhorst/agent-readyness/internal/parser"
 )
 
@@ -228,5 +231,99 @@ func TestTsStripQuotes(t *testing.T) {
 				t.Errorf("TsStripQuotes(%q) = %q, want %q", tt.input, got, tt.want)
 			}
 		})
+	}
+}
+
+// newPythonTree creates a parsed tree for testing WalkTree and NodeText.
+func newPythonTree(t *testing.T, src string) (*tree_sitter.Tree, []byte) {
+	t.Helper()
+	p := tree_sitter.NewParser()
+	lang := tree_sitter.NewLanguage(tree_sitter_python.Language())
+	if err := p.SetLanguage(lang); err != nil {
+		t.Fatalf("set language: %v", err)
+	}
+	content := []byte(src)
+	tree := p.Parse(content, nil)
+	if tree == nil {
+		t.Fatal("parse returned nil tree")
+	}
+	t.Cleanup(func() { tree.Close() })
+	return tree, content
+}
+
+func TestWalkTree(t *testing.T) {
+	tree, _ := newPythonTree(t, "x = 1\n")
+	root := tree.RootNode()
+
+	var visited int
+	WalkTree(root, func(n *tree_sitter.Node) {
+		visited++
+	})
+
+	if visited == 0 {
+		t.Error("WalkTree visited 0 nodes, expected > 0")
+	}
+}
+
+func TestWalkTree_Nil(t *testing.T) {
+	// Should not panic on nil node.
+	WalkTree(nil, func(n *tree_sitter.Node) {
+		t.Error("fn called for nil node")
+	})
+}
+
+func TestNodeText(t *testing.T) {
+	src := "x = 1\n"
+	tree, content := newPythonTree(t, src)
+	root := tree.RootNode()
+
+	// The root node should span the entire source.
+	got := NodeText(root, content)
+	if got != src {
+		t.Errorf("NodeText(root) = %q, want %q", got, src)
+	}
+}
+
+func TestAnalyzeDirectoryDepth_Empty(t *testing.T) {
+	max, avg := AnalyzeDirectoryDepth([]*parser.ParsedTreeSitterFile{}, "")
+	if max != 0 || avg != 0 {
+		t.Errorf("expected 0,0 for empty files, got %d,%f", max, avg)
+	}
+}
+
+func TestAnalyzeDirectoryDepth_WithRelPath(t *testing.T) {
+	files := []*parser.ParsedTreeSitterFile{
+		{RelPath: "a/b/c.py"},
+		{RelPath: "a/d.py"},
+		{RelPath: "e.py"},
+	}
+	maxDepth, avgDepth := AnalyzeDirectoryDepth(files, "")
+
+	// depths: 2, 1, 0 → max=2, avg=1.0
+	if maxDepth != 2 {
+		t.Errorf("maxDepth = %d, want 2", maxDepth)
+	}
+	wantAvg := 1.0
+	if avgDepth != wantAvg {
+		t.Errorf("avgDepth = %f, want %f", avgDepth, wantAvg)
+	}
+}
+
+func TestAnalyzeDirectoryDepth_WithAbsPath(t *testing.T) {
+	// RelPath empty: fall back to computing from Path and rootDir.
+	rootDir := "/project"
+	files := []*parser.ParsedTreeSitterFile{
+		{Path: "/project/src/foo.py"},
+		{Path: "/project/src/bar/baz.py"},
+	}
+	maxDepth, avgDepth := AnalyzeDirectoryDepth(files, rootDir)
+
+	// depths: 1, 2 → max=2, avg=1.5
+	if maxDepth != 2 {
+		t.Errorf("maxDepth = %d, want 2", maxDepth)
+	}
+	wantAvg := 1.5
+	if avgDepth != wantAvg {
+		t.Errorf("avgDepth = %f, want %f", avgDepth, wantAvg)
 	}
 }

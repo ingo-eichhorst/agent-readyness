@@ -3,6 +3,7 @@
 package metadata
 
 import (
+	"bufio"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -56,49 +57,48 @@ func computeLOCAndLanguages(meta *types.RepoMetadata, scanResult *types.ScanResu
 }
 
 func countLines(path string) int {
-	data, err := os.ReadFile(path)
+	f, err := os.Open(path)
 	if err != nil {
 		return 0
 	}
-	if len(data) == 0 {
-		return 0
-	}
+	defer f.Close()
+
 	count := 0
-	for _, b := range data {
-		if b == '\n' {
-			count++
-		}
-	}
-	// If file doesn't end with newline, count the last line
-	if data[len(data)-1] != '\n' {
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
 		count++
 	}
 	return count
 }
 
 func collectGitMetadata(meta *types.RepoMetadata, rootDir string) {
-	meta.TotalCommits = gitInt(rootDir, "rev-list", "--count", "HEAD")
-	meta.ContributorCount = gitInt(rootDir, "shortlog", "-sn", "--all", "--no-merges")
+	meta.TotalCommits = gitCount(rootDir, "rev-list", "--count", "HEAD")
+	meta.ContributorCount = gitLineCount(rootDir, "shortlog", "-sn", "--all", "--no-merges")
 	meta.FirstCommitDate = gitTime(rootDir, "log", "--reverse", "--format=%aI", "--max-count=1")
 	meta.LastCommitDate = gitTime(rootDir, "log", "--format=%aI", "--max-count=1")
 }
 
-// gitInt runs a git command and returns the count of output lines or the first integer found.
-func gitInt(rootDir string, args ...string) int {
-	out := gitOutput(rootDir, args...)
+// gitCount runs a git command that outputs a single integer and parses it.
+func gitCount(rootDir string, args ...string) int {
+	out := strings.TrimSpace(gitOutput(rootDir, args...))
 	if out == "" {
 		return 0
 	}
-
-	// For rev-list --count, output is a single number
-	if n, err := strconv.Atoi(strings.TrimSpace(out)); err == nil {
-		return n
+	n, err := strconv.Atoi(out)
+	if err != nil {
+		return 0
 	}
+	return n
+}
 
-	// For shortlog -sn, count non-empty lines
-	lines := strings.Split(strings.TrimSpace(out), "\n")
+// gitLineCount runs a git command and returns the number of non-empty output lines.
+func gitLineCount(rootDir string, args ...string) int {
+	out := strings.TrimSpace(gitOutput(rootDir, args...))
+	if out == "" {
+		return 0
+	}
 	count := 0
-	for _, line := range lines {
+	for _, line := range strings.Split(out, "\n") {
 		if strings.TrimSpace(line) != "" {
 			count++
 		}

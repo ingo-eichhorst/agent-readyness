@@ -77,17 +77,22 @@ type Stats struct {
 }
 
 func main() {
-	// Locate repo root (script is in benchmark/report/, run from anywhere)
 	root, err := findRoot()
 	if err != nil {
 		fatal("cannot find repo root: %v", err)
 	}
+	if err := run(root); err != nil {
+		fatal("%v", err)
+	}
+}
 
+// run executes the report generation for the given repo root.
+func run(root string) error {
 	// Load YAML config
 	yamlPath := filepath.Join(root, "benchmark", "benchmark.yaml")
 	cfg, err := loadYAML(yamlPath)
 	if err != nil {
-		fatal("load benchmark.yaml: %v", err)
+		return fmt.Errorf("load benchmark.yaml: %w", err)
 	}
 
 	// Build lookup: name -> yamlRepo
@@ -100,11 +105,11 @@ func main() {
 	goldenDir := filepath.Join(root, "benchmark", "golden")
 	repos, err := loadGoldens(goldenDir, byName)
 	if err != nil {
-		fatal("load goldens: %v", err)
+		return fmt.Errorf("load goldens: %w", err)
 	}
 
 	if len(repos) == 0 {
-		fatal("no golden files found in %s — run the benchmark with -update first", goldenDir)
+		return fmt.Errorf("no golden files found in %s — run the benchmark with -update first", goldenDir)
 	}
 
 	// Compute stats
@@ -117,10 +122,11 @@ func main() {
 		Repos:       repos,
 		Stats:       stats,
 	}); err != nil {
-		fatal("render: %v", err)
+		return fmt.Errorf("render: %w", err)
 	}
 
 	fmt.Printf("report written to %s\n", outPath)
+	return nil
 }
 
 // findRoot walks up from the executable/working directory to find go.mod.
@@ -213,7 +219,7 @@ func loadGoldens(dir string, meta map[string]yamlRepo) ([]RepoData, error) {
 
 func computeStats(repos []RepoData) Stats {
 	s := Stats{Total: len(repos)}
-	type langStat struct{ sum float64; count, n int; min, max float64 }
+	type langStat struct{ sum float64; count int; min, max float64 }
 	byLang := map[string]*langStat{
 		"go": {min: math.MaxFloat64}, "python": {min: math.MaxFloat64}, "typescript": {min: math.MaxFloat64},
 	}
@@ -290,7 +296,7 @@ func fatal(format string, args ...any) {
 // The JS receives a JSON blob of repos and builds all the UI client-side,
 // keeping the template simple and the HTML self-contained.
 
-const htmlTemplate = `<!DOCTYPE html>
+var htmlTemplate = `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">

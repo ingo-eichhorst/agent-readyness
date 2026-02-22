@@ -103,7 +103,7 @@ func TestBenchmarkRepos(t *testing.T) {
 				return
 			}
 
-			golden := toGolden(scored)
+			golden := scored
 			r.score = golden.CompositeScore
 			r.tier = golden.Tier
 
@@ -300,11 +300,6 @@ func extractCategories(r jsonReport) []GoldenCategory {
 	return cats
 }
 
-// toGolden converts a pipeline scan result captured via JSON into a GoldenFile.
-func toGolden(g *GoldenFile) *GoldenFile {
-	return g
-}
-
 // writeGolden writes a GoldenFile to disk, creating parent dirs as needed.
 func writeGolden(path string, g *GoldenFile) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
@@ -345,10 +340,14 @@ func compareGolden(path string, current *GoldenFile) error {
 		errs = append(errs, fmt.Sprintf("tier: got %q, want %q", current.Tier, golden.Tier))
 	}
 
-	// Compare category scores
+	// Compare category scores (bidirectional)
 	goldenMap := make(map[string]float64, len(golden.Categories))
 	for _, c := range golden.Categories {
 		goldenMap[c.Name] = c.Score
+	}
+	currentMap := make(map[string]float64, len(current.Categories))
+	for _, c := range current.Categories {
+		currentMap[c.Name] = c.Score
 	}
 	for _, c := range current.Categories {
 		want, ok := goldenMap[c.Name]
@@ -361,6 +360,11 @@ func compareGolden(path string, current *GoldenFile) error {
 				"category %s score: got %.4f, want %.4f (diff %.4f > tolerance %.4f)",
 				c.Name, c.Score, want, math.Abs(c.Score-want), scoreTolerance,
 			))
+		}
+	}
+	for _, c := range golden.Categories {
+		if _, ok := currentMap[c.Name]; !ok {
+			errs = append(errs, fmt.Sprintf("category %q: present in golden but not in current", c.Name))
 		}
 	}
 

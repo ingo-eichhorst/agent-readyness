@@ -1,4 +1,4 @@
-ars
+/ars
 report.html
 benchmark/repos/
 coverage/
@@ -6,3 +6,8 @@ cover*.out
 
 # Workflow artifacts
 ars-output.txt
+
+# Gas Town (added by gt)
+.runtime/
+.claude/commands/
+.logs/

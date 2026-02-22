@@ -47,7 +47,7 @@ Agent Readiness Score (ARS) is a CLI tool that measures how ready a codebase is 
 
 3. **Build the project:**
    ```bash
-   go build -o ars .
+   go build -o ars ./cmd/ars
    ```
 
 4. **Run tests:**

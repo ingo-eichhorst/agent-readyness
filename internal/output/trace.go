@@ -18,56 +18,63 @@ func renderBreakpointTrace(metricName string, rawValue float64, score float64, b
 	}
 
 	var b strings.Builder
-
-	// Breakpoint table section
-	if len(breakpoints) > 0 {
-		currentBand := findCurrentBand(rawValue, breakpoints)
-
-		b.WriteString(`<div class="trace-section"><h4>Scoring Scale</h4>`)
-		b.WriteString(`<table class="trace-breakpoint-table"><thead><tr><th>Range</th><th>Score</th></tr></thead><tbody>`)
-
-		for i, bp := range breakpoints {
-			var rangeStr string
-			if i == 0 {
-				rangeStr = fmt.Sprintf("&le; %.4g", bp.Value)
-			} else if i == len(breakpoints)-1 {
-				rangeStr = fmt.Sprintf("&ge; %.4g", bp.Value)
-			} else {
-				rangeStr = fmt.Sprintf("%.4g &ndash; %.4g", breakpoints[i-1].Value, bp.Value)
-			}
-
-			rowClass := ""
-			if i == currentBand {
-				rowClass = ` class="trace-current-band"`
-			}
-
-			b.WriteString(fmt.Sprintf(`<tr%s><td>%s</td><td>%.0f</td></tr>`, rowClass, rangeStr, bp.Score))
-		}
-
-		b.WriteString(`</tbody></table>`)
-
-		formattedVal := formatMetricValue(metricName, rawValue, true)
-		b.WriteString(fmt.Sprintf(`<p class="trace-summary">Current value: <strong>%s</strong> &rarr; Score: <strong>%.1f</strong></p>`,
-			template.HTMLEscapeString(formattedVal), score))
-		b.WriteString(`</div>`)
-	}
-
-	// Evidence section (top offenders)
-	if len(evidence) > 0 {
-		b.WriteString(`<div class="trace-section"><h4>Top Offenders</h4>`)
-		b.WriteString(`<table class="trace-evidence-table"><thead><tr><th>File</th><th>Line</th><th>Value</th><th>Description</th></tr></thead><tbody>`)
-
-		for _, ev := range evidence {
-			filePath := template.HTMLEscapeString(ev.FilePath)
-			desc := template.HTMLEscapeString(ev.Description)
-			b.WriteString(fmt.Sprintf(`<tr><td title="%s">%s</td><td>%d</td><td>%.4g</td><td>%s</td></tr>`,
-				filePath, filePath, ev.Line, ev.Value, desc))
-		}
-
-		b.WriteString(`</tbody></table></div>`)
-	}
-
+	renderBreakpointTable(&b, metricName, rawValue, score, breakpoints)
+	renderEvidenceTable(&b, evidence)
 	return b.String()
+}
+
+func renderBreakpointTable(b *strings.Builder, metricName string, rawValue float64, score float64, breakpoints []scoring.Breakpoint) {
+	if len(breakpoints) == 0 {
+		return
+	}
+
+	currentBand := findCurrentBand(rawValue, breakpoints)
+
+	b.WriteString(`<div class="trace-section"><h4>Scoring Scale</h4>`)
+	b.WriteString(`<table class="trace-breakpoint-table"><thead><tr><th>Range</th><th>Score</th></tr></thead><tbody>`)
+
+	for i, bp := range breakpoints {
+		rangeStr := formatBreakpointRange(i, len(breakpoints), bp.Value, breakpoints)
+		rowClass := ""
+		if i == currentBand {
+			rowClass = ` class="trace-current-band"`
+		}
+		b.WriteString(fmt.Sprintf(`<tr%s><td>%s</td><td>%.0f</td></tr>`, rowClass, rangeStr, bp.Score))
+	}
+
+	b.WriteString(`</tbody></table>`)
+
+	formattedVal := formatMetricValue(metricName, rawValue, true)
+	b.WriteString(fmt.Sprintf(`<p class="trace-summary">Current value: <strong>%s</strong> &rarr; Score: <strong>%.1f</strong></p>`,
+		template.HTMLEscapeString(formattedVal), score))
+	b.WriteString(`</div>`)
+}
+
+func formatBreakpointRange(i, length int, value float64, breakpoints []scoring.Breakpoint) string {
+	if i == 0 {
+		return fmt.Sprintf("&le; %.4g", value)
+	} else if i == length-1 {
+		return fmt.Sprintf("&ge; %.4g", value)
+	}
+	return fmt.Sprintf("%.4g &ndash; %.4g", breakpoints[i-1].Value, value)
+}
+
+func renderEvidenceTable(b *strings.Builder, evidence []types.EvidenceItem) {
+	if len(evidence) == 0 {
+		return
+	}
+
+	b.WriteString(`<div class="trace-section"><h4>Top Offenders</h4>`)
+	b.WriteString(`<table class="trace-evidence-table"><thead><tr><th>File</th><th>Line</th><th>Value</th><th>Description</th></tr></thead><tbody>`)
+
+	for _, ev := range evidence {
+		filePath := template.HTMLEscapeString(ev.FilePath)
+		desc := template.HTMLEscapeString(ev.Description)
+		b.WriteString(fmt.Sprintf(`<tr><td title="%s">%s</td><td>%d</td><td>%.4g</td><td>%s</td></tr>`,
+			filePath, filePath, ev.Line, ev.Value, desc))
+	}
+
+	b.WriteString(`</tbody></table></div>`)
 }
 
 // findCurrentBand returns the index of the breakpoint row that should be

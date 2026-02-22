@@ -59,10 +59,13 @@ func (m *m2Comprehension) SampleCount() int { return m.sampleCount }
 // SelectSamples picks complex functions by counting complexity indicators
 // (if/for/switch/case statements). Score = complexity_count * (1/sqrt(Lines)).
 func (m *m2Comprehension) SelectSamples(targets []*types.AnalysisTarget) []Sample {
-	var candidates []Sample
+	complexityPatterns := buildComplexityPatterns()
+	candidates := m.collectComplexityCandidates(targets, complexityPatterns)
+	return m.selectTopCandidates(candidates)
+}
 
-	// Patterns for complexity indicators across languages
-	complexityPatterns := []*regexp.Regexp{
+func buildComplexityPatterns() []*regexp.Regexp {
+	return []*regexp.Regexp{
 		regexp.MustCompile(`\bif\b`),
 		regexp.MustCompile(`\bfor\b`),
 		regexp.MustCompile(`\bswitch\b`),
@@ -72,32 +75,23 @@ func (m *m2Comprehension) SelectSamples(targets []*types.AnalysisTarget) []Sampl
 		regexp.MustCompile(`\bcatch\b`),
 		regexp.MustCompile(`\belse\b`),
 	}
+}
+
+func (m *m2Comprehension) collectComplexityCandidates(targets []*types.AnalysisTarget, patterns []*regexp.Regexp) []Sample {
+	var candidates []Sample
 
 	for _, target := range targets {
 		for _, file := range target.Files {
-			if file.Class != types.ClassSource {
-				continue
-			}
-			if file.Lines < m2MinFileLOC { // Skip very small files
+			if file.Class != types.ClassSource || file.Lines < m2MinFileLOC {
 				continue
 			}
 
-			content := string(file.Content)
-
-			// Count complexity indicators
-			complexityCount := 0
-			for _, pattern := range complexityPatterns {
-				matches := pattern.FindAllString(content, -1)
-				complexityCount += len(matches)
-			}
-
-			if complexityCount < m2MinComplexity { // Skip simple files
+			complexityCount := countComplexityIndicators(string(file.Content), patterns)
+			if complexityCount < m2MinComplexity {
 				continue
 			}
 
-			// Score = complexity / sqrt(lines) - favors dense complexity
 			score := float64(complexityCount) / math.Sqrt(float64(file.Lines))
-
 			candidates = append(candidates, Sample{
 				FilePath:       file.RelPath,
 				SelectionScore: score,
@@ -106,7 +100,19 @@ func (m *m2Comprehension) SelectSamples(targets []*types.AnalysisTarget) []Sampl
 		}
 	}
 
-	// Sort by score descending
+	return candidates
+}
+
+func countComplexityIndicators(content string, patterns []*regexp.Regexp) int {
+	count := 0
+	for _, pattern := range patterns {
+		matches := pattern.FindAllString(content, -1)
+		count += len(matches)
+	}
+	return count
+}
+
+func (m *m2Comprehension) selectTopCandidates(candidates []Sample) []Sample {
 	sort.Slice(candidates, func(i, j int) bool {
 		return candidates[i].SelectionScore > candidates[j].SelectionScore
 	})
@@ -137,28 +143,13 @@ Respond with JSON only: {"score": N, "reason": "brief explanation"}`
 
 // Execute asks the agent to explain code behavior for each sample.
 func (m *m2Comprehension) Execute(ctx context.Context, workDir string, samples []Sample, executor Executor) MetricResult {
-	result := MetricResult{
-		MetricID:   m.ID(),
-		MetricName: m.Name(),
-	}
-	startTime := time.Now()
-
-	if len(samples) == 0 {
-		result.Error = "no samples available for evaluation"
-		result.Duration = time.Since(startTime)
-		return result
-	}
-
-	timePerSample := m.timeout / time.Duration(len(samples))
-	var sampleResults []SampleResult
-	var totalScore int
-	successCount := 0
-
-	for _, sample := range samples {
-		sampleStart := time.Now()
-		sampleCtx, cancel := context.WithTimeout(ctx, timePerSample)
-
-		prompt := fmt.Sprintf(`Read the file at %s and explain what the code does.
+	return executeStandardMetric(ctx, workDir, samples, executor, executeConfig{
+		metricID:   m.ID(),
+		metricName: m.Name(),
+		timeout:    m.timeout,
+		tools:      "Read,Grep",
+		buildPrompt: func(sample Sample) string {
+			return fmt.Sprintf(`Read the file at %s and explain what the code does.
 
 Focus on:
 1. The main purpose/behavior of the code
@@ -167,41 +158,9 @@ Focus on:
 4. Return values and side effects
 
 Be specific and reference actual code elements.`, sample.FilePath)
-
-		response, err := executor.ExecutePrompt(sampleCtx, workDir, prompt, "Read,Grep", timePerSample)
-		cancel()
-
-		sr := SampleResult{
-			Sample:   sample,
-			Response: response,
-			Prompt:   prompt,
-			Duration: time.Since(sampleStart),
-		}
-
-		if err != nil {
-			sr.Error = err.Error()
-			sr.Score = 0
-		} else {
-			// Heuristic scoring based on response quality indicators
-			sr.Score, sr.ScoreTrace = m.scoreComprehensionResponse(response)
-			totalScore += sr.Score
-			successCount++
-		}
-
-		sampleResults = append(sampleResults, sr)
-	}
-
-	result.Samples = sampleResults
-	result.Duration = time.Since(startTime)
-
-	if successCount == 0 {
-		result.Score = 0
-		result.Error = "all samples failed"
-		return result
-	}
-
-	result.Score = totalScore / successCount
-	return result
+		},
+		scoreResponse: m.scoreComprehensionResponse,
+	})
 }
 
 // scoreComprehensionResponse uses grouped heuristics to score the comprehension explanation.
@@ -214,83 +173,31 @@ func (m *m2Comprehension) scoreComprehensionResponse(response string) (int, Scor
 
 	trace := ScoreTrace{BaseScore: m2BaseScore}
 
-	// Thematic indicator groups: each group +1 if ANY member matches.
-	type indicatorGroup struct {
-		name    string
-		members []string
-	}
-	groups := []indicatorGroup{
+	trace.Indicators = append(trace.Indicators, matchGroups(responseLower, []indicatorGroup{
 		{"behavior_understanding", []string{"returns", "return value", "returns the"}},
 		{"error_handling", []string{"error", "handles", "handling"}},
 		{"control_flow", []string{"if ", "when ", "condition"}},
 		{"edge_awareness", []string{"edge case", "corner case", "boundary"}},
 		{"side_effects", []string{"side effect", "modifies", "updates"}},
 		{"validation", []string{"validates", "checks", "ensures"}},
-	}
+	})...)
 
-	for _, group := range groups {
-		groupMatched := false
-		for _, member := range group.members {
-			if strings.Contains(responseLower, member) {
-				groupMatched = true
-				break
-			}
-		}
-		delta := 0
-		if groupMatched {
-			delta = 1
-		}
-		trace.Indicators = append(trace.Indicators, IndicatorMatch{
-			Name: "group:" + group.name, Matched: groupMatched, Delta: delta,
-		})
-	}
-
-	// Negative indicators (superficial or wrong) - individual penalties
-	negativeIndicators := []string{
+	trace.Indicators = append(trace.Indicators, matchNegativeIndicators(responseLower, []string{
 		"i don't know", "unclear", "cannot determine",
 		"not sure", "unsure",
-	}
+	})...)
 
-	for _, indicator := range negativeIndicators {
-		matched := strings.Contains(responseLower, indicator)
-		delta := 0
-		if matched {
-			delta = -1
-		}
-		trace.Indicators = append(trace.Indicators, IndicatorMatch{
-			Name: "negative:" + indicator, Matched: matched, Delta: delta,
-		})
-	}
-
-	// Hedging penalty group: suggests uncertainty about the explanation
-	hedgingIndicators := []string{"might", "probably", "seems to"}
-	hedgingMatched := false
-	for _, indicator := range hedgingIndicators {
-		if strings.Contains(responseLower, indicator) {
-			hedgingMatched = true
+	// Hedging penalty group
+	trace.Indicators = append(trace.Indicators, matchGroups(responseLower, []indicatorGroup{
+		{"hedging_language", []string{"might", "probably", "seems to"}},
+	})...)
+	// Override delta to -1 for hedging (penalty group)
+	for i := len(trace.Indicators) - 1; i >= 0; i-- {
+		if trace.Indicators[i].Name == "group:hedging_language" && trace.Indicators[i].Matched {
+			trace.Indicators[i].Delta = -1
 			break
 		}
 	}
-	hedgingDelta := 0
-	if hedgingMatched {
-		hedgingDelta = -1
-	}
-	trace.Indicators = append(trace.Indicators, IndicatorMatch{
-		Name: "group:hedging_language", Matched: hedgingMatched, Delta: hedgingDelta,
-	})
 
-	// Compute final score from trace
-	score := trace.BaseScore
-	for _, ind := range trace.Indicators {
-		score += ind.Delta
-	}
-	if score < minScore {
-		score = minScore
-	}
-	if score > maxScore {
-		score = maxScore
-	}
-	trace.FinalScore = score
-
-	return score, trace
+	return computeScore(&trace), trace
 }

@@ -32,91 +32,84 @@ func newC2PythonAnalyzer(p *parser.TreeSitterParser) *c2PythonAnalyzer {
 }
 
 // Analyze computes C2 metrics for a Python AnalysisTarget.
-func (a *c2PythonAnalyzer) Analyze(target *types.AnalysisTarget) (*types.C2LanguageMetrics, error) {
-	metrics := &types.C2LanguageMetrics{}
+type pyAccumulator struct {
+	annotatedParams  int
+	annotatedReturns int
+	totalParams      int
+	totalFunctions   int
+	totalIdentifiers int
+	consistentNames  int
+	magicNumberCount int
+	totalLOC         int
+}
 
-	// Filter to source files only (skip test files)
+func (a *c2PythonAnalyzer) Analyze(target *types.AnalysisTarget) (*types.C2LanguageMetrics, error) {
 	var sourceFiles []types.SourceFile
 	for _, sf := range target.Files {
 		if sf.Class == types.ClassSource {
 			sourceFiles = append(sourceFiles, sf)
 		}
 	}
-
 	if len(sourceFiles) == 0 {
-		return metrics, nil
+		return &types.C2LanguageMetrics{}, nil
 	}
 
-	var (
-		totalAnnotatedParams  int
-		totalAnnotatedReturns int
-		totalParams           int
-		totalFunctions        int
-		totalIdentifiers      int
-		consistentNames       int
-		magicNumberCount      int
-		totalLOC              int
-	)
+	acc := a.accumulatePyMetrics(sourceFiles)
+	return acc.buildMetrics(target.RootDir), nil
+}
 
+func (a *c2PythonAnalyzer) accumulatePyMetrics(sourceFiles []types.SourceFile) pyAccumulator {
+	var acc pyAccumulator
 	for _, sf := range sourceFiles {
 		content, err := os.ReadFile(sf.Path)
 		if err != nil {
 			continue
 		}
-
 		ext := strings.ToLower(filepath.Ext(sf.Path))
 		tree, err := a.tsParser.ParseFile(types.LangPython, ext, content)
 		if err != nil {
 			continue
 		}
-
 		root := tree.RootNode()
-		lines := shared.CountLines(content)
-		totalLOC += lines
+		acc.totalLOC += shared.CountLines(content)
 
-		// C2-PY-01: Type annotation coverage
 		ap, ar, tp, tf := pyTypeAnnotations(root, content)
-		totalAnnotatedParams += ap
-		totalAnnotatedReturns += ar
-		totalParams += tp
-		totalFunctions += tf
+		acc.annotatedParams += ap
+		acc.annotatedReturns += ar
+		acc.totalParams += tp
+		acc.totalFunctions += tf
 
-		// C2-PY-02: Naming consistency (PEP 8)
 		consistent, total := pyNamingConsistency(root, content)
-		consistentNames += consistent
-		totalIdentifiers += total
+		acc.consistentNames += consistent
+		acc.totalIdentifiers += total
 
-		// C2-PY-03: Magic numbers
-		magicNumberCount += pyMagicNumbers(root, content)
-
+		acc.magicNumberCount += pyMagicNumbers(root, content)
 		tree.Close()
 	}
+	return acc
+}
 
-	// Type annotation coverage score
-	denominator := totalParams + totalFunctions
+func (acc *pyAccumulator) buildMetrics(rootDir string) *types.C2LanguageMetrics {
+	metrics := &types.C2LanguageMetrics{}
+
+	denominator := acc.totalParams + acc.totalFunctions
 	if denominator > 0 {
-		metrics.TypeAnnotationCoverage = float64(totalAnnotatedParams+totalAnnotatedReturns) / float64(denominator) * toPercentPy
+		metrics.TypeAnnotationCoverage = float64(acc.annotatedParams+acc.annotatedReturns) / float64(denominator) * toPercentPy
+	}
+	if acc.totalIdentifiers > 0 {
+		metrics.NamingConsistency = float64(acc.consistentNames) / float64(acc.totalIdentifiers) * toPercentPy
 	}
 
-	// Naming consistency score
-	if totalIdentifiers > 0 {
-		metrics.NamingConsistency = float64(consistentNames) / float64(totalIdentifiers) * toPercentPy
+	metrics.MagicNumberCount = acc.magicNumberCount
+	if acc.totalLOC > 0 {
+		metrics.MagicNumberRatio = float64(acc.magicNumberCount) / float64(acc.totalLOC) * toPerKLOCPy
 	}
 
-	// Magic number ratio per 1000 LOC
-	metrics.MagicNumberCount = magicNumberCount
-	if totalLOC > 0 {
-		metrics.MagicNumberRatio = float64(magicNumberCount) / float64(totalLOC) * toPerKLOCPy
-	}
-
-	// C2-PY-04: mypy/pyright config detection
-	metrics.TypeStrictness = pyDetectTypeChecker(target.RootDir)
-
-	metrics.TotalFunctions = totalFunctions
-	metrics.TotalIdentifiers = totalIdentifiers
-	metrics.LOC = totalLOC
-
-	return metrics, nil
+	metrics.TypeStrictness = pyDetectTypeChecker(rootDir)
+	metrics.TotalFunctions = acc.totalFunctions
+	metrics.TotalIdentifiers = acc.totalIdentifiers
+	metrics.LOC = acc.totalLOC
+	return metrics
 }
 
 // pyTypeAnnotations counts type annotations in Python functions.
@@ -125,84 +118,79 @@ func pyTypeAnnotations(root *tree_sitter.Node, content []byte) (int, int, int, i
 	var annotatedParams, annotatedReturns, totalParams, totalFunctions int
 
 	shared.WalkTree(root, func(node *tree_sitter.Node) {
-		nodeType := node.Kind()
-		if nodeType != "function_definition" {
+		if node.Kind() != "function_definition" {
 			return
 		}
 
 		totalFunctions++
 
-		// Check return type annotation
 		if returnType := node.ChildByFieldName("return_type"); returnType != nil {
 			annotatedReturns++
 		}
 
-		// Check parameters
 		params := node.ChildByFieldName("parameters")
 		if params == nil {
 			return
 		}
 
-		for i := uint(0); i < params.ChildCount(); i++ {
-			child := params.Child(i)
-			if child == nil {
-				continue
-			}
-
-			childKind := child.Kind()
-			switch childKind {
-			case "identifier":
-				// Plain parameter without type annotation
-				paramName := shared.NodeText(child, content)
-				if paramName == "self" || paramName == "cls" {
-					continue
-				}
-				totalParams++
-
-			case "typed_parameter":
-				// Parameter with type annotation
-				// Check if it's self/cls
-				nameNode := child.ChildByFieldName("name")
-				if nameNode != nil {
-					paramName := shared.NodeText(nameNode, content)
-					if paramName == "self" || paramName == "cls" {
-						continue
-					}
-				}
-				totalParams++
-				annotatedParams++
-
-			case "default_parameter":
-				// Default parameter -- check if it has a type annotation
-				nameNode := child.ChildByFieldName("name")
-				if nameNode != nil {
-					paramName := shared.NodeText(nameNode, content)
-					if paramName == "self" || paramName == "cls" {
-						continue
-					}
-				}
-				totalParams++
-				// default_parameter with type becomes typed_default_parameter in tree-sitter
-
-			case "typed_default_parameter":
-				nameNode := child.ChildByFieldName("name")
-				if nameNode != nil {
-					paramName := shared.NodeText(nameNode, content)
-					if paramName == "self" || paramName == "cls" {
-						continue
-					}
-				}
-				totalParams++
-				annotatedParams++
-
-			case "list_splat_pattern", "dictionary_splat_pattern":
-				// *args, **kwargs
-				totalParams++
-			}
-		}
+		ap, tp := pyCountParamAnnotations(params, content)
+		annotatedParams += ap
+		totalParams += tp
 	})
 
 	return annotatedParams, annotatedReturns, totalParams, totalFunctions
+}
+
+// pyCountParamAnnotations counts annotated and total parameters in a function's parameter list.
+func pyCountParamAnnotations(params *tree_sitter.Node, content []byte) (annotated, total int) {
+	for i := uint(0); i < params.ChildCount(); i++ {
+		child := params.Child(i)
+		if child == nil {
+			continue
+		}
+
+		switch child.Kind() {
+		case "identifier":
+			if !pyIsSelfOrCls(shared.NodeText(child, content)) {
+				total++
+			}
+
+		case "typed_parameter":
+			if !pyParamIsSelfOrCls(child, content) {
+				total++
+				annotated++
+			}
+
+		case "default_parameter":
+			if !pyParamIsSelfOrCls(child, content) {
+				total++
+			}
+
+		case "typed_default_parameter":
+			if !pyParamIsSelfOrCls(child, content) {
+				total++
+				annotated++
+			}
+
+		case "list_splat_pattern", "dictionary_splat_pattern":
+			total++
+		}
+	}
+	return
+}
+
+// pyIsSelfOrCls returns true if the name is "self" or "cls".
+func pyIsSelfOrCls(name string) bool {
+	return name == "self" || name == "cls"
+}
+
+// pyParamIsSelfOrCls checks if a parameter node's name field is "self" or "cls".
+func pyParamIsSelfOrCls(node *tree_sitter.Node, content []byte) bool {
+	nameNode := node.ChildByFieldName("name")
+	if nameNode != nil {
+		return pyIsSelfOrCls(shared.NodeText(nameNode, content))
+	}
+	return false
 }
 
 // pyNamingConsistency checks Python naming conventions (PEP 8).

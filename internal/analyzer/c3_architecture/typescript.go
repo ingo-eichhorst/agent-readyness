@@ -82,11 +82,9 @@ func tsBuildImportGraph(files []*parser.ParsedTreeSitterFile) *shared.ImportGrap
 		Reverse: make(map[string][]string),
 	}
 
-	// Build set of known project files by their relative path (without extension)
-	knownFiles := make(map[string]string) // normalized path -> original relPath
+	knownFiles := make(map[string]string)
 	for _, f := range files {
-		normalized := tsNormalizePath(f.RelPath)
-		knownFiles[normalized] = f.RelPath
+		knownFiles[tsNormalizePath(f.RelPath)] = f.RelPath
 	}
 
 	for _, f := range files {
@@ -95,71 +93,63 @@ func tsBuildImportGraph(files []*parser.ParsedTreeSitterFile) *shared.ImportGrap
 		fromDir := filepath.Dir(f.RelPath)
 
 		shared.WalkTree(root, func(node *tree_sitter.Node) {
-			kind := node.Kind()
-
-			var modulePath string
-
-			switch kind {
-			case "import_statement":
-				// ESM: import { foo } from "./bar"
-				src := node.ChildByFieldName("source")
-				if src != nil {
-					modulePath = tsStripQuotes(shared.NodeText(src, f.Content))
-				}
-
-			case "call_expression":
-				// CommonJS: require("./bar")
-				fn := node.ChildByFieldName("function")
-				if fn == nil {
-					return
-				}
-				if shared.NodeText(fn, f.Content) != "require" {
-					return
-				}
-				args := node.ChildByFieldName("arguments")
-				if args == nil {
-					return
-				}
-				// Get first argument (string)
-				for i := uint(0); i < args.ChildCount(); i++ {
-					child := args.Child(i)
-					if child != nil && child.Kind() == "string" {
-						modulePath = tsStripQuotes(shared.NodeText(child, f.Content))
-						break
-					}
-				}
-
-			default:
-				return
-			}
-
-			if modulePath == "" {
-				return
-			}
-
-			// Only track relative imports (intra-project)
-			if !strings.HasPrefix(modulePath, ".") {
-				return
-			}
-
-			// Resolve relative path
-			resolved := filepath.Join(fromDir, modulePath)
-			resolved = filepath.Clean(resolved)
-			// Normalize separators
-			resolved = strings.ReplaceAll(resolved, string(os.PathSeparator), "/")
-
-			// Try to match against known files
-			normalizedResolved := tsNormalizePath(resolved)
-			if _, ok := knownFiles[normalizedResolved]; ok {
-				if normalizedResolved != fromFile {
-					g.Forward[fromFile] = appendUnique(g.Forward[fromFile], normalizedResolved)
-					g.Reverse[normalizedResolved] = appendUnique(g.Reverse[normalizedResolved], fromFile)
-				}
+			modulePath := tsExtractModulePath(node, f.Content)
+			if modulePath != "" {
+				tsAddImportEdge(g, fromFile, fromDir, modulePath, knownFiles)
 			}
 		})
 	}
 
 	return g
+}
+
+// tsExtractModulePath extracts the module path from an import or require call expression.
+func tsExtractModulePath(node *tree_sitter.Node, content []byte) string {
+	switch node.Kind() {
+	case "import_statement":
+		src := node.ChildByFieldName("source")
+		if src != nil {
+			return tsStripQuotes(shared.NodeText(src, content))
+		}
+	case "call_expression":
+		return tsExtractRequirePath(node, content)
+	}
+	return ""
+}
+
+// tsExtractRequirePath extracts the module path from a require("...") call.
+func tsExtractRequirePath(node *tree_sitter.Node, content []byte) string {
+	fn := node.ChildByFieldName("function")
+	if fn == nil || shared.NodeText(fn, content) != "require" {
+		return ""
+	}
+	args := node.ChildByFieldName("arguments")
+	if args == nil {
+		return ""
+	}
+	for i := uint(0); i < args.ChildCount(); i++ {
+		child := args.Child(i)
+		if child != nil && child.Kind() == "string" {
+			return tsStripQuotes(shared.NodeText(child, content))
+		}
+	}
+	return ""
+}
+
+// tsAddImportEdge resolves a relative module path and adds edges to the import graph.
+func tsAddImportEdge(g *shared.ImportGraph, fromFile, fromDir, modulePath string, knownFiles map[string]string) {
+	if !strings.HasPrefix(modulePath, ".") {
+		return
+	}
+
+	resolved := filepath.Clean(filepath.Join(fromDir, modulePath))
+	resolved = strings.ReplaceAll(resolved, string(os.PathSeparator), "/")
+
+	normalizedResolved := tsNormalizePath(resolved)
+	if _, ok := knownFiles[normalizedResolved]; ok && normalizedResolved != fromFile {
+		g.Forward[fromFile] = appendUnique(g.Forward[fromFile], normalizedResolved)
+		g.Reverse[normalizedResolved] = appendUnique(g.Reverse[normalizedResolved], fromFile)
+	}
 }
 
 // tsNormalizePath normalizes a TypeScript file path for import graph matching.
@@ -196,9 +186,15 @@ func tsStripQuotes(s string) string {
 // when they're only used in tests - acceptable trade-off for simpler analysis.
 func tsDetectDeadCode(files []*parser.ParsedTreeSitterFile) []types.DeadExport {
 	if len(files) <= 1 {
-		return nil // Single file: no cross-file analysis possible
+		return nil
 	}
 
+	defs := tsCollectExportedDefinitions(files)
+	importedNames := tsCollectAllImportedNames(files)
+	return tsFlagDeadExports(defs, importedNames)
+}
+
+func tsCollectExportedDefinitions(files []*parser.ParsedTreeSitterFile) []tsExportDef {
 	var defs []tsExportDef
 
 	for _, f := range files {
@@ -212,31 +208,33 @@ func tsDetectDeadCode(files []*parser.ParsedTreeSitterFile) []types.DeadExport {
 				continue
 			}
 
-			kind := child.Kind()
-
-			// Handle export_statement
-			if kind == "export_statement" {
+			if child.Kind() == "export_statement" {
 				tsCollectExportedDefs(child, f.Content, f.RelPath, &defs)
-				continue
 			}
 		}
 	}
 
-	// Collect all imported names across files
+	return defs
+}
+
+func tsCollectAllImportedNames(files []*parser.ParsedTreeSitterFile) map[string]bool {
 	importedNames := make(map[string]bool)
+
 	for _, f := range files {
 		root := f.Tree.RootNode()
 		shared.WalkTree(root, func(node *tree_sitter.Node) {
-			if node.Kind() != "import_statement" {
-				return
+			if node.Kind() == "import_statement" {
+				tsCollectImportedNames(node, f.Content, importedNames)
 			}
-			// Collect imported identifiers from import clause
-			tsCollectImportedNames(node, f.Content, importedNames)
 		})
 	}
 
-	// Flag definitions not imported by any other file
+	return importedNames
+}
+
+func tsFlagDeadExports(defs []tsExportDef, importedNames map[string]bool) []types.DeadExport {
 	var dead []types.DeadExport
+
 	for _, d := range defs {
 		if !importedNames[d.name] {
 			dead = append(dead, types.DeadExport{
@@ -268,59 +266,82 @@ func tsCollectExportedDefs(exportNode *tree_sitter.Node, content []byte, relPath
 			continue
 		}
 
-		childKind := child.Kind()
-		switch childKind {
-		case "function_declaration":
-			nameNode := child.ChildByFieldName("name")
+		tsProcessExportChild(child, content, relPath, defs)
+	}
+}
+
+// tsProcessExportChild processes a child node of an export statement.
+func tsProcessExportChild(child *tree_sitter.Node, content []byte, relPath string, defs *[]tsExportDef) {
+	childKind := child.Kind()
+	switch childKind {
+	case "function_declaration":
+		tsAddFunctionExport(child, content, relPath, defs)
+	case "class_declaration":
+		tsAddClassExport(child, content, relPath, defs)
+	case "lexical_declaration":
+		tsAddLexicalExports(child, content, relPath, defs)
+	case "export_clause":
+		tsAddExportClauseItems(child, content, relPath, defs)
+	}
+}
+
+// tsAddFunctionExport adds an exported function definition.
+func tsAddFunctionExport(node *tree_sitter.Node, content []byte, relPath string, defs *[]tsExportDef) {
+	nameNode := node.ChildByFieldName("name")
+	if nameNode != nil {
+		*defs = append(*defs, tsExportDef{
+			name: shared.NodeText(nameNode, content),
+			file: relPath,
+			line: int(nameNode.StartPosition().Row) + 1,
+			kind: "func",
+		})
+	}
+}
+
+// tsAddClassExport adds an exported class definition.
+func tsAddClassExport(node *tree_sitter.Node, content []byte, relPath string, defs *[]tsExportDef) {
+	nameNode := node.ChildByFieldName("name")
+	if nameNode != nil {
+		*defs = append(*defs, tsExportDef{
+			name: shared.NodeText(nameNode, content),
+			file: relPath,
+			line: int(nameNode.StartPosition().Row) + 1,
+			kind: "type",
+		})
+	}
+}
+
+// tsAddLexicalExports adds exported variable declarations (export const foo = ...).
+func tsAddLexicalExports(node *tree_sitter.Node, content []byte, relPath string, defs *[]tsExportDef) {
+	for j := uint(0); j < node.ChildCount(); j++ {
+		declChild := node.Child(j)
+		if declChild != nil && declChild.Kind() == "variable_declarator" {
+			nameNode := declChild.ChildByFieldName("name")
 			if nameNode != nil {
 				*defs = append(*defs, tsExportDef{
 					name: shared.NodeText(nameNode, content),
 					file: relPath,
 					line: int(nameNode.StartPosition().Row) + 1,
-					kind: "func",
+					kind: "var",
 				})
 			}
-		case "class_declaration":
-			nameNode := child.ChildByFieldName("name")
+		}
+	}
+}
+
+// tsAddExportClauseItems adds items from export clause (export { foo, bar }).
+func tsAddExportClauseItems(node *tree_sitter.Node, content []byte, relPath string, defs *[]tsExportDef) {
+	for j := uint(0); j < node.ChildCount(); j++ {
+		spec := node.Child(j)
+		if spec != nil && spec.Kind() == "export_specifier" {
+			nameNode := spec.ChildByFieldName("name")
 			if nameNode != nil {
 				*defs = append(*defs, tsExportDef{
 					name: shared.NodeText(nameNode, content),
 					file: relPath,
 					line: int(nameNode.StartPosition().Row) + 1,
-					kind: "type",
+					kind: "var",
 				})
-			}
-		case "lexical_declaration":
-			// export const foo = ...
-			for j := uint(0); j < child.ChildCount(); j++ {
-				declChild := child.Child(j)
-				if declChild != nil && declChild.Kind() == "variable_declarator" {
-					nameNode := declChild.ChildByFieldName("name")
-					if nameNode != nil {
-						*defs = append(*defs, tsExportDef{
-							name: shared.NodeText(nameNode, content),
-							file: relPath,
-							line: int(nameNode.StartPosition().Row) + 1,
-							kind: "var",
-						})
-					}
-				}
-			}
-		case "export_clause":
-			// export { foo, bar }
-			for j := uint(0); j < child.ChildCount(); j++ {
-				spec := child.Child(j)
-				if spec != nil && spec.Kind() == "export_specifier" {
-					nameNode := spec.ChildByFieldName("name")
-					if nameNode != nil {
-						*defs = append(*defs, tsExportDef{
-							name: shared.NodeText(nameNode, content),
-							file: relPath,
-							line: int(nameNode.StartPosition().Row) + 1,
-							kind: "var",
-						})
-					}
-				}
 			}
 		}
 	}

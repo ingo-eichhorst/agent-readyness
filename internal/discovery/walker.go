@@ -45,7 +45,6 @@ func NewWalker() *Walker {
 // Discover walks rootDir recursively, discovers all source files (.go, .py, .ts, .tsx),
 // classifies them, and returns a ScanResult with file lists and counts.
 func (w *Walker) Discover(rootDir string) (*types.ScanResult, error) {
-	// Validate rootDir exists and is a directory
 	info, err := os.Stat(rootDir)
 	if err != nil {
 		return nil, fmt.Errorf("cannot access root directory: %w", err)
@@ -54,14 +53,9 @@ func (w *Walker) Discover(rootDir string) (*types.ScanResult, error) {
 		return nil, fmt.Errorf("%s is not a directory", rootDir)
 	}
 
-	// Load .gitignore from root if present
-	var gitIgnore *ignore.GitIgnore
-	gitignorePath := filepath.Join(rootDir, ".gitignore")
-	if _, err := os.Stat(gitignorePath); err == nil {
-		gitIgnore, err = ignore.CompileIgnoreFile(gitignorePath)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse .gitignore: %w", err)
-		}
+	gitIgnore, err := loadGitIgnore(rootDir)
+	if err != nil {
+		return nil, err
 	}
 
 	result := &types.ScanResult{
@@ -69,125 +63,150 @@ func (w *Walker) Discover(rootDir string) (*types.ScanResult, error) {
 		PerLanguage: make(map[types.Language]int),
 	}
 
-	err = filepath.WalkDir(rootDir, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "warning: skipping %s: %v\n", path, err)
-			result.SkippedCount++
-			if d != nil && d.IsDir() {
-				return fs.SkipDir
-			}
-			return nil
-		}
-
-		// Symlink detection: skip symlinks before any other checks
-		if d.Type()&fs.ModeSymlink != 0 {
-			fmt.Fprintf(os.Stderr, "warning: skipping symlink %s\n", path)
-			result.SymlinkCount++
-			return nil
-		}
-
-		name := d.Name()
-
-		// Skip directories
-		if d.IsDir() {
-			// Skip hidden directories (starting with .)
-			if strings.HasPrefix(name, ".") && name != "." {
-				return fs.SkipDir
-			}
-			// Skip known excluded directories (except vendor -- we want to record vendor files)
-			if skipDirs[name] {
-				return fs.SkipDir
-			}
-			// Don't skip vendor dirs -- we walk into them to record files as excluded
-			return nil
-		}
-
-		// Determine language from extension
-		ext := filepath.Ext(name)
-		lang, supported := langExtensions[ext]
-		if !supported {
-			return nil
-		}
-
-		relPath, err := filepath.Rel(rootDir, path)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "warning: skipping %s: failed to compute relative path: %v\n", path, err)
-			result.SkippedCount++
-			return nil
-		}
-
-		file := types.DiscoveredFile{
-			Path:     path,
-			RelPath:  relPath,
-			Language: lang,
-		}
-
-		// Check if in vendor directory (Go-specific)
-		if isVendorPath(relPath) {
-			file.Class = types.ClassExcluded
-			file.ExcludeReason = "vendor"
-			result.Files = append(result.Files, file)
-			result.VendorCount++
-			result.TotalFiles++
-			return nil
-		}
-
-		// Check gitignore
-		if gitIgnore != nil && gitIgnore.MatchesPath(relPath) {
-			file.Class = types.ClassExcluded
-			file.ExcludeReason = "gitignore"
-			result.Files = append(result.Files, file)
-			result.GitignoreCount++
-			result.TotalFiles++
-			return nil
-		}
-
-		// Check if generated (Go only)
-		if lang == types.LangGo {
-			generated, err := isGeneratedFile(path)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "warning: skipping %s: failed to check generated status: %v\n", relPath, err)
-				result.SkippedCount++
-				return nil
-			}
-			if generated {
-				file.Class = types.ClassGenerated
-				result.Files = append(result.Files, file)
-				result.GeneratedCount++
-				result.TotalFiles++
-				return nil
-			}
-		}
-
-		// Classify by filename based on language
-		switch lang {
-		case types.LangGo:
-			file.Class = ClassifyGoFile(name)
-		case types.LangPython:
-			file.Class = classifyPythonFile(name)
-		case types.LangTypeScript:
-			file.Class = classifyTypeScriptFile(name)
-		}
-
-		result.Files = append(result.Files, file)
-		result.TotalFiles++
-
-		switch file.Class {
-		case types.ClassSource:
-			result.SourceCount++
-			result.PerLanguage[lang]++
-		case types.ClassTest:
-			result.TestCount++
-		}
-
-		return nil
-	})
-
+	wc := &walkContext{rootDir: rootDir, gitIgnore: gitIgnore, result: result}
+	err = filepath.WalkDir(rootDir, wc.visitEntry)
 	if err != nil {
 		return nil, fmt.Errorf("walk error: %w", err)
 	}
 
 	return result, nil
+}
+
+func loadGitIgnore(rootDir string) (*ignore.GitIgnore, error) {
+	gitignorePath := filepath.Join(rootDir, ".gitignore")
+	if _, err := os.Stat(gitignorePath); err != nil {
+		return nil, nil
+	}
+	gi, err := ignore.CompileIgnoreFile(gitignorePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse .gitignore: %w", err)
+	}
+	return gi, nil
+}
+
+type walkContext struct {
+	rootDir   string
+	gitIgnore *ignore.GitIgnore
+	result    *types.ScanResult
+}
+
+func (wc *walkContext) visitEntry(path string, d fs.DirEntry, err error) error {
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "warning: skipping %s: %v\n", path, err)
+		wc.result.SkippedCount++
+		if d != nil && d.IsDir() {
+			return fs.SkipDir
+		}
+		return nil
+	}
+
+	if d.Type()&fs.ModeSymlink != 0 {
+		fmt.Fprintf(os.Stderr, "warning: skipping symlink %s\n", path)
+		wc.result.SymlinkCount++
+		return nil
+	}
+
+	if d.IsDir() {
+		return wc.handleDir(d.Name())
+	}
+
+	return wc.handleFile(path, d.Name())
+}
+
+func (wc *walkContext) handleDir(name string) error {
+	if strings.HasPrefix(name, ".") && name != "." {
+		return fs.SkipDir
+	}
+	if skipDirs[name] {
+		return fs.SkipDir
+	}
+	return nil
+}
+
+func (wc *walkContext) handleFile(path, name string) error {
+	ext := filepath.Ext(name)
+	lang, supported := langExtensions[ext]
+	if !supported {
+		return nil
+	}
+
+	relPath, err := filepath.Rel(wc.rootDir, path)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "warning: skipping %s: failed to compute relative path: %v\n", path, err)
+		wc.result.SkippedCount++
+		return nil
+	}
+
+	file := types.DiscoveredFile{Path: path, RelPath: relPath, Language: lang}
+
+	if excluded := wc.checkExclusions(&file, relPath, lang); excluded {
+		return nil
+	}
+
+	file.Class = classifyByLanguage(name, lang)
+	wc.result.Files = append(wc.result.Files, file)
+	wc.result.TotalFiles++
+
+	switch file.Class {
+	case types.ClassSource:
+		wc.result.SourceCount++
+		wc.result.PerLanguage[lang]++
+	case types.ClassTest:
+		wc.result.TestCount++
+	}
+
+	return nil
+}
+
+func (wc *walkContext) checkExclusions(file *types.DiscoveredFile, relPath string, lang types.Language) bool {
+	if isVendorPath(relPath) {
+		file.Class = types.ClassExcluded
+		file.ExcludeReason = "vendor"
+		wc.result.Files = append(wc.result.Files, *file)
+		wc.result.VendorCount++
+		wc.result.TotalFiles++
+		return true
+	}
+
+	if wc.gitIgnore != nil && wc.gitIgnore.MatchesPath(relPath) {
+		file.Class = types.ClassExcluded
+		file.ExcludeReason = "gitignore"
+		wc.result.Files = append(wc.result.Files, *file)
+		wc.result.GitignoreCount++
+		wc.result.TotalFiles++
+		return true
+	}
+
+	if lang == types.LangGo {
+		generated, err := isGeneratedFile(file.Path)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "warning: skipping %s: failed to check generated status: %v\n", relPath, err)
+			wc.result.SkippedCount++
+			return true
+		}
+		if generated {
+			file.Class = types.ClassGenerated
+			wc.result.Files = append(wc.result.Files, *file)
+			wc.result.GeneratedCount++
+			wc.result.TotalFiles++
+			return true
+		}
+	}
+
+	return false
+}
+
+func classifyByLanguage(name string, lang types.Language) types.FileClass {
+	switch lang {
+	case types.LangGo:
+		return ClassifyGoFile(name)
+	case types.LangPython:
+		return classifyPythonFile(name)
+	case types.LangTypeScript:
+		return classifyTypeScriptFile(name)
+	default:
+		return types.ClassSource
+	}
 }
 
 // DetectProjectLanguages checks the project root for language indicators and

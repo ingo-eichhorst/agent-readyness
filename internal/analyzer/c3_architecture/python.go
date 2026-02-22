@@ -75,11 +75,9 @@ func pyBuildImportGraph(files []*parser.ParsedTreeSitterFile) *shared.ImportGrap
 		Reverse: make(map[string][]string),
 	}
 
-	// Build set of known project files (by module name derived from path)
-	knownModules := make(map[string]string) // module name -> file relpath
+	knownModules := make(map[string]string)
 	for _, f := range files {
-		modName := pyFileToModule(f.RelPath)
-		knownModules[modName] = f.RelPath
+		knownModules[pyFileToModule(f.RelPath)] = f.RelPath
 	}
 
 	for _, f := range files {
@@ -87,63 +85,72 @@ func pyBuildImportGraph(files []*parser.ParsedTreeSitterFile) *shared.ImportGrap
 		fromModule := pyFileToModule(f.RelPath)
 
 		shared.WalkTree(root, func(node *tree_sitter.Node) {
-			kind := node.Kind()
-
-			switch kind {
+			switch node.Kind() {
 			case "import_statement":
-				// import foo, import foo.bar
-				for i := uint(0); i < node.ChildCount(); i++ {
-					child := node.Child(i)
-					if child != nil && (child.Kind() == "dotted_name" || child.Kind() == "aliased_import") {
-						var modName string
-						if child.Kind() == "aliased_import" {
-							nameNode := child.ChildByFieldName("name")
-							if nameNode != nil {
-								modName = shared.NodeText(nameNode, f.Content)
-							}
-						} else {
-							modName = shared.NodeText(child, f.Content)
-						}
-						if modName != "" && modName != fromModule {
-							if _, ok := knownModules[modName]; ok {
-								g.Forward[fromModule] = appendUnique(g.Forward[fromModule], modName)
-								g.Reverse[modName] = appendUnique(g.Reverse[modName], fromModule)
-							}
-						}
-					}
-				}
-
+				pyProcessImportStatement(node, f.Content, fromModule, knownModules, g)
 			case "import_from_statement":
-				// from foo import bar
-				modNode := node.ChildByFieldName("module_name")
-				if modNode == nil {
-					// Try alternative field name
-					for i := uint(0); i < node.ChildCount(); i++ {
-						child := node.Child(i)
-						if child != nil && (child.Kind() == "dotted_name" || child.Kind() == "relative_import") {
-							modNode = child
-							break
-						}
-					}
-				}
-				if modNode != nil {
-					modName := shared.NodeText(modNode, f.Content)
-					// Handle relative imports (starting with .)
-					if strings.HasPrefix(modName, ".") {
-						modName = pyResolveRelativeImport(fromModule, modName)
-					}
-					if modName != "" && modName != fromModule {
-						if _, ok := knownModules[modName]; ok {
-							g.Forward[fromModule] = appendUnique(g.Forward[fromModule], modName)
-							g.Reverse[modName] = appendUnique(g.Reverse[modName], fromModule)
-						}
-					}
-				}
+				pyProcessImportFromStatement(node, f.Content, fromModule, knownModules, g)
 			}
 		})
 	}
 
 	return g
+}
+
+// pyProcessImportStatement handles "import foo" and "import foo.bar" statements.
+func pyProcessImportStatement(node *tree_sitter.Node, content []byte, fromModule string, knownModules map[string]string, g *shared.ImportGraph) {
+	for i := uint(0); i < node.ChildCount(); i++ {
+		child := node.Child(i)
+		if child == nil {
+			continue
+		}
+		if child.Kind() != "dotted_name" && child.Kind() != "aliased_import" {
+			continue
+		}
+		var modName string
+		if child.Kind() == "aliased_import" {
+			nameNode := child.ChildByFieldName("name")
+			if nameNode != nil {
+				modName = shared.NodeText(nameNode, content)
+			}
+		} else {
+			modName = shared.NodeText(child, content)
+		}
+		pyAddEdgeIfKnown(g, fromModule, modName, knownModules)
+	}
+}
+
+// pyProcessImportFromStatement handles "from foo import bar" statements.
+func pyProcessImportFromStatement(node *tree_sitter.Node, content []byte, fromModule string, knownModules map[string]string, g *shared.ImportGraph) {
+	modNode := node.ChildByFieldName("module_name")
+	if modNode == nil {
+		for i := uint(0); i < node.ChildCount(); i++ {
+			child := node.Child(i)
+			if child != nil && (child.Kind() == "dotted_name" || child.Kind() == "relative_import") {
+				modNode = child
+				break
+			}
+		}
+	}
+	if modNode == nil {
+		return
+	}
+	modName := shared.NodeText(modNode, content)
+	if strings.HasPrefix(modName, ".") {
+		modName = pyResolveRelativeImport(fromModule, modName)
+	}
+	pyAddEdgeIfKnown(g, fromModule, modName, knownModules)
+}
+
+// pyAddEdgeIfKnown adds a forward/reverse edge if the target module is a known project module.
+func pyAddEdgeIfKnown(g *shared.ImportGraph, from, to string, knownModules map[string]string) {
+	if to == "" || to == from {
+		return
+	}
+	if _, ok := knownModules[to]; ok {
+		g.Forward[from] = appendUnique(g.Forward[from], to)
+		g.Reverse[to] = appendUnique(g.Reverse[to], from)
+	}
 }
 
 // pyFileToModule converts a file relative path to a Python module name.
@@ -200,20 +207,27 @@ func pyResolveRelativeImport(fromModule, relImport string) string {
 // - Decorated definitions (@decorator) are unwrapped to find the actual def/class
 //
 // Limitation: Jupyter notebooks cannot be analyzed (dynamic execution model).
+// pyDefinition represents a top-level Python definition for dead code analysis.
+type pyDefinition struct {
+	name string
+	file string
+	line int
+	kind string
+}
+
 func pyDetectDeadCode(files []*parser.ParsedTreeSitterFile) []types.DeadExport {
 	if len(files) <= 1 {
 		return nil // Single file: no cross-file analysis possible
 	}
 
-	// Collect all top-level definitions
-	type definition struct {
-		name string
-		file string
-		line int
-		kind string
-	}
+	defs := pyCollectTopLevelDefs(files)
+	importedNames := pyCollectImportedNames(files)
+	return pyFlagDeadExports(defs, importedNames)
+}
 
-	var defs []definition
+// pyCollectTopLevelDefs collects all public top-level function and class definitions.
+func pyCollectTopLevelDefs(files []*parser.ParsedTreeSitterFile) []pyDefinition {
+	var defs []pyDefinition
 	for _, f := range files {
 		if isTestFileByPath(f.RelPath) {
 			continue
@@ -224,56 +238,67 @@ func pyDetectDeadCode(files []*parser.ParsedTreeSitterFile) []types.DeadExport {
 			if child == nil {
 				continue
 			}
-
-			kind := child.Kind()
-			var nameNode *tree_sitter.Node
-			var defKind string
-
-			switch kind {
-			case "function_definition":
-				nameNode = child.ChildByFieldName("name")
-				defKind = "func"
-			case "class_definition":
-				nameNode = child.ChildByFieldName("name")
-				defKind = "type"
-			case "decorated_definition":
-				// Unwrap to find inner definition
-				for j := uint(0); j < child.ChildCount(); j++ {
-					inner := child.Child(j)
-					if inner == nil {
-						continue
-					}
-					switch inner.Kind() {
-					case "function_definition":
-						nameNode = inner.ChildByFieldName("name")
-						defKind = "func"
-					case "class_definition":
-						nameNode = inner.ChildByFieldName("name")
-						defKind = "type"
-					}
-				}
+			if d, ok := pyExtractDefinition(child, f.Content, f.RelPath); ok {
+				defs = append(defs, d)
 			}
-
-			if nameNode == nil {
-				continue
-			}
-
-			name := shared.NodeText(nameNode, f.Content)
-			// Skip private names
-			if strings.HasPrefix(name, "_") {
-				continue
-			}
-
-			defs = append(defs, definition{
-				name: name,
-				file: f.RelPath,
-				line: int(nameNode.StartPosition().Row) + 1,
-				kind: defKind,
-			})
 		}
 	}
+	return defs
+}
 
-	// Collect all imported names across files
+// pyExtractDefinition extracts a definition from a top-level AST node if it is a public function or class.
+func pyExtractDefinition(node *tree_sitter.Node, content []byte, relPath string) (pyDefinition, bool) {
+	kind := node.Kind()
+	var nameNode *tree_sitter.Node
+	var defKind string
+
+	switch kind {
+	case "function_definition":
+		nameNode = node.ChildByFieldName("name")
+		defKind = "func"
+	case "class_definition":
+		nameNode = node.ChildByFieldName("name")
+		defKind = "type"
+	case "decorated_definition":
+		nameNode, defKind = pyUnwrapDecoratedDef(node)
+	}
+
+	if nameNode == nil {
+		return pyDefinition{}, false
+	}
+
+	name := shared.NodeText(nameNode, content)
+	if strings.HasPrefix(name, "_") {
+		return pyDefinition{}, false
+	}
+
+	return pyDefinition{
+		name: name,
+		file: relPath,
+		line: int(nameNode.StartPosition().Row) + 1,
+		kind: defKind,
+	}, true
+}
+
+// pyUnwrapDecoratedDef unwraps a decorated_definition to find the inner function or class name node.
+func pyUnwrapDecoratedDef(node *tree_sitter.Node) (*tree_sitter.Node, string) {
+	for j := uint(0); j < node.ChildCount(); j++ {
+		inner := node.Child(j)
+		if inner == nil {
+			continue
+		}
+		switch inner.Kind() {
+		case "function_definition":
+			return inner.ChildByFieldName("name"), "func"
+		case "class_definition":
+			return inner.ChildByFieldName("name"), "type"
+		}
+	}
+	return nil, ""
+}
+
+// pyCollectImportedNames gathers all names imported via import_from_statement across files.
+func pyCollectImportedNames(files []*parser.ParsedTreeSitterFile) map[string]bool {
 	importedNames := make(map[string]bool)
 	for _, f := range files {
 		root := f.Tree.RootNode()
@@ -281,36 +306,41 @@ func pyDetectDeadCode(files []*parser.ParsedTreeSitterFile) []types.DeadExport {
 			if node.Kind() != "import_from_statement" {
 				return
 			}
-			// Collect imported names
-			for i := uint(0); i < node.ChildCount(); i++ {
-				child := node.Child(i)
-				if child == nil {
-					continue
-				}
-				switch child.Kind() {
-				case "aliased_import":
-					nameNode := child.ChildByFieldName("name")
-					if nameNode != nil {
-						importedNames[shared.NodeText(nameNode, f.Content)] = true
-					}
-				case "dotted_name":
-					// This might be the module name, not an imported name
-					// Only count if after "import" keyword in the statement
-				case "identifier":
-					// Check if this identifier is part of the import list
-					parent := child.Parent()
-					if parent != nil && parent.Kind() == "import_from_statement" {
-						name := shared.NodeText(child, f.Content)
-						if name != "import" && name != "from" && name != "as" {
-							importedNames[name] = true
-						}
-					}
-				}
-			}
+			pyCollectNamesFromImport(node, f.Content, importedNames)
 		})
 	}
+	return importedNames
+}
 
-	// Flag definitions not imported by any other file
+// pyCollectNamesFromImport extracts imported symbol names from a single import_from_statement.
+func pyCollectNamesFromImport(node *tree_sitter.Node, content []byte, names map[string]bool) {
+	for i := uint(0); i < node.ChildCount(); i++ {
+		child := node.Child(i)
+		if child == nil {
+			continue
+		}
+		switch child.Kind() {
+		case "aliased_import":
+			nameNode := child.ChildByFieldName("name")
+			if nameNode != nil {
+				names[shared.NodeText(nameNode, content)] = true
+			}
+		case "dotted_name":
+			// Module name, not an imported name
+		case "identifier":
+			parent := child.Parent()
+			if parent != nil && parent.Kind() == "import_from_statement" {
+				name := shared.NodeText(child, content)
+				if name != "import" && name != "from" && name != "as" {
+					names[name] = true
+				}
+			}
+		}
+	}
+}
+
+// pyFlagDeadExports returns definitions not found in the imported names set.
+func pyFlagDeadExports(defs []pyDefinition, importedNames map[string]bool) []types.DeadExport {
 	var dead []types.DeadExport
 	for _, d := range defs {
 		if !importedNames[d.name] {
@@ -323,7 +353,6 @@ func pyDetectDeadCode(files []*parser.ParsedTreeSitterFile) []types.DeadExport {
 			})
 		}
 	}
-
 	return dead
 }
 

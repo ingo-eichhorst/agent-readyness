@@ -184,14 +184,24 @@ func tsStripQuotes(s string) string {
 // Limitation: Test files are excluded from the "imported by" check because test
 // imports don't represent production usage. This may flag some exports as dead
 // when they're only used in tests - acceptable trade-off for simpler analysis.
-func tsDetectDeadCode(files []*parser.ParsedTreeSitterFile) []types.DeadExport {
-	if len(files) <= 1 {
-		return nil
-	}
+// tsDeadCodeExtractor implements deadCodeExtractor for TypeScript files.
+type tsDeadCodeExtractor struct{}
 
-	defs := tsCollectExportedDefinitions(files)
-	importedNames := tsCollectAllImportedNames(files)
-	return tsFlagDeadExports(defs, importedNames)
+func tsDetectDeadCode(files []*parser.ParsedTreeSitterFile) []types.DeadExport {
+	return detectTreeSitterDeadCode(files, tsDeadCodeExtractor{})
+}
+
+func (e tsDeadCodeExtractor) collectDefinitions(files []*parser.ParsedTreeSitterFile) []codeDefinition {
+	raw := tsCollectExportedDefinitions(files)
+	defs := make([]codeDefinition, len(raw))
+	for i, d := range raw {
+		defs[i] = codeDefinition{Name: d.name, File: d.file, Line: d.line, Kind: d.kind}
+	}
+	return defs
+}
+
+func (e tsDeadCodeExtractor) collectImportedNames(files []*parser.ParsedTreeSitterFile) map[string]bool {
+	return tsCollectAllImportedNames(files)
 }
 
 func tsCollectExportedDefinitions(files []*parser.ParsedTreeSitterFile) []tsExportDef {
@@ -230,24 +240,6 @@ func tsCollectAllImportedNames(files []*parser.ParsedTreeSitterFile) map[string]
 	}
 
 	return importedNames
-}
-
-func tsFlagDeadExports(defs []tsExportDef, importedNames map[string]bool) []types.DeadExport {
-	var dead []types.DeadExport
-
-	for _, d := range defs {
-		if !importedNames[d.name] {
-			dead = append(dead, types.DeadExport{
-				Package: "",
-				Name:    d.name,
-				File:    filepath.Base(d.file),
-				Line:    d.line,
-				Kind:    d.kind,
-			})
-		}
-	}
-
-	return dead
 }
 
 // tsExportDef represents an exported definition found during dead code detection.

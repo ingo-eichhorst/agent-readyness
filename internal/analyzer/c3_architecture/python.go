@@ -16,7 +16,6 @@ package c3
 
 import (
 	"os"
-	"path/filepath"
 	"strings"
 
 	tree_sitter "github.com/tree-sitter/go-tree-sitter"
@@ -208,26 +207,24 @@ func pyResolveRelativeImport(fromModule, relImport string) string {
 //
 // Limitation: Jupyter notebooks cannot be analyzed (dynamic execution model).
 // pyDefinition represents a top-level Python definition for dead code analysis.
-type pyDefinition struct {
-	name string
-	file string
-	line int
-	kind string
-}
+// pyDeadCodeExtractor implements deadCodeExtractor for Python files.
+type pyDeadCodeExtractor struct{}
 
 func pyDetectDeadCode(files []*parser.ParsedTreeSitterFile) []types.DeadExport {
-	if len(files) <= 1 {
-		return nil // Single file: no cross-file analysis possible
-	}
+	return detectTreeSitterDeadCode(files, pyDeadCodeExtractor{})
+}
 
-	defs := pyCollectTopLevelDefs(files)
-	importedNames := pyCollectImportedNames(files)
-	return pyFlagDeadExports(defs, importedNames)
+func (e pyDeadCodeExtractor) collectDefinitions(files []*parser.ParsedTreeSitterFile) []codeDefinition {
+	return pyCollectTopLevelDefs(files)
+}
+
+func (e pyDeadCodeExtractor) collectImportedNames(files []*parser.ParsedTreeSitterFile) map[string]bool {
+	return pyCollectImportedNames(files)
 }
 
 // pyCollectTopLevelDefs collects all public top-level function and class definitions.
-func pyCollectTopLevelDefs(files []*parser.ParsedTreeSitterFile) []pyDefinition {
-	var defs []pyDefinition
+func pyCollectTopLevelDefs(files []*parser.ParsedTreeSitterFile) []codeDefinition {
+	var defs []codeDefinition
 	for _, f := range files {
 		if isTestFileByPath(f.RelPath) {
 			continue
@@ -247,7 +244,7 @@ func pyCollectTopLevelDefs(files []*parser.ParsedTreeSitterFile) []pyDefinition 
 }
 
 // pyExtractDefinition extracts a definition from a top-level AST node if it is a public function or class.
-func pyExtractDefinition(node *tree_sitter.Node, content []byte, relPath string) (pyDefinition, bool) {
+func pyExtractDefinition(node *tree_sitter.Node, content []byte, relPath string) (codeDefinition, bool) {
 	kind := node.Kind()
 	var nameNode *tree_sitter.Node
 	var defKind string
@@ -264,19 +261,19 @@ func pyExtractDefinition(node *tree_sitter.Node, content []byte, relPath string)
 	}
 
 	if nameNode == nil {
-		return pyDefinition{}, false
+		return codeDefinition{}, false
 	}
 
 	name := shared.NodeText(nameNode, content)
 	if strings.HasPrefix(name, "_") {
-		return pyDefinition{}, false
+		return codeDefinition{}, false
 	}
 
-	return pyDefinition{
-		name: name,
-		file: relPath,
-		line: int(nameNode.StartPosition().Row) + 1,
-		kind: defKind,
+	return codeDefinition{
+		Name: name,
+		File: relPath,
+		Line: int(nameNode.StartPosition().Row) + 1,
+		Kind: defKind,
 	}, true
 }
 
@@ -339,22 +336,6 @@ func pyCollectNamesFromImport(node *tree_sitter.Node, content []byte, names map[
 	}
 }
 
-// pyFlagDeadExports returns definitions not found in the imported names set.
-func pyFlagDeadExports(defs []pyDefinition, importedNames map[string]bool) []types.DeadExport {
-	var dead []types.DeadExport
-	for _, d := range defs {
-		if !importedNames[d.name] {
-			dead = append(dead, types.DeadExport{
-				Package: "",
-				Name:    d.name,
-				File:    filepath.Base(d.file),
-				Line:    d.line,
-				Kind:    d.kind,
-			})
-		}
-	}
-	return dead
-}
 
 
 // appendUnique appends s to slice only if not already present.

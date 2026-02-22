@@ -483,8 +483,8 @@ const htmlTemplate = `<!DOCTYPE html>
 </div>
 
 <script>
-const repos = {{range $i, $r := .Repos}}{{if $i}},{{end}}
-  {name:{{json $r.Name}},lang:{{json $r.Lang}},url:{{json $r.URL}},commit:{{json $r.Commit}},score:{{f2 $r.Score}},tier:{{json $r.Tier}},cats:{C1:{{index $r.Cats "C1"}},C2:{{index $r.Cats "C2"}},C3:{{index $r.Cats "C3"}},C4:{{index $r.Cats "C4"}},C5:{{index $r.Cats "C5"}},C6:{{index $r.Cats "C6"}}}}{{end}};
+const repos = [{{range $i, $r := .Repos}}{{if $i}},{{end}}
+  {name:{{json $r.Name}},lang:{{json $r.Lang}},url:{{json $r.URL}},commit:{{json $r.Commit}},score:{{f2 $r.Score}},tier:{{json $r.Tier}},cats:{C1:{{index $r.Cats "C1"}},C2:{{index $r.Cats "C2"}},C3:{{index $r.Cats "C3"}},C4:{{index $r.Cats "C4"}},C5:{{index $r.Cats "C5"}},C6:{{index $r.Cats "C6"}}}}{{end}}];
 
 // Normalize: score strings → floats, -1 → null
 repos.forEach(r => {

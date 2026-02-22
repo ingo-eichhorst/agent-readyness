@@ -1,4 +1,4 @@
-package agent
+package c7
 
 import (
 	"os"
@@ -9,9 +9,9 @@ func TestNewC7Progress(t *testing.T) {
 	ids := []string{"m1", "m2", "m3"}
 	names := []string{"Metric 1", "Metric 2", "Metric 3"}
 
-	p := NewC7Progress(os.Stderr, ids, names)
+	p := newC7Progress(os.Stderr, ids, names)
 	if p == nil {
-		t.Fatal("NewC7Progress returned nil")
+		t.Fatal("newC7Progress returned nil")
 	}
 
 	if len(p.metrics) != 3 {
@@ -31,9 +31,9 @@ func TestNewC7Progress(t *testing.T) {
 func TestNewC7Progress_NilNames(t *testing.T) {
 	ids := []string{"m1", "m2"}
 
-	p := NewC7Progress(os.Stderr, ids, nil)
+	p := newC7Progress(os.Stderr, ids, nil)
 	if p == nil {
-		t.Fatal("NewC7Progress returned nil")
+		t.Fatal("newC7Progress returned nil")
 	}
 
 	// Names should default to IDs when not provided
@@ -48,7 +48,7 @@ func TestNewC7Progress_NilNames(t *testing.T) {
 
 func TestC7Progress_SetMetricRunning(t *testing.T) {
 	ids := []string{"m1"}
-	p := NewC7Progress(os.Stderr, ids, nil)
+	p := newC7Progress(os.Stderr, ids, nil)
 
 	p.SetMetricRunning("m1", 5)
 
@@ -68,7 +68,7 @@ func TestC7Progress_SetMetricRunning(t *testing.T) {
 
 func TestC7Progress_SetMetricSample(t *testing.T) {
 	ids := []string{"m1"}
-	p := NewC7Progress(os.Stderr, ids, nil)
+	p := newC7Progress(os.Stderr, ids, nil)
 
 	p.SetMetricRunning("m1", 5)
 	p.setMetricSample("m1", 3)
@@ -83,7 +83,7 @@ func TestC7Progress_SetMetricSample(t *testing.T) {
 
 func TestC7Progress_SetMetricComplete(t *testing.T) {
 	ids := []string{"m1"}
-	p := NewC7Progress(os.Stderr, ids, nil)
+	p := newC7Progress(os.Stderr, ids, nil)
 
 	p.SetMetricComplete("m1", 8)
 
@@ -100,7 +100,7 @@ func TestC7Progress_SetMetricComplete(t *testing.T) {
 
 func TestC7Progress_SetMetricFailed(t *testing.T) {
 	ids := []string{"m1"}
-	p := NewC7Progress(os.Stderr, ids, nil)
+	p := newC7Progress(os.Stderr, ids, nil)
 
 	p.SetMetricFailed("m1", "timeout exceeded")
 
@@ -116,7 +116,7 @@ func TestC7Progress_SetMetricFailed(t *testing.T) {
 }
 
 func TestC7Progress_AddTokens(t *testing.T) {
-	p := NewC7Progress(os.Stderr, nil, nil)
+	p := newC7Progress(os.Stderr, nil, nil)
 
 	p.AddTokens(100)
 	p.AddTokens(200)
@@ -127,7 +127,7 @@ func TestC7Progress_AddTokens(t *testing.T) {
 }
 
 func TestC7Progress_TotalTokens_ThreadSafe(t *testing.T) {
-	p := NewC7Progress(os.Stderr, nil, nil)
+	p := newC7Progress(os.Stderr, nil, nil)
 
 	// Concurrently add tokens
 	done := make(chan bool, 10)
@@ -150,7 +150,7 @@ func TestC7Progress_TotalTokens_ThreadSafe(t *testing.T) {
 
 func TestC7Progress_UnknownMetricID(t *testing.T) {
 	ids := []string{"m1"}
-	p := NewC7Progress(os.Stderr, ids, nil)
+	p := newC7Progress(os.Stderr, ids, nil)
 
 	// These should not panic, just be no-ops
 	p.SetMetricRunning("unknown", 5)
@@ -243,7 +243,7 @@ func TestMetricProgress_InitialState(t *testing.T) {
 	}
 
 	// Default status should be empty string (zero value)
-	// When used with NewC7Progress, it's explicitly set to StatusPending
+	// When used with newC7Progress, it's explicitly set to statusPending
 	if p.Status != "" {
 		t.Errorf("initial Status = %q, want empty", p.Status)
 	}
@@ -260,7 +260,7 @@ func TestMetricProgress_InitialState(t *testing.T) {
 
 func TestC7Progress_MetricOrder(t *testing.T) {
 	ids := []string{"m3", "m1", "m2"}
-	p := NewC7Progress(os.Stderr, ids, nil)
+	p := newC7Progress(os.Stderr, ids, nil)
 
 	// Order should be preserved
 	for i, id := range p.metricOrder {

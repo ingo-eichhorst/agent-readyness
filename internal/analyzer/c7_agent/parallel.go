@@ -1,4 +1,4 @@
-package agent
+package c7
 
 import (
 	"context"
@@ -6,35 +6,36 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
+	"github.com/ingo-eichhorst/agent-readyness/internal/agent"
 	"github.com/ingo-eichhorst/agent-readyness/internal/agent/metrics"
 	"github.com/ingo-eichhorst/agent-readyness/pkg/types"
 )
 
-// ParallelResult holds the complete outcome of parallel metric execution.
-type ParallelResult struct {
+// parallelResult holds the complete outcome of parallel metric execution.
+type parallelResult struct {
 	Results     []metrics.MetricResult
 	TotalTokens int
 	Errors      []error
 }
 
-// RunMetricsParallel executes all metrics concurrently with progress updates.
+// runMetricsParallel executes all metrics concurrently with progress updates.
 // It does not abort on individual metric failures - all metrics run to completion.
 // If executor is nil, a default CLIExecutorAdapter is created for live CLI execution.
-func RunMetricsParallel(
+func runMetricsParallel(
 	ctx context.Context,
 	workDir string,
 	targets []*types.AnalysisTarget,
-	progress *C7Progress,
+	progress *c7Progress,
 	executor metrics.Executor,
-) ParallelResult {
-	allMetrics := metrics.AllMetrics()
-	result := ParallelResult{
+) parallelResult {
+	allMetrics := metrics.List()
+	result := parallelResult{
 		Results: make([]metrics.MetricResult, len(allMetrics)),
 		Errors:  make([]error, 0),
 	}
 
 	if executor == nil {
-		executor = newCLIExecutorAdapter(workDir)
+		executor = agent.NewCLIExecutor(workDir)
 	}
 
 	g, ctx := errgroup.WithContext(ctx)
@@ -59,7 +60,7 @@ func RunMetricsParallel(
 	return result
 }
 
-func runSingleMetric(ctx context.Context, m metrics.Metric, workDir string, targets []*types.AnalysisTarget, executor metrics.Executor, progress *C7Progress) metrics.MetricResult {
+func runSingleMetric(ctx context.Context, m metrics.Metric, workDir string, targets []*types.AnalysisTarget, executor metrics.Executor, progress *c7Progress) metrics.MetricResult {
 	samples := m.SelectSamples(targets)
 	if progress != nil {
 		progress.SetMetricRunning(m.ID(), len(samples))
@@ -67,7 +68,7 @@ func runSingleMetric(ctx context.Context, m metrics.Metric, workDir string, targ
 	return executeMetricWithProgress(ctx, m, workDir, samples, executor, progress)
 }
 
-func reportMetricProgress(progress *C7Progress, metricID string, mr metrics.MetricResult) {
+func reportMetricProgress(progress *c7Progress, metricID string, mr metrics.MetricResult) {
 	if progress == nil {
 		return
 	}
@@ -86,7 +87,7 @@ func executeMetricWithProgress(
 	workDir string,
 	samples []metrics.Sample,
 	executor metrics.Executor,
-	progress *C7Progress,
+	progress *c7Progress,
 ) metrics.MetricResult {
 	// Execute the metric
 	result := m.Execute(ctx, workDir, samples, executor)
@@ -104,18 +105,18 @@ func runMetricsSequential(
 	ctx context.Context,
 	workDir string,
 	targets []*types.AnalysisTarget,
-	progress *C7Progress,
+	progress *c7Progress,
 	executor metrics.Executor,
-) ParallelResult {
-	allMetrics := metrics.AllMetrics()
-	result := ParallelResult{
+) parallelResult {
+	allMetrics := metrics.List()
+	result := parallelResult{
 		Results: make([]metrics.MetricResult, len(allMetrics)),
 		Errors:  make([]error, 0),
 	}
 
 	// Use provided executor or create default CLI adapter
 	if executor == nil {
-		executor = newCLIExecutorAdapter(workDir)
+		executor = agent.NewCLIExecutor(workDir)
 	}
 
 	for i, m := range allMetrics {

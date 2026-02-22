@@ -1,4 +1,4 @@
-package agent
+package c7
 
 import (
 	"context"
@@ -21,7 +21,7 @@ func TestRunMetricsParallel_NoTargets(t *testing.T) {
 	ctx := context.Background()
 
 	// Running with no targets should not panic
-	result := RunMetricsParallel(ctx, "/tmp", nil, nil, &noopExecutor{})
+	result := runMetricsParallel(ctx, "/tmp", nil, nil, &noopExecutor{})
 
 	// Should have 5 results (one per metric)
 	if len(result.Results) != 5 {
@@ -73,7 +73,7 @@ func TestRunMetricsParallel_ContextCancellation(t *testing.T) {
 	cancel() // Cancel immediately
 
 	// Should complete without hanging
-	result := RunMetricsParallel(ctx, "/tmp", nil, nil, &noopExecutor{})
+	result := runMetricsParallel(ctx, "/tmp", nil, nil, &noopExecutor{})
 
 	// Should still have results (possibly with errors)
 	if len(result.Results) == 0 {
@@ -105,9 +105,9 @@ func TestRunMetricsParallel_WithProgress(t *testing.T) {
 		"identifier_interpretability",
 		"documentation_accuracy_detection",
 	}
-	progress := NewC7Progress(nil, ids, nil)
+	progress := newC7Progress(nil, ids, nil)
 
-	result := RunMetricsParallel(ctx, "/tmp", nil, progress, &noopExecutor{})
+	result := runMetricsParallel(ctx, "/tmp", nil, progress, &noopExecutor{})
 
 	// Results should be populated
 	if len(result.Results) != 5 {
@@ -136,7 +136,7 @@ func TestRunMetricsSequential_WithProgress(t *testing.T) {
 		"identifier_interpretability",
 		"documentation_accuracy_detection",
 	}
-	progress := NewC7Progress(nil, ids, nil)
+	progress := newC7Progress(nil, ids, nil)
 
 	result := runMetricsSequential(ctx, "/tmp", nil, progress, &noopExecutor{})
 
@@ -149,7 +149,7 @@ func TestParallelResult_TotalTokensAccumulation(t *testing.T) {
 	// This tests that token counts are properly accumulated
 	ctx := context.Background()
 
-	result := RunMetricsParallel(ctx, "/tmp", nil, nil, &noopExecutor{})
+	result := runMetricsParallel(ctx, "/tmp", nil, nil, &noopExecutor{})
 
 	// TotalTokens should be sum of all metric token counts
 	var expectedTotal int
@@ -166,7 +166,7 @@ func TestRunMetricsParallel_AllMetricsComplete(t *testing.T) {
 	ctx := context.Background()
 
 	// Even with empty targets, all 5 metrics should complete (with errors)
-	result := RunMetricsParallel(ctx, "/tmp", []*types.AnalysisTarget{}, nil, &noopExecutor{})
+	result := runMetricsParallel(ctx, "/tmp", []*types.AnalysisTarget{}, nil, &noopExecutor{})
 
 	if len(result.Results) != 5 {
 		t.Errorf("got %d results, want 5", len(result.Results))
@@ -204,17 +204,5 @@ func TestRunMetricsSequential_StopsOnContextCancel(t *testing.T) {
 	// May not have all 5 results if it checked context between metrics
 	if len(result.Results) > 5 {
 		t.Errorf("got %d results, want <= 5", len(result.Results))
-	}
-}
-
-func TestCLIExecutorAdapter_Creation(t *testing.T) {
-	adapter := newCLIExecutorAdapter("/test/dir")
-
-	if adapter == nil {
-		t.Fatal("NewCLIExecutorAdapter returned nil")
-	}
-
-	if adapter.workDir != "/test/dir" {
-		t.Errorf("workDir = %q, want %q", adapter.workDir, "/test/dir")
 	}
 }

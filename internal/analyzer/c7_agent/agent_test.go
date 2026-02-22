@@ -67,7 +67,7 @@ func TestC7Analyzer_ResultCategory(t *testing.T) {
 	}
 }
 
-func TestC7Analyzer_Enable(t *testing.T) {
+func TestC7Analyzer_SetEvaluator(t *testing.T) {
 	analyzer := NewC7Analyzer()
 
 	// Before enabling, it should be disabled
@@ -75,11 +75,16 @@ func TestC7Analyzer_Enable(t *testing.T) {
 		t.Error("analyzer should be disabled by default")
 	}
 
-	// Enable with nil client (just testing the flag)
-	analyzer.Enable(nil)
+	// SetEvaluator with nil disables; with non-nil enables
+	analyzer.SetEvaluator(agent.NewEvaluator(0))
 
 	if !analyzer.enabled {
-		t.Error("analyzer should be enabled after Enable()")
+		t.Error("analyzer should be enabled after SetEvaluator(non-nil)")
+	}
+
+	analyzer.SetEvaluator(nil)
+	if analyzer.enabled {
+		t.Error("analyzer should be disabled after SetEvaluator(nil)")
 	}
 }
 
@@ -140,8 +145,8 @@ func TestC7Analyzer_DebugWriterNeverNil(t *testing.T) {
 }
 
 // mockParallelResult creates a test ParallelResult with populated debug fields.
-func mockParallelResult() agent.ParallelResult {
-	return agent.ParallelResult{
+func mockParallelResult() parallelResult {
+	return parallelResult{
 		Results: []metrics.MetricResult{
 			{
 				MetricID:   "code_behavior_comprehension",
@@ -279,7 +284,7 @@ func TestBuildMetrics_DebugOn_PopulatesDebugSamples(t *testing.T) {
 func TestC7Analyzer_Analyze_NoTargets(t *testing.T) {
 	analyzer := NewC7Analyzer()
 	// Enable with a mock evaluator
-	analyzer.Enable(agent.NewEvaluator(0))
+	analyzer.SetEvaluator(agent.NewEvaluator(0))
 
 	// Analyze with empty targets
 	_, err := analyzer.Analyze([]*types.AnalysisTarget{})
@@ -352,32 +357,11 @@ func TestC7Analyzer_SetDebugDir(t *testing.T) {
 	}
 }
 
-func TestC7Analyzer_SetEvaluator(t *testing.T) {
-	analyzer := NewC7Analyzer()
-
-	// Initially nil
-	if analyzer.evaluator != nil {
-		t.Error("evaluator should be nil by default")
-	}
-
-	eval := agent.NewEvaluator(0)
-	analyzer.SetEvaluator(eval)
-
-	if analyzer.evaluator != eval {
-		t.Error("evaluator should be set")
-	}
-
-	// Should also set enabled flag
-	if !analyzer.enabled {
-		t.Error("SetEvaluator should enable the analyzer")
-	}
-}
-
 func TestBuildMetrics_EmptyResults(t *testing.T) {
 	analyzer := NewC7Analyzer()
 	startTime := time.Now()
 
-	emptyResult := agent.ParallelResult{
+	emptyResult := parallelResult{
 		Results: []metrics.MetricResult{},
 	}
 
@@ -399,7 +383,7 @@ func TestBuildMetrics_WithErrors(t *testing.T) {
 	startTime := time.Now()
 
 	// Simulate some metrics succeeding, some failing
-	parallelResult := agent.ParallelResult{
+	parallelResult := parallelResult{
 		Results: []metrics.MetricResult{
 			{
 				MetricID:   "code_navigation",

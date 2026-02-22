@@ -18,6 +18,13 @@ func newCLIExecutorAdapter(workDir string) *cliExecutorAdapter {
 	return &cliExecutorAdapter{workDir: workDir}
 }
 
+// NewCLIExecutor creates a metrics.Executor that runs prompts via Claude CLI.
+// This exported constructor allows external packages (e.g. c7_agent) to create
+// a live CLI executor without depending on unexported agent internals.
+func NewCLIExecutor(workDir string) metrics.Executor {
+	return newCLIExecutorAdapter(workDir)
+}
+
 // ExecutePrompt runs a prompt via Claude CLI and returns the response.
 // Implements metrics.Executor interface.
 func (a *cliExecutorAdapter) ExecutePrompt(ctx context.Context, workDir, prompt, tools string, timeout time.Duration) (string, error) {

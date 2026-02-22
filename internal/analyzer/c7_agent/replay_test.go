@@ -1,4 +1,4 @@
-package agent
+package c7
 
 import (
 	"context"
@@ -57,8 +57,8 @@ func TestSaveLoadResponses(t *testing.T) {
 	}
 
 	// Save
-	if err := SaveResponses(tmpDir, results); err != nil {
-		t.Fatalf("SaveResponses failed: %v", err)
+	if err := saveResponses(tmpDir, results); err != nil {
+		t.Fatalf("saveResponses failed: %v", err)
 	}
 
 	// Verify files exist
@@ -72,9 +72,9 @@ func TestSaveLoadResponses(t *testing.T) {
 	}
 
 	// Load
-	loaded, err := LoadResponses(tmpDir)
+	loaded, err := loadResponses(tmpDir)
 	if err != nil {
-		t.Fatalf("LoadResponses failed: %v", err)
+		t.Fatalf("loadResponses failed: %v", err)
 	}
 
 	if len(loaded) != 2 {
@@ -109,7 +109,7 @@ func TestSaveLoadResponses(t *testing.T) {
 }
 
 func TestReplayExecutor(t *testing.T) {
-	responses := map[string]DebugResponse{
+	responses := map[string]debugResponse{
 		"code_behavior_comprehension_0": {
 			MetricID:    "code_behavior_comprehension",
 			SampleIndex: 0,
@@ -117,7 +117,7 @@ func TestReplayExecutor(t *testing.T) {
 		},
 	}
 
-	executor := NewReplayExecutor(responses)
+	executor := newReplayExecutor(responses)
 	ctx := context.Background()
 
 	// First call should match M2 and return sample_index 0
@@ -140,7 +140,7 @@ func TestReplayExecutor(t *testing.T) {
 }
 
 func TestReplayExecutor_NotFound(t *testing.T) {
-	executor := NewReplayExecutor(make(map[string]DebugResponse))
+	executor := newReplayExecutor(make(map[string]debugResponse))
 	ctx := context.Background()
 
 	_, err := executor.ExecutePrompt(ctx, "/tmp", "some unknown prompt", "", 30*time.Second)
@@ -153,7 +153,7 @@ func TestReplayExecutor_NotFound(t *testing.T) {
 }
 
 func TestReplayExecutor_ReplayedError(t *testing.T) {
-	responses := map[string]DebugResponse{
+	responses := map[string]debugResponse{
 		"unknown_0": {
 			MetricID:    "unknown",
 			SampleIndex: 0,
@@ -162,7 +162,7 @@ func TestReplayExecutor_ReplayedError(t *testing.T) {
 		},
 	}
 
-	executor := NewReplayExecutor(responses)
+	executor := newReplayExecutor(responses)
 	ctx := context.Background()
 
 	_, err := executor.ExecutePrompt(ctx, "/tmp", "some unknown prompt", "", 30*time.Second)
@@ -251,7 +251,7 @@ func TestIdentifyMetricFromPrompt(t *testing.T) {
 }
 
 func TestLoadResponses_NonexistentDir(t *testing.T) {
-	_, err := LoadResponses("/nonexistent/dir/path")
+	_, err := loadResponses("/nonexistent/dir/path")
 	if err == nil {
 		t.Fatal("expected error for nonexistent directory")
 	}
@@ -275,14 +275,13 @@ func TestSaveResponses_CreatesDir(t *testing.T) {
 		},
 	}
 
-	if err := SaveResponses(nestedDir, results); err != nil {
-		t.Fatalf("SaveResponses failed to create nested dir: %v", err)
+	if err := saveResponses(nestedDir, results); err != nil {
+		t.Fatalf("saveResponses failed to create nested dir: %v", err)
 	}
 
 	// Verify directory was created and file exists
 	f := filepath.Join(nestedDir, "task_execution_consistency_0.json")
 	if _, err := os.Stat(f); err != nil {
-		t.Errorf("expected file %s to exist after SaveResponses", f)
+		t.Errorf("expected file %s to exist after saveResponses", f)
 	}
 }
-

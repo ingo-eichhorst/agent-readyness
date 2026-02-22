@@ -122,7 +122,7 @@ func buildRecommendations(report *jsonReport, recs []recommend.Recommendation) {
 
 func addBadgeIfRequested(report *jsonReport, scored *types.ScoredResult, includeBadge bool) {
 	if includeBadge && scored != nil {
-		badge := GenerateBadge(scored)
+		badge := generateBadge(scored)
 		report.BadgeURL = badge.URL
 		report.BadgeMarkdown = badge.Markdown
 	}

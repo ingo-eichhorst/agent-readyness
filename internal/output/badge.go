@@ -17,9 +17,9 @@ type badgeInfo struct {
 	Markdown string // Complete markdown with link to repo
 }
 
-// GenerateBadge creates a shields.io badge URL and markdown from a scored result.
+// generateBadge creates a shields.io badge URL and markdown from a scored result.
 // Returns empty badgeInfo if scored is nil.
-func GenerateBadge(scored *types.ScoredResult) badgeInfo {
+func generateBadge(scored *types.ScoredResult) badgeInfo {
 	if scored == nil {
 		return badgeInfo{}
 	}

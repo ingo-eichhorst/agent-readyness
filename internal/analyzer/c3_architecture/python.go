@@ -69,35 +69,31 @@ func isTestFileByPath(path string) bool {
 // they still indicate poor architecture that confuses agents trying to understand
 // module boundaries and dependency flow.
 func pyBuildImportGraph(files []*parser.ParsedTreeSitterFile) *shared.ImportGraph {
-	g := &shared.ImportGraph{
-		Forward: make(map[string][]string),
-		Reverse: make(map[string][]string),
-	}
-
-	knownModules := make(map[string]string)
-	for _, f := range files {
-		knownModules[pyFileToModule(f.RelPath)] = f.RelPath
-	}
-
-	for _, f := range files {
-		root := f.Tree.RootNode()
-		fromModule := pyFileToModule(f.RelPath)
-
-		shared.WalkTree(root, func(node *tree_sitter.Node) {
-			switch node.Kind() {
-			case "import_statement":
-				pyProcessImportStatement(node, f.Content, fromModule, knownModules, g)
-			case "import_from_statement":
-				pyProcessImportFromStatement(node, f.Content, fromModule, knownModules, g)
-			}
-		})
-	}
-
-	return g
+	return buildImportGraph(files, []string{"import_statement", "import_from_statement"}, pyImportExtractor{})
 }
 
-// pyProcessImportStatement handles "import foo" and "import foo.bar" statements.
-func pyProcessImportStatement(node *tree_sitter.Node, content []byte, fromModule string, knownModules map[string]string, g *shared.ImportGraph) {
+// pyImportExtractor implements importExtractor for Python source files.
+type pyImportExtractor struct{}
+
+// fileToModule converts a Python file rel path to its dotted module name.
+func (pyImportExtractor) fileToModule(filePath string) string {
+	return pyFileToModule(filePath)
+}
+
+// extractImports returns intra-project module targets from Python import AST nodes.
+func (pyImportExtractor) extractImports(node *tree_sitter.Node, content []byte, fromModule string, knownModules map[string]string) []string {
+	switch node.Kind() {
+	case "import_statement":
+		return pyExtractImportStatement(node, content, knownModules)
+	case "import_from_statement":
+		return pyExtractImportFromStatement(node, content, fromModule, knownModules)
+	}
+	return nil
+}
+
+// pyExtractImportStatement extracts module names from "import foo" / "import foo.bar" nodes.
+func pyExtractImportStatement(node *tree_sitter.Node, content []byte, knownModules map[string]string) []string {
+	var targets []string
 	for i := uint(0); i < node.ChildCount(); i++ {
 		child := node.Child(i)
 		if child == nil {
@@ -115,12 +111,17 @@ func pyProcessImportStatement(node *tree_sitter.Node, content []byte, fromModule
 		} else {
 			modName = shared.NodeText(child, content)
 		}
-		pyAddEdgeIfKnown(g, fromModule, modName, knownModules)
+		if modName != "" {
+			if _, ok := knownModules[modName]; ok {
+				targets = append(targets, modName)
+			}
+		}
 	}
+	return targets
 }
 
-// pyProcessImportFromStatement handles "from foo import bar" statements.
-func pyProcessImportFromStatement(node *tree_sitter.Node, content []byte, fromModule string, knownModules map[string]string, g *shared.ImportGraph) {
+// pyExtractImportFromStatement extracts module names from "from foo import bar" nodes.
+func pyExtractImportFromStatement(node *tree_sitter.Node, content []byte, fromModule string, knownModules map[string]string) []string {
 	modNode := node.ChildByFieldName("module_name")
 	if modNode == nil {
 		for i := uint(0); i < node.ChildCount(); i++ {
@@ -132,24 +133,19 @@ func pyProcessImportFromStatement(node *tree_sitter.Node, content []byte, fromMo
 		}
 	}
 	if modNode == nil {
-		return
+		return nil
 	}
 	modName := shared.NodeText(modNode, content)
 	if strings.HasPrefix(modName, ".") {
 		modName = pyResolveRelativeImport(fromModule, modName)
 	}
-	pyAddEdgeIfKnown(g, fromModule, modName, knownModules)
-}
-
-// pyAddEdgeIfKnown adds a forward/reverse edge if the target module is a known project module.
-func pyAddEdgeIfKnown(g *shared.ImportGraph, from, to string, knownModules map[string]string) {
-	if to == "" || to == from {
-		return
+	if modName == "" {
+		return nil
 	}
-	if _, ok := knownModules[to]; ok {
-		g.Forward[from] = appendUnique(g.Forward[from], to)
-		g.Reverse[to] = appendUnique(g.Reverse[to], from)
+	if _, ok := knownModules[modName]; ok {
+		return []string{modName}
 	}
+	return nil
 }
 
 // pyFileToModule converts a file relative path to a Python module name.
@@ -206,7 +202,6 @@ func pyResolveRelativeImport(fromModule, relImport string) string {
 // - Decorated definitions (@decorator) are unwrapped to find the actual def/class
 //
 // Limitation: Jupyter notebooks cannot be analyzed (dynamic execution model).
-// pyDefinition represents a top-level Python definition for dead code analysis.
 // pyDeadCodeExtractor implements deadCodeExtractor for Python files.
 type pyDeadCodeExtractor struct{}
 
@@ -335,8 +330,6 @@ func pyCollectNamesFromImport(node *tree_sitter.Node, content []byte, names map[
 		}
 	}
 }
-
-
 
 // appendUnique appends s to slice only if not already present.
 func appendUnique(slice []string, s string) []string {

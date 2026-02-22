@@ -23,7 +23,7 @@ func TestDetectCLI_Available(t *testing.T) {
 		return []byte("claude 2.1.12"), nil
 	}
 
-	status := DetectCLI()
+	status := detectCLI()
 
 	if !status.Available {
 		t.Fatal("Expected Available to be true")
@@ -47,7 +47,7 @@ func TestDetectCLI_NotFound(t *testing.T) {
 		return "", fmt.Errorf("%w: claude", exec.ErrNotFound)
 	}
 
-	status := DetectCLI()
+	status := detectCLI()
 
 	if status.Available {
 		t.Error("Expected Available to be false")

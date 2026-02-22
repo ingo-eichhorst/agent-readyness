@@ -92,12 +92,22 @@ type htmlSubScore struct {
 	HasPrompt           bool          // Whether prompt data is available
 }
 
-// TraceData holds analysis data needed for rendering call trace modals.
+// traceData holds analysis data needed for rendering call trace modals.
 // Passed to GenerateReport; can be nil when trace rendering is not needed.
-type TraceData struct {
+type traceData struct {
 	ScoringConfig   *scoring.ScoringConfig
 	AnalysisResults []*types.AnalysisResult
 	Languages       []string // Detected project languages for build/test commands
+}
+
+// NewTraceData constructs trace data for HTML report rendering.
+// Pass the result to GenerateReport; nil is accepted when trace rendering is not needed.
+func NewTraceData(cfg *scoring.ScoringConfig, results []*types.AnalysisResult, langs []string) *traceData {
+	return &traceData{
+		ScoringConfig:   cfg,
+		AnalysisResults: results,
+		Languages:       langs,
+	}
 }
 
 // htmlRecommendation represents a recommendation for HTML display.
@@ -138,7 +148,7 @@ func NewHTMLGenerator() (*htmlGenerator, error) {
 // - Per-metric trace modals (breakpoint interpolation details)
 // - Evidence tables (top offenders per metric)
 // - Improvement prompts (actionable suggestions with build commands)
-func (g *htmlGenerator) GenerateReport(w io.Writer, scored *types.ScoredResult, recs []recommend.Recommendation, baseline *types.ScoredResult, trace *TraceData) error {
+func (g *htmlGenerator) GenerateReport(w io.Writer, scored *types.ScoredResult, recs []recommend.Recommendation, baseline *types.ScoredResult, trace *traceData) error {
 	// Load CSS
 	cssBytes, err := templateFS.ReadFile("templates/styles.css")
 	if err != nil {
@@ -210,7 +220,7 @@ func scoreToClass(score float64) string {
 }
 
 // buildHTMLCategories converts scored categories to HTML display format.
-func buildHTMLCategories(categories []types.CategoryScore, citations []citation, trace *TraceData) []htmlCategory {
+func buildHTMLCategories(categories []types.CategoryScore, citations []citation, trace *traceData) []htmlCategory {
 	result := make([]htmlCategory, 0, len(categories))
 
 	for _, cat := range categories {
@@ -248,7 +258,7 @@ func filterCitationsByCategory(citations []citation, categoryName string) []cita
 // 2. Evidence attachment (top offenders per metric from scoring phase)
 // 3. Trace modal generation (breakpoint interpolation details for debugging)
 // 4. Improvement prompt generation (actionable suggestions with commands)
-func buildHTMLSubScores(categoryName string, subScores []types.SubScore, trace *TraceData) []htmlSubScore {
+func buildHTMLSubScores(categoryName string, subScores []types.SubScore, trace *traceData) []htmlSubScore {
 	result := make([]htmlSubScore, 0, len(subScores))
 	c7MetricResults := extractC7MetricResults(categoryName, trace)
 
@@ -267,7 +277,7 @@ func buildHTMLSubScores(categoryName string, subScores []types.SubScore, trace *
 }
 
 // extractC7MetricResults extracts C7 metric results from trace data if applicable.
-func extractC7MetricResults(categoryName string, trace *TraceData) []types.C7MetricResult {
+func extractC7MetricResults(categoryName string, trace *traceData) []types.C7MetricResult {
 	if categoryName != "C7" || trace == nil || trace.AnalysisResults == nil {
 		return nil
 	}
@@ -305,7 +315,7 @@ func buildBaseSubScore(ss types.SubScore) htmlSubScore {
 
 // populateTraceData adds C7 or breakpoint trace HTML to the sub-score.
 // Returns the resolved breakpoints for use by improvement prompt generation.
-func populateTraceData(hss *htmlSubScore, categoryName string, ss types.SubScore, c7MetricResults []types.C7MetricResult, trace *TraceData) []scoring.Breakpoint {
+func populateTraceData(hss *htmlSubScore, categoryName string, ss types.SubScore, c7MetricResults []types.C7MetricResult, trace *traceData) []scoring.Breakpoint {
 	// C7 trace
 	if categoryName == "C7" && len(c7MetricResults) > 0 {
 		traceHTML := renderC7Trace(ss.MetricName, c7MetricResults)
@@ -329,7 +339,7 @@ func populateTraceData(hss *htmlSubScore, categoryName string, ss types.SubScore
 }
 
 // populateImprovementPrompt adds improvement prompt HTML for metrics scoring below threshold.
-func populateImprovementPrompt(hss *htmlSubScore, categoryName string, ss types.SubScore, breakpoints []scoring.Breakpoint, trace *TraceData) {
+func populateImprovementPrompt(hss *htmlSubScore, categoryName string, ss types.SubScore, breakpoints []scoring.Breakpoint, trace *traceData) {
 	if !ss.Available || ss.Score >= promptScoreThreshold || trace == nil {
 		return
 	}
@@ -367,7 +377,7 @@ func populateImprovementPrompt(hss *htmlSubScore, categoryName string, ss types.
 }
 
 // lookupBreakpoints finds breakpoints for a metric in the scoring config.
-func lookupBreakpoints(trace *TraceData, categoryName, metricName string) []scoring.Breakpoint {
+func lookupBreakpoints(trace *traceData, categoryName, metricName string) []scoring.Breakpoint {
 	catCfg := trace.ScoringConfig.Category(categoryName)
 	for _, mt := range catCfg.Metrics {
 		if mt.Name == metricName {

@@ -9,8 +9,8 @@ import (
 	"github.com/mattn/go-isatty"
 )
 
-// ProgressFunc is a callback for pipeline stage progress updates.
-type ProgressFunc func(stage string, detail string)
+// progressFunc is a callback for pipeline stage progress updates.
+type progressFunc func(stage string, detail string)
 
 // Spinner displays an animated spinner on stderr for long-running operations.
 // It is automatically suppressed when stderr is not a TTY (piped output, CI).

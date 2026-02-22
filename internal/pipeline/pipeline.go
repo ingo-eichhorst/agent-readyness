@@ -1,7 +1,6 @@
 package pipeline
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -40,7 +39,7 @@ type Pipeline struct {
 	scored       *types.ScoredResult
 	threshold    float64
 	jsonOutput   bool
-	onProgress   ProgressFunc
+	onProgress   progressFunc
 	evaluator    *agent.Evaluator // CLI-based evaluator for LLM analysis
 	cliStatus    agent.CLIStatus  // cached CLI availability status
 	htmlOutput   string           // optional path for HTML report output
@@ -56,7 +55,7 @@ type Pipeline struct {
 // If cfg is nil, DefaultConfig is used. If onProgress is nil, a no-op is used.
 // The pipeline auto-creates a Tree-sitter parser for Python/TypeScript analysis.
 // CLI availability is detected at startup; if available, LLM features are auto-enabled.
-func New(w io.Writer, verbose bool, cfg *scoring.ScoringConfig, threshold float64, jsonOutput bool, onProgress ProgressFunc) *Pipeline {
+func New(w io.Writer, verbose bool, cfg *scoring.ScoringConfig, threshold float64, jsonOutput bool, onProgress progressFunc) *Pipeline {
 	if cfg == nil {
 		cfg = scoring.DefaultConfig()
 	}
@@ -358,11 +357,7 @@ func (p *Pipeline) generateHTMLReport(recs []recommend.Recommendation) error {
 	for i, l := range p.langs {
 		langStrings[i] = string(l)
 	}
-	traceData := &output.TraceData{
-		ScoringConfig:   p.scorer.Config,
-		AnalysisResults: p.results,
-		Languages:       langStrings,
-	}
+	traceData := output.NewTraceData(p.scorer.Config, p.results, langStrings)
 
 	// Generate report
 	if err := gen.GenerateReport(f, p.scored, recs, baseline, traceData); err != nil {
@@ -387,24 +382,10 @@ func loadBaseline(path string) (*types.ScoredResult, error) {
 		return nil, err
 	}
 
-	// Parse the JSON report format
-	var report output.JSONReport
-	if err := json.Unmarshal(data, &report); err != nil {
+	// Parse the JSON report format and convert to ScoredResult
+	result, err := output.ParseJSONBaseline(data)
+	if err != nil {
 		return nil, fmt.Errorf("parse JSON: %w", err)
-	}
-
-	// Convert JSONReport to ScoredResult
-	result := &types.ScoredResult{
-		Composite: report.CompositeScore,
-		Tier:      report.Tier,
-	}
-
-	for _, cat := range report.Categories {
-		result.Categories = append(result.Categories, types.CategoryScore{
-			Name:   cat.Name,
-			Score:  cat.Score,
-			Weight: cat.Weight,
-		})
 	}
 
 	return result, nil

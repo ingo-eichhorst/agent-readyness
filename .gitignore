@@ -11,3 +11,4 @@ ars-output.txt
 .runtime/
 .claude/commands/
 .logs/
+.DS_Store

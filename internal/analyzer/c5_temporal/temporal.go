@@ -92,6 +92,24 @@ type fileChange struct {
 	Path    string
 }
 
+// headCommitTime returns the timestamp of the HEAD commit in rootDir.
+// Falls back to time.Now() if git log fails (e.g., empty repo).
+func headCommitTime(rootDir string) time.Time {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "git", "log", "-1", "--format=%at")
+	cmd.Dir = rootDir
+	out, err := cmd.Output()
+	if err != nil {
+		return time.Now()
+	}
+	ts, err := strconv.ParseInt(strings.TrimSpace(string(out)), 10, 64)
+	if err != nil {
+		return time.Now()
+	}
+	return time.Unix(ts, 0)
+}
+
 // runGitLog executes git log and parses the output into commit structs.
 //
 // Git output format:
@@ -102,8 +120,11 @@ type fileChange struct {
 // Rename handling: Converts git's "{old => new}" notation to final path via resolveRenamePath.
 // Timeout: 25s context timeout with graceful degradation (returns partial results on timeout).
 // Binary files: Skipped (git shows "-" for added/deleted counts).
-func runGitLog(rootDir string, months int) ([]commitInfo, error) {
-	since := fmt.Sprintf("--since=%d months ago", months)
+// Time reference: uses the HEAD commit date rather than wall-clock time so that analysis of
+// pinned/historical commits is stable regardless of when the benchmark runs.
+func runGitLog(rootDir string, months int, ref time.Time) ([]commitInfo, error) {
+	sinceTime := ref.AddDate(0, -months, 0)
+	since := fmt.Sprintf("--since=%d", sinceTime.Unix())
 	ctx, cancel := context.WithTimeout(context.Background(), gitLogTimeout)
 	defer cancel()
 
@@ -236,7 +257,8 @@ func resolveRenamePath(path string) string {
 
 // analyzeGitHistory parses git log and computes all C5 metrics.
 func analyzeGitHistory(rootDir string, months int) (*types.C5Metrics, error) {
-	commits, err := runGitLog(rootDir, months)
+	ref := headCommitTime(rootDir)
+	commits, err := runGitLog(rootDir, months, ref)
 	if err != nil {
 		return nil, err
 	}
@@ -245,9 +267,9 @@ func analyzeGitHistory(rootDir string, months int) (*types.C5Metrics, error) {
 		return &types.C5Metrics{Available: false}, nil
 	}
 
-	churnRate := calcChurnRate(commits, defaultChurnWindowDays)
+	churnRate := calcChurnRate(commits, defaultChurnWindowDays, ref)
 	couplingPct, coupledPairs := calcTemporalCoupling(commits, minCommitsForCoupling, maxFilesPerCommitCoupling)
-	authorFrag := calcAuthorFragmentation(commits, defaultChurnWindowDays)
+	authorFrag := calcAuthorFragmentation(commits, defaultChurnWindowDays, ref)
 	stability := calcCommitStability(commits)
 	hotspotPct, _ := calcHotspotConcentration(commits)
 
@@ -271,8 +293,8 @@ func analyzeGitHistory(rootDir string, months int) (*types.C5Metrics, error) {
 // calcChurnRate computes average lines changed per commit within a time window.
 // Lines changed = added + deleted (measures total change activity).
 // 90-day window focuses on recent development patterns, ignoring historical churn.
-func calcChurnRate(commits []commitInfo, windowDays int) float64 {
-	cutoff := time.Now().Add(-time.Duration(windowDays) * 24 * time.Hour).Unix()
+func calcChurnRate(commits []commitInfo, windowDays int, ref time.Time) float64 {
+	cutoff := ref.Add(-time.Duration(windowDays) * 24 * time.Hour).Unix()
 	totalLines := 0
 	commitCount := 0
 
@@ -366,8 +388,8 @@ func calcTemporalCoupling(commits []commitInfo, minCommits int, maxFilesPerCommi
 // High fragmentation (many authors per file) can indicate:
 // - Lack of code ownership (everyone touches everything)
 // - Unclear module boundaries
-func calcAuthorFragmentation(commits []commitInfo, windowDays int) float64 {
-	cutoff := time.Now().Add(-time.Duration(windowDays) * 24 * time.Hour).Unix()
+func calcAuthorFragmentation(commits []commitInfo, windowDays int, ref time.Time) float64 {
+	cutoff := ref.Add(-time.Duration(windowDays) * 24 * time.Hour).Unix()
 	fileAuthors := make(map[string]map[string]bool)
 
 	for _, c := range commits {

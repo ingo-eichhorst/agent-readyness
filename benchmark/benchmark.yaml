@@ -1,0 +1,243 @@
+repos:
+  # Go repos: tiny → large, high → low quality
+  - name: cobra
+    language: go
+    url: https://github.com/spf13/cobra
+    commit: "v1.9.1"
+    size: medium
+    expected_quality: high
+    expected_score_range: [7, 9]
+
+  - name: gin
+    language: go
+    url: https://github.com/gin-gonic/gin
+    commit: "v1.10.0"
+    size: large
+    expected_quality: high
+    expected_score_range: [7, 8]
+
+  - name: lo
+    language: go
+    url: https://github.com/samber/lo
+    commit: "v1.49.1"
+    size: small
+    expected_quality: high
+    expected_score_range: [7, 8]
+
+  - name: viper
+    language: go
+    url: https://github.com/spf13/viper
+    commit: "v1.20.1"
+    size: medium
+    expected_quality: medium
+    expected_score_range: [5, 7]
+
+  - name: colly
+    language: go
+    url: https://github.com/gocolly/colly
+    commit: "v2.1.0"
+    size: medium
+    expected_quality: medium
+    expected_score_range: [5, 6]
+
+  - name: badger
+    language: go
+    url: https://github.com/dgraph-io/badger
+    commit: "v4.7.0"
+    size: large
+    expected_quality: medium
+    expected_score_range: [5, 7]
+
+  - name: resty
+    language: go
+    url: https://github.com/go-resty/resty
+    commit: "v2.16.5"
+    size: medium
+    expected_quality: medium
+    expected_score_range: [5, 7]
+
+  - name: uuid
+    language: go
+    url: https://github.com/google/uuid
+    commit: "v1.6.0"
+    size: tiny
+    expected_quality: medium
+    expected_score_range: [4, 6]
+
+  - name: go-humanize
+    language: go
+    url: https://github.com/dustin/go-humanize
+    commit: "v1.0.1"
+    size: tiny
+    expected_quality: low
+    expected_score_range: [3, 5]
+
+  - name: color
+    language: go
+    url: https://github.com/fatih/color
+    commit: "v1.18.0"
+    size: tiny
+    expected_quality: low
+    expected_score_range: [3, 5]
+
+  # Python repos: tiny → large, high → low quality
+  - name: pydantic
+    language: python
+    url: https://github.com/pydantic/pydantic
+    commit: "v2.10.6"
+    size: large
+    expected_quality: high
+    expected_score_range: [7, 9]
+
+  - name: httpx
+    language: python
+    url: https://github.com/encode/httpx
+    commit: "0.28.1"
+    size: medium
+    expected_quality: high
+    expected_score_range: [7, 8]
+
+  - name: rich
+    language: python
+    url: https://github.com/Textualize/rich
+    commit: "v13.9.4"
+    size: large
+    expected_quality: high
+    expected_score_range: [6, 8]
+
+  - name: click
+    language: python
+    url: https://github.com/pallets/click
+    commit: "8.1.8"
+    size: medium
+    expected_quality: high
+    expected_score_range: [6, 8]
+
+  - name: typer
+    language: python
+    url: https://github.com/fastapi/typer
+    commit: "0.15.2"
+    size: small
+    expected_quality: medium
+    expected_score_range: [5, 7]
+
+  - name: more-itertools
+    language: python
+    url: https://github.com/more-itertools/more-itertools
+    commit: "v10.6.0"
+    size: small
+    expected_quality: medium
+    expected_score_range: [5, 7]
+
+  - name: tqdm
+    language: python
+    url: https://github.com/tqdm/tqdm
+    commit: "v4.67.1"
+    size: medium
+    expected_quality: medium
+    expected_score_range: [4, 6]
+
+  - name: python-dateutil
+    language: python
+    url: https://github.com/dateutil/dateutil
+    commit: "2.9.0.post0"
+    size: small
+    expected_quality: low
+    expected_score_range: [3, 5]
+
+  - name: python-slugify
+    language: python
+    url: https://github.com/un33k/python-slugify
+    commit: "8.0.4"
+    size: tiny
+    expected_quality: low
+    expected_score_range: [2, 4]
+
+  - name: result
+    language: python
+    url: https://github.com/rustedpy/result
+    commit: "0.17.0"
+    size: tiny
+    expected_quality: low
+    expected_score_range: [3, 5]
+
+  # TypeScript repos: tiny → large, high → low quality
+  - name: zod
+    language: typescript
+    url: https://github.com/colinhacks/zod
+    commit: "v3.24.2"
+    size: medium
+    expected_quality: high
+    expected_score_range: [7, 9]
+
+  - name: kysely
+    language: typescript
+    url: https://github.com/kysely-org/kysely
+    commit: "0.27.5"
+    size: medium
+    expected_quality: high
+    expected_score_range: [7, 8]
+
+  - name: date-fns
+    language: typescript
+    url: https://github.com/date-fns/date-fns
+    commit: "v4.1.0"
+    size: large
+    expected_quality: high
+    expected_score_range: [6, 8]
+
+  - name: ts-pattern
+    language: typescript
+    url: https://github.com/gvergnaud/ts-pattern
+    commit: "v5.6.2"
+    size: small
+    expected_quality: high
+    expected_score_range: [7, 8]
+
+  - name: effect
+    language: typescript
+    url: https://github.com/Effect-TS/effect
+    commit: "effect@3.13.6"
+    size: large
+    expected_quality: medium
+    expected_score_range: [5, 7]
+
+  - name: fast-check
+    language: typescript
+    url: https://github.com/dubzzz/fast-check
+    commit: "v3.23.2"
+    size: medium
+    expected_quality: medium
+    expected_score_range: [5, 7]
+
+  - name: superjson
+    language: typescript
+    url: https://github.com/blitz-js/superjson
+    commit: "v2.2.2"
+    size: small
+    expected_quality: medium
+    expected_score_range: [5, 6]
+
+  - name: changesets
+    language: typescript
+    url: https://github.com/changesets/changesets
+    commit: "v2.28.1"
+    size: medium
+    expected_quality: medium
+    expected_score_range: [4, 6]
+
+  - name: nanoid
+    language: typescript
+    url: https://github.com/ai/nanoid
+    commit: "5.1.5"
+    size: tiny
+    expected_quality: low
+    expected_score_range: [3, 5]
+
+  - name: ms
+    language: typescript
+    url: https://github.com/vercel/ms
+    commit: "6ec025f7e35899c436aaa0fbac57657af81467d3"
+    size: tiny
+    expected_quality: low
+    expected_score_range: [2, 4]

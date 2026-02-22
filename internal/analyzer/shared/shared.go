@@ -4,6 +4,8 @@
 package shared
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 
 	tree_sitter "github.com/tree-sitter/go-tree-sitter"
@@ -121,4 +123,46 @@ func TsStripQuotes(s string) string {
 		}
 	}
 	return s
+}
+
+// FilterTreeSitterFiles returns files for which isTest(relPath) is false.
+// Used by C1 and C3 analyzers to strip test files before source analysis.
+func FilterTreeSitterFiles(files []*parser.ParsedTreeSitterFile, isTest func(relPath string) bool) []*parser.ParsedTreeSitterFile {
+	var result []*parser.ParsedTreeSitterFile
+	for _, f := range files {
+		if !isTest(f.RelPath) {
+			result = append(result, f)
+		}
+	}
+	return result
+}
+
+// AnalyzeDirectoryDepth computes max and average directory depth from tree-sitter file paths.
+// Used by C3 architecture analyzers for Python and TypeScript.
+func AnalyzeDirectoryDepth(files []*parser.ParsedTreeSitterFile, rootDir string) (maxDepth int, avgDepth float64) {
+	if len(files) == 0 {
+		return 0, 0
+	}
+
+	totalDepth := 0
+	for _, f := range files {
+		relPath := f.RelPath
+		if relPath == "" && rootDir != "" {
+			if rel, err := filepath.Rel(rootDir, f.Path); err == nil {
+				relPath = rel
+			} else {
+				continue
+			}
+		}
+		depth := strings.Count(relPath, "/")
+		if os.PathSeparator != '/' {
+			depth += strings.Count(relPath, string(os.PathSeparator))
+		}
+		totalDepth += depth
+		if depth > maxDepth {
+			maxDepth = depth
+		}
+	}
+
+	return maxDepth, float64(totalDepth) / float64(len(files))
 }

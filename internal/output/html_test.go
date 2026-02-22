@@ -444,7 +444,7 @@ func TestHTMLGenerator_PromptModals(t *testing.T) {
 	}
 
 	scored := buildAllCategoriesScoredResult(5.0)
-	trace := &TraceData{
+	trace := &traceData{
 		ScoringConfig: scoring.DefaultConfig(),
 		Languages:     []string{"go"},
 	}
@@ -485,7 +485,7 @@ func TestHTMLGenerator_PromptModals_HighScore(t *testing.T) {
 	}
 
 	scored := buildAllCategoriesScoredResult(9.5)
-	trace := &TraceData{
+	trace := &traceData{
 		ScoringConfig: scoring.DefaultConfig(),
 		Languages:     []string{"go"},
 	}
@@ -515,7 +515,7 @@ func TestHTMLGenerator_PromptModals_AllCategories(t *testing.T) {
 	}
 
 	scored := buildAllCategoriesScoredResult(5.0)
-	trace := &TraceData{
+	trace := &traceData{
 		ScoringConfig: scoring.DefaultConfig(),
 		Languages:     []string{"go"},
 	}
@@ -663,7 +663,7 @@ func TestHTMLFileSizeBudget(t *testing.T) {
 		},
 	}
 
-	trace := &TraceData{
+	trace := &traceData{
 		ScoringConfig:   scoring.DefaultConfig(),
 		AnalysisResults: analysisResults,
 		Languages:       []string{"go"},
@@ -724,7 +724,7 @@ func TestPromptTemplateCoverage_AllMetrics(t *testing.T) {
 	}
 
 	scored := buildFullScoredResult(5.0)
-	trace := &TraceData{
+	trace := &traceData{
 		ScoringConfig: scoring.DefaultConfig(),
 		Languages:     []string{"go"},
 	}
@@ -772,7 +772,7 @@ func TestHTMLAccessibilityAttributes(t *testing.T) {
 	}
 
 	scored := buildAllCategoriesScoredResult(5.0)
-	trace := &TraceData{
+	trace := &traceData{
 		ScoringConfig: scoring.DefaultConfig(),
 		Languages:     []string{"go"},
 	}
@@ -812,7 +812,7 @@ func TestHTMLResponsiveLayout(t *testing.T) {
 	}
 
 	scored := buildAllCategoriesScoredResult(5.0)
-	trace := &TraceData{
+	trace := &traceData{
 		ScoringConfig: scoring.DefaultConfig(),
 		Languages:     []string{"go"},
 	}

@@ -9,8 +9,8 @@ import (
 	"github.com/ingo-eichhorst/agent-readyness/pkg/types"
 )
 
-// JSONReport is the top-level JSON output structure.
-type JSONReport struct {
+// jsonReport is the top-level JSON output structure.
+type jsonReport struct {
 	Version         string               `json:"version"`
 	RepoMetadata    *jsonRepoMetadata    `json:"repo_metadata,omitempty"`
 	CompositeScore  float64              `json:"composite_score"`
@@ -64,11 +64,11 @@ type jsonRecommendation struct {
 	Action           string  `json:"action"`
 }
 
-// BuildJSONReport converts a ScoredResult and recommendations into a JSONReport.
+// BuildJSONReport converts a ScoredResult and recommendations into a jsonReport.
 // The verbose parameter is deprecated; sub_scores are always included.
 // When includeBadge is true, badge URL and markdown are included.
-func BuildJSONReport(scored *types.ScoredResult, recs []recommend.Recommendation, verbose bool, includeBadge bool, meta *types.RepoMetadata) *JSONReport {
-	report := initializeJSONReport(scored)
+func BuildJSONReport(scored *types.ScoredResult, recs []recommend.Recommendation, verbose bool, includeBadge bool, meta *types.RepoMetadata) *jsonReport {
+	report := initializejsonReport(scored)
 	addRepoMetadata(report, meta)
 	buildCategories(report, scored.Categories)
 	buildRecommendations(report, recs)
@@ -76,15 +76,15 @@ func BuildJSONReport(scored *types.ScoredResult, recs []recommend.Recommendation
 	return report
 }
 
-func initializeJSONReport(scored *types.ScoredResult) *JSONReport {
-	return &JSONReport{
+func initializejsonReport(scored *types.ScoredResult) *jsonReport {
+	return &jsonReport{
 		Version:        "3",
 		CompositeScore: scored.Composite,
 		Tier:           scored.Tier,
 	}
 }
 
-func addRepoMetadata(report *JSONReport, meta *types.RepoMetadata) {
+func addRepoMetadata(report *jsonReport, meta *types.RepoMetadata) {
 	if meta == nil {
 		return
 	}
@@ -106,7 +106,7 @@ func addRepoMetadata(report *JSONReport, meta *types.RepoMetadata) {
 	report.RepoMetadata = jm
 }
 
-func buildCategories(report *JSONReport, categories []types.CategoryScore) {
+func buildCategories(report *jsonReport, categories []types.CategoryScore) {
 	for _, cat := range categories {
 		jc := jsonCategory{
 			Name:      cat.Name,
@@ -138,7 +138,7 @@ func buildSubScores(subScores []types.SubScore) []jsonMetric {
 	return result
 }
 
-func buildRecommendations(report *JSONReport, recs []recommend.Recommendation) {
+func buildRecommendations(report *jsonReport, recs []recommend.Recommendation) {
 	for _, rec := range recs {
 		report.Recommendations = append(report.Recommendations, jsonRecommendation{
 			Rank:             rec.Rank,
@@ -155,16 +155,38 @@ func buildRecommendations(report *JSONReport, recs []recommend.Recommendation) {
 	}
 }
 
-func addBadgeIfRequested(report *JSONReport, scored *types.ScoredResult, includeBadge bool) {
+func addBadgeIfRequested(report *jsonReport, scored *types.ScoredResult, includeBadge bool) {
 	if includeBadge && scored != nil {
-		badge := GenerateBadge(scored)
+		badge := generateBadge(scored)
 		report.BadgeURL = badge.URL
 		report.BadgeMarkdown = badge.Markdown
 	}
 }
 
+// ParseJSONBaseline parses a JSON report byte slice and extracts the baseline
+// scoring result needed for trend comparison. It returns a minimal ScoredResult
+// containing composite score, tier, and per-category scores/weights.
+func ParseJSONBaseline(data []byte) (*types.ScoredResult, error) {
+	var report jsonReport
+	if err := json.Unmarshal(data, &report); err != nil {
+		return nil, err
+	}
+	result := &types.ScoredResult{
+		Composite: report.CompositeScore,
+		Tier:      report.Tier,
+	}
+	for _, cat := range report.Categories {
+		result.Categories = append(result.Categories, types.CategoryScore{
+			Name:   cat.Name,
+			Score:  cat.Score,
+			Weight: cat.Weight,
+		})
+	}
+	return result, nil
+}
+
 // RenderJSON writes the JSON report to w with pretty-printed indentation.
-func RenderJSON(w io.Writer, report *JSONReport) error {
+func RenderJSON(w io.Writer, report *jsonReport) error {
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
 	return enc.Encode(report)

@@ -4,6 +4,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/ingo-eichhorst/agent-readyness/internal/analyzer/shared"
 	"github.com/ingo-eichhorst/agent-readyness/internal/parser"
 	"github.com/ingo-eichhorst/agent-readyness/pkg/types"
 )
@@ -182,7 +183,7 @@ func TestTsAnalyzeFileSizes(t *testing.T) {
 	}
 	defer parser.CloseAll(parsed)
 
-	summary := tsAnalyzeFileSizes(parsed)
+	summary := treeAnalyzeFileSizes(parsed)
 
 	if summary.Max <= 0 {
 		t.Error("FileSize.Max should be > 0")
@@ -276,9 +277,9 @@ func TestTsIsTestFile(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.path, func(t *testing.T) {
-			got := tsIsTestFile(tt.path)
+			got := shared.TsIsTestFile(tt.path)
 			if got != tt.want {
-				t.Errorf("tsIsTestFile(%q) = %v, want %v", tt.path, got, tt.want)
+				t.Errorf("shared.TsIsTestFile(%q) = %v, want %v", tt.path, got, tt.want)
 			}
 		})
 	}

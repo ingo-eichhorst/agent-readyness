@@ -13,9 +13,9 @@ import (
 // Must appear before the package declaration per Go convention.
 var generatedPattern = regexp.MustCompile(`^// Code generated .* DO NOT EDIT\.$`)
 
-// ClassifyGoFile classifies a Go file by its filename.
+// classifyGoFile classifies a Go file by its filename.
 // It checks for test files, underscore-prefixed files, and dot-prefixed files.
-func ClassifyGoFile(name string) types.FileClass {
+func classifyGoFile(name string) types.FileClass {
 	if strings.HasSuffix(name, "_test.go") {
 		return types.ClassTest
 	}

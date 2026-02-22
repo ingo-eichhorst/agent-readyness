@@ -27,18 +27,6 @@ import (
 	"github.com/ingo-eichhorst/agent-readyness/pkg/types"
 )
 
-// tsFilterSourceFiles filters to source-only TypeScript files (not test files).
-func tsFilterSourceFiles(files []*parser.ParsedTreeSitterFile) []*parser.ParsedTreeSitterFile {
-	var result []*parser.ParsedTreeSitterFile
-	for _, f := range files {
-		if tsIsTestFile(f.RelPath) {
-			continue
-		}
-		result = append(result, f)
-	}
-	return result
-}
-
 // tsIsTestFile checks if a TypeScript file path indicates a test file.
 func tsIsTestFile(path string) bool {
 	lower := strings.ToLower(path)
@@ -77,30 +65,49 @@ func tsIsTestFile(path string) bool {
 // creating an infinite reasoning loop. Breaking cycles into DAGs (directed acyclic
 // graphs) allows agents to reason bottom-up with confidence.
 func tsBuildImportGraph(files []*parser.ParsedTreeSitterFile) *shared.ImportGraph {
-	g := &shared.ImportGraph{
-		Forward: make(map[string][]string),
-		Reverse: make(map[string][]string),
-	}
-
-	knownFiles := make(map[string]string)
+	// Build a map from normalized path -> original dir for relative import resolution.
+	dirByNorm := make(map[string]string, len(files))
 	for _, f := range files {
-		knownFiles[tsNormalizePath(f.RelPath)] = f.RelPath
+		dirByNorm[tsNormalizePath(f.RelPath)] = filepath.Dir(f.RelPath)
+	}
+	extractor := tsImportExtractor{dirByNorm: dirByNorm}
+	// Pass nil importNodeTypes so every node is visited (needed for call_expression/require).
+	return buildImportGraph(files, nil, extractor)
+}
+
+// tsImportExtractor implements importExtractor for TypeScript/JavaScript source files.
+// dirByNorm maps normalized file path (graph key) to the original directory of that file,
+// which is needed to resolve relative import paths.
+type tsImportExtractor struct {
+	dirByNorm map[string]string
+}
+
+// fileToModule converts a TypeScript file rel path to its normalized path key.
+func (e tsImportExtractor) fileToModule(filePath string) string {
+	return tsNormalizePath(filePath)
+}
+
+// extractImports returns intra-project normalized paths imported by this AST node.
+// Only relative imports (starting with ".") are considered intra-project.
+func (e tsImportExtractor) extractImports(node *tree_sitter.Node, content []byte, fromFile string, knownModules map[string]string) []string {
+	modulePath := tsExtractModulePath(node, content)
+	if modulePath == "" || !strings.HasPrefix(modulePath, ".") {
+		return nil
 	}
 
-	for _, f := range files {
-		root := f.Tree.RootNode()
-		fromFile := tsNormalizePath(f.RelPath)
-		fromDir := filepath.Dir(f.RelPath)
-
-		shared.WalkTree(root, func(node *tree_sitter.Node) {
-			modulePath := tsExtractModulePath(node, f.Content)
-			if modulePath != "" {
-				tsAddImportEdge(g, fromFile, fromDir, modulePath, knownFiles)
-			}
-		})
+	fromDir, ok := e.dirByNorm[fromFile]
+	if !ok {
+		return nil
 	}
 
-	return g
+	resolved := filepath.Clean(filepath.Join(fromDir, modulePath))
+	resolved = strings.ReplaceAll(resolved, string(os.PathSeparator), "/")
+	normalizedResolved := tsNormalizePath(resolved)
+
+	if _, ok := knownModules[normalizedResolved]; ok {
+		return []string{normalizedResolved}
+	}
+	return nil
 }
 
 // tsExtractModulePath extracts the module path from an import or require call expression.
@@ -136,22 +143,6 @@ func tsExtractRequirePath(node *tree_sitter.Node, content []byte) string {
 	return ""
 }
 
-// tsAddImportEdge resolves a relative module path and adds edges to the import graph.
-func tsAddImportEdge(g *shared.ImportGraph, fromFile, fromDir, modulePath string, knownFiles map[string]string) {
-	if !strings.HasPrefix(modulePath, ".") {
-		return
-	}
-
-	resolved := filepath.Clean(filepath.Join(fromDir, modulePath))
-	resolved = strings.ReplaceAll(resolved, string(os.PathSeparator), "/")
-
-	normalizedResolved := tsNormalizePath(resolved)
-	if _, ok := knownFiles[normalizedResolved]; ok && normalizedResolved != fromFile {
-		g.Forward[fromFile] = appendUnique(g.Forward[fromFile], normalizedResolved)
-		g.Reverse[normalizedResolved] = appendUnique(g.Reverse[normalizedResolved], fromFile)
-	}
-}
-
 // tsNormalizePath normalizes a TypeScript file path for import graph matching.
 // Strips .ts/.tsx/.js extensions and normalizes separators.
 func tsNormalizePath(p string) string {
@@ -184,14 +175,24 @@ func tsStripQuotes(s string) string {
 // Limitation: Test files are excluded from the "imported by" check because test
 // imports don't represent production usage. This may flag some exports as dead
 // when they're only used in tests - acceptable trade-off for simpler analysis.
-func tsDetectDeadCode(files []*parser.ParsedTreeSitterFile) []types.DeadExport {
-	if len(files) <= 1 {
-		return nil
-	}
+// tsDeadCodeExtractor implements deadCodeExtractor for TypeScript files.
+type tsDeadCodeExtractor struct{}
 
-	defs := tsCollectExportedDefinitions(files)
-	importedNames := tsCollectAllImportedNames(files)
-	return tsFlagDeadExports(defs, importedNames)
+func tsDetectDeadCode(files []*parser.ParsedTreeSitterFile) []types.DeadExport {
+	return detectTreeSitterDeadCode(files, tsDeadCodeExtractor{})
+}
+
+func (e tsDeadCodeExtractor) collectDefinitions(files []*parser.ParsedTreeSitterFile) []codeDefinition {
+	raw := tsCollectExportedDefinitions(files)
+	defs := make([]codeDefinition, len(raw))
+	for i, d := range raw {
+		defs[i] = codeDefinition{Name: d.name, File: d.file, Line: d.line, Kind: d.kind}
+	}
+	return defs
+}
+
+func (e tsDeadCodeExtractor) collectImportedNames(files []*parser.ParsedTreeSitterFile) map[string]bool {
+	return tsCollectAllImportedNames(files)
 }
 
 func tsCollectExportedDefinitions(files []*parser.ParsedTreeSitterFile) []tsExportDef {
@@ -230,24 +231,6 @@ func tsCollectAllImportedNames(files []*parser.ParsedTreeSitterFile) map[string]
 	}
 
 	return importedNames
-}
-
-func tsFlagDeadExports(defs []tsExportDef, importedNames map[string]bool) []types.DeadExport {
-	var dead []types.DeadExport
-
-	for _, d := range defs {
-		if !importedNames[d.name] {
-			dead = append(dead, types.DeadExport{
-				Package: "",
-				Name:    d.name,
-				File:    filepath.Base(d.file),
-				Line:    d.line,
-				Kind:    d.kind,
-			})
-		}
-	}
-
-	return dead
 }
 
 // tsExportDef represents an exported definition found during dead code detection.
@@ -394,39 +377,4 @@ func tsCollectImportedNames(importNode *tree_sitter.Node, content []byte, names 
 			}
 		}
 	}
-}
-
-// tsAnalyzeDirectoryDepth computes max and average directory depth from TypeScript file paths.
-func tsAnalyzeDirectoryDepth(files []*parser.ParsedTreeSitterFile, rootDir string) (int, float64) {
-	if len(files) == 0 {
-		return 0, 0
-	}
-
-	maxDepth := 0
-	totalDepth := 0
-
-	for _, f := range files {
-		relPath := f.RelPath
-		if relPath == "" && rootDir != "" {
-			var err error
-			relPath, err = filepath.Rel(rootDir, f.Path)
-			if err != nil {
-				continue
-			}
-		}
-
-		// Count directory separators
-		depth := strings.Count(relPath, "/")
-		if os.PathSeparator != '/' {
-			depth += strings.Count(relPath, string(os.PathSeparator))
-		}
-
-		totalDepth += depth
-		if depth > maxDepth {
-			maxDepth = depth
-		}
-	}
-
-	avg := float64(totalDepth) / float64(len(files))
-	return maxDepth, avg
 }

@@ -44,12 +44,6 @@ func NewC7Analyzer() *C7Analyzer {
 	}
 }
 
-// Enable activates C7 analysis with the given CLI evaluator.
-func (a *C7Analyzer) Enable(evaluator *agent.Evaluator) {
-	a.evaluator = evaluator
-	a.enabled = true
-}
-
 // SetEvaluator sets the evaluator for C7 analysis.
 // Setting a non-nil evaluator auto-enables C7; setting nil disables it.
 // This method matches C4's pattern for LLM control.
@@ -96,14 +90,14 @@ func (a *C7Analyzer) Analyze(targets []*types.AnalysisTarget) (*types.AnalysisRe
 	}
 
 	// Create isolated workspace
-	workDir, cleanup, err := agent.CreateWorkspace(rootDir)
+	workDir, cleanup, err := createWorkspace(rootDir)
 	if err != nil {
 		return nil, fmt.Errorf("create workspace: %w", err)
 	}
 	defer cleanup()
 
 	// Initialize metrics
-	allMetrics := metrics.AllMetrics()
+	allMetrics := metrics.List()
 	metricIDs := make([]string, len(allMetrics))
 	metricNames := make([]string, len(allMetrics))
 	for i, m := range allMetrics {
@@ -112,7 +106,7 @@ func (a *C7Analyzer) Analyze(targets []*types.AnalysisTarget) (*types.AnalysisRe
 	}
 
 	// Create progress display
-	progress := agent.NewC7Progress(os.Stderr, metricIDs, metricNames)
+	progress := newC7Progress(os.Stderr, metricIDs, metricNames)
 	progress.Start()
 	defer progress.Stop()
 
@@ -123,20 +117,20 @@ func (a *C7Analyzer) Analyze(targets []*types.AnalysisTarget) (*types.AnalysisRe
 	// Determine executor: replay from files or live CLI
 	var executor metrics.Executor
 	if a.debugDir != "" {
-		responses, loadErr := agent.LoadResponses(a.debugDir)
+		responses, loadErr := loadResponses(a.debugDir)
 		if loadErr == nil && len(responses) > 0 {
 			fmt.Fprintf(a.debugWriter, "[C7 DEBUG] Replay mode: loading %d responses from %s\n", len(responses), a.debugDir)
-			executor = agent.NewReplayExecutor(responses)
+			executor = newReplayExecutor(responses)
 		} else {
 			fmt.Fprintf(a.debugWriter, "[C7 DEBUG] Capture mode: responses will be saved to %s\n", a.debugDir)
 		}
 	}
 
-	result := agent.RunMetricsParallel(ctx, workDir, targets, progress, executor)
+	result := runMetricsParallel(ctx, workDir, targets, progress, executor)
 
 	// Save responses for future replay (only when in capture mode, i.e. executor was nil)
 	if a.debugDir != "" && executor == nil {
-		if saveErr := agent.SaveResponses(a.debugDir, result.Results); saveErr != nil {
+		if saveErr := saveResponses(a.debugDir, result.Results); saveErr != nil {
 			fmt.Fprintf(a.debugWriter, "[C7 DEBUG] Warning: failed to save responses: %v\n", saveErr)
 		} else {
 			fmt.Fprintf(a.debugWriter, "[C7 DEBUG] Saved %d metric responses to %s\n", len(result.Results), a.debugDir)
@@ -163,7 +157,7 @@ func (a *C7Analyzer) disabledResult() *types.AnalysisResult {
 }
 
 // buildMetrics constructs C7Metrics from parallel execution results.
-func (a *C7Analyzer) buildMetrics(result agent.ParallelResult, startTime time.Time) *types.C7Metrics {
+func (a *C7Analyzer) buildMetrics(result parallelResult, startTime time.Time) *types.C7Metrics {
 	m := &types.C7Metrics{
 		Available:     true,
 		MetricResults: make([]types.C7MetricResult, 0, len(result.Results)),
@@ -240,7 +234,7 @@ func (a *C7Analyzer) assignIndividualScore(m *types.C7Metrics, mr metrics.Metric
 }
 
 // populateTokensAndCost calculates and populates token usage, duration, and cost.
-func (a *C7Analyzer) populateTokensAndCost(m *types.C7Metrics, result agent.ParallelResult, startTime time.Time) {
+func (a *C7Analyzer) populateTokensAndCost(m *types.C7Metrics, result parallelResult, startTime time.Time) {
 	m.TokensUsed = result.TotalTokens
 	m.TotalDuration = time.Since(startTime).Seconds()
 	m.CostUSD = float64(m.TokensUsed) / c7TokensPerMillion * c7CostRatePerMTok

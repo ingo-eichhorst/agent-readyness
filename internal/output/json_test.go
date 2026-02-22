@@ -118,7 +118,7 @@ func TestJSONVersion(t *testing.T) {
 		t.Fatalf("RenderJSON error: %v", err)
 	}
 
-	var parsed JSONReport
+	var parsed jsonReport
 	if err := json.Unmarshal(buf.Bytes(), &parsed); err != nil {
 		t.Fatalf("unmarshal error: %v", err)
 	}
@@ -153,7 +153,7 @@ func TestJSONSubScoresIncludeMetricFields(t *testing.T) {
 		t.Fatalf("RenderJSON error: %v", err)
 	}
 
-	var parsed JSONReport
+	var parsed jsonReport
 	if err := json.Unmarshal(buf.Bytes(), &parsed); err != nil {
 		t.Fatalf("unmarshal error: %v", err)
 	}
@@ -185,7 +185,7 @@ func TestJSONIncludesRecommendations(t *testing.T) {
 		t.Fatalf("RenderJSON error: %v", err)
 	}
 
-	var parsed JSONReport
+	var parsed jsonReport
 	if err := json.Unmarshal(buf.Bytes(), &parsed); err != nil {
 		t.Fatalf("unmarshal error: %v", err)
 	}
@@ -218,7 +218,7 @@ func TestJSONCompositeAndTier(t *testing.T) {
 		t.Fatalf("RenderJSON error: %v", err)
 	}
 
-	var parsed JSONReport
+	var parsed jsonReport
 	if err := json.Unmarshal(buf.Bytes(), &parsed); err != nil {
 		t.Fatalf("unmarshal error: %v", err)
 	}
@@ -240,7 +240,7 @@ func TestJSONEmptyRecommendations(t *testing.T) {
 		t.Fatalf("RenderJSON error: %v", err)
 	}
 
-	var parsed JSONReport
+	var parsed jsonReport
 	if err := json.Unmarshal(buf.Bytes(), &parsed); err != nil {
 		t.Fatalf("unmarshal error: %v", err)
 	}
@@ -260,7 +260,7 @@ func TestJSONIncludesBadge(t *testing.T) {
 		t.Fatalf("RenderJSON error: %v", err)
 	}
 
-	var parsed JSONReport
+	var parsed jsonReport
 	if err := json.Unmarshal(buf.Bytes(), &parsed); err != nil {
 		t.Fatalf("unmarshal error: %v", err)
 	}
@@ -331,7 +331,7 @@ func TestJSONEvidenceWithData(t *testing.T) {
 	if err := RenderJSON(&buf, report); err != nil {
 		t.Fatalf("RenderJSON error: %v", err)
 	}
-	var parsed JSONReport
+	var parsed jsonReport
 	if err := json.Unmarshal(buf.Bytes(), &parsed); err != nil {
 		t.Fatalf("unmarshal error: %v", err)
 	}
@@ -370,7 +370,7 @@ func TestJSONBaselineBackwardCompatibility(t *testing.T) {
 			]}
 		]
 	}`
-	var report JSONReport
+	var report jsonReport
 	if err := json.Unmarshal([]byte(oldJSON), &report); err != nil {
 		t.Fatalf("unmarshal old JSON: %v", err)
 	}
@@ -420,7 +420,7 @@ func TestJSONBaselineV1FullRoundTrip(t *testing.T) {
 		]
 	}`
 
-	var report JSONReport
+	var report jsonReport
 	if err := json.Unmarshal([]byte(v1JSON), &report); err != nil {
 		t.Fatalf("unmarshal v1 JSON with all 7 categories: %v", err)
 	}

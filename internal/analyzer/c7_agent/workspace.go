@@ -1,4 +1,4 @@
-package agent
+package c7
 
 import (
 	"fmt"
@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 )
 
-// CreateWorkspace creates an isolated directory for agent execution.
+// createWorkspace creates an isolated directory for agent execution.
 // It attempts to use git worktree for efficient isolation. If the project
 // is not a git repository, it falls back to read-only mode using the original
 // directory (agent tasks use read-only tools, so this is safe).
@@ -17,7 +17,7 @@ import (
 //   - workDir: the directory path for agent execution
 //   - cleanup: function to call when done (removes worktree if created)
 //   - err: error if workspace creation fails
-func CreateWorkspace(projectDir string) (workDir string, cleanup func(), err error) {
+func createWorkspace(projectDir string) (workDir string, cleanup func(), err error) {
 	// Create temp directory for worktree
 	worktreeDir, err := os.MkdirTemp("", "ars-c7-*")
 	if err != nil {

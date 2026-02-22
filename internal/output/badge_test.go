@@ -68,7 +68,7 @@ func TestGenerateBadge(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			badge := GenerateBadge(tt.scored)
+			badge := generateBadge(tt.scored)
 
 			if tt.scored == nil {
 				if badge.URL != "" || badge.Markdown != "" {

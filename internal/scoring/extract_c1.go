@@ -7,82 +7,52 @@ import (
 	"github.com/ingo-eichhorst/agent-readyness/pkg/types"
 )
 
+
 // extractC1 extracts C1 (Code Health) metrics from an AnalysisResult and collects evidence.
 func extractC1(ar *types.AnalysisResult) (map[string]float64, map[string]bool, map[string][]types.EvidenceItem) {
-	raw, ok := ar.Metrics["c1"]
-	if !ok {
-		return nil, nil, nil
-	}
-	m, ok := raw.(*types.C1Metrics)
-	if !ok {
-		return nil, nil, nil
-	}
+	return extractMetrics[types.C1Metrics, *types.C1Metrics](ar, "c1", func(m *types.C1Metrics) (map[string]float64, map[string][]types.EvidenceItem, []string) {
+		evidence := make(map[string][]types.EvidenceItem)
+		c1ComplexityEvidence(m, evidence)
+		c1FuncLengthEvidence(m, evidence)
+		c1FileSizeEvidence(m, evidence)
+		c1CouplingEvidence(m, evidence)
+		c1DuplicationEvidence(m, evidence)
 
-	evidence := make(map[string][]types.EvidenceItem)
-	c1ComplexityEvidence(m, evidence)
-	c1FuncLengthEvidence(m, evidence)
-	c1FileSizeEvidence(m, evidence)
-	c1CouplingEvidence(m, evidence)
-	c1DuplicationEvidence(m, evidence)
-
-	for _, key := range []string{"complexity_avg", "func_length_avg", "file_size_avg", "afferent_coupling_avg", "efferent_coupling_avg", "duplication_rate"} {
-		if evidence[key] == nil {
-			evidence[key] = []types.EvidenceItem{}
-		}
-	}
-
-	return map[string]float64{
-		"complexity_avg":        m.CyclomaticComplexity.Avg,
-		"func_length_avg":      m.FunctionLength.Avg,
-		"file_size_avg":        m.FileSize.Avg,
-		"afferent_coupling_avg": avgMapValues(m.AfferentCoupling),
-		"efferent_coupling_avg": avgMapValues(m.EfferentCoupling),
-		"duplication_rate":      m.DuplicationRate,
-	}, nil, evidence
+		return map[string]float64{
+			"complexity_avg":        m.CyclomaticComplexity.Avg,
+			"func_length_avg":       m.FunctionLength.Avg,
+			"file_size_avg":         m.FileSize.Avg,
+			"afferent_coupling_avg": avgMapValues(m.AfferentCoupling),
+			"efferent_coupling_avg": avgMapValues(m.EfferentCoupling),
+			"duplication_rate":      m.DuplicationRate,
+		}, evidence, []string{"complexity_avg", "func_length_avg", "file_size_avg", "afferent_coupling_avg", "efferent_coupling_avg", "duplication_rate"}
+	})
 }
 
 func c1ComplexityEvidence(m *types.C1Metrics, evidence map[string][]types.EvidenceItem) {
-	if len(m.Functions) == 0 {
-		return
-	}
-	sorted := make([]types.FunctionMetric, len(m.Functions))
-	copy(sorted, m.Functions)
-	sort.Slice(sorted, func(i, j int) bool {
-		return sorted[i].Complexity > sorted[j].Complexity
-	})
-	limit := min(evidenceTopN, len(sorted))
-	items := make([]types.EvidenceItem, limit)
-	for i := 0; i < limit; i++ {
-		items[i] = types.EvidenceItem{
-			FilePath:    sorted[i].File,
-			Line:        sorted[i].Line,
-			Value:       float64(sorted[i].Complexity),
-			Description: fmt.Sprintf("%s has complexity %d", sorted[i].Name, sorted[i].Complexity),
-		}
-	}
-	evidence["complexity_avg"] = items
+	evidence["complexity_avg"] = buildTopNEvidence(
+		m.Functions,
+		func(a, b types.FunctionMetric) bool { return a.Complexity > b.Complexity },
+		func(f types.FunctionMetric) float64 { return float64(f.Complexity) },
+		func(f types.FunctionMetric) string { return f.File },
+		func(f types.FunctionMetric) int { return f.Line },
+		func(f types.FunctionMetric) string {
+			return fmt.Sprintf("%s has complexity %d", f.Name, f.Complexity)
+		},
+	)
 }
 
 func c1FuncLengthEvidence(m *types.C1Metrics, evidence map[string][]types.EvidenceItem) {
-	if len(m.Functions) == 0 {
-		return
-	}
-	sorted := make([]types.FunctionMetric, len(m.Functions))
-	copy(sorted, m.Functions)
-	sort.Slice(sorted, func(i, j int) bool {
-		return sorted[i].LineCount > sorted[j].LineCount
-	})
-	limit := min(evidenceTopN, len(sorted))
-	items := make([]types.EvidenceItem, limit)
-	for i := 0; i < limit; i++ {
-		items[i] = types.EvidenceItem{
-			FilePath:    sorted[i].File,
-			Line:        sorted[i].Line,
-			Value:       float64(sorted[i].LineCount),
-			Description: fmt.Sprintf("%s is %d lines", sorted[i].Name, sorted[i].LineCount),
-		}
-	}
-	evidence["func_length_avg"] = items
+	evidence["func_length_avg"] = buildTopNEvidence(
+		m.Functions,
+		func(a, b types.FunctionMetric) bool { return a.LineCount > b.LineCount },
+		func(f types.FunctionMetric) float64 { return float64(f.LineCount) },
+		func(f types.FunctionMetric) string { return f.File },
+		func(f types.FunctionMetric) int { return f.Line },
+		func(f types.FunctionMetric) string {
+			return fmt.Sprintf("%s is %d lines", f.Name, f.LineCount)
+		},
+	)
 }
 
 func c1FileSizeEvidence(m *types.C1Metrics, evidence map[string][]types.EvidenceItem) {
@@ -131,23 +101,14 @@ func collectCouplingEvidence(coupling map[string]int, descFmt, key string, evide
 }
 
 func c1DuplicationEvidence(m *types.C1Metrics, evidence map[string][]types.EvidenceItem) {
-	if len(m.DuplicatedBlocks) == 0 {
-		return
-	}
-	sorted := make([]types.DuplicateBlock, len(m.DuplicatedBlocks))
-	copy(sorted, m.DuplicatedBlocks)
-	sort.Slice(sorted, func(i, j int) bool {
-		return sorted[i].LineCount > sorted[j].LineCount
-	})
-	limit := min(evidenceTopN, len(sorted))
-	items := make([]types.EvidenceItem, limit)
-	for i := 0; i < limit; i++ {
-		items[i] = types.EvidenceItem{
-			FilePath:    sorted[i].FileA,
-			Line:        sorted[i].StartA,
-			Value:       float64(sorted[i].LineCount),
-			Description: fmt.Sprintf("%d-line duplicate block", sorted[i].LineCount),
-		}
-	}
-	evidence["duplication_rate"] = items
+	evidence["duplication_rate"] = buildTopNEvidence(
+		m.DuplicatedBlocks,
+		func(a, b types.DuplicateBlock) bool { return a.LineCount > b.LineCount },
+		func(d types.DuplicateBlock) float64 { return float64(d.LineCount) },
+		func(d types.DuplicateBlock) string { return d.FileA },
+		func(d types.DuplicateBlock) int { return d.StartA },
+		func(d types.DuplicateBlock) string {
+			return fmt.Sprintf("%d-line duplicate block", d.LineCount)
+		},
+	)
 }

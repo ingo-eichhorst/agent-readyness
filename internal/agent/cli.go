@@ -37,9 +37,9 @@ var (
 // cliVersionTimeout is the maximum time to wait for the Claude CLI version check.
 const cliVersionTimeout = 5 * time.Second
 
-// DetectCLI checks if the Claude CLI is installed and returns its status.
+// detectCLI checks if the Claude CLI is installed and returns its status.
 // This is a convenience wrapper around detectCLIWithContext using a 5-second timeout.
-func DetectCLI() CLIStatus {
+func detectCLI() CLIStatus {
 	ctx, cancel := context.WithTimeout(context.Background(), cliVersionTimeout)
 	defer cancel()
 	return detectCLIWithContext(ctx)
@@ -92,7 +92,7 @@ func detectCLIWithContext(ctx context.Context) CLIStatus {
 // This is efficient for repeated checks within a single process.
 func GetCLIStatus() CLIStatus {
 	cliStatusOnce.Do(func() {
-		cachedCLIStatus = DetectCLI()
+		cachedCLIStatus = detectCLI()
 	})
 	return cachedCLIStatus
 }

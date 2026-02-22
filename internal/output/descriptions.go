@@ -10,6 +10,29 @@ const (
 	strictExpandThreshold  = 7.0
 )
 
+// Repeated citation spans used across multiple metric descriptions.
+const (
+	citeBorg2026      = `<span class="citation">(Borg et al., 2026)</span>`
+	citeParnas1972    = `<span class="citation">(Parnas, 1972)</span>`
+	citeFowler1999    = `<span class="citation">(Fowler et al., 1999)</span>`
+	citeTornhill2015  = `<span class="citation">(Tornhill, 2015)</span>`
+	citeMartin2003    = `<span class="citation">(Martin, 2003)</span>`
+	citeBeck2002      = `<span class="citation">(Beck, 2002)</span>`
+	citePierce2002    = `<span class="citation">(Pierce, 2002)</span>`
+	citeGao2017       = `<span class="citation">(Gao et al., 2017)</span>`
+	citeButler2009    = `<span class="citation">(Butler et al., 2009)</span>`
+	citeGamma1994     = `<span class="citation">(Gamma et al., 1994)</span>`
+	citeMeszaros2007  = `<span class="citation">(Meszaros, 2007)</span>`
+	citeKim2007       = `<span class="citation">(Kim et al., 2007)</span>`
+	citeGraves2000    = `<span class="citation">(Graves et al., 2000)</span>`
+	citeNagappan2005  = `<span class="citation">(Nagappan & Ball, 2005)</span>`
+	citeJimenez2024   = `<span class="citation">(Jimenez et al., 2024)</span>`
+	citePrana2019     = `<span class="citation">(Prana et al., 2019)</span>`
+	citeRobillard2011 = `<span class="citation">(Robillard, 2011)</span>`
+	citeUddin2015     = `<span class="citation">(Uddin & Robillard, 2015)</span>`
+	citeWen2019       = `<span class="citation">(Wen et al., 2019)</span>`
+)
+
 // metricDescription contains brief and detailed descriptions for a metric.
 type metricDescription struct {
 	Brief     string        // 1-2 sentences, always visible when expanded
@@ -73,8 +96,8 @@ var metricDescriptions = map[string]metricDescription{
 <p>Agents process code within context windows with limited capacity. Long functions consume more context, leaving less room for related code, documentation, and reasoning. Shorter functions allow agents to see complete units of behavior, understand purpose quickly, and make targeted modifications.</p>
 
 <h4>Research Evidence</h4>
-<p>Fowler identified "Long Method" as a primary code smell, recommending functions be short enough to understand at a glance <span class="citation">(Fowler et al., 1999)</span>. Empirical research on Java methods found that functions under 24 SLOC have significantly lower maintenance burden and defect rates <span class="citation">(Chowdhury et al., 2022)</span>.</p>
-<p>Recent studies on AI agents confirm that function length directly impacts agent performance. Agents working with unhealthy code (including long functions) experience 36-44% higher break rates depending on model capability <span class="citation">(Borg et al., 2026)</span>.</p>
+<p>Fowler identified "Long Method" as a primary code smell, recommending functions be short enough to understand at a glance ` + citeFowler1999 + `. Empirical research on Java methods found that functions under 24 SLOC have significantly lower maintenance burden and defect rates <span class="citation">(Chowdhury et al., 2022)</span>.</p>
+<p>Recent studies on AI agents confirm that function length directly impacts agent performance. Agents working with unhealthy code (including long functions) experience 36-44% higher break rates depending on model capability ` + citeBorg2026 + `.</p>
 
 <h4>Recommended Thresholds</h4>
 <ul>
@@ -103,8 +126,8 @@ var metricDescriptions = map[string]metricDescription{
 <p>Large files often indicate poor separation of concerns, making it harder for agents to locate relevant code and understand module boundaries. When agents need to modify code in large files, they risk unintended side effects due to hidden dependencies between distant sections.</p>
 
 <h4>Research Evidence</h4>
-<p>Parnas's foundational work on information hiding established that well-decomposed modules with clear boundaries are essential for maintainability <span class="citation">(Parnas, 1972)</span>. Design patterns literature reinforces this principle, emphasizing cohesion: code that changes together should live together, but in manageable units <span class="citation">(Gamma et al., 1994)</span>.</p>
-<p>AI agent research confirms these principles apply to automated code modification. Agents experience significantly higher break rates (36-44%) when working with large, poorly-structured files compared to well-decomposed codebases <span class="citation">(Borg et al., 2026)</span>.</p>
+<p>Parnas's foundational work on information hiding established that well-decomposed modules with clear boundaries are essential for maintainability ` + citeParnas1972 + `. Design patterns literature reinforces this principle, emphasizing cohesion: code that changes together should live together, but in manageable units ` + citeGamma1994 + `.</p>
+<p>AI agent research confirms these principles apply to automated code modification. Agents experience significantly higher break rates (36-44%) when working with large, poorly-structured files compared to well-decomposed codebases ` + citeBorg2026 + `.</p>
 
 <h4>Recommended Thresholds</h4>
 <ul>
@@ -133,8 +156,8 @@ var metricDescriptions = map[string]metricDescription{
 <p>When agents modify highly-coupled modules, changes ripple to all dependents. Agents must understand and account for all usages, which may exceed context window capacity. Lower coupling allows agents to make confident, isolated changes.</p>
 
 <h4>Research Evidence</h4>
-<p>Parnas established that information hiding and module interfaces are fundamental to maintainability; modules with many incoming dependencies become change-resistant <span class="citation">(Parnas, 1972)</span>. Martin formalized the afferent coupling metric (Ca) as part of the Stable Dependencies Principle: modules with high Ca should be stable since changes affect many dependents <span class="citation">(Martin, 2003)</span>.</p>
-<p>Empirical research on AI agents shows that highly-coupled code significantly increases agent break rates. Claude experiences 36% more failures and Qwen 44% more failures when working with unhealthy (highly-coupled) code <span class="citation">(Borg et al., 2026)</span>.</p>
+<p>Parnas established that information hiding and module interfaces are fundamental to maintainability; modules with many incoming dependencies become change-resistant ` + citeParnas1972 + `. Martin formalized the afferent coupling metric (Ca) as part of the Stable Dependencies Principle: modules with high Ca should be stable since changes affect many dependents ` + citeMartin2003 + `.</p>
+<p>Empirical research on AI agents shows that highly-coupled code significantly increases agent break rates. Claude experiences 36% more failures and Qwen 44% more failures when working with unhealthy (highly-coupled) code ` + citeBorg2026 + `.</p>
 
 <h4>Recommended Thresholds</h4>
 <ul>
@@ -163,8 +186,8 @@ var metricDescriptions = map[string]metricDescription{
 <p>Modules with high efferent coupling require agents to understand many dependencies before making changes. This increases cognitive load and the risk of missing interactions. Agents work best with self-contained modules having minimal external dependencies.</p>
 
 <h4>Research Evidence</h4>
-<p>Martin's Stable Dependencies Principle states that modules should depend only on modules more stable than themselves; high efferent coupling (Ce) indicates a module is vulnerable to ripple effects from its many dependencies <span class="citation">(Martin, 2003)</span>. This principle builds on foundational work showing that explicit, minimal interfaces are essential for maintainability <span class="citation">(Parnas, 1972)</span>.</p>
-<p>AI agent studies confirm these principles: agents working with highly-coupled code experience 36-44% higher break rates, as understanding dependency chains exceeds context window capacity <span class="citation">(Borg et al., 2026)</span>.</p>
+<p>Martin's Stable Dependencies Principle states that modules should depend only on modules more stable than themselves; high efferent coupling (Ce) indicates a module is vulnerable to ripple effects from its many dependencies ` + citeMartin2003 + `. This principle builds on foundational work showing that explicit, minimal interfaces are essential for maintainability ` + citeParnas1972 + `.</p>
+<p>AI agent studies confirm these principles: agents working with highly-coupled code experience 36-44% higher break rates, as understanding dependency chains exceeds context window capacity ` + citeBorg2026 + `.</p>
 
 <h4>Recommended Thresholds</h4>
 <ul>
@@ -193,8 +216,8 @@ var metricDescriptions = map[string]metricDescription{
 <p>When agents identify a bug or make an improvement, duplicated code requires the same change in multiple locations. Agents may miss some instances, leading to inconsistent behavior. Additionally, duplicates consume context window space without adding new information.</p>
 
 <h4>Research Evidence</h4>
-<p>Fowler identified "Duplicated Code" as a fundamental code smell, noting that identical or similar code sequences indicate missing abstractions and create maintenance burden <span class="citation">(Fowler et al., 1999)</span>. The DRY (Don't Repeat Yourself) principle follows directly: every piece of knowledge should have a single, unambiguous representation.</p>
-<p>AI agent research confirms that duplication significantly impacts automated code modification. When agents must propagate changes across duplicated code, break rates increase substantially—studies show 36-44% higher failure rates on unhealthy codebases <span class="citation">(Borg et al., 2026)</span>.</p>
+<p>Fowler identified "Duplicated Code" as a fundamental code smell, noting that identical or similar code sequences indicate missing abstractions and create maintenance burden ` + citeFowler1999 + `. The DRY (Don't Repeat Yourself) principle follows directly: every piece of knowledge should have a single, unambiguous representation.</p>
+<p>AI agent research confirms that duplication significantly impacts automated code modification. When agents must propagate changes across duplicated code, break rates increase substantially—studies show 36-44% higher failure rates on unhealthy codebases ` + citeBorg2026 + `.</p>
 
 <h4>Recommended Thresholds</h4>
 <ul>
@@ -226,8 +249,8 @@ var metricDescriptions = map[string]metricDescription{
 <p>Type annotations serve as machine-readable documentation of programmer intent. Agents use types to understand what data flows through the system, validate their changes are type-safe, and navigate codebases efficiently. Without types, agents must infer intent from usage patterns, which is error-prone.</p>
 
 <h4>Research Evidence</h4>
-<p>Pierce's foundational work established that type systems ensure "well-typed programs do not go wrong"—they prevent entire categories of runtime errors <span class="citation">(Pierce, 2002)</span>. Empirical studies confirm these theoretical benefits: TypeScript and Flow detect approximately 15% of bugs that would otherwise reach production <span class="citation">(Gao et al., 2017)</span>.</p>
-<p>Industry adoption validates these findings. A 2024 Meta survey found that 88% of Python developers consistently use type hints, with 49.8% citing bug prevention as a primary benefit <span class="citation">(Meta, 2024)</span>. For AI agents, type annotations are especially valuable: type-constrained decoding reduces LLM compilation errors by 52% in code generation tasks. Code health metrics including type coverage predict AI agent reliability <span class="citation">(Borg et al., 2026)</span>.</p>
+<p>Pierce's foundational work established that type systems ensure "well-typed programs do not go wrong"—they prevent entire categories of runtime errors ` + citePierce2002 + `. Empirical studies confirm these theoretical benefits: TypeScript and Flow detect approximately 15% of bugs that would otherwise reach production ` + citeGao2017 + `.</p>
+<p>Industry adoption validates these findings. A 2024 Meta survey found that 88% of Python developers consistently use type hints, with 49.8% citing bug prevention as a primary benefit <span class="citation">(Meta, 2024)</span>. For AI agents, type annotations are especially valuable: type-constrained decoding reduces LLM compilation errors by 52% in code generation tasks. Code health metrics including type coverage predict AI agent reliability ` + citeBorg2026 + `.</p>
 
 <h4>Recommended Thresholds</h4>
 <ul>
@@ -256,8 +279,8 @@ var metricDescriptions = map[string]metricDescription{
 <p>Agents learn patterns from training data that follow common conventions. Inconsistent naming breaks these patterns, causing agents to generate code that clashes with local style. Consistent naming also helps agents infer purpose from names and maintain coherent code generation.</p>
 
 <h4>Research Evidence</h4>
-<p>Butler et al. conducted empirical studies correlating identifier naming quality with code quality. Their initial work found that flawed identifiers (poor grammar, single letters, abbreviations) correlate with lower-quality code as measured by static analysis tools <span class="citation">(Butler et al., 2009)</span>. A follow-up study extended these findings to method identifiers, confirming that consistent, descriptive naming associates with higher code quality <span class="citation">(Butler et al., 2010)</span>.</p>
-<p>Note: These studies focused on Java codebases; the naming conventions differ across languages, but the principle that naming quality correlates with code quality appears language-agnostic. Well-structured code with clear naming improves AI agent comprehension and reliability <span class="citation">(Borg et al., 2026)</span>.</p>
+<p>Butler et al. conducted empirical studies correlating identifier naming quality with code quality. Their initial work found that flawed identifiers (poor grammar, single letters, abbreviations) correlate with lower-quality code as measured by static analysis tools ` + citeButler2009 + `. A follow-up study extended these findings to method identifiers, confirming that consistent, descriptive naming associates with higher code quality <span class="citation">(Butler et al., 2010)</span>.</p>
+<p>Note: These studies focused on Java codebases; the naming conventions differ across languages, but the principle that naming quality correlates with code quality appears language-agnostic. Well-structured code with clear naming improves AI agent comprehension and reliability ` + citeBorg2026 + `.</p>
 
 <h4>Recommended Thresholds</h4>
 <ul>
@@ -286,8 +309,8 @@ var metricDescriptions = map[string]metricDescription{
 <p>When agents encounter magic numbers, they cannot determine the value's purpose or whether it can be safely changed. Named constants like MAX_RETRIES = 3 communicate intent; the literal 3 does not. Agents may incorrectly reuse or modify magic numbers without understanding their significance.</p>
 
 <h4>Research Evidence</h4>
-<p>Fowler identified "Magic Number" as a canonical code smell, recommending replacement with named constants that communicate intent <span class="citation">(Fowler et al., 1999)</span>. From a type-theoretic perspective, named constants with appropriate types help prevent category errors—using a timeout value where a retry count is expected <span class="citation">(Pierce, 2002)</span>.</p>
-<p>Semantic clarity, including meaningful constant names, aids AI agent reasoning. Agents working with well-structured code experience significantly lower break rates <span class="citation">(Borg et al., 2026)</span>.</p>
+<p>Fowler identified "Magic Number" as a canonical code smell, recommending replacement with named constants that communicate intent ` + citeFowler1999 + `. From a type-theoretic perspective, named constants with appropriate types help prevent category errors—using a timeout value where a retry count is expected ` + citePierce2002 + `.</p>
+<p>Semantic clarity, including meaningful constant names, aids AI agent reasoning. Agents working with well-structured code experience significantly lower break rates ` + citeBorg2026 + `.</p>
 
 <h4>Recommended Thresholds</h4>
 <ul>
@@ -317,7 +340,7 @@ var metricDescriptions = map[string]metricDescription{
 
 <h4>Research Evidence</h4>
 <p>Cardelli's foundational work defines type safety as ruling out "untrapped errors"—runtime failures that can corrupt program state without immediate detection <span class="citation">(Cardelli, 1996)</span>. Wright and Felleisen formalized this through the progress and preservation theorems: well-typed programs either evaluate to a value or continue evaluating (progress), and evaluation preserves types (preservation) <span class="citation">(Wright & Felleisen, 1994)</span>.</p>
-<p>Empirical validation confirms these theoretical benefits. Gao et al. found that TypeScript and Flow detect 15% of bugs that would escape untyped JavaScript—this detection requires strict mode to achieve full coverage <span class="citation">(Gao et al., 2017)</span>. For AI agents, type constraints provide immediate feedback on generated code correctness, reducing LLM compilation errors by 52% in code generation tasks.</p>
+<p>Empirical validation confirms these theoretical benefits. Gao et al. found that TypeScript and Flow detect 15% of bugs that would escape untyped JavaScript—this detection requires strict mode to achieve full coverage ` + citeGao2017 + `. For AI agents, type constraints provide immediate feedback on generated code correctness, reducing LLM compilation errors by 52% in code generation tasks.</p>
 
 <h4>Recommended Thresholds</h4>
 <ul>
@@ -345,7 +368,7 @@ var metricDescriptions = map[string]metricDescription{
 
 <h4>Research Evidence</h4>
 <p>Tony Hoare, inventor of the null reference, called it his "billion-dollar mistake" in a 2009 presentation <span class="citation">(Hoare, 2009)</span>. Note: This is a practitioner acknowledgment, not peer-reviewed research, but it carries weight as a reflection from the language designer who introduced the concept.</p>
-<p>Type theory provides the formal solution: Optional/Maybe types make nullability explicit in the type system, ensuring that potentially-absent values must be handled before use <span class="citation">(Pierce, 2002)</span>. Empirical research confirms that type annotations, including null-related annotations, help catch bugs that would otherwise reach production <span class="citation">(Gao et al., 2017)</span>. Languages like Kotlin demonstrate industry validation—language-level null safety largely eliminates the NullPointerException class of bugs.</p>
+<p>Type theory provides the formal solution: Optional/Maybe types make nullability explicit in the type system, ensuring that potentially-absent values must be handled before use ` + citePierce2002 + `. Empirical research confirms that type annotations, including null-related annotations, help catch bugs that would otherwise reach production ` + citeGao2017 + `. Languages like Kotlin demonstrate industry validation—language-level null safety largely eliminates the NullPointerException class of bugs.</p>
 
 <h4>Recommended Thresholds</h4>
 <ul>
@@ -377,9 +400,9 @@ var metricDescriptions = map[string]metricDescription{
 <p>Deep directory hierarchies make it harder for agents to locate related code and understand project organization. Long import paths consume context space and are prone to errors. Shallower structures provide clearer boundaries and easier navigation.</p>
 
 <h4>Research Evidence</h4>
-<p>Parnas's foundational work on module decomposition established that well-structured systems with clear boundaries are fundamentally easier to understand and maintain <span class="citation">(Parnas, 1972)</span>. The principle of information hiding means each module should encapsulate design decisions, with directory structure reflecting logical module boundaries.</p>
+<p>Parnas's foundational work on module decomposition established that well-structured systems with clear boundaries are fundamentally easier to understand and maintain ` + citeParnas1972 + `. The principle of information hiding means each module should encapsulate design decisions, with directory structure reflecting logical module boundaries.</p>
 <p>Empirical studies using design structure matrices confirm that modular architectures with clear boundaries have measurable quality benefits. MacCormack et al. analyzed open-source and proprietary systems, finding that well-decomposed architectures enable independent component evolution <span class="citation">(MacCormack et al., 2006)</span>.</p>
-<p>For AI agents, structural clarity is essential: agents working with well-organized code experience significantly lower break rates. Code health metrics including organizational structure predict agent reliability <span class="citation">(Borg et al., 2026)</span>.</p>
+<p>For AI agents, structural clarity is essential: agents working with well-organized code experience significantly lower break rates. Code health metrics including organizational structure predict agent reliability ` + citeBorg2026 + `.</p>
 
 <h4>Recommended Thresholds</h4>
 <ul>
@@ -410,8 +433,8 @@ var metricDescriptions = map[string]metricDescription{
 <h4>Research Evidence</h4>
 <p>Stevens, Myers, and Constantine's foundational work on structured design established that coupling and cohesion are primary determinants of software quality <span class="citation">(Stevens et al., 1974)</span>. Low coupling between modules—measured by import count—improves maintainability and reduces change propagation.</p>
 <p>Chidamber and Kemerer formalized this with the Coupling Between Objects (CBO) metric, demonstrating that excessive coupling is detrimental to modular design, prevents reuse, and increases testing complexity <span class="citation">(Chidamber & Kemerer, 1994)</span>.</p>
-<p>The Stable Dependencies Principle advises that modules should depend only on modules more stable than themselves <span class="citation">(Martin, 2003)</span>. Note: This is an influential practitioner perspective widely adopted in industry.</p>
-<p>For AI agents, highly-coupled code significantly increases break rates. Agents experience 36-44% higher failure rates when working with unhealthy (highly-coupled) code <span class="citation">(Borg et al., 2026)</span>.</p>
+<p>The Stable Dependencies Principle advises that modules should depend only on modules more stable than themselves ` + citeMartin2003 + `. Note: This is an influential practitioner perspective widely adopted in industry.</p>
+<p>For AI agents, highly-coupled code significantly increases break rates. Agents experience 36-44% higher failure rates when working with unhealthy (highly-coupled) code ` + citeBorg2026 + `.</p>
 
 <h4>Recommended Thresholds</h4>
 <ul>
@@ -440,11 +463,11 @@ var metricDescriptions = map[string]metricDescription{
 <p>Circular dependencies mean agents cannot understand one module without understanding all modules in the cycle. This creates reasoning complexity that scales with cycle size. Breaking cycles allows agents to analyze and modify modules independently.</p>
 
 <h4>Research Evidence</h4>
-<p>Parnas established that modular systems should have clear dependency direction—each module's design decisions should be hidden from others <span class="citation">(Parnas, 1972)</span>. Circular dependencies violate this principle by creating mutual knowledge requirements.</p>
-<p>The Acyclic Dependencies Principle states that the dependency graph of packages should have no cycles <span class="citation">(Martin, 2003)</span>. Note: This represents an influential practitioner perspective widely adopted in industry, though not derived from empirical research.</p>
+<p>Parnas established that modular systems should have clear dependency direction—each module's design decisions should be hidden from others ` + citeParnas1972 + `. Circular dependencies violate this principle by creating mutual knowledge requirements.</p>
+<p>The Acyclic Dependencies Principle states that the dependency graph of packages should have no cycles ` + citeMartin2003 + `. Note: This represents an influential practitioner perspective widely adopted in industry, though not derived from empirical research.</p>
 <p>Lakos demonstrated practical techniques for eliminating cyclic dependencies in large systems, showing that acyclic physical dependencies dramatically reduce link-time costs and improve testability <span class="citation">(Lakos, 1996)</span>.</p>
 <p>Empirical research on 31 open-source Java systems found that circular dependencies correlate with higher change frequency in affected classes <span class="citation">(Oyetoyan et al., 2015)</span>. This supports the principle that cycles create maintenance burden.</p>
-<p>For AI agents, architectural complexity directly impacts reliability: agents experience higher break rates when working with poorly-structured code <span class="citation">(Borg et al., 2026)</span>.</p>
+<p>For AI agents, architectural complexity directly impacts reliability: agents experience higher break rates when working with poorly-structured code ` + citeBorg2026 + `.</p>
 
 <h4>Recommended Thresholds</h4>
 <ul>
@@ -473,10 +496,10 @@ var metricDescriptions = map[string]metricDescription{
 <p>Complex import patterns obscure where code actually lives. Agents may struggle to locate the true source of an import, especially with re-exports and barrel files. Simpler imports create clearer dependency graphs that agents can navigate.</p>
 
 <h4>Research Evidence</h4>
-<p>Parnas established that clear module boundaries with explicit interfaces improve comprehension and enable independent development <span class="citation">(Parnas, 1972)</span>. Complex import patterns violate this principle by obscuring true dependencies.</p>
+<p>Parnas established that clear module boundaries with explicit interfaces improve comprehension and enable independent development ` + citeParnas1972 + `. Complex import patterns violate this principle by obscuring true dependencies.</p>
 <p>Sangal et al. developed the Design Structure Matrix (DSM) approach for managing complex software dependencies, demonstrating that simpler, well-organized dependency structures enable clearer architectural reasoning <span class="citation">(Sangal et al., 2005)</span>.</p>
 <p>Recent empirical work on the M-score metric found that dependency density correlates with project maintainability—projects with simpler, sparser dependency graphs are easier to maintain <span class="citation">(Pisch et al., 2024)</span>.</p>
-<p>For AI agents, structural complexity impacts comprehension: agents working with well-organized code experience significantly lower break rates <span class="citation">(Borg et al., 2026)</span>.</p>
+<p>For AI agents, structural complexity impacts comprehension: agents working with well-organized code experience significantly lower break rates ` + citeBorg2026 + `.</p>
 
 <h4>Recommended Thresholds</h4>
 <ul>
@@ -505,9 +528,9 @@ var metricDescriptions = map[string]metricDescription{
 <p>When agents explore a module's API, dead exports appear as valid options but lead to confusion when used. Agents may incorrectly incorporate unused functionality or spend context window space understanding code that serves no purpose.</p>
 
 <h4>Research Evidence</h4>
-<p>Fowler identified Dead Code as a canonical code smell, noting that unused code increases cognitive load and should be removed <span class="citation">(Fowler et al., 1999)</span>. Dead exports are a specific form of dead code that pollutes the public API surface.</p>
+<p>Fowler identified Dead Code as a canonical code smell, noting that unused code increases cognitive load and should be removed ` + citeFowler1999 + `. Dead exports are a specific form of dead code that pollutes the public API surface.</p>
 <p>Romano et al. conducted a multi-study investigation into dead code across multiple systems, finding that dead code harms comprehensibility and maintainability <span class="citation">(Romano et al., 2018)</span>. Note: This study covers dead code broadly; dead exports specifically have less direct research, but the comprehensibility impact applies equally.</p>
-<p>Clean, well-organized code improves AI agent reliability. Agents working with minimal cognitive noise—including clean API surfaces—experience lower break rates <span class="citation">(Borg et al., 2026)</span>.</p>
+<p>Clean, well-organized code improves AI agent reliability. Agents working with minimal cognitive noise—including clean API surfaces—experience lower break rates ` + citeBorg2026 + `.</p>
 
 <h4>Recommended Thresholds</h4>
 <ul>
@@ -539,8 +562,8 @@ var metricDescriptions = map[string]metricDescription{
 <p>The README is the first documentation agents read when given a task. A comprehensive README helps agents understand project purpose, architecture, conventions, and how to contribute. Without this context, agents make incorrect assumptions about project structure and practices.</p>
 
 <h4>Research Evidence</h4>
-<p>An empirical study of 4,226 GitHub README files identified eight content categories that well-documented projects include: what the project does, how to install/use it, contribution guidelines, and examples <span class="citation">(Prana et al., 2019)</span>. This research provides an empirical foundation for README completeness assessment.</p>
-<p>Research on the correlation between README files and project popularity found that README organization and update frequency positively associate with GitHub stars—projects with well-maintained READMEs attract more users and contributors <span class="citation">(Wang et al., 2023)</span>. For AI agents, documentation quality is a component of overall code health that predicts agent reliability <span class="citation">(Borg et al., 2026)</span>.</p>
+<p>An empirical study of 4,226 GitHub README files identified eight content categories that well-documented projects include: what the project does, how to install/use it, contribution guidelines, and examples ` + citePrana2019 + `. This research provides an empirical foundation for README completeness assessment.</p>
+<p>Research on the correlation between README files and project popularity found that README organization and update frequency positively associate with GitHub stars—projects with well-maintained READMEs attract more users and contributors <span class="citation">(Wang et al., 2023)</span>. For AI agents, documentation quality is a component of overall code health that predicts agent reliability ` + citeBorg2026 + `.</p>
 
 <h4>Recommended Thresholds</h4>
 <ul>
@@ -570,8 +593,8 @@ var metricDescriptions = map[string]metricDescription{
 
 <h4>Research Evidence</h4>
 <p>Knuth's foundational work on literate programming established that programs should be written primarily for humans to read, with code secondary <span class="citation">(Knuth, 1984)</span>. This philosophy underlies the value of meaningful comments.</p>
-<p>A systematic literature review of comment quality research identified 21 distinct quality attributes, with consistency between comments and code being the predominant factor <span class="citation">(Rani et al., 2022)</span>. Code-comment inconsistencies are common: a large-scale study analyzing 1.3 billion AST changes identified 13 types of inconsistencies between comments and the code they describe <span class="citation">(Wen et al., 2019)</span>.</p>
-<p>For AI agents, code health metrics including documentation quality predict agent reliability <span class="citation">(Borg et al., 2026)</span>. Comments that explain "why" rather than "what" are especially valuable for agent comprehension.</p>
+<p>A systematic literature review of comment quality research identified 21 distinct quality attributes, with consistency between comments and code being the predominant factor <span class="citation">(Rani et al., 2022)</span>. Code-comment inconsistencies are common: a large-scale study analyzing 1.3 billion AST changes identified 13 types of inconsistencies between comments and the code they describe ` + citeWen2019 + `.</p>
+<p>For AI agents, code health metrics including documentation quality predict agent reliability ` + citeBorg2026 + `. Comments that explain "why" rather than "what" are especially valuable for agent comprehension.</p>
 
 <h4>Recommended Thresholds</h4>
 <ul>
@@ -600,9 +623,9 @@ var metricDescriptions = map[string]metricDescription{
 <p>API documentation is the contract between modules. Agents rely on doc comments to understand function purposes, parameter meanings, return values, and error conditions. Without API docs, agents must infer behavior from implementation, which is error-prone.</p>
 
 <h4>Research Evidence</h4>
-<p>A multi-phased study of over 440 Microsoft developers found that documentation-related obstacles are among the most severe faced when learning new APIs <span class="citation">(Robillard, 2011)</span>. The study identified five critical factors for API documentation design, including documentation of intent and provision of examples.</p>
-<p>Systematic analysis of 323 developers and 179 API documentation units revealed that the three most severe documentation problems are ambiguity, incompleteness, and incorrectness <span class="citation">(Uddin & Robillard, 2015)</span>. Six of the ten studied problems were mentioned as "blockers" that forced developers to abandon an API entirely.</p>
-<p>Industrial case studies confirm that documentation quality varies significantly by task type—implementation tasks require different documentation than maintenance tasks <span class="citation">(Garousi et al., 2013)</span>. For AI agents, code health metrics including API documentation predict agent reliability <span class="citation">(Borg et al., 2026)</span>.</p>
+<p>A multi-phased study of over 440 Microsoft developers found that documentation-related obstacles are among the most severe faced when learning new APIs ` + citeRobillard2011 + `. The study identified five critical factors for API documentation design, including documentation of intent and provision of examples.</p>
+<p>Systematic analysis of 323 developers and 179 API documentation units revealed that the three most severe documentation problems are ambiguity, incompleteness, and incorrectness ` + citeUddin2015 + `. Six of the ten studied problems were mentioned as "blockers" that forced developers to abandon an API entirely.</p>
+<p>Industrial case studies confirm that documentation quality varies significantly by task type—implementation tasks require different documentation than maintenance tasks <span class="citation">(Garousi et al., 2013)</span>. For AI agents, code health metrics including API documentation predict agent reliability ` + citeBorg2026 + `.</p>
 
 <h4>Recommended Thresholds</h4>
 <ul>
@@ -633,7 +656,7 @@ var metricDescriptions = map[string]metricDescription{
 <h4>Research Evidence</h4>
 <p>An empirical study of software release notes identified six types of content: new features, fixed bugs, changes, known issues, technical details, and other information <span class="citation">(Abebe et al., 2016)</span>. The study found that content varies between systems and even between versions of the same system, but structured release documentation serves a critical communication function.</p>
 <p>Note: Changelog-specific research is sparse; release notes studies provide the closest proxy for understanding version history documentation value.</p>
-<p>For AI agents, comprehensive project documentation including version history is a component of code health that predicts agent reliability <span class="citation">(Borg et al., 2026)</span>.</p>
+<p>For AI agents, comprehensive project documentation including version history is a component of code health that predicts agent reliability ` + citeBorg2026 + `.</p>
 
 <h4>Recommended Thresholds</h4>
 <ul>
@@ -660,9 +683,9 @@ var metricDescriptions = map[string]metricDescription{
 <p>Examples are the most effective way to communicate intended usage. Agents can pattern-match against examples to generate code that follows project conventions. Without examples, agents may use APIs in unintended ways.</p>
 
 <h4>Research Evidence</h4>
-<p>Research on API learning obstacles found that examples are a critical factor for API learning—developers rely heavily on examples for initial understanding and problem-solving <span class="citation">(Robillard, 2011)</span>.</p>
-<p>A study of REST API documentation effectiveness found that examples reduce developer mistakes, improve task success rate, and increase developer satisfaction <span class="citation">(Sohan et al., 2017)</span>. Examples serve as a critical design factor that helps developers understand how to correctly use APIs <span class="citation">(Uddin & Robillard, 2015)</span>.</p>
-<p>For AI agents, well-documented code including examples improves agent reliability and reduces errors in generated code <span class="citation">(Borg et al., 2026)</span>.</p>
+<p>Research on API learning obstacles found that examples are a critical factor for API learning—developers rely heavily on examples for initial understanding and problem-solving ` + citeRobillard2011 + `.</p>
+<p>A study of REST API documentation effectiveness found that examples reduce developer mistakes, improve task success rate, and increase developer satisfaction <span class="citation">(Sohan et al., 2017)</span>. Examples serve as a critical design factor that helps developers understand how to correctly use APIs ` + citeUddin2015 + `.</p>
+<p>For AI agents, well-documented code including examples improves agent reliability and reduces errors in generated code ` + citeBorg2026 + `.</p>
 
 <h4>Recommended Thresholds</h4>
 <ul>
@@ -689,9 +712,9 @@ var metricDescriptions = map[string]metricDescription{
 <p>Contributing guidelines tell agents how to make changes that will be accepted. This includes code style, testing requirements, commit message formats, and review processes. Agents following these guidelines produce higher-quality contributions.</p>
 
 <h4>Research Evidence</h4>
-<p>An empirical study of GitHub README files identified eight content categories found in well-documented projects, with contribution guidelines being one of these essential categories <span class="citation">(Prana et al., 2019)</span>. Projects that document how to contribute tend to receive higher-quality contributions.</p>
+<p>An empirical study of GitHub README files identified eight content categories found in well-documented projects, with contribution guidelines being one of these essential categories ` + citePrana2019 + `. Projects that document how to contribute tend to receive higher-quality contributions.</p>
 <p>Note: Dedicated contributing file research is emerging; current research covers contribution guidelines within README files. The principle applies equally to standalone CONTRIBUTING.md files.</p>
-<p>For AI agents, clear contribution guidelines are part of comprehensive documentation that predicts agent reliability <span class="citation">(Borg et al., 2026)</span>.</p>
+<p>For AI agents, clear contribution guidelines are part of comprehensive documentation that predicts agent reliability ` + citeBorg2026 + `.</p>
 
 <h4>Recommended Thresholds</h4>
 <ul>
@@ -718,9 +741,9 @@ var metricDescriptions = map[string]metricDescription{
 <p>Diagrams communicate system structure more effectively than text for certain relationships. While current agents primarily process text, diagram descriptions in alt-text or accompanying text help agents understand high-level architecture.</p>
 
 <h4>Research Evidence</h4>
-<p>The Design Patterns book established that visual notation—class diagrams, object diagrams, and interaction diagrams—aids comprehension of object-oriented designs and relationships <span class="citation">(Gamma et al., 1994)</span>. Diagrams make abstract patterns concrete and navigable.</p>
+<p>The Design Patterns book established that visual notation—class diagrams, object diagrams, and interaction diagrams—aids comprehension of object-oriented designs and relationships ` + citeGamma1994 + `. Diagrams make abstract patterns concrete and navigable.</p>
 <p>Note: Diagram effectiveness for AI agents is indirect since agents primarily process text. However, diagrams with descriptive alt-text and accompanying textual explanations contribute to overall documentation quality.</p>
-<p>For AI agents, comprehensive documentation including architectural visualization is a component of code health that predicts agent reliability <span class="citation">(Borg et al., 2026)</span>.</p>
+<p>For AI agents, comprehensive documentation including architectural visualization is a component of code health that predicts agent reliability ` + citeBorg2026 + `.</p>
 
 <h4>Recommended Thresholds</h4>
 <ul>
@@ -750,9 +773,9 @@ var metricDescriptions = map[string]metricDescription{
 <p>High-churn code is more likely to change again soon, increasing the risk that agent modifications will conflict with ongoing work. Stable code provides a reliable foundation for agent changes. Churn also correlates with defect density, meaning high-churn areas are riskier for automated modification.</p>
 
 <h4>Research Evidence</h4>
-<p>Foundational research established that process measures derived from change history are more predictive of faults than product metrics like code size <span class="citation">(Graves et al., 2000)</span>. Nagappan and Ball demonstrated that relative code churn measures (churn normalized by component size) predict system defect density with 89% accuracy on Windows Server 2003 <span class="citation">(Nagappan & Ball, 2005)</span>.</p>
-<p>Kim et al. extended this work, showing that change history patterns using a cache-based strategy effectively predict fault-prone files across seven software systems <span class="citation">(Kim et al., 2007)</span>. Tornhill synthesizes this research into practitioner guidance, identifying high-churn files as complexity hotspots requiring special attention <span class="citation">(Tornhill, 2015)</span>. Note: Tornhill is influential practitioner literature synthesizing academic research.</p>
-<p>While AI-era research has not specifically tested temporal metrics, code health broadly predicts agent reliability <span class="citation">(Borg et al., 2026)</span>. The connection is indirect but logical: temporal metrics predict defect-prone areas, which are harder for AI agents to modify successfully.</p>
+<p>Foundational research established that process measures derived from change history are more predictive of faults than product metrics like code size ` + citeGraves2000 + `. Nagappan and Ball demonstrated that relative code churn measures (churn normalized by component size) predict system defect density with 89% accuracy on Windows Server 2003 ` + citeNagappan2005 + `.</p>
+<p>Kim et al. extended this work, showing that change history patterns using a cache-based strategy effectively predict fault-prone files across seven software systems ` + citeKim2007 + `. Tornhill synthesizes this research into practitioner guidance, identifying high-churn files as complexity hotspots requiring special attention ` + citeTornhill2015 + `. Note: Tornhill is influential practitioner literature synthesizing academic research.</p>
+<p>While AI-era research has not specifically tested temporal metrics, code health broadly predicts agent reliability ` + citeBorg2026 + `. The connection is indirect but logical: temporal metrics predict defect-prone areas, which are harder for AI agents to modify successfully.</p>
 
 <h4>Recommended Thresholds</h4>
 <ul>
@@ -782,8 +805,8 @@ var metricDescriptions = map[string]metricDescription{
 
 <h4>Research Evidence</h4>
 <p>Gall et al. pioneered the detection of "logical coupling" from product release history, demonstrating that change patterns reveal architectural dependencies not apparent from static code analysis <span class="citation">(Gall et al., 1998)</span>. This foundational work established that modules changing together often indicate design issues or restructuring opportunities.</p>
-<p>D'Ambros et al. empirically validated that change coupling correlates with software defects across three large systems, and that incorporating change coupling information improves bug prediction models <span class="citation">(D'Ambros et al., 2009)</span>. Tornhill synthesizes this research into practitioner guidance, showing how temporal coupling analysis reveals hidden dependencies requiring attention <span class="citation">(Tornhill, 2015)</span>. Note: Tornhill represents influential practitioner literature.</p>
-<p>While AI-era research focuses on structural code health rather than temporal metrics specifically, the principle applies: hidden dependencies that surprise developers also surprise AI agents <span class="citation">(Borg et al., 2026)</span>.</p>
+<p>D'Ambros et al. empirically validated that change coupling correlates with software defects across three large systems, and that incorporating change coupling information improves bug prediction models <span class="citation">(D'Ambros et al., 2009)</span>. Tornhill synthesizes this research into practitioner guidance, showing how temporal coupling analysis reveals hidden dependencies requiring attention ` + citeTornhill2015 + `. Note: Tornhill represents influential practitioner literature.</p>
+<p>While AI-era research focuses on structural code health rather than temporal metrics specifically, the principle applies: hidden dependencies that surprise developers also surprise AI agents ` + citeBorg2026 + `.</p>
 
 <h4>Recommended Thresholds</h4>
 <ul>
@@ -813,8 +836,8 @@ var metricDescriptions = map[string]metricDescription{
 
 <h4>Research Evidence</h4>
 <p>Bird et al. conducted a definitive study on code ownership at Microsoft, finding that ownership measures relate to both pre-release and post-release faults <span class="citation">(Bird et al., 2011)</span>. Components with many low-expertise contributors had significantly higher defect rates than those with clear ownership. The study quantified that minor contributors (those with less than 5% of changes) increase defect risk.</p>
-<p>Kim et al.'s work on fault prediction from change history also incorporates developer contribution patterns, showing that author metrics contribute to prediction accuracy <span class="citation">(Kim et al., 2007)</span>. Tornhill synthesizes this research, identifying author fragmentation as an indicator of knowledge silos and potential quality issues <span class="citation">(Tornhill, 2015)</span>. Note: Tornhill represents influential practitioner literature.</p>
-<p>For AI agents, code with inconsistent patterns from multiple authors is harder to modify in a style-consistent way. Code health metrics broadly predict agent reliability <span class="citation">(Borg et al., 2026)</span>.</p>
+<p>Kim et al.'s work on fault prediction from change history also incorporates developer contribution patterns, showing that author metrics contribute to prediction accuracy ` + citeKim2007 + `. Tornhill synthesizes this research, identifying author fragmentation as an indicator of knowledge silos and potential quality issues ` + citeTornhill2015 + `. Note: Tornhill represents influential practitioner literature.</p>
+<p>For AI agents, code with inconsistent patterns from multiple authors is harder to modify in a style-consistent way. Code health metrics broadly predict agent reliability ` + citeBorg2026 + `.</p>
 
 <h4>Recommended Thresholds</h4>
 <ul>
@@ -844,7 +867,7 @@ var metricDescriptions = map[string]metricDescription{
 
 <h4>Research Evidence</h4>
 <p>Eick et al. defined and studied "code decay"—the phenomenon where code becomes increasingly difficult to change over time <span class="citation">(Eick et al., 2001)</span>. Their research identified change patterns as both symptoms and predictors of decay, establishing that high modification rates relative to additions indicate code under stress.</p>
-<p>Graves et al. demonstrated that modification patterns from change history predict future defects, with recently and frequently modified code being more fault-prone <span class="citation">(Graves et al., 2000)</span>. Tornhill extends this into practitioner guidance, using commit patterns as indicators of code maturity and stability <span class="citation">(Tornhill, 2015)</span>. Note: Tornhill represents influential practitioner literature.</p>
+<p>Graves et al. demonstrated that modification patterns from change history predict future defects, with recently and frequently modified code being more fault-prone ` + citeGraves2000 + `. Tornhill extends this into practitioner guidance, using commit patterns as indicators of code maturity and stability ` + citeTornhill2015 + `. Note: Tornhill represents influential practitioner literature.</p>
 <p>Note: Commit stability as a specific ratio metric has limited dedicated research. The thresholds represent practitioner consensus rather than empirically derived values. The underlying principle—that modification patterns indicate instability—has strong research support.</p>
 
 <h4>Recommended Thresholds</h4>
@@ -874,9 +897,9 @@ var metricDescriptions = map[string]metricDescription{
 <p>Hotspot files are high-risk modification targets. When agents must modify hotspots, the risk of conflicts and regressions is higher. Distributed changes across many files indicate healthier architecture with single-purpose modules.</p>
 
 <h4>Research Evidence</h4>
-<p>Nagappan and Ball's research on code churn showed that churn concentration—where changes cluster in specific components—identifies high-defect-density areas <span class="citation">(Nagappan & Ball, 2005)</span>. Components with concentrated changes had disproportionately higher defect rates.</p>
-<p>Hassan extended this work, demonstrating that the complexity of changes (measured by entropy across files) predicts faults <span class="citation">(Hassan, 2009)</span>. Hotspots with high change entropy are particularly fault-prone. Tornhill synthesizes this research into practitioner guidance, identifying hotspots as primary refactoring targets following the Pareto principle: 20% of files often account for 80% of bugs and changes <span class="citation">(Tornhill, 2015)</span>. Note: Tornhill represents influential practitioner literature; the 20/80 ratio is a common heuristic, not an empirically derived constant.</p>
-<p>For AI agents, hotspots represent high-risk modification targets. Code health metrics broadly predict agent reliability, with defect-prone areas being harder for agents to modify successfully <span class="citation">(Borg et al., 2026)</span>.</p>
+<p>Nagappan and Ball's research on code churn showed that churn concentration—where changes cluster in specific components—identifies high-defect-density areas ` + citeNagappan2005 + `. Components with concentrated changes had disproportionately higher defect rates.</p>
+<p>Hassan extended this work, demonstrating that the complexity of changes (measured by entropy across files) predicts faults <span class="citation">(Hassan, 2009)</span>. Hotspots with high change entropy are particularly fault-prone. Tornhill synthesizes this research into practitioner guidance, identifying hotspots as primary refactoring targets following the Pareto principle: 20% of files often account for 80% of bugs and changes ` + citeTornhill2015 + `. Note: Tornhill represents influential practitioner literature; the 20/80 ratio is a common heuristic, not an empirically derived constant.</p>
+<p>For AI agents, hotspots represent high-risk modification targets. Code health metrics broadly predict agent reliability, with defect-prone areas being harder for agents to modify successfully ` + citeBorg2026 + `.</p>
 
 <h4>Recommended Thresholds</h4>
 <ul>
@@ -908,8 +931,8 @@ var metricDescriptions = map[string]metricDescription{
 <p>Tests are the safety net that catches agent mistakes. With good test coverage, agents can make changes and immediately verify they haven't broken existing functionality. Without tests, agent changes may introduce silent regressions.</p>
 
 <h4>Research Evidence</h4>
-<p>Beck established the test-first methodology that makes systematic testing practical <span class="citation">(Beck, 2002)</span>. Industrial studies at Microsoft and IBM found that teams using TDD experienced 40-90% lower pre-release defect density, with the trade-off of 15-35% longer initial development time <span class="citation">(Nagappan et al., 2008)</span>.</p>
-<p>Recent research on AI agents shows that code health metrics predict agent reliability, making test infrastructure a critical factor for AI-assisted development <span class="citation">(Borg et al., 2026)</span>.</p>
+<p>Beck established the test-first methodology that makes systematic testing practical ` + citeBeck2002 + `. Industrial studies at Microsoft and IBM found that teams using TDD experienced 40-90% lower pre-release defect density, with the trade-off of 15-35% longer initial development time <span class="citation">(Nagappan et al., 2008)</span>.</p>
+<p>Recent research on AI agents shows that code health metrics predict agent reliability, making test infrastructure a critical factor for AI-assisted development ` + citeBorg2026 + `.</p>
 
 <h4>Recommended Thresholds</h4>
 <ul>
@@ -939,7 +962,7 @@ var metricDescriptions = map[string]metricDescription{
 
 <h4>Research Evidence</h4>
 <p>The relationship between coverage and defect detection is nuanced. Mockus et al. found that increases in coverage associate with fewer post-release field defects <span class="citation">(Mockus et al., 2009)</span>. However, Inozemtseva and Holmes demonstrated that when controlling for test suite size, coverage shows only "low to moderate correlation" with fault detection effectiveness <span class="citation">(Inozemtseva & Holmes, 2014)</span>.</p>
-<p>The practical interpretation: coverage is necessary but not sufficient. Low coverage reliably indicates undertested code, but high coverage alone does not guarantee effective testing. Assertion quality and test design matter alongside coverage metrics. Recent research confirms that comprehensive test infrastructure is critical for AI agent reliability <span class="citation">(Borg et al., 2026)</span>.</p>
+<p>The practical interpretation: coverage is necessary but not sufficient. Low coverage reliably indicates undertested code, but high coverage alone does not guarantee effective testing. Assertion quality and test design matter alongside coverage metrics. Recent research confirms that comprehensive test infrastructure is critical for AI agent reliability ` + citeBorg2026 + `.</p>
 
 <h4>Recommended Thresholds</h4>
 <ul>
@@ -968,8 +991,8 @@ var metricDescriptions = map[string]metricDescription{
 <p>Isolated tests run quickly and reliably, providing fast feedback for agent changes. Tests dependent on external services are flaky and slow, reducing agent iteration speed. Agents can more confidently modify code with reliable test suites.</p>
 
 <h4>Research Evidence</h4>
-<p>Meszaros established systematic patterns for test doubles (mocks, stubs, fakes) that isolate the System Under Test (SUT) from dependencies <span class="citation">(Meszaros, 2007)</span>. Beck emphasized that isolated tests run reliably, fast, and in any order—critical properties for rapid feedback <span class="citation">(Beck, 2002)</span>.</p>
-<p>Luo et al. analyzed 201 flaky tests and found that shared state and external dependencies are primary causes of test flakiness <span class="citation">(Luo et al., 2014)</span>. Flaky tests erode confidence: if developers ignore failures "because it's flaky," real bugs slip through. AI agent performance depends on reliable test feedback for iterative code modification <span class="citation">(Borg et al., 2026)</span>.</p>
+<p>Meszaros established systematic patterns for test doubles (mocks, stubs, fakes) that isolate the System Under Test (SUT) from dependencies ` + citeMeszaros2007 + `. Beck emphasized that isolated tests run reliably, fast, and in any order—critical properties for rapid feedback ` + citeBeck2002 + `.</p>
+<p>Luo et al. analyzed 201 flaky tests and found that shared state and external dependencies are primary causes of test flakiness <span class="citation">(Luo et al., 2014)</span>. Flaky tests erode confidence: if developers ignore failures "because it's flaky," real bugs slip through. AI agent performance depends on reliable test feedback for iterative code modification ` + citeBorg2026 + `.</p>
 
 <h4>Recommended Thresholds</h4>
 <ul>
@@ -999,7 +1022,7 @@ var metricDescriptions = map[string]metricDescription{
 
 <h4>Research Evidence</h4>
 <p>Kudrjavets et al. studied Windows components and found that assertion density in production code negatively correlates with fault density—components with more assertions had fewer bugs <span class="citation">(Kudrjavets et al., 2006)</span>. While this study focused on production assertions, the principle applies to test assertions: explicit verification catches errors that mere execution would miss.</p>
-<p>Beck emphasizes that tests should verify behavior, not just execute code paths <span class="citation">(Beck, 2002)</span>. A test that runs without assertions is not a test—it's documentation at best. AI agents benefit from assertion-dense tests because each assertion acts as a specification that must be preserved during code modification <span class="citation">(Borg et al., 2026)</span>.</p>
+<p>Beck emphasizes that tests should verify behavior, not just execute code paths ` + citeBeck2002 + `. A test that runs without assertions is not a test—it's documentation at best. AI agents benefit from assertion-dense tests because each assertion acts as a specification that must be preserved during code modification ` + citeBorg2026 + `.</p>
 
 <h4>Recommended Thresholds</h4>
 <ul>
@@ -1028,8 +1051,8 @@ var metricDescriptions = map[string]metricDescription{
 <p>Systematic test organization helps agents locate tests for code they're modifying. When each source file has a corresponding test file, agents can easily find and extend relevant tests. Random test organization makes test discovery difficult.</p>
 
 <h4>Research Evidence</h4>
-<p>Meszaros documents systematic test organization patterns that enhance maintainability and navigation <span class="citation">(Meszaros, 2007)</span>. Beck's TDD methodology naturally produces organized test structure by requiring tests before implementation <span class="citation">(Beck, 2002)</span>.</p>
-<p>Well-organized code structures significantly improve AI agent comprehension and reliability. Agents benefit from predictable file layouts where test files mirror source files, enabling automated test discovery and modification <span class="citation">(Borg et al., 2026)</span>.</p>
+<p>Meszaros documents systematic test organization patterns that enhance maintainability and navigation ` + citeMeszaros2007 + `. Beck's TDD methodology naturally produces organized test structure by requiring tests before implementation ` + citeBeck2002 + `.</p>
+<p>Well-organized code structures significantly improve AI agent comprehension and reliability. Agents benefit from predictable file layouts where test files mirror source files, enabling automated test discovery and modification ` + citeBorg2026 + `.</p>
 
 <h4>Recommended Thresholds</h4>
 <ul>
@@ -1061,7 +1084,7 @@ var metricDescriptions = map[string]metricDescription{
 <p>Production use requires predictable behavior. High variance means unreliable results in CI/CD pipelines and user-facing applications. Consistency is a prerequisite to other capabilities—an agent that occasionally succeeds but mostly fails cannot be trusted.</p>
 
 <h4>Research Evidence</h4>
-<p>SWE-bench evaluation methodology established that agent performance varies across runs, with the benchmark becoming the standard for evaluating LLM task completion on real-world GitHub issues <span class="citation">(Jimenez et al., 2024)</span>. A systematic analysis of agent benchmarking identified reproducibility as a critical gap: "many agent evaluations are rarely accompanied by error bars" <span class="citation">(Kapoor et al., 2024)</span>. The study found 13% typical variance in agent benchmark results.</p>
+<p>SWE-bench evaluation methodology established that agent performance varies across runs, with the benchmark becoming the standard for evaluating LLM task completion on real-world GitHub issues ` + citeJimenez2024 + `. A systematic analysis of agent benchmarking identified reproducibility as a critical gap: "many agent evaluations are rarely accompanied by error bars" <span class="citation">(Kapoor et al., 2024)</span>. The study found 13% typical variance in agent benchmark results.</p>
 <p><em>Note: The 5%/15%/30% variance thresholds are practitioner-derived heuristics based on the 13% benchmark observation, not empirically validated boundaries.</em></p>
 
 <h4>Recommended Thresholds</h4>
@@ -1123,7 +1146,7 @@ var metricDescriptions = map[string]metricDescription{
 
 <h4>Research Evidence</h4>
 <p>RepoGraph research demonstrates that repository-level code understanding substantially improves agent performance on software engineering tasks, achieving a 32.8% average relative improvement in resolve rate on SWE-bench-Lite <span class="citation">(Ouyang et al., 2025)</span>.</p>
-<p>SWE-bench evaluations show that successful issue resolution requires understanding context beyond the immediate file—agents must navigate to related files, understand interfaces, and coordinate changes <span class="citation">(Jimenez et al., 2024)</span>.</p>
+<p>SWE-bench evaluations show that successful issue resolution requires understanding context beyond the immediate file—agents must navigate to related files, understand interfaces, and coordinate changes ` + citeJimenez2024 + `.</p>
 <p><em>Note: Score boundaries are heuristic; empirical calibration is ongoing.</em></p>
 
 <h4>Recommended Thresholds</h4>
@@ -1153,8 +1176,8 @@ var metricDescriptions = map[string]metricDescription{
 <p>Identifiers are the primary semantic signal agents use to understand code purpose. Clear, consistent names help agents infer intent, predict behavior, and generate appropriate code. Cryptic abbreviations and inconsistent naming force agents to guess.</p>
 
 <h4>Research Evidence</h4>
-<p>Butler et al. conducted empirical studies correlating identifier naming quality with code quality in 8 Java projects. They found that flawed identifiers (poor grammar, single letters, abbreviations) correlate with lower-quality code as measured by static analysis tools <span class="citation">(Butler et al., 2009)</span>.</p>
-<p>Recent AI-era research confirms these principles extend to AI agents. Borg et al. found that code health metrics, including semantic clarity from naming, predict AI agent reliability—agents experience 36-44% higher break rates on unhealthy code <span class="citation">(Borg et al., 2026)</span>.</p>
+<p>Butler et al. conducted empirical studies correlating identifier naming quality with code quality in 8 Java projects. They found that flawed identifiers (poor grammar, single letters, abbreviations) correlate with lower-quality code as measured by static analysis tools ` + citeButler2009 + `.</p>
+<p>Recent AI-era research confirms these principles extend to AI agents. Borg et al. found that code health metrics, including semantic clarity from naming, predict AI agent reliability—agents experience 36-44% higher break rates on unhealthy code ` + citeBorg2026 + `.</p>
 <p><em>Note: The Butler et al. research was Java-specific; the principle that naming quality correlates with code quality appears language-agnostic, though specific conventions differ.</em></p>
 
 <h4>Recommended Thresholds</h4>
@@ -1184,9 +1207,9 @@ var metricDescriptions = map[string]metricDescription{
 <p>Outdated documentation misleads agents into generating incorrect code. Agents that can detect inconsistencies can flag potential issues and avoid propagating errors. This capability is essential for maintaining documentation quality in AI-assisted development.</p>
 
 <h4>Research Evidence</h4>
-<p>Wen et al. conducted a large-scale empirical study analyzing 1.3 billion AST changes, identifying a taxonomy of 13 code-comment inconsistency (CCI) types <span class="citation">(Wen et al., 2019)</span>. This foundational work established the scope and nature of documentation accuracy challenges.</p>
+<p>Wen et al. conducted a large-scale empirical study analyzing 1.3 billion AST changes, identifying a taxonomy of 13 code-comment inconsistency (CCI) types ` + citeWen2019 + `. This foundational work established the scope and nature of documentation accuracy challenges.</p>
 <p>Xu et al. developed state-of-the-art CCI detection achieving 82.6% F1-score on 1,518 open-source projects, demonstrating that automated detection is feasible <span class="citation">(Xu et al., 2024)</span>.</p>
-<p>Borg et al. confirmed that documentation quality impacts AI agent reliability, with agents experiencing higher break rates on code with inconsistent or misleading comments <span class="citation">(Borg et al., 2026)</span>.</p>
+<p>Borg et al. confirmed that documentation quality impacts AI agent reliability, with agents experiencing higher break rates on code with inconsistent or misleading comments ` + citeBorg2026 + `.</p>
 
 <h4>Recommended Thresholds</h4>
 <ul>

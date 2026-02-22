@@ -212,7 +212,7 @@ func TestComputeStats_Empty(t *testing.T) {
 }
 
 func TestComputeStats_TierCounts(t *testing.T) {
-	repos := []RepoData{
+	repos := []repoData{
 		{Lang: "go", Score: 8.5, Tier: "Agent-Ready"},
 		{Lang: "go", Score: 7.0, Tier: "Agent-Assisted"},
 		{Lang: "python", Score: 5.0, Tier: "Agent-Limited"},
@@ -237,7 +237,7 @@ func TestComputeStats_TierCounts(t *testing.T) {
 }
 
 func TestComputeStats_Averages(t *testing.T) {
-	repos := []RepoData{
+	repos := []repoData{
 		{Lang: "go", Score: 8.0, Tier: "Agent-Ready"},
 		{Lang: "go", Score: 6.0, Tier: "Agent-Assisted"},
 		{Lang: "python", Score: 7.0, Tier: "Agent-Assisted"},
@@ -256,7 +256,7 @@ func TestComputeStats_Averages(t *testing.T) {
 }
 
 func TestComputeStats_Range(t *testing.T) {
-	repos := []RepoData{
+	repos := []repoData{
 		{Lang: "go", Score: 6.0, Tier: "Agent-Assisted"},
 		{Lang: "go", Score: 9.0, Tier: "Agent-Ready"},
 	}
@@ -271,16 +271,16 @@ func TestComputeStats_Range(t *testing.T) {
 func TestRender_ValidOutput(t *testing.T) {
 	dir := t.TempDir()
 	outPath := filepath.Join(dir, "report.html")
-	data := TemplateData{
+	data := templateData{
 		GeneratedAt: "2026-01-01 00:00 UTC",
-		Repos: []RepoData{
+		Repos: []repoData{
 			{
 				Name: "cobra", Lang: "go", URL: "https://github.com/spf13/cobra",
 				Commit: "v1.9.1", Score: 7.97, Tier: "Agent-Assisted",
 				Cats: map[string]float64{"C1": 7.1, "C7": -1},
 			},
 		},
-		Stats: Stats{Total: 1, AgentAssisted: 1, AvgGo: 7.97, RangeGo: "7.97–7.97"},
+		Stats: stats{Total: 1, AgentAssisted: 1, AvgGo: 7.97, RangeGo: "7.97–7.97"},
 	}
 	if err := render(outPath, data); err != nil {
 		t.Fatalf("render error: %v", err)
@@ -302,7 +302,7 @@ func TestRender_ValidOutput(t *testing.T) {
 }
 
 func TestRender_WriteError(t *testing.T) {
-	err := render("/nonexistent/dir/report.html", TemplateData{})
+	err := render("/nonexistent/dir/report.html", templateData{})
 	if err == nil {
 		t.Fatal("expected error writing to invalid path")
 	}
@@ -314,7 +314,7 @@ func TestRender_TemplateParseError(t *testing.T) {
 	htmlTemplate = `{{invalid template`
 
 	dir := t.TempDir()
-	err := render(filepath.Join(dir, "report.html"), TemplateData{})
+	err := render(filepath.Join(dir, "report.html"), templateData{})
 	if err == nil {
 		t.Fatal("expected parse error for invalid template")
 	}

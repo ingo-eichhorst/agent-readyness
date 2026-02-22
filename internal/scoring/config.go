@@ -21,8 +21,8 @@ const (
 	ScoreMinimum   = 1.0
 )
 
-// PercentPerfect is the breakpoint value for 100% (perfect) percentage metrics.
-const PercentPerfect = 100
+// percentPerfect is the breakpoint value for 100% (perfect) percentage metrics.
+const percentPerfect = 100
 
 // Tier threshold constants for composite score classification.
 const (
@@ -357,7 +357,7 @@ func defaultC2Config() CategoryConfig {
 					{Value: TypeAnnotationWeak, Score: ScoreWeak},
 					{Value: TypeAnnotationAdequate, Score: ScoreAdequate},
 					{Value: TypeAnnotationGood, Score: ScoreGood},
-					{Value: PercentPerfect, Score: ScoreExcellent},
+					{Value: percentPerfect, Score: ScoreExcellent},
 				},
 			},
 			{
@@ -368,7 +368,7 @@ func defaultC2Config() CategoryConfig {
 					{Value: NamingWeak, Score: ScoreWeak},
 					{Value: NamingAdequate, Score: ScoreAdequate},
 					{Value: NamingGood, Score: ScoreGood},
-					{Value: PercentPerfect, Score: ScoreExcellent},
+					{Value: percentPerfect, Score: ScoreExcellent},
 				},
 			},
 			{
@@ -398,7 +398,7 @@ func defaultC2Config() CategoryConfig {
 					{Value: NullSafetyWeak, Score: ScoreWeak},
 					{Value: NullSafetyAdequate, Score: ScoreAdequate},
 					{Value: NullSafetyGood, Score: ScoreGood},
-					{Value: PercentPerfect, Score: ScoreExcellent},
+					{Value: percentPerfect, Score: ScoreExcellent},
 				},
 			},
 		},
@@ -504,7 +504,7 @@ func defaultC4Config() CategoryConfig {
 					{Value: APIDocWeak, Score: ScoreWeak},
 					{Value: APIDocAdequate, Score: ScoreAdequate},
 					{Value: APIDocGood, Score: ScoreGood},
-					{Value: PercentPerfect, Score: ScoreExcellent},
+					{Value: percentPerfect, Score: ScoreExcellent},
 				},
 			},
 			{

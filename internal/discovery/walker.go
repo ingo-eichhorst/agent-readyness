@@ -34,17 +34,17 @@ var langExtensions = map[string]types.Language{
 	".tsx": types.LangTypeScript,
 }
 
-// Walker discovers and classifies source files in a directory tree.
-type Walker struct{}
+// walker discovers and classifies source files in a directory tree.
+type walker struct{}
 
-// NewWalker creates a new Walker instance.
-func NewWalker() *Walker {
-	return &Walker{}
+// NewWalker creates a new walker instance.
+func NewWalker() *walker {
+	return &walker{}
 }
 
 // Discover walks rootDir recursively, discovers all source files (.go, .py, .ts, .tsx),
 // classifies them, and returns a ScanResult with file lists and counts.
-func (w *Walker) Discover(rootDir string) (*types.ScanResult, error) {
+func (w *walker) Discover(rootDir string) (*types.ScanResult, error) {
 	info, err := os.Stat(rootDir)
 	if err != nil {
 		return nil, fmt.Errorf("cannot access root directory: %w", err)
@@ -199,7 +199,7 @@ func (wc *walkContext) checkExclusions(file *types.DiscoveredFile, relPath strin
 func classifyByLanguage(name string, lang types.Language) types.FileClass {
 	switch lang {
 	case types.LangGo:
-		return ClassifyGoFile(name)
+		return classifyGoFile(name)
 	case types.LangPython:
 		return classifyPythonFile(name)
 	case types.LangTypeScript:

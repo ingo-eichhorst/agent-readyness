@@ -1,7 +1,6 @@
 package pipeline
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -29,8 +28,8 @@ const (
 	bytesPerKB       = 1024             // Bytes per kilobyte for file size display
 )
 
-// Pipeline orchestrates the scan workflow: discover -> parse -> analyze -> score -> output.
-type Pipeline struct {
+// pipeline orchestrates the scan workflow: discover -> parse -> analyze -> score -> output.
+type pipeline struct {
 	verbose      bool
 	writer       io.Writer
 	parser       parseProvider
@@ -41,7 +40,7 @@ type Pipeline struct {
 	scored       *types.ScoredResult
 	threshold    float64
 	jsonOutput   bool
-	onProgress   ProgressFunc
+	onProgress   progressFunc
 	evaluator    *agent.Evaluator // CLI-based evaluator for LLM analysis
 	cliStatus    agent.CLIStatus  // cached CLI availability status
 	htmlOutput   string           // optional path for HTML report output
@@ -58,7 +57,7 @@ type Pipeline struct {
 // If cfg is nil, DefaultConfig is used. If onProgress is nil, a no-op is used.
 // The pipeline auto-creates a Tree-sitter parser for Python/TypeScript analysis.
 // CLI availability is detected at startup; if available, LLM features are auto-enabled.
-func New(w io.Writer, verbose bool, cfg *scoring.ScoringConfig, threshold float64, jsonOutput bool, onProgress ProgressFunc) *Pipeline {
+func New(w io.Writer, verbose bool, cfg *scoring.ScoringConfig, threshold float64, jsonOutput bool, onProgress progressFunc) *pipeline {
 	if cfg == nil {
 		cfg = scoring.DefaultConfig()
 	}
@@ -89,7 +88,7 @@ func New(w io.Writer, verbose bool, cfg *scoring.ScoringConfig, threshold float6
 		c7Analyzer.SetEvaluator(evaluator) // Auto-enable C7 when CLI available
 	}
 
-	return &Pipeline{
+	return &pipeline{
 		verbose:     verbose,
 		writer:      w,
 		threshold:   threshold,
@@ -115,7 +114,7 @@ func New(w io.Writer, verbose bool, cfg *scoring.ScoringConfig, threshold float6
 
 // DisableLLM disables LLM features even when CLI is available.
 // This is called when --no-llm flag is set.
-func (p *Pipeline) DisableLLM() {
+func (p *pipeline) DisableLLM() {
 	p.evaluator = nil
 	// Find and disable C4 analyzer's LLM evaluation
 	for _, a := range p.analyzers {
@@ -130,33 +129,26 @@ func (p *Pipeline) DisableLLM() {
 }
 
 // GetCLIStatus returns the cached CLI availability status.
-func (p *Pipeline) GetCLIStatus() agent.CLIStatus {
+func (p *pipeline) GetCLIStatus() agent.CLIStatus {
 	return p.cliStatus
-}
-
-// SetC7Enabled enables C7 agent evaluation using the CLI-based evaluator.
-func (p *Pipeline) SetC7Enabled() {
-	if p.c7Analyzer != nil && p.evaluator != nil {
-		p.c7Analyzer.Enable(p.evaluator)
-	}
 }
 
 // SetHTMLOutput configures HTML report generation.
 // If htmlPath is non-empty, an HTML report will be generated at that path.
 // If baselinePath is non-empty, the report will include trend comparison.
-func (p *Pipeline) SetHTMLOutput(htmlPath, baselinePath string) {
+func (p *pipeline) SetHTMLOutput(htmlPath, baselinePath string) {
 	p.htmlOutput = htmlPath
 	p.baselinePath = baselinePath
 }
 
 // SetBadgeOutput enables shields.io badge markdown generation in output.
-func (p *Pipeline) SetBadgeOutput(enabled bool) {
+func (p *pipeline) SetBadgeOutput(enabled bool) {
 	p.badgeOutput = enabled
 }
 
 // SetC7Debug enables C7 debug mode. Debug output goes to stderr via debugWriter.
 // This also enables C7 evaluation if not already enabled.
-func (p *Pipeline) SetC7Debug(enabled bool) {
+func (p *pipeline) SetC7Debug(enabled bool) {
 	p.debugC7 = enabled
 	if enabled {
 		p.debugWriter = os.Stderr
@@ -167,7 +159,7 @@ func (p *Pipeline) SetC7Debug(enabled bool) {
 }
 
 // SetDebugDir configures the directory for C7 response persistence and replay.
-func (p *Pipeline) SetDebugDir(dir string) {
+func (p *pipeline) SetDebugDir(dir string) {
 	p.debugDir = dir
 	if p.c7Analyzer != nil {
 		p.c7Analyzer.SetDebugDir(dir)
@@ -175,7 +167,7 @@ func (p *Pipeline) SetDebugDir(dir string) {
 }
 
 // Run executes the full pipeline on the given directory.
-func (p *Pipeline) Run(dir string) error {
+func (p *pipeline) Run(dir string) error {
 	result, targets, pkgs, err := p.discoverAndParse(dir)
 	if err != nil {
 		return err
@@ -208,7 +200,7 @@ func (p *Pipeline) Run(dir string) error {
 	return nil
 }
 
-func (p *Pipeline) discoverAndParse(dir string) (*types.ScanResult, []*types.AnalysisTarget, []*parser.ParsedPackage, error) {
+func (p *pipeline) discoverAndParse(dir string) (*types.ScanResult, []*types.AnalysisTarget, []*parser.ParsedPackage, error) {
 	p.onProgress("discover", "Scanning files...")
 	walker := discovery.NewWalker()
 	result, err := walker.Discover(dir)
@@ -252,7 +244,7 @@ func (p *Pipeline) discoverAndParse(dir string) (*types.ScanResult, []*types.Ana
 	return result, targets, pkgs, nil
 }
 
-func (p *Pipeline) injectGoPackages(pkgs []*parser.ParsedPackage) {
+func (p *pipeline) injectGoPackages(pkgs []*parser.ParsedPackage) {
 	if len(pkgs) == 0 {
 		return
 	}
@@ -263,7 +255,7 @@ func (p *Pipeline) injectGoPackages(pkgs []*parser.ParsedPackage) {
 	}
 }
 
-func (p *Pipeline) runAnalyzers(targets []*types.AnalysisTarget) {
+func (p *pipeline) runAnalyzers(targets []*types.AnalysisTarget) {
 	p.onProgress("analyze", "Analyzing code...")
 	p.results = nil
 	g := new(errgroup.Group)
@@ -292,7 +284,7 @@ func (p *Pipeline) runAnalyzers(targets []*types.AnalysisTarget) {
 	p.results = analysisResults
 }
 
-func (p *Pipeline) scoreAndRecommend(dir string) []recommend.Recommendation {
+func (p *pipeline) scoreAndRecommend(dir string) []recommend.Recommendation {
 	p.onProgress("score", "Computing scores...")
 	scored, err := p.scorer.Score(p.results)
 	if err != nil {
@@ -314,7 +306,7 @@ func (p *Pipeline) scoreAndRecommend(dir string) []recommend.Recommendation {
 	return recs
 }
 
-func (p *Pipeline) renderOutput(result *types.ScanResult, recs []recommend.Recommendation) error {
+func (p *pipeline) renderOutput(result *types.ScanResult, recs []recommend.Recommendation) error {
 	p.onProgress("render", "Generating output...")
 	if p.jsonOutput {
 		if p.scored != nil {
@@ -343,7 +335,7 @@ func (p *Pipeline) renderOutput(result *types.ScanResult, recs []recommend.Recom
 }
 
 // generateHTMLReport creates an HTML report file at the configured path.
-func (p *Pipeline) generateHTMLReport(recs []recommend.Recommendation) error {
+func (p *pipeline) generateHTMLReport(recs []recommend.Recommendation) error {
 	// Load baseline if provided
 	var baseline *types.ScoredResult
 	if p.baselinePath != "" {
@@ -373,11 +365,7 @@ func (p *Pipeline) generateHTMLReport(recs []recommend.Recommendation) error {
 	for i, l := range p.langs {
 		langStrings[i] = string(l)
 	}
-	traceData := &output.TraceData{
-		ScoringConfig:   p.scorer.Config,
-		AnalysisResults: p.results,
-		Languages:       langStrings,
-	}
+	traceData := output.NewTraceData(p.scorer.Config, p.results, langStrings)
 
 	// Generate report
 	if err := gen.GenerateReport(f, p.scored, recs, baseline, traceData); err != nil {
@@ -402,24 +390,10 @@ func loadBaseline(path string) (*types.ScoredResult, error) {
 		return nil, err
 	}
 
-	// Parse the JSON report format
-	var report output.JSONReport
-	if err := json.Unmarshal(data, &report); err != nil {
+	// Parse the JSON report format and convert to ScoredResult
+	result, err := output.ParseJSONBaseline(data)
+	if err != nil {
 		return nil, fmt.Errorf("parse JSON: %w", err)
-	}
-
-	// Convert JSONReport to ScoredResult
-	result := &types.ScoredResult{
-		Composite: report.CompositeScore,
-		Tier:      report.Tier,
-	}
-
-	for _, cat := range report.Categories {
-		result.Categories = append(result.Categories, types.CategoryScore{
-			Name:   cat.Name,
-			Score:  cat.Score,
-			Weight: cat.Weight,
-		})
 	}
 
 	return result, nil

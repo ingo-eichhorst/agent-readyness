@@ -34,14 +34,14 @@ func (m *mockExecutor) ExecutePrompt(ctx context.Context, workDir, prompt, tools
 }
 
 func TestAllMetricsReturns5(t *testing.T) {
-	metrics := AllMetrics()
+	metrics := allMetrics()
 	if len(metrics) != 5 {
-		t.Errorf("AllMetrics() returned %d metrics, want 5", len(metrics))
+		t.Errorf("allMetrics() returned %d metrics, want 5", len(metrics))
 	}
 }
 
 func TestMetricIDsAreUnique(t *testing.T) {
-	metrics := AllMetrics()
+	metrics := allMetrics()
 	seen := make(map[string]bool)
 	for _, m := range metrics {
 		if seen[m.ID()] {
@@ -52,7 +52,7 @@ func TestMetricIDsAreUnique(t *testing.T) {
 }
 
 func TestMetricNamesAreUnique(t *testing.T) {
-	metrics := AllMetrics()
+	metrics := allMetrics()
 	seen := make(map[string]bool)
 	for _, m := range metrics {
 		if seen[m.Name()] {
@@ -247,7 +247,7 @@ func startServer(cfg Config) {
 }
 
 func TestMetricTimeoutsArePositive(t *testing.T) {
-	for _, m := range AllMetrics() {
+	for _, m := range allMetrics() {
 		if m.Timeout() <= 0 {
 			t.Errorf("%s.Timeout() = %v, want > 0", m.ID(), m.Timeout())
 		}
@@ -255,7 +255,7 @@ func TestMetricTimeoutsArePositive(t *testing.T) {
 }
 
 func TestMetricSampleCountsArePositive(t *testing.T) {
-	for _, m := range AllMetrics() {
+	for _, m := range allMetrics() {
 		if m.SampleCount() <= 0 {
 			t.Errorf("%s.SampleCount() = %d, want > 0", m.ID(), m.SampleCount())
 		}
@@ -263,7 +263,7 @@ func TestMetricSampleCountsArePositive(t *testing.T) {
 }
 
 func TestMetricDescriptionsNonEmpty(t *testing.T) {
-	for _, m := range AllMetrics() {
+	for _, m := range allMetrics() {
 		if m.Description() == "" {
 			t.Errorf("%s.Description() is empty", m.ID())
 		}

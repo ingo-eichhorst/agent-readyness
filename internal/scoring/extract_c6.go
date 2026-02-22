@@ -9,6 +9,8 @@ import (
 
 // extractC6 extracts C6 (Testing) metrics from an AnalysisResult.
 func extractC6(ar *types.AnalysisResult) (map[string]float64, map[string]bool, map[string][]types.EvidenceItem) {
+	// C6 has a conditional unavailable map for coverage_percent, so we compute
+	// scores and unavailability separately, then merge evidence via the helper.
 	raw, ok := ar.Metrics["c6"]
 	if !ok {
 		return nil, nil, nil
@@ -19,10 +21,12 @@ func extractC6(ar *types.AnalysisResult) (map[string]float64, map[string]bool, m
 	}
 
 	rawValues, unavailable := c6RawValues(m)
-	evidence := make(map[string][]types.EvidenceItem)
-	c6TestIsolationEvidence(evidence, m)
-	c6AssertionDensityEvidence(evidence, m)
-	ensureEvidenceKeys(evidence, "test_to_code_ratio", "coverage_percent", "test_isolation", "assertion_density_avg", "test_file_ratio")
+	_, _, evidence := extractMetrics[types.C6Metrics, *types.C6Metrics](ar, "c6", func(m *types.C6Metrics) (map[string]float64, map[string][]types.EvidenceItem, []string) {
+		ev := make(map[string][]types.EvidenceItem)
+		c6TestIsolationEvidence(ev, m)
+		c6AssertionDensityEvidence(ev, m)
+		return nil, ev, []string{"test_to_code_ratio", "coverage_percent", "test_isolation", "assertion_density_avg", "test_file_ratio"}
+	})
 
 	return rawValues, unavailable, evidence
 }

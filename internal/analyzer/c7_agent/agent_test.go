@@ -454,6 +454,144 @@ func TestBuildMetrics_WithErrors(t *testing.T) {
 	}
 }
 
+func TestC7Analyzer_SetEvaluator_Nil_Disables(t *testing.T) {
+	analyzer := NewC7Analyzer()
+
+	// Enable first
+	eval := agent.NewEvaluator(0)
+	analyzer.SetEvaluator(eval)
+	if !analyzer.enabled {
+		t.Fatal("analyzer should be enabled after SetEvaluator(non-nil)")
+	}
+
+	// Setting nil should disable
+	analyzer.SetEvaluator(nil)
+	if analyzer.enabled {
+		t.Error("SetEvaluator(nil) should disable the analyzer")
+	}
+	if analyzer.evaluator != nil {
+		t.Error("evaluator should be nil after SetEvaluator(nil)")
+	}
+}
+
+func TestBuildMetricResult_ErrorPath(t *testing.T) {
+	analyzer := NewC7Analyzer()
+
+	mr := metrics.MetricResult{
+		MetricID:   "task_execution_consistency",
+		MetricName: "Task Execution Consistency",
+		Score:      0,
+		Duration:   1 * time.Second,
+		Error:      "claude CLI not available",
+	}
+
+	result := analyzer.buildMetricResult(mr)
+
+	if result.Status != "error" {
+		t.Errorf("expected status 'error', got %q", result.Status)
+	}
+	if result.Reasoning != "claude CLI not available" {
+		t.Errorf("expected Reasoning to contain error, got %q", result.Reasoning)
+	}
+	if result.MetricID != "task_execution_consistency" {
+		t.Errorf("expected MetricID set correctly, got %q", result.MetricID)
+	}
+}
+
+func TestAssignIndividualScore_AllMetrics(t *testing.T) {
+	tests := []struct {
+		metricID string
+		score    int
+		checkFn  func(m *types.C7Metrics) int
+	}{
+		{"task_execution_consistency", 7, func(m *types.C7Metrics) int { return m.TaskExecutionConsistency }},
+		{"code_behavior_comprehension", 8, func(m *types.C7Metrics) int { return m.CodeBehaviorComprehension }},
+		{"cross_file_navigation", 6, func(m *types.C7Metrics) int { return m.CrossFileNavigation }},
+		{"identifier_interpretability", 5, func(m *types.C7Metrics) int { return m.IdentifierInterpretability }},
+		{"documentation_accuracy_detection", 9, func(m *types.C7Metrics) int { return m.DocumentationAccuracyDetection }},
+		{"unknown_metric", 10, nil}, // should be a no-op
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.metricID, func(t *testing.T) {
+			analyzer := NewC7Analyzer()
+			m := &types.C7Metrics{}
+			mr := metrics.MetricResult{MetricID: tt.metricID, Score: tt.score}
+			analyzer.assignIndividualScore(m, mr)
+
+			if tt.checkFn != nil {
+				got := tt.checkFn(m)
+				if got != tt.score {
+					t.Errorf("metric %s: score = %d, want %d", tt.metricID, got, tt.score)
+				}
+			}
+		})
+	}
+}
+
+func TestCalculateWeightedScore_AllMetrics(t *testing.T) {
+	analyzer := NewC7Analyzer()
+	m := &types.C7Metrics{
+		TaskExecutionConsistency:       8,
+		CodeBehaviorComprehension:      7,
+		CrossFileNavigation:            6,
+		IdentifierInterpretability:     9,
+		DocumentationAccuracyDetection: 5,
+	}
+
+	score := analyzer.calculateWeightedScore(m)
+
+	// Manual computation: (8*0.20 + 7*0.25 + 6*0.25 + 9*0.15 + 5*0.15) / 1.0
+	expected := 8*0.20 + 7*0.25 + 6*0.25 + 9*0.15 + 5*0.15
+	if score < expected-0.001 || score > expected+0.001 {
+		t.Errorf("calculateWeightedScore = %f, want %f", score, expected)
+	}
+}
+
+func TestCalculateWeightedScore_PartialMetrics(t *testing.T) {
+	analyzer := NewC7Analyzer()
+	// Only some metrics have scores (others are 0, excluded)
+	m := &types.C7Metrics{
+		TaskExecutionConsistency:  8,
+		CodeBehaviorComprehension: 6,
+		// CrossFileNavigation etc. are 0
+	}
+
+	score := analyzer.calculateWeightedScore(m)
+
+	// Only M1 (0.20) and M2 (0.25) contribute
+	// weightedSum = 8*0.20 + 6*0.25 = 1.6 + 1.5 = 3.1
+	// totalWeight = 0.20 + 0.25 = 0.45
+	expected := (8*0.20 + 6*0.25) / (0.20 + 0.25)
+	if score < expected-0.001 || score > expected+0.001 {
+		t.Errorf("calculateWeightedScore (partial) = %f, want %f", score, expected)
+	}
+}
+
+func TestC7Analyzer_Analyze_NilEvaluatorReturnsDisabled(t *testing.T) {
+	analyzer := NewC7Analyzer()
+	// evaluator is nil (not enabled)
+
+	targets := []*types.AnalysisTarget{
+		{Language: types.LangGo, RootDir: "/tmp/test"},
+	}
+
+	result, err := analyzer.Analyze(targets)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result == nil {
+		t.Fatal("expected non-nil result")
+	}
+	c7metrics, ok := result.Metrics["c7"].(*types.C7Metrics)
+	if !ok {
+		t.Fatal("expected C7Metrics type")
+	}
+	if c7metrics.Available {
+		t.Error("expected Available=false for nil evaluator")
+	}
+}
+
 func TestC7MetricResult_DebugSamples_OmitEmpty_JSON(t *testing.T) {
 	// Case 1: nil DebugSamples should be omitted from JSON
 	mr := types.C7MetricResult{

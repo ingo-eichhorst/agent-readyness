@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -248,6 +249,122 @@ func TestExecutor_JSONParsing_EmptyFields(t *testing.T) {
 	// Empty fields are valid - the agent might have nothing to say
 	if resp.Result != "" {
 		t.Errorf("expected empty result, got %q", resp.Result)
+	}
+}
+
+func TestNewExecutor(t *testing.T) {
+	e := newExecutor("/tmp/workdir")
+	if e == nil {
+		t.Fatal("newExecutor returned nil")
+	}
+	if e.workDir != "/tmp/workdir" {
+		t.Errorf("expected workDir /tmp/workdir, got %q", e.workDir)
+	}
+}
+
+func TestBuildTaskCommand_BasicArgs(t *testing.T) {
+	e := newExecutor("/tmp/testdir")
+	ctx := context.Background()
+	cmd := e.buildTaskCommand(ctx, task{
+		ID:           "test",
+		Prompt:       "hello world",
+		ToolsAllowed: "",
+	})
+	if cmd == nil {
+		t.Fatal("buildTaskCommand returned nil")
+	}
+	args := cmd.Args
+	// args[0] is the binary, then -p, prompt, --output-format, json
+	found := false
+	for i, a := range args {
+		if a == "-p" && i+1 < len(args) && args[i+1] == "hello world" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("expected -p 'hello world' in args, got %v", args)
+	}
+	if cmd.Dir != "/tmp/testdir" {
+		t.Errorf("expected Dir /tmp/testdir, got %q", cmd.Dir)
+	}
+}
+
+func TestBuildTaskCommand_WithTools(t *testing.T) {
+	e := newExecutor("/tmp/testdir")
+	ctx := context.Background()
+	cmd := e.buildTaskCommand(ctx, task{
+		ID:           "test",
+		Prompt:       "my prompt",
+		ToolsAllowed: "Read,Write",
+	})
+	args := cmd.Args
+	foundTools := false
+	for i, a := range args {
+		if a == "--allowedTools" && i+1 < len(args) && args[i+1] == "Read,Write" {
+			foundTools = true
+		}
+	}
+	if !foundTools {
+		t.Errorf("expected --allowedTools 'Read,Write' in args, got %v", args)
+	}
+}
+
+func TestClassifyExecError_Timeout(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 1)
+	cancel() // immediately cancel so ctx.Err() == DeadlineExceeded
+	// Drain to ensure DeadlineExceeded
+	<-ctx.Done()
+
+	result := &taskResult{}
+	classifyExecError(result, ctx, fmt.Errorf("some err"), []byte("output"), 30)
+	if result.Status != statusTimeout {
+		t.Errorf("expected statusTimeout, got %q", result.Status)
+	}
+}
+
+func TestClassifyExecError_ExitError(t *testing.T) {
+	// Use a fresh non-cancelled context
+	ctx := context.Background()
+
+	// Run a command that exits non-zero to get a real *exec.ExitError
+	cmd := exec.Command("sh", "-c", "exit 2")
+	err := cmd.Run()
+
+	result := &taskResult{}
+	classifyExecError(result, ctx, err, []byte("some output"), 30)
+	if result.Status != statusError {
+		t.Errorf("expected statusError for exit error, got %q", result.Status)
+	}
+}
+
+func TestClassifyExecError_CLINotFound(t *testing.T) {
+	origLookPath := execLookPath
+	defer func() { execLookPath = origLookPath }()
+	execLookPath = func(file string) (string, error) {
+		return "", fmt.Errorf("not found")
+	}
+
+	ctx := context.Background()
+	result := &taskResult{}
+	// Pass a non-ExitError so the lookup branch is triggered
+	classifyExecError(result, ctx, fmt.Errorf("some generic error"), []byte(""), 30)
+	if result.Status != statusCLINotFound {
+		t.Errorf("expected statusCLINotFound, got %q", result.Status)
+	}
+}
+
+func TestClassifyExecError_GenericError(t *testing.T) {
+	origLookPath := execLookPath
+	defer func() { execLookPath = origLookPath }()
+	execLookPath = func(file string) (string, error) {
+		return "/usr/bin/claude", nil
+	}
+
+	ctx := context.Background()
+	result := &taskResult{}
+	classifyExecError(result, ctx, fmt.Errorf("connection refused"), []byte(""), 30)
+	if result.Status != statusError {
+		t.Errorf("expected statusError for generic error, got %q", result.Status)
 	}
 }
 

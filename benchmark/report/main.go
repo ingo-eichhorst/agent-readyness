@@ -45,8 +45,8 @@ type goldenFile struct {
 	Categories     []goldenCategory `json:"categories"`
 }
 
-// RepoData is passed to the HTML template.
-type RepoData struct {
+// repoData is passed to the HTML template.
+type repoData struct {
 	Name     string
 	Lang     string
 	URL      string
@@ -56,13 +56,13 @@ type RepoData struct {
 	Cats     map[string]float64 // -1 = N/A
 }
 
-type TemplateData struct {
+type templateData struct {
 	GeneratedAt string
-	Repos       []RepoData
-	Stats       Stats
+	Repos       []repoData
+	Stats       stats
 }
 
-type Stats struct {
+type stats struct {
 	Total        int
 	AgentReady   int
 	AgentAssisted int
@@ -117,7 +117,7 @@ func run(root string) error {
 
 	// Render HTML
 	outPath := filepath.Join(root, "benchmark", "report.html")
-	if err := render(outPath, TemplateData{
+	if err := render(outPath, templateData{
 		GeneratedAt: time.Now().UTC().Format("2006-01-02 15:04 UTC"),
 		Repos:       repos,
 		Stats:       stats,
@@ -160,8 +160,8 @@ func loadYAML(path string) (*yamlConfig, error) {
 	return &cfg, nil
 }
 
-func loadGoldens(dir string, meta map[string]yamlRepo) ([]RepoData, error) {
-	var repos []RepoData
+func loadGoldens(dir string, meta map[string]yamlRepo) ([]repoData, error) {
+	var repos []repoData
 
 	// Walk golden/go/, golden/python/, golden/typescript/
 	langs := []string{"go", "python", "typescript"}
@@ -192,7 +192,7 @@ func loadGoldens(dir string, meta map[string]yamlRepo) ([]RepoData, error) {
 				cats[c.Name] = c.Score
 			}
 			m := meta[name]
-			repos = append(repos, RepoData{
+			repos = append(repos, repoData{
 				Name:   name,
 				Lang:   lang,
 				URL:    m.URL,
@@ -217,8 +217,8 @@ func loadGoldens(dir string, meta map[string]yamlRepo) ([]RepoData, error) {
 	return repos, nil
 }
 
-func computeStats(repos []RepoData) Stats {
-	s := Stats{Total: len(repos)}
+func computeStats(repos []repoData) stats {
+	s := stats{Total: len(repos)}
 	type langStat struct{ sum float64; count int; min, max float64 }
 	byLang := map[string]*langStat{
 		"go": {min: math.MaxFloat64}, "python": {min: math.MaxFloat64}, "typescript": {min: math.MaxFloat64},
@@ -267,7 +267,7 @@ func computeStats(repos []RepoData) Stats {
 	return s
 }
 
-func render(outPath string, data TemplateData) error {
+func render(outPath string, data templateData) error {
 	tmpl, err := template.New("report").Funcs(template.FuncMap{
 		"json": func(v any) (string, error) {
 			b, err := json.Marshal(v)

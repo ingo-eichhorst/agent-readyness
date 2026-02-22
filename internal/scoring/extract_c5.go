@@ -2,7 +2,6 @@ package scoring
 
 import (
 	"fmt"
-	"sort"
 
 	"github.com/ingo-eichhorst/agent-readyness/pkg/types"
 )
@@ -58,83 +57,52 @@ func c5Unavailable() (map[string]float64, map[string]bool, map[string][]types.Ev
 
 // c5ChurnRateEvidence collects top hotspots by commit count.
 func c5ChurnRateEvidence(evidence map[string][]types.EvidenceItem, m *types.C5Metrics) {
-	if len(m.TopHotspots) == 0 {
-		return
-	}
-	limit := capLimit(len(m.TopHotspots), evidenceTopN)
-	items := make([]types.EvidenceItem, limit)
-	for i := 0; i < limit; i++ {
-		h := m.TopHotspots[i]
-		items[i] = types.EvidenceItem{
-			FilePath:    h.Path,
-			Line:        0,
-			Value:       float64(h.CommitCount),
-			Description: fmt.Sprintf("%d commits", h.CommitCount),
-		}
-	}
-	evidence["churn_rate"] = items
+	evidence["churn_rate"] = buildTopNEvidence(
+		m.TopHotspots,
+		nil,
+		func(h types.FileChurn) float64 { return float64(h.CommitCount) },
+		func(h types.FileChurn) string { return h.Path },
+		nil,
+		func(h types.FileChurn) string { return fmt.Sprintf("%d commits", h.CommitCount) },
+	)
 }
 
 // c5TemporalCouplingEvidence collects top coupled pairs.
 func c5TemporalCouplingEvidence(evidence map[string][]types.EvidenceItem, m *types.C5Metrics) {
-	if len(m.CoupledPairs) == 0 {
-		return
-	}
-	limit := capLimit(len(m.CoupledPairs), evidenceTopN)
-	items := make([]types.EvidenceItem, limit)
-	for i := 0; i < limit; i++ {
-		p := m.CoupledPairs[i]
-		items[i] = types.EvidenceItem{
-			FilePath:    p.FileA,
-			Line:        0,
-			Value:       p.Coupling,
-			Description: fmt.Sprintf("coupled with %s (%.0f%%)", p.FileB, p.Coupling),
-		}
-	}
-	evidence["temporal_coupling_pct"] = items
+	evidence["temporal_coupling_pct"] = buildTopNEvidence(
+		m.CoupledPairs,
+		nil,
+		func(p types.CoupledPair) float64 { return p.Coupling },
+		func(p types.CoupledPair) string { return p.FileA },
+		nil,
+		func(p types.CoupledPair) string {
+			return fmt.Sprintf("coupled with %s (%.0f%%)", p.FileB, p.Coupling)
+		},
+	)
 }
 
 // c5AuthorFragmentationEvidence collects top hotspots by author count.
 func c5AuthorFragmentationEvidence(evidence map[string][]types.EvidenceItem, m *types.C5Metrics) {
-	if len(m.TopHotspots) == 0 {
-		return
-	}
-	sorted := make([]types.FileChurn, len(m.TopHotspots))
-	copy(sorted, m.TopHotspots)
-	sort.Slice(sorted, func(i, j int) bool {
-		return sorted[i].AuthorCount > sorted[j].AuthorCount
-	})
-	limit := capLimit(len(sorted), evidenceTopN)
-	items := make([]types.EvidenceItem, limit)
-	for i := 0; i < limit; i++ {
-		h := sorted[i]
-		items[i] = types.EvidenceItem{
-			FilePath:    h.Path,
-			Line:        0,
-			Value:       float64(h.AuthorCount),
-			Description: fmt.Sprintf("%d distinct authors", h.AuthorCount),
-		}
-	}
-	evidence["author_fragmentation"] = items
+	evidence["author_fragmentation"] = buildTopNEvidence(
+		m.TopHotspots,
+		func(a, b types.FileChurn) bool { return a.AuthorCount > b.AuthorCount },
+		func(h types.FileChurn) float64 { return float64(h.AuthorCount) },
+		func(h types.FileChurn) string { return h.Path },
+		nil,
+		func(h types.FileChurn) string { return fmt.Sprintf("%d distinct authors", h.AuthorCount) },
+	)
 }
 
 // c5HotspotConcentrationEvidence collects top hotspots by total changes.
 func c5HotspotConcentrationEvidence(evidence map[string][]types.EvidenceItem, m *types.C5Metrics) {
-	if len(m.TopHotspots) == 0 {
-		return
-	}
-	limit := capLimit(len(m.TopHotspots), evidenceTopN)
-	items := make([]types.EvidenceItem, limit)
-	for i := 0; i < limit; i++ {
-		h := m.TopHotspots[i]
-		items[i] = types.EvidenceItem{
-			FilePath:    h.Path,
-			Line:        0,
-			Value:       float64(h.TotalChanges),
-			Description: fmt.Sprintf("hotspot: %d changes", h.TotalChanges),
-		}
-	}
-	evidence["hotspot_concentration"] = items
+	evidence["hotspot_concentration"] = buildTopNEvidence(
+		m.TopHotspots,
+		nil,
+		func(h types.FileChurn) float64 { return float64(h.TotalChanges) },
+		func(h types.FileChurn) string { return h.Path },
+		nil,
+		func(h types.FileChurn) string { return fmt.Sprintf("hotspot: %d changes", h.TotalChanges) },
+	)
 }
 
 // capLimit returns min(n, max).

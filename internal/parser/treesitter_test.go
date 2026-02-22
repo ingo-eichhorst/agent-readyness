@@ -201,3 +201,142 @@ func TestParseUnsupportedLanguage(t *testing.T) {
 		t.Error("expected error for unsupported language Go, got nil")
 	}
 }
+
+// TestParseTargetFiles_GoLanguageError verifies that passing a Go target returns
+// an error instead of attempting Tree-sitter parsing.
+func TestParseTargetFiles_GoLanguageError(t *testing.T) {
+	p, err := NewTreeSitterParser()
+	if err != nil {
+		t.Fatalf("NewTreeSitterParser() error: %v", err)
+	}
+	defer p.Close()
+
+	target := &types.AnalysisTarget{
+		Language: types.LangGo,
+		Files:    []types.SourceFile{},
+	}
+
+	_, err = p.ParseTargetFiles(target)
+	if err == nil {
+		t.Error("expected error for Go language target, got nil")
+	}
+}
+
+// TestParseTargetFiles_SkipsNonSourceFiles verifies that files with class other
+// than ClassSource or ClassTest are skipped.
+func TestParseTargetFiles_SkipsNonSourceFiles(t *testing.T) {
+	p, err := NewTreeSitterParser()
+	if err != nil {
+		t.Fatalf("NewTreeSitterParser() error: %v", err)
+	}
+	defer p.Close()
+
+	target := &types.AnalysisTarget{
+		Language: types.LangPython,
+		Files: []types.SourceFile{
+			{
+				Path:    "/some/requirements.txt",
+				RelPath: "requirements.txt",
+				// ClassGenerated – not ClassSource or ClassTest
+				Class: types.ClassGenerated,
+			},
+		},
+	}
+
+	files, err := p.ParseTargetFiles(target)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(files) != 0 {
+		t.Errorf("got %d files, want 0 (non-source/test files should be skipped)", len(files))
+	}
+}
+
+// TestParseTargetFiles_ReadFileError verifies that a missing file returns an error.
+func TestParseTargetFiles_ReadFileError(t *testing.T) {
+	p, err := NewTreeSitterParser()
+	if err != nil {
+		t.Fatalf("NewTreeSitterParser() error: %v", err)
+	}
+	defer p.Close()
+
+	target := &types.AnalysisTarget{
+		Language: types.LangPython,
+		Files: []types.SourceFile{
+			{
+				Path:    "/nonexistent/path/file.py",
+				RelPath: "file.py",
+				Class:   types.ClassSource,
+			},
+		},
+	}
+
+	_, err = p.ParseTargetFiles(target)
+	if err == nil {
+		t.Error("expected error for missing file, got nil")
+	}
+}
+
+// TestParseFile_TSXExtension verifies that .tsx files are parsed with the TSX parser.
+func TestParseFile_TSXExtension(t *testing.T) {
+	p, err := NewTreeSitterParser()
+	if err != nil {
+		t.Fatalf("NewTreeSitterParser() error: %v", err)
+	}
+	defer p.Close()
+
+	content := []byte("const App = () => <div>hello</div>;")
+	tree, err := p.ParseFile(types.LangTypeScript, ".tsx", content)
+	if err != nil {
+		t.Fatalf("ParseFile(TypeScript, .tsx) error: %v", err)
+	}
+	defer tree.Close()
+
+	if tree.RootNode() == nil {
+		t.Error("root node is nil for TSX parse")
+	}
+}
+
+// TestParseTargetFiles_CloseAllOnError verifies that trees are cleaned up when
+// a later file in the target causes an error.
+func TestParseTargetFiles_CloseAllOnError(t *testing.T) {
+	p, err := NewTreeSitterParser()
+	if err != nil {
+		t.Fatalf("NewTreeSitterParser() error: %v", err)
+	}
+	defer p.Close()
+
+	pyRoot, err := filepath.Abs("../../testdata/valid-python-project")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	target := &types.AnalysisTarget{
+		Language: types.LangPython,
+		Files: []types.SourceFile{
+			// First file exists and parses fine.
+			{
+				Path:    filepath.Join(pyRoot, "app.py"),
+				RelPath: "app.py",
+				Class:   types.ClassSource,
+			},
+			// Second file does not exist – triggers read error, should clean up first tree.
+			{
+				Path:    "/nonexistent/missing.py",
+				RelPath: "missing.py",
+				Class:   types.ClassSource,
+			},
+		},
+	}
+
+	_, err = p.ParseTargetFiles(target)
+	if err == nil {
+		t.Error("expected error when a file in the target is missing")
+	}
+}
+
+// TestCloseAll_WithNilEntry verifies that CloseAll handles a slice containing nil entries.
+func TestCloseAll_WithNilEntry(t *testing.T) {
+	// Should not panic even with nil entries in the slice.
+	CloseAll([]*ParsedTreeSitterFile{nil, nil})
+}

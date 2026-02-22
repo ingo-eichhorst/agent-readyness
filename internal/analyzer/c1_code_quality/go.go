@@ -117,7 +117,7 @@ func (a *C1Analyzer) accumulateTarget(target *types.AnalysisTarget, acc *c1Accum
 			return
 		}
 		defer parser.CloseAll(parsed)
-		srcFiles := treeFilterSourceFiles(parsed, shared.IsTestFileByPath)
+		srcFiles := shared.FilterTreeSitterFiles(parsed, shared.IsTestFileByPath)
 		acc.functions = append(acc.functions, pyAnalyzeFunctions(srcFiles)...)
 		acc.fileSizes = append(acc.fileSizes, treeAnalyzeFileSizes(srcFiles))
 		dups, rate := treeAnalyzeDuplication(srcFiles, pyDupConfig)
@@ -129,7 +129,7 @@ func (a *C1Analyzer) accumulateTarget(target *types.AnalysisTarget, acc *c1Accum
 			return
 		}
 		defer parser.CloseAll(parsed)
-		srcFiles := treeFilterSourceFiles(parsed, shared.TsIsTestFile)
+		srcFiles := shared.FilterTreeSitterFiles(parsed, shared.TsIsTestFile)
 		acc.functions = append(acc.functions, tsAnalyzeFunctions(srcFiles)...)
 		acc.fileSizes = append(acc.fileSizes, treeAnalyzeFileSizes(srcFiles))
 		dups, rate := treeAnalyzeDuplication(srcFiles, tsDupConfig)

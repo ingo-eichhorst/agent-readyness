@@ -25,18 +25,6 @@ import (
 	"github.com/ingo-eichhorst/agent-readyness/pkg/types"
 )
 
-// pyFilterSourceFiles filters to source-only Python files (not test files).
-func pyFilterSourceFiles(files []*parser.ParsedTreeSitterFile) []*parser.ParsedTreeSitterFile {
-	var result []*parser.ParsedTreeSitterFile
-	for _, f := range files {
-		if isTestFileByPath(f.RelPath) {
-			continue
-		}
-		result = append(result, f)
-	}
-	return result
-}
-
 // isTestFileByPath checks if a file path indicates a test file.
 func isTestFileByPath(path string) bool {
 	base := strings.ToLower(path)

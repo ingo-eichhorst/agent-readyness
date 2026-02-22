@@ -125,6 +125,18 @@ func TsStripQuotes(s string) string {
 	return s
 }
 
+// FilterTreeSitterFiles returns files for which isTest(relPath) is false.
+// Used by C1 and C3 analyzers to strip test files before source analysis.
+func FilterTreeSitterFiles(files []*parser.ParsedTreeSitterFile, isTest func(relPath string) bool) []*parser.ParsedTreeSitterFile {
+	var result []*parser.ParsedTreeSitterFile
+	for _, f := range files {
+		if !isTest(f.RelPath) {
+			result = append(result, f)
+		}
+	}
+	return result
+}
+
 // AnalyzeDirectoryDepth computes max and average directory depth from tree-sitter file paths.
 // Used by C3 architecture analyzers for Python and TypeScript.
 func AnalyzeDirectoryDepth(files []*parser.ParsedTreeSitterFile, rootDir string) (maxDepth int, avgDepth float64) {

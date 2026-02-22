@@ -27,18 +27,6 @@ import (
 	"github.com/ingo-eichhorst/agent-readyness/pkg/types"
 )
 
-// tsFilterSourceFiles filters to source-only TypeScript files (not test files).
-func tsFilterSourceFiles(files []*parser.ParsedTreeSitterFile) []*parser.ParsedTreeSitterFile {
-	var result []*parser.ParsedTreeSitterFile
-	for _, f := range files {
-		if tsIsTestFile(f.RelPath) {
-			continue
-		}
-		result = append(result, f)
-	}
-	return result
-}
-
 // tsIsTestFile checks if a TypeScript file path indicates a test file.
 func tsIsTestFile(path string) bool {
 	lower := strings.ToLower(path)

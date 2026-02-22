@@ -73,7 +73,7 @@ func (a *C3Analyzer) analyzeTarget(target *arstypes.AnalysisTarget, metrics *ars
 		defer parser.CloseAll(parsed)
 		maxD, avgD := shared.AnalyzeDirectoryDepth(parsed, target.RootDir)
 		mergeTargetMetrics(metrics, pyBuildImportGraph(parsed), pyDetectDeadCode(parsed),
-			maxD, avgD, len(pyFilterSourceFiles(parsed)))
+			maxD, avgD, len(shared.FilterTreeSitterFiles(parsed, isTestFileByPath)))
 
 	case arstypes.LangTypeScript:
 		parsed, err := a.tsParser.ParseTargetFiles(target)
@@ -83,7 +83,7 @@ func (a *C3Analyzer) analyzeTarget(target *arstypes.AnalysisTarget, metrics *ars
 		defer parser.CloseAll(parsed)
 		maxD, avgD := shared.AnalyzeDirectoryDepth(parsed, target.RootDir)
 		mergeTargetMetrics(metrics, tsBuildImportGraph(parsed), tsDetectDeadCode(parsed),
-			maxD, avgD, len(tsFilterSourceFiles(parsed)))
+			maxD, avgD, len(shared.FilterTreeSitterFiles(parsed, tsIsTestFile)))
 	}
 }
 

@@ -286,14 +286,3 @@ func treeAnalyzeFileSizes(files []*parser.ParsedTreeSitterFile) types.MetricSumm
 	}
 }
 
-// filterSourceFiles filters to non-test source files.
-func treeFilterSourceFiles(files []*parser.ParsedTreeSitterFile, isTest func(string) bool) []*parser.ParsedTreeSitterFile {
-	var result []*parser.ParsedTreeSitterFile
-	for _, f := range files {
-		if isTest(f.RelPath) {
-			continue
-		}
-		result = append(result, f)
-	}
-	return result
-}

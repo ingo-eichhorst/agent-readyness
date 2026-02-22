@@ -345,7 +345,10 @@ const htmlTemplate = `<!DOCTYPE html>
   .lang-sep { height: 1px; background: var(--border); margin: 0.5rem 0; grid-column: 1/-1; }
   .heatmap-section { margin-bottom: 2.5rem; overflow-x: auto; }
   table.heatmap { border-collapse: collapse; width: 100%; min-width: 700px; }
-  table.heatmap th { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); padding: 0.4rem 0.6rem; text-align: center; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  table.heatmap th { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); padding: 0.4rem 0.6rem; text-align: center; border-bottom: 1px solid var(--border); white-space: nowrap; cursor: pointer; user-select: none; }
+  table.heatmap th:hover { color: var(--text); }
+  table.heatmap th.sort-asc::after  { content: ' ↑'; color: var(--assisted); }
+  table.heatmap th.sort-desc::after { content: ' ↓'; color: var(--assisted); }
   table.heatmap th.name-col { text-align: left; }
   table.heatmap td { padding: 0.35rem 0.6rem; text-align: center; font-size: 0.78rem; border-bottom: 1px solid var(--border); font-variant-numeric: tabular-nums; }
   table.heatmap td.name-col { text-align: left; color: var(--text); white-space: nowrap; }
@@ -440,16 +443,16 @@ const htmlTemplate = `<!DOCTYPE html>
   <table class="heatmap">
     <thead>
       <tr>
-        <th class="name-col">Repo</th>
-        <th>Lang</th>
-        <th>Score</th>
-        <th>Tier</th>
-        <th>C1<br><small>Code Health</small></th>
-        <th>C2<br><small>Semantics</small></th>
-        <th>C3<br><small>Architecture</small></th>
-        <th>C4<br><small>Docs</small></th>
-        <th>C5<br><small>Temporal</small></th>
-        <th>C6<br><small>Testing</small></th>
+        <th class="name-col" data-col="name">Repo</th>
+        <th data-col="lang">Lang</th>
+        <th data-col="score">Score</th>
+        <th data-col="tier">Tier</th>
+        <th data-col="C1">C1<br><small>Code Health</small></th>
+        <th data-col="C2">C2<br><small>Semantics</small></th>
+        <th data-col="C3">C3<br><small>Architecture</small></th>
+        <th data-col="C4">C4<br><small>Docs</small></th>
+        <th data-col="C5">C5<br><small>Temporal</small></th>
+        <th data-col="C6">C6<br><small>Testing</small></th>
       </tr>
     </thead>
     <tbody id="heatmapBody"></tbody>
@@ -560,26 +563,60 @@ langOrder.forEach(lang => {
   });
 });
 
-// Heatmap table
+// Heatmap table — sortable
 const tbody = document.getElementById('heatmapBody');
-repos.forEach(r => {
-  const tr = document.createElement('tr');
-  const cats = ['C1','C2','C3','C4','C5','C6'];
-  let catCells = cats.map(c => {
-    const v = r.cats[c];
-    const bg = heatColor(v);
-    const txt = v !== null ? v.toFixed(1) : '<span class="na">N/A</span>';
-    return '<td style="background:'+bg+'">'+txt+'</td>';
-  }).join('');
-  const nameLink = r.url ? '<a href="'+r.url+'" target="_blank">'+r.name+'</a>' : r.name;
-  tr.innerHTML =
-    '<td class="name-col"><strong>'+nameLink+'</strong></td>'+
-    '<td class="lang-tag" style="color:'+langColors[r.lang]+'">'+r.lang+'</td>'+
-    '<td style="font-weight:600;color:'+tierColor[r.tier]+'">'+r.score+'</td>'+
-    '<td><span class="tier-badge '+tierClass[r.tier]+'">'+r.tier.replace('Agent-','')+'</span></td>'+
-    catCells;
-  tbody.appendChild(tr);
+let sortCol = 'score', sortAsc = false;
+
+function rowVal(r, col) {
+  if (col === 'name') return r.name;
+  if (col === 'lang') return r.lang;
+  if (col === 'score') return r.score;
+  if (col === 'tier') return r.tier;
+  return r.cats[col] !== null ? r.cats[col] : -Infinity;
+}
+
+function renderTable() {
+  const sorted = repos.slice().sort((a, b) => {
+    const av = rowVal(a, sortCol), bv = rowVal(b, sortCol);
+    if (typeof av === 'string') return sortAsc ? av.localeCompare(bv) : bv.localeCompare(av);
+    return sortAsc ? av - bv : bv - av;
+  });
+  tbody.innerHTML = '';
+  sorted.forEach(r => {
+    const tr = document.createElement('tr');
+    const cats = ['C1','C2','C3','C4','C5','C6'];
+    let catCells = cats.map(c => {
+      const v = r.cats[c];
+      const bg = heatColor(v);
+      const txt = v !== null ? v.toFixed(1) : '<span class="na">N/A</span>';
+      return '<td style="background:'+bg+'">'+txt+'</td>';
+    }).join('');
+    const nameLink = r.url ? '<a href="'+r.url+'" target="_blank">'+r.name+'</a>' : r.name;
+    tr.innerHTML =
+      '<td class="name-col"><strong>'+nameLink+'</strong></td>'+
+      '<td class="lang-tag" style="color:'+langColors[r.lang]+'">'+r.lang+'</td>'+
+      '<td style="font-weight:600;color:'+tierColor[r.tier]+'">'+r.score+'</td>'+
+      '<td><span class="tier-badge '+tierClass[r.tier]+'">'+r.tier.replace('Agent-','')+'</span></td>'+
+      catCells;
+    tbody.appendChild(tr);
+  });
+}
+
+// Attach sort click handlers
+document.querySelectorAll('table.heatmap th[data-col]').forEach(th => {
+  th.addEventListener('click', () => {
+    const col = th.dataset.col;
+    if (sortCol === col) { sortAsc = !sortAsc; }
+    else { sortCol = col; sortAsc = col === 'name' || col === 'lang'; }
+    document.querySelectorAll('table.heatmap th').forEach(h => h.classList.remove('sort-asc','sort-desc'));
+    th.classList.add(sortAsc ? 'sort-asc' : 'sort-desc');
+    renderTable();
+  });
 });
+
+// Initial render: sorted by score desc; mark the Score header
+renderTable();
+document.querySelector('table.heatmap th[data-col="score"]').classList.add('sort-desc');
 
 // Radar cards
 const grid = document.getElementById('radarGrid');

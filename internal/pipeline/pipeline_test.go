@@ -462,3 +462,93 @@ func TestSetDebugDir(t *testing.T) {
 		t.Errorf("debugDir = %q, want %q", p.debugDir, "/tmp/debug")
 	}
 }
+
+func TestLoadBaseline_ValidJSON(t *testing.T) {
+	f, err := os.CreateTemp("", "baseline-*.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(f.Name())
+
+	json := `{"composite_score":7.5,"tier":"Agent-Assisted","categories":[{"name":"C1","score":8.0,"weight":0.25}]}`
+	if _, err := f.WriteString(json); err != nil {
+		t.Fatal(err)
+	}
+	f.Close()
+
+	result, err := loadBaseline(f.Name())
+	if err != nil {
+		t.Fatalf("loadBaseline error: %v", err)
+	}
+	if result.Composite != 7.5 {
+		t.Errorf("Composite = %v, want 7.5", result.Composite)
+	}
+	if result.Tier != "Agent-Assisted" {
+		t.Errorf("Tier = %q, want %q", result.Tier, "Agent-Assisted")
+	}
+	if len(result.Categories) != 1 || result.Categories[0].Name != "C1" {
+		t.Errorf("Categories = %v, want 1 category with name C1", result.Categories)
+	}
+}
+
+func TestLoadBaseline_FileNotFound(t *testing.T) {
+	_, err := loadBaseline("/nonexistent/path/baseline.json")
+	if err == nil {
+		t.Error("expected error for nonexistent file")
+	}
+}
+
+func TestLoadBaseline_InvalidJSON(t *testing.T) {
+	f, err := os.CreateTemp("", "baseline-*.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(f.Name())
+	f.WriteString("not-json{{{")
+	f.Close()
+
+	_, err = loadBaseline(f.Name())
+	if err == nil {
+		t.Error("expected error for invalid JSON")
+	}
+}
+
+func TestBuildNonGoTargets_ExcludesGoFiles(t *testing.T) {
+	dir := t.TempDir()
+	pyFile := filepath.Join(dir, "main.py")
+	os.WriteFile(pyFile, []byte("print('hello')"), 0600)
+
+	scanResult := &types.ScanResult{
+		Files: []types.DiscoveredFile{
+			{Path: filepath.Join(dir, "main.go"), Language: types.LangGo, Class: types.ClassSource, RelPath: "main.go"},
+			{Path: pyFile, Language: types.LangPython, Class: types.ClassSource, RelPath: "main.py"},
+		},
+	}
+
+	targets := buildNonGoTargets(dir, scanResult)
+
+	for _, t2 := range targets {
+		if t2.Language == types.LangGo {
+			t.Error("buildNonGoTargets should not include Go targets")
+		}
+	}
+	if len(targets) != 1 {
+		t.Errorf("expected 1 target (Python), got %d", len(targets))
+	}
+}
+
+func TestBuildNonGoTargets_ExcludesExcludedAndGenerated(t *testing.T) {
+	dir := t.TempDir()
+
+	scanResult := &types.ScanResult{
+		Files: []types.DiscoveredFile{
+			{Path: filepath.Join(dir, "a.py"), Language: types.LangPython, Class: types.ClassExcluded, RelPath: "a.py"},
+			{Path: filepath.Join(dir, "b.py"), Language: types.LangPython, Class: types.ClassGenerated, RelPath: "b.py"},
+		},
+	}
+
+	targets := buildNonGoTargets(dir, scanResult)
+	if len(targets) != 0 {
+		t.Errorf("expected 0 targets for excluded/generated files, got %d", len(targets))
+	}
+}

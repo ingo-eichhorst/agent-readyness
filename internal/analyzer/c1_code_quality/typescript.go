@@ -96,15 +96,7 @@ func tsWalkClassBody(node *tree_sitter.Node, content []byte, file string, result
 
 // tsExtractFuncName extracts the function name, prefixed with className if inside a class.
 func tsExtractFuncName(node *tree_sitter.Node, content []byte, className string) string {
-	nameNode := node.ChildByFieldName("name")
-	name := ""
-	if nameNode != nil {
-		name = shared.NodeText(nameNode, content)
-	}
-	if className != "" {
-		name = className + "." + name
-	}
-	return name
+	return extractClassedFuncName(node, content, className)
 }
 
 // tsBuildFuncMetric creates a FunctionMetric from a function/method/arrow AST node.

@@ -12,9 +12,25 @@ import (
 
 	tree_sitter "github.com/tree-sitter/go-tree-sitter"
 
+	"github.com/ingo-eichhorst/agent-readyness/internal/analyzer/shared"
 	"github.com/ingo-eichhorst/agent-readyness/internal/parser"
 	"github.com/ingo-eichhorst/agent-readyness/pkg/types"
 )
+
+// extractClassedFuncName extracts a function name node's text, prefixed with
+// className if the function belongs to a class (e.g. "MyClass.doThing").
+// Shared by Python and TypeScript function walkers.
+func extractClassedFuncName(node *tree_sitter.Node, content []byte, className string) string {
+	nameNode := node.ChildByFieldName("name")
+	name := ""
+	if nameNode != nil {
+		name = shared.NodeText(nameNode, content)
+	}
+	if className != "" {
+		name = className + "." + name
+	}
+	return name
+}
 
 const (
 	dupHashMaxDepth    = 5
@@ -144,14 +160,14 @@ func treeCollectDupSequences(node *tree_sitter.Node, file string, content []byte
 	}
 
 	kind := node.Kind()
-	if treeIsBlockKind(kind, cfg.blockKinds) {
+	if treeKindInList(kind, cfg.blockKinds) {
 		var stmts []*tree_sitter.Node
 		for i := uint(0); i < node.ChildCount(); i++ {
 			child := node.Child(i)
 			if child == nil {
 				continue
 			}
-			if treeIsSkipKind(child.Kind(), cfg.skipKinds) {
+			if treeKindInList(child.Kind(), cfg.skipKinds) {
 				continue
 			}
 			stmts = append(stmts, child)
@@ -184,17 +200,10 @@ func treeCollectDupSequences(node *tree_sitter.Node, file string, content []byte
 	}
 }
 
-func treeIsBlockKind(kind string, blockKinds []string) bool {
-	for _, k := range blockKinds {
-		if kind == k {
-			return true
-		}
-	}
-	return false
-}
-
-func treeIsSkipKind(kind string, skipKinds []string) bool {
-	for _, k := range skipKinds {
+// treeKindInList checks if kind is present in the given list of node kinds.
+// Used for both block-kind and skip-kind lookups.
+func treeKindInList(kind string, kinds []string) bool {
+	for _, k := range kinds {
 		if kind == k {
 			return true
 		}

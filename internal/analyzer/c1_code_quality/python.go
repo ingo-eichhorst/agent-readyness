@@ -118,15 +118,7 @@ func pyRecordFunction(node *tree_sitter.Node, content []byte, file string, class
 
 // pyExtractFuncName extracts the function name, prefixed with className if inside a class.
 func pyExtractFuncName(node *tree_sitter.Node, content []byte, className string) string {
-	nameNode := node.ChildByFieldName("name")
-	name := ""
-	if nameNode != nil {
-		name = shared.NodeText(nameNode, content)
-	}
-	if className != "" {
-		name = className + "." + name
-	}
-	return name
+	return extractClassedFuncName(node, content, className)
 }
 
 // pyWalkFunctionsInBody finds nested function/class definitions inside a function body.

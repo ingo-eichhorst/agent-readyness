@@ -98,9 +98,9 @@ func executeMetricWithProgress(
 	return result
 }
 
-// RunMetricsSequential executes all metrics sequentially (fallback/debugging).
+// runMetricsSequential executes all metrics sequentially (fallback/debugging).
 // If executor is nil, a default CLIExecutorAdapter is created for live CLI execution.
-func RunMetricsSequential(
+func runMetricsSequential(
 	ctx context.Context,
 	workDir string,
 	targets []*types.AnalysisTarget,

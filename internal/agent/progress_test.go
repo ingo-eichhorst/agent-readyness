@@ -71,7 +71,7 @@ func TestC7Progress_SetMetricSample(t *testing.T) {
 	p := NewC7Progress(os.Stderr, ids, nil)
 
 	p.SetMetricRunning("m1", 5)
-	p.SetMetricSample("m1", 3)
+	p.setMetricSample("m1", 3)
 
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -121,7 +121,7 @@ func TestC7Progress_AddTokens(t *testing.T) {
 	p.AddTokens(100)
 	p.AddTokens(200)
 
-	if got := p.TotalTokens(); got != 300 {
+	if got := p.getTotalTokens(); got != 300 {
 		t.Errorf("TotalTokens() = %d, want 300", got)
 	}
 }
@@ -143,7 +143,7 @@ func TestC7Progress_TotalTokens_ThreadSafe(t *testing.T) {
 		<-done
 	}
 
-	if got := p.TotalTokens(); got != 1000 {
+	if got := p.getTotalTokens(); got != 1000 {
 		t.Errorf("TotalTokens() = %d, want 1000", got)
 	}
 }
@@ -154,7 +154,7 @@ func TestC7Progress_UnknownMetricID(t *testing.T) {
 
 	// These should not panic, just be no-ops
 	p.SetMetricRunning("unknown", 5)
-	p.SetMetricSample("unknown", 3)
+	p.setMetricSample("unknown", 3)
 	p.SetMetricComplete("unknown", 8)
 	p.SetMetricFailed("unknown", "error")
 

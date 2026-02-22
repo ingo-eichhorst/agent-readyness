@@ -115,8 +115,8 @@ func (p *C7Progress) SetMetricRunning(id string, totalSamples int) {
 	}
 }
 
-// SetMetricSample updates the current sample number for a running metric.
-func (p *C7Progress) SetMetricSample(id string, current int) {
+// setMetricSample updates the current sample number for a running metric.
+func (p *C7Progress) setMetricSample(id string, current int) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if m, ok := p.metrics[id]; ok {
@@ -151,8 +151,8 @@ func (p *C7Progress) AddTokens(tokens int) {
 	p.totalTokens += tokens
 }
 
-// TotalTokens returns the current token count.
-func (p *C7Progress) TotalTokens() int {
+// getTotalTokens returns the current token count.
+func (p *C7Progress) getTotalTokens() int {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	return p.totalTokens

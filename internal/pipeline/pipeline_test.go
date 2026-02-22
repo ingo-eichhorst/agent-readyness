@@ -402,26 +402,6 @@ func TestGetCLIStatus(t *testing.T) {
 	_ = status.Version
 }
 
-func TestSetC7Enabled(t *testing.T) {
-	var buf bytes.Buffer
-	p := New(&buf, false, nil, 0, false, nil)
-
-	// C7 is always in the analyzers list, but SetC7Enabled explicitly enables it
-	// if evaluator is present. We verify the method runs without error.
-	p.SetC7Enabled()
-
-	// Verify C7 analyzer is in the list
-	hasC7 := false
-	for _, a := range p.analyzers {
-		if a.Name() == "C7: Agent Evaluation" {
-			hasC7 = true
-			break
-		}
-	}
-	if !hasC7 {
-		t.Error("C7 should be in analyzers list")
-	}
-}
 
 func TestSetHTMLOutput(t *testing.T) {
 	var buf bytes.Buffer

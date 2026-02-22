@@ -132,13 +132,6 @@ func (p *Pipeline) GetCLIStatus() agent.CLIStatus {
 	return p.cliStatus
 }
 
-// SetC7Enabled enables C7 agent evaluation using the CLI-based evaluator.
-func (p *Pipeline) SetC7Enabled() {
-	if p.c7Analyzer != nil && p.evaluator != nil {
-		p.c7Analyzer.Enable(p.evaluator)
-	}
-}
-
 // SetHTMLOutput configures HTML report generation.
 // If htmlPath is non-empty, an HTML report will be generated at that path.
 // If baselinePath is non-empty, the report will include trend comparison.

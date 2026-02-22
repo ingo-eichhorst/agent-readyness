@@ -46,7 +46,7 @@ func TestRunMetricsParallel_NoTargets(t *testing.T) {
 func TestRunMetricsSequential_NoTargets(t *testing.T) {
 	ctx := context.Background()
 
-	result := RunMetricsSequential(ctx, "/tmp", nil, nil, &noopExecutor{})
+	result := runMetricsSequential(ctx, "/tmp", nil, nil, &noopExecutor{})
 
 	if len(result.Results) != 5 {
 		t.Errorf("got %d results, want 5", len(result.Results))
@@ -86,7 +86,7 @@ func TestRunMetricsSequential_ContextCancellation(t *testing.T) {
 	cancel() // Cancel immediately
 
 	// Should complete without hanging
-	result := RunMetricsSequential(ctx, "/tmp", nil, nil, &noopExecutor{})
+	result := runMetricsSequential(ctx, "/tmp", nil, nil, &noopExecutor{})
 
 	// Should have at least some results
 	if len(result.Results) == 0 {
@@ -138,7 +138,7 @@ func TestRunMetricsSequential_WithProgress(t *testing.T) {
 	}
 	progress := NewC7Progress(nil, ids, nil)
 
-	result := RunMetricsSequential(ctx, "/tmp", nil, progress, &noopExecutor{})
+	result := runMetricsSequential(ctx, "/tmp", nil, progress, &noopExecutor{})
 
 	if len(result.Results) != 5 {
 		t.Errorf("got %d results, want 5", len(result.Results))
@@ -198,7 +198,7 @@ func TestRunMetricsSequential_StopsOnContextCancel(t *testing.T) {
 	// Cancel after a brief moment (simulates timeout)
 	cancel()
 
-	result := RunMetricsSequential(ctx, "/tmp", targets, nil, &noopExecutor{})
+	result := runMetricsSequential(ctx, "/tmp", targets, nil, &noopExecutor{})
 
 	// Should have stopped early due to context cancellation
 	// May not have all 5 results if it checked context between metrics

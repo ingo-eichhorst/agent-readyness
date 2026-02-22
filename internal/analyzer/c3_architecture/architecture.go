@@ -4,6 +4,7 @@ import (
 	"go/types"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/ingo-eichhorst/agent-readyness/internal/analyzer/shared"
@@ -260,7 +261,12 @@ func detectCircularDeps(graph *shared.ImportGraph) [][]string {
 
 	dfs := buildCycleDFS(color, parent, &cycles, graph)
 
+	nodes := make([]string, 0, len(color))
 	for node := range color {
+		nodes = append(nodes, node)
+	}
+	sort.Strings(nodes)
+	for _, node := range nodes {
 		if color[node] == white {
 			dfs(node)
 		}

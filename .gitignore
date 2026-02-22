@@ -1,5 +1,6 @@
 /ars
 report.html
+benchmark/repos/
 coverage/
 cover*.out
 

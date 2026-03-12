@@ -459,6 +459,16 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
+## Contributors
+
+Thanks to these wonderful people for their contributions!
+
+| Contributor | Contribution |
+|---|---|
+| [@raifdmueller](https://github.com/raifdmueller) | Bug report & root cause analysis ([#73](https://github.com/ingo-eichhorst/agent-readyness/issues/73)) |
+
+---
+
 ## Acknowledgments
 
 Built with research from leading institutions and grounded in peer-reviewed publications. See [RESEARCH.md](RESEARCH.md) for 58+ academic citations spanning:

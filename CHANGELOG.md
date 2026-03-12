@@ -7,6 +7,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.8] - 2026-03-12
+
+### Fixed
+- `go install github.com/ingo-eichhorst/agent-readyness/cmd/ars@latest` now works (#73)
+  - v0.0.7 was tagged before `cmd/ars/main.go` restructuring (commit 274b5f6)
+  - This release includes the `cmd/ars` entry point so `go install` resolves correctly
+
+### Added
+- Repository metadata metrics in analysis output (#71)
+- Release verification CI workflow — runs `go build ./cmd/ars` on every tag push
+- `RELEASING.md` — release checklist with `go install` verification steps
+
+### Changed
+- Top-5 refactoring for maximum code quality (#72)
+- Analyzer language files renamed to match naming convention (#70)
+- C5 N/A in benchmark and report generator fixed (#69)
+- Average function length reduced from 26.9 to 17.4 lines
+- Scorer and terminal split into per-category modules
+- Shared helpers extracted to reduce code duplication (15.3% to 14.4%)
+- `cmd/` package test coverage added (76.7% coverage)
+
+## [0.0.7] - 2026-02-28
+
+### Added
+- Architecture diagrams for C4 documentation score improvement
+- Selective category/metric execution ticket
+- Unit tests for agent evaluator core logic
+- Error path tests for C7 analyzer
+- Tests for output rendering, type methods, shared utilities, and pipeline setters
+
+### Changed
+- Consolidated LLM control under single `--no-llm` flag (replaces separate C4/C7 flags)
+- C7 displays as n/a and excluded from composite when `--no-llm` is set
+- Module path corrected in go.mod (#63)
+- Internal APIs unexported and agent documentation consolidated
+- Duplication detection thresholds consolidated to reduce magic numbers
+- Code structure and comment density improved for Agent-Ready tier
+- Doc comments added to all exported metric methods and analyzer type aliases
+- `map[string]interface{}` replaced with typed `CategoryMetrics` interface
+
+### Removed
+- 6 unnecessary shared utility exports from `internal/analyzer`
+- 3 unnecessary type exports from `internal/analyzer/c2_semantics`
+- `StubAnalyzer` export from `internal/pipeline`
+- Unused `DefaultProjectConfig` from `internal/config`
+- 2 unnecessary exports from `internal/scoring`
+- Unused `ParsedFile` type from `pkg/types`
+- 3 unnecessary function exports from `internal/discovery`
+- 6 unnecessary type exports from `internal/output`
+
 ## [0.0.6] - 2026-02-07
 
 ### Added
@@ -246,7 +296,9 @@ Initial release of Agent Readiness Score (ARS) - a CLI tool that measures codeba
   - Effort level classification (Low/Medium/High)
   - Agent-readiness framing
 
-[Unreleased]: https://github.com/ingo-eichhorst/agent-readyness/compare/v0.0.6...HEAD
+[Unreleased]: https://github.com/ingo-eichhorst/agent-readyness/compare/v0.0.8...HEAD
+[0.0.8]: https://github.com/ingo-eichhorst/agent-readyness/compare/v0.0.7...v0.0.8
+[0.0.7]: https://github.com/ingo-eichhorst/agent-readyness/compare/v0.0.6...v0.0.7
 [0.0.6]: https://github.com/ingo-eichhorst/agent-readyness/compare/v0.0.5...v0.0.6
 [0.0.5]: https://github.com/ingo-eichhorst/agent-readyness/compare/v0.0.4...v0.0.5
 [0.0.4]: https://github.com/ingo-eichhorst/agent-readyness/compare/v0.0.3...v0.0.4

@@ -80,6 +80,24 @@ repos:
     expected_quality: low
     expected_score_range: [3, 5]
 
+  # Go upper boundary: high test coverage, Google-maintained, excellent docs
+  - name: grpc-go
+    language: go
+    url: https://github.com/grpc/grpc-go
+    commit: "v1.63.0"
+    size: large
+    expected_quality: very_high
+    expected_score_range: [8, 10]
+
+  # Go lower boundary: stagnant since 2021, no tests, sparse docs
+  - name: gg
+    language: go
+    url: https://github.com/fogleman/gg
+    commit: "main"
+    size: small
+    expected_quality: very_low
+    expected_score_range: [1, 4]
+
   # Python repos: tiny → large, high → low quality
   - name: pydantic
     language: python
@@ -161,6 +179,24 @@ repos:
     expected_quality: low
     expected_score_range: [3, 5]
 
+  # Python upper boundary: legendary docs, comprehensive tests, clean API design
+  - name: requests
+    language: python
+    url: https://github.com/psf/requests
+    commit: "v2.32.3"
+    size: medium
+    expected_quality: very_high
+    expected_score_range: [8, 10]
+
+  # Python lower boundary: legacy character detection port, no type hints, complex logic
+  - name: chardet
+    language: python
+    url: https://github.com/chardet/chardet
+    commit: "5.2.0"
+    size: small
+    expected_quality: very_low
+    expected_score_range: [1, 4]
+
   # TypeScript repos: tiny → large, high → low quality
   - name: zod
     language: typescript
@@ -241,3 +277,21 @@ repos:
     size: tiny
     expected_quality: low
     expected_score_range: [2, 4]
+
+  # TypeScript upper boundary: small, fully typed, comprehensive tests, active
+  - name: zustand
+    language: typescript
+    url: https://github.com/pmndrs/zustand
+    commit: "v4.5.5"
+    size: small
+    expected_quality: very_high
+    expected_score_range: [8, 10]
+
+  # TypeScript lower boundary: archived 2018 Polymer project, no tests, legacy
+  - name: prpl-server
+    language: typescript
+    url: https://github.com/Polymer/prpl-server
+    commit: "v3.1.0"
+    size: small
+    expected_quality: very_low
+    expected_score_range: [1, 4]

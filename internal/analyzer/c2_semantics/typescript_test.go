@@ -41,9 +41,9 @@ func TestC2TypeScriptAnalyzer_ValidProject(t *testing.T) {
 		t.Fatalf("Analyze() error: %v", err)
 	}
 
-	// Type annotation coverage should be > 0 (index.ts has full type annotations)
-	if metrics.TypeAnnotationCoverage <= 0 {
-		t.Errorf("TypeAnnotationCoverage = %v, want > 0", metrics.TypeAnnotationCoverage)
+	// TypeAnnotationCoverage: index.ts has zero `any` usages, so coverage should be 100.
+	if metrics.TypeAnnotationCoverage != 100 {
+		t.Errorf("TypeAnnotationCoverage = %v, want 100 (no `any` usages in index.ts)", metrics.TypeAnnotationCoverage)
 	}
 
 	// TotalFunctions should be > 0
@@ -228,5 +228,85 @@ func TestTSStrictModeWithCustomConfig(t *testing.T) {
 	}
 	if hasNullChecks {
 		t.Error("expected strictNullChecks=false with strict: false")
+	}
+}
+
+func TestTSStrictModeMonorepoDetection(t *testing.T) {
+	// Simulate a monorepo where the root tsconfig.json has no strict flags
+	// but a nested package does (e.g. packages/core/tsconfig.json).
+	tmpDir := t.TempDir()
+
+	// Root config: no strict
+	rootConfig := `{"compilerOptions": {}}`
+	if err := os.WriteFile(filepath.Join(tmpDir, "tsconfig.json"), []byte(rootConfig), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Nested package with strict enabled
+	pkgDir := filepath.Join(tmpDir, "packages", "core")
+	if err := os.MkdirAll(pkgDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	nestedConfig := `{"compilerOptions": {"strict": true}}`
+	if err := os.WriteFile(filepath.Join(pkgDir, "tsconfig.json"), []byte(nestedConfig), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	isStrict, hasNullChecks := tsDetectStrictMode(tmpDir)
+	if !isStrict {
+		t.Error("expected strict=true: nested package tsconfig has strict: true")
+	}
+	if !hasNullChecks {
+		t.Error("expected strictNullChecks=true (implied by strict: true in nested config)")
+	}
+
+	// Verify that a dir with NO tsconfig files at all returns false
+	emptyDir := t.TempDir()
+	isStrict, hasNullChecks = tsDetectStrictMode(emptyDir)
+	if isStrict {
+		t.Error("expected strict=false for dir with no tsconfig files")
+	}
+	if hasNullChecks {
+		t.Error("expected strictNullChecks=false for dir with no tsconfig files")
+	}
+}
+
+func TestTSAnyUsageCount(t *testing.T) {
+	tsParser, err := parser.NewTreeSitterParser()
+	if err != nil {
+		t.Fatalf("failed to create parser: %v", err)
+	}
+	defer tsParser.Close()
+
+	// Code with explicit `any` usages
+	codeWithAny := []byte(`
+function foo(x: any): any { return x; }
+const bar: any = 42;
+`)
+	tree, err := tsParser.ParseFile(types.LangTypeScript, ".ts", codeWithAny)
+	if err != nil {
+		t.Fatalf("ParseFile error: %v", err)
+	}
+	defer tree.Close()
+
+	count := tsCountAnyUsages(tree.RootNode(), codeWithAny)
+	if count != 3 {
+		t.Errorf("tsCountAnyUsages = %d, want 3 (2 in function + 1 in variable)", count)
+	}
+
+	// Code with zero `any` usages (using inference)
+	codeNoAny := []byte(`
+const double = (x: number) => x * 2;
+function greet(name: string): string { return "Hello " + name; }
+`)
+	tree2, err := tsParser.ParseFile(types.LangTypeScript, ".ts", codeNoAny)
+	if err != nil {
+		t.Fatalf("ParseFile error: %v", err)
+	}
+	defer tree2.Close()
+
+	count2 := tsCountAnyUsages(tree2.RootNode(), codeNoAny)
+	if count2 != 0 {
+		t.Errorf("tsCountAnyUsages = %d, want 0 for code without any", count2)
 	}
 }

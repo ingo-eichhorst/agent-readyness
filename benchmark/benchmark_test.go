@@ -14,6 +14,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"gopkg.in/yaml.v3"
 
@@ -79,10 +80,12 @@ func TestBenchmarkRepos(t *testing.T) {
 		pass    bool
 		errMsg  string
 	}
-	results := make([]result, len(cfg.Repos))
+	total := len(cfg.Repos)
+	results := make([]result, total)
 
 	var mu sync.Mutex
 	var wg sync.WaitGroup
+	var completedCount int
 
 	for i, repo := range cfg.Repos {
 		i, repo := i, repo
@@ -90,6 +93,7 @@ func TestBenchmarkRepos(t *testing.T) {
 		go func() {
 			defer wg.Done()
 
+			start := time.Now()
 			repoDir := filepath.Join(reposDir, repo.Language, repo.Name)
 			scored, scanErr := scanRepo(repoDir)
 
@@ -97,35 +101,41 @@ func TestBenchmarkRepos(t *testing.T) {
 
 			if scanErr != nil {
 				r.errMsg = scanErr.Error()
-				mu.Lock()
-				results[i] = r
-				mu.Unlock()
-				return
-			}
-
-			golden := scored
-			r.score = golden.CompositeScore
-			r.tier = golden.Tier
-
-			goldenPath := filepath.Join(goldenDir, repo.Language, repo.Name+".json")
-
-			if *update {
-				if writeErr := writeGolden(goldenPath, golden); writeErr != nil {
-					r.errMsg = fmt.Sprintf("write golden: %v", writeErr)
-				} else {
-					r.pass = true
-				}
 			} else {
-				if cmpErr := compareGolden(goldenPath, golden); cmpErr != nil {
-					r.errMsg = cmpErr.Error()
+				golden := scored
+				r.score = golden.CompositeScore
+				r.tier = golden.Tier
+
+				goldenPath := filepath.Join(goldenDir, repo.Language, repo.Name+".json")
+
+				if *update {
+					if writeErr := writeGolden(goldenPath, golden); writeErr != nil {
+						r.errMsg = fmt.Sprintf("write golden: %v", writeErr)
+					} else {
+						r.pass = true
+					}
 				} else {
-					r.pass = true
+					if cmpErr := compareGolden(goldenPath, golden); cmpErr != nil {
+						r.errMsg = cmpErr.Error()
+					} else {
+						r.pass = true
+					}
 				}
 			}
+
+			elapsed := time.Since(start)
 
 			mu.Lock()
+			completedCount++
+			idx := completedCount
 			results[i] = r
 			mu.Unlock()
+
+			status := "ok"
+			if r.errMsg != "" {
+				status = "FAIL"
+			}
+			fmt.Printf("[%d/%d] %-20s  %8s  %s\n", idx, total, repo.Name, elapsed.Round(time.Millisecond), status)
 		}()
 	}
 

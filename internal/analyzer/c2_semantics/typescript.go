@@ -2,6 +2,7 @@ package c2
 
 import (
 	"encoding/json"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -15,11 +16,14 @@ import (
 
 // Constants for TypeScript C2 metrics computation.
 const (
-	toPerKLOCTS          = 1000.0
-	toPercentTS          = 100.0
+	toPerKLOCTS           = 1000.0
+	toPercentTS           = 100.0
 	strictNullCheckPoints = 50.0
-	chainDensityScale    = 10.0
-	maxChainScore        = 50.0
+	chainDensityScale     = 10.0
+	maxChainScore         = 50.0
+	// anyRateAnnotationScale converts any-usages-per-KLOC to a coverage penalty.
+	// e.g. 5 any/KLOC → 100 - 15 = 85%; 33 any/KLOC → 0%.
+	anyRateAnnotationScale = 3.0
 )
 
 // c2TypeScriptAnalyzer computes C2 (Semantic Explicitness) metrics for TypeScript code
@@ -35,9 +39,7 @@ func newC2TypeScriptAnalyzer(p *parser.TreeSitterParser) *c2TypeScriptAnalyzer {
 
 // Analyze computes C2 metrics for a TypeScript AnalysisTarget.
 type tsAccumulator struct {
-	typedElements      int
-	totalElements      int
-	anyCount           int
+	anyCount           int // total explicit `any` type usages (all contexts)
 	magicNumberCount   int
 	totalLOC           int
 	optionalChainCount int
@@ -73,12 +75,8 @@ func (a *c2TypeScriptAnalyzer) accumulateTSMetrics(sourceFiles []types.SourceFil
 		}
 		root := tree.RootNode()
 		acc.totalLOC += shared.CountLines(content)
-
-		typed, total, anyC, funcs := tsTypeAnnotations(root, content)
-		acc.typedElements += typed
-		acc.totalElements += total
-		acc.anyCount += anyC
-		acc.totalFunctions += funcs
+		acc.anyCount += tsCountAnyUsages(root, content)
+		acc.totalFunctions += tsCountFunctions(root)
 		acc.magicNumberCount += tsMagicNumbers(root, content)
 		acc.optionalChainCount += tsOptionalChaining(root)
 		tree.Close()
@@ -89,12 +87,17 @@ func (a *c2TypeScriptAnalyzer) accumulateTSMetrics(sourceFiles []types.SourceFil
 func (acc *tsAccumulator) buildMetrics(rootDir string) *types.C2LanguageMetrics {
 	metrics := &types.C2LanguageMetrics{}
 
-	if acc.totalElements > 0 {
-		effective := acc.typedElements - acc.anyCount
-		if effective < 0 {
-			effective = 0
+	// TypeAnnotationCoverage: inverse of any-usage rate per KLOC.
+	// TypeScript uses inference, so counting missing annotations is misleading.
+	// High-quality TS code avoids explicit `any`; this metric is fair regardless
+	// of whether inference is used.
+	if acc.totalLOC > 0 {
+		anyRatePerKLOC := float64(acc.anyCount) / float64(acc.totalLOC) * toPerKLOCTS
+		coverage := toPercentTS - anyRatePerKLOC*anyRateAnnotationScale
+		if coverage < 0 {
+			coverage = 0
 		}
-		metrics.TypeAnnotationCoverage = float64(effective) / float64(acc.totalElements) * toPercentTS
+		metrics.TypeAnnotationCoverage = coverage
 	}
 
 	metrics.MagicNumberCount = acc.magicNumberCount
@@ -129,101 +132,6 @@ func tsNullSafetyScore(strictNullChecks bool, optionalChainCount, totalLOC int) 
 	return score
 }
 
-// tsTypeAnnotations counts type annotations in TypeScript functions.
-// Returns: typedElements, totalElements, anyCount, functionCount.
-func tsTypeAnnotations(root *tree_sitter.Node, content []byte) (int, int, int, int) {
-	var typed, total, anyC, funcCount int
-
-	shared.WalkTree(root, func(node *tree_sitter.Node) {
-		nodeKind := node.Kind()
-
-		switch nodeKind {
-		case "function_declaration", "method_definition":
-			funcCount++
-
-			// Check return type annotation
-			total++ // One slot for return type
-			returnType := node.ChildByFieldName("return_type")
-			if returnType != nil {
-				typed++
-				if containsAnyType(returnType, content) {
-					anyC++
-				}
-			}
-
-			// Check parameters
-			params := node.ChildByFieldName("parameters")
-			if params != nil {
-				countTSParams(params, content, &typed, &total, &anyC)
-			}
-
-		case "arrow_function":
-			funcCount++
-
-			// Check return type
-			total++
-			returnType := node.ChildByFieldName("return_type")
-			if returnType != nil {
-				typed++
-				if containsAnyType(returnType, content) {
-					anyC++
-				}
-			}
-
-			// Check parameters
-			params := node.ChildByFieldName("parameters")
-			if params != nil {
-				countTSParams(params, content, &typed, &total, &anyC)
-			} else {
-				// Single parameter arrow function (no parens)
-				param := node.ChildByFieldName("parameter")
-				if param != nil {
-					total++
-					// Check for type annotation on the single param
-					typeAnno := param.ChildByFieldName("type")
-					if typeAnno != nil {
-						typed++
-						if containsAnyType(typeAnno, content) {
-							anyC++
-						}
-					}
-				}
-			}
-		}
-	})
-
-	return typed, total, anyC, funcCount
-}
-
-// countTSParams counts typed/untyped parameters in a TypeScript parameter list.
-func countTSParams(params *tree_sitter.Node, content []byte, typed, total, anyC *int) {
-	for i := uint(0); i < params.ChildCount(); i++ {
-		child := params.Child(i)
-		if child == nil {
-			continue
-		}
-		childKind := child.Kind()
-
-		switch childKind {
-		case "required_parameter", "optional_parameter", "rest_parameter":
-			*total++
-			typeAnno := child.ChildByFieldName("type")
-			if typeAnno != nil {
-				*typed++
-				if containsAnyType(typeAnno, content) {
-					*anyC++
-				}
-			}
-		}
-	}
-}
-
-// containsAnyType checks if a type annotation node contains explicit "any".
-func containsAnyType(node *tree_sitter.Node, content []byte) bool {
-	text := shared.NodeText(node, content)
-	// Check for standalone "any" type
-	return strings.Contains(text, "any")
-}
 
 // tsMagicNumbers counts magic numbers in TypeScript code.
 func tsMagicNumbers(root *tree_sitter.Node, content []byte) int {
@@ -281,11 +189,68 @@ func tsOptionalChaining(root *tree_sitter.Node) int {
 	return count
 }
 
-// tsDetectStrictMode parses tsconfig.json and checks for strict mode settings.
+// tsCountAnyUsages counts all explicit `any` type usages in a TypeScript file.
+// It walks the entire AST looking for predefined_type nodes with text "any",
+// covering variable declarations, function annotations, and other contexts.
+func tsCountAnyUsages(root *tree_sitter.Node, content []byte) int {
+	count := 0
+	shared.WalkTree(root, func(node *tree_sitter.Node) {
+		if node.Kind() == "predefined_type" && shared.NodeText(node, content) == "any" {
+			count++
+		}
+	})
+	return count
+}
+
+// tsCountFunctions counts function declarations, method definitions, and arrow functions.
+func tsCountFunctions(root *tree_sitter.Node) int {
+	count := 0
+	shared.WalkTree(root, func(node *tree_sitter.Node) {
+		switch node.Kind() {
+		case "function_declaration", "method_definition", "arrow_function":
+			count++
+		}
+	})
+	return count
+}
+
+// tsDetectStrictMode scans all tsconfig*.json files under rootDir for strict mode settings.
+// This handles monorepos where strict: true may live in a nested or referenced config.
 // Returns (isStrict, hasStrictNullChecks).
 func tsDetectStrictMode(rootDir string) (bool, bool) {
-	tsconfigPath := filepath.Join(rootDir, "tsconfig.json")
-	data, err := os.ReadFile(tsconfigPath)
+	var foundStrict, foundNullChecks bool
+
+	_ = filepath.WalkDir(rootDir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		if d.IsDir() {
+			name := d.Name()
+			// Skip node_modules and hidden directories to avoid false positives
+			// and keep the walk fast.
+			if name == "node_modules" || strings.HasPrefix(name, ".") {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		base := filepath.Base(path)
+		if !strings.HasPrefix(base, "tsconfig") || !strings.HasSuffix(base, ".json") {
+			return nil
+		}
+		isStrict, hasNullChecks := tsParseOneConfig(path)
+		if isStrict {
+			foundStrict = true
+			foundNullChecks = foundNullChecks || hasNullChecks
+		}
+		return nil
+	})
+
+	return foundStrict, foundNullChecks
+}
+
+// tsParseOneConfig reads a single tsconfig JSON file and returns strict mode flags.
+func tsParseOneConfig(path string) (isStrict bool, hasStrictNullChecks bool) {
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return false, false
 	}
@@ -305,19 +270,17 @@ func tsDetectStrictMode(rootDir string) (bool, bool) {
 
 	opts := tsconfig.CompilerOptions
 
-	// strict == true means all strict flags are on
+	// strict == true enables all strict flags.
 	if opts.Strict != nil && *opts.Strict {
 		return true, true
 	}
 
-	// Check individual strict flags
+	// Check individual strict flags.
 	allStrict := boolTrue(opts.StrictNullChecks) &&
 		boolTrue(opts.NoImplicitAny) &&
 		boolTrue(opts.StrictFunctionTypes)
 
-	hasNullChecks := boolTrue(opts.StrictNullChecks) || (opts.Strict != nil && *opts.Strict)
-
-	return allStrict, hasNullChecks
+	return allStrict, boolTrue(opts.StrictNullChecks)
 }
 
 // boolTrue returns true if the bool pointer is non-nil and true.

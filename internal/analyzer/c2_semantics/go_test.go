@@ -29,9 +29,13 @@ func TestC2GoAnalyzer_SelfAnalysis(t *testing.T) {
 		t.Fatalf("c2GoAnalyzer.Analyze() error: %v", err)
 	}
 
-	// Go is statically typed: TypeAnnotationCoverage must be 100
-	if metrics.TypeAnnotationCoverage != 100 {
-		t.Errorf("TypeAnnotationCoverage = %v, want 100 (Go is statically typed)", metrics.TypeAnnotationCoverage)
+	// TypeAnnotationCoverage reflects interface{}/any usage rate: 0=heavy any use, 100=no any.
+	// Well-typed Go code should score high (well above 0).
+	if metrics.TypeAnnotationCoverage < 0 || metrics.TypeAnnotationCoverage > 100 {
+		t.Errorf("TypeAnnotationCoverage = %v, want in [0, 100]", metrics.TypeAnnotationCoverage)
+	}
+	if metrics.TypeAnnotationCoverage <= 0 {
+		t.Errorf("TypeAnnotationCoverage = %v, want > 0 for well-typed Go code", metrics.TypeAnnotationCoverage)
 	}
 
 	// Go has compile-time type checking: TypeStrictness must be 1
@@ -119,8 +123,9 @@ func TestC2Analyzer_GoTarget(t *testing.T) {
 		t.Fatal("Aggregate is nil")
 	}
 
-	if c2.Aggregate.TypeAnnotationCoverage != 100 {
-		t.Errorf("Aggregate.TypeAnnotationCoverage = %v, want 100", c2.Aggregate.TypeAnnotationCoverage)
+	// TypeAnnotationCoverage is now based on interface{}/any usage rate, not hardcoded 100.
+	if c2.Aggregate.TypeAnnotationCoverage < 0 || c2.Aggregate.TypeAnnotationCoverage > 100 {
+		t.Errorf("Aggregate.TypeAnnotationCoverage = %v, want in [0, 100]", c2.Aggregate.TypeAnnotationCoverage)
 	}
 
 	// Should have Go in PerLanguage

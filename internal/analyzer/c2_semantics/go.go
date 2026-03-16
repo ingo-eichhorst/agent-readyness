@@ -12,9 +12,8 @@ import (
 
 // Constants for Go C2 metrics computation.
 const (
-	toPerKLOCGo           = 1000.0
-	toPercentGo           = 100.0
-	goFullAnnotationScore = 100 // Go has 100% type annotation coverage (static typing)
+	toPerKLOCGo = 1000.0
+	toPercentGo = 100.0
 )
 
 // c2GoAnalyzer computes C2 (Semantic Explicitness) metrics for Go code using go/ast.
@@ -35,15 +34,16 @@ func (a *c2GoAnalyzer) Analyze(target *types.AnalysisTarget) (*types.C2LanguageM
 
 	if len(srcPkgs) == 0 {
 		return &types.C2LanguageMetrics{
-			TypeAnnotationCoverage: goFullAnnotationScore,
+			// Go requires compile-time type checking: type strictness is always 1.
+			// TypeAnnotationCoverage defaults to 100 (no interface{}/any usage detected).
+			TypeAnnotationCoverage: toPercentGo,
 			TypeStrictness:         1,
 		}, nil
 	}
 
 	metrics := &types.C2LanguageMetrics{
-		// Go is statically typed with compile-time type checking
-		TypeAnnotationCoverage: goFullAnnotationScore,
-		TypeStrictness:         1,
+		// Go always has compile-time type checking.
+		TypeStrictness: 1,
 	}
 
 	// Count total LOC
@@ -53,8 +53,10 @@ func (a *c2GoAnalyzer) Analyze(target *types.AnalysisTarget) (*types.C2LanguageM
 		}
 	}
 
-	// C2-GO-01: interface{}/any usage rate (NullSafety metric)
+	// C2-GO-01: interface{}/any usage rate.
+	// safetyPercent = 100 - anyPercent, so low any usage yields high coverage.
 	anyUsage := analyzeAnyUsage(srcPkgs)
+	metrics.TypeAnnotationCoverage = anyUsage.safetyPercent
 	metrics.NullSafety = anyUsage.safetyPercent
 
 	// C2-GO-02: Naming consistency

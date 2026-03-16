@@ -159,6 +159,16 @@ func TestBenchmarkRepos(t *testing.T) {
 	if anyFail {
 		t.Fail()
 	}
+
+	// Generate HTML report from golden files.
+	fmt.Println("Generating report...")
+	cmd := exec.Command("go", "run", "./report")
+	cmd.Dir = filepath.Dir(goldenDir) // benchmark/
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Logf("report generation failed: %v\n%s", err, out)
+	} else {
+		fmt.Printf("%s", out)
+	}
 }
 
 // loadConfig reads and parses benchmark.yaml.

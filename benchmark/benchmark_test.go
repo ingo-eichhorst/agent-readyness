@@ -135,16 +135,16 @@ func TestBenchmarkRepos(t *testing.T) {
 			if r.errMsg != "" {
 				status = "FAIL"
 			}
-			fmt.Printf("[%d/%d] %-20s  %8s  %s\n", idx, total, repo.Name, elapsed.Round(time.Millisecond), status)
+			fmt.Fprintf(os.Stderr, "[%d/%d] %-20s  %8s  %s\n", idx, total, repo.Name, elapsed.Round(time.Millisecond), status)
 		}()
 	}
 
 	wg.Wait()
 
 	// Print summary table
-	fmt.Println()
-	fmt.Printf("%-20s %-12s %8s %-16s %s\n", "REPO", "LANGUAGE", "SCORE", "TIER", "STATUS")
-	fmt.Println(strings.Repeat("-", 75))
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintf(os.Stderr, "%-20s %-12s %8s %-16s %s\n", "REPO", "LANGUAGE", "SCORE", "TIER", "STATUS")
+	fmt.Fprintln(os.Stderr, strings.Repeat("-", 75))
 	anyFail := false
 	for _, r := range results {
 		status := "PASS"
@@ -152,22 +152,22 @@ func TestBenchmarkRepos(t *testing.T) {
 			status = "FAIL: " + r.errMsg
 			anyFail = true
 		}
-		fmt.Printf("%-20s %-12s %8.2f %-16s %s\n", r.name, r.lang, r.score, r.tier, status)
+		fmt.Fprintf(os.Stderr, "%-20s %-12s %8.2f %-16s %s\n", r.name, r.lang, r.score, r.tier, status)
 	}
-	fmt.Println()
+	fmt.Fprintln(os.Stderr)
 
 	if anyFail {
 		t.Fail()
 	}
 
 	// Generate HTML report from golden files.
-	fmt.Println("Generating report...")
+	fmt.Fprintln(os.Stderr, "Generating report...")
 	cmd := exec.Command("go", "run", "./report")
 	cmd.Dir = filepath.Dir(goldenDir) // benchmark/
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Logf("report generation failed: %v\n%s", err, out)
 	} else {
-		fmt.Printf("%s", out)
+		fmt.Fprintf(os.Stderr, "%s", out)
 	}
 }
 

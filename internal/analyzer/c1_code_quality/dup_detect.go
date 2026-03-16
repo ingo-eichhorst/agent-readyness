@@ -174,7 +174,11 @@ func treeCollectDupSequences(node *tree_sitter.Node, file string, content []byte
 		}
 
 		for i := 0; i <= len(stmts)-minStmts; i++ {
-			for windowSize := minStmts; windowSize <= len(stmts)-i; windowSize++ {
+			maxWin := len(stmts) - i
+			if maxWin > dupMaxWindowSize {
+				maxWin = dupMaxWindowSize
+			}
+			for windowSize := minStmts; windowSize <= maxWin; windowSize++ {
 				window := stmts[i : i+windowSize]
 				startLine := int(window[0].StartPosition().Row) + 1
 				endLine := int(window[len(window)-1].EndPosition().Row) + 1

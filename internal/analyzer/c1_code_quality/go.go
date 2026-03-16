@@ -22,8 +22,9 @@ const (
 	toPercentC1        = 100.0
 
 	// Duplication detection thresholds shared across Go, Python, and TypeScript analyzers.
-	dupMinStatements = 3 // Minimum statement count to detect as duplicate block
-	dupMinLines      = 6 // Minimum line span to qualify as substantial duplication
+	dupMinStatements = 3  // Minimum statement count to detect as duplicate block
+	dupMinLines      = 6  // Minimum line span to qualify as substantial duplication
+	dupMaxWindowSize = 30 // Maximum window size to cap O(N²) blowup on large blocks
 )
 
 // C1Analyzer implements the pipeline.Analyzer interface for C1: Code Health metrics.
@@ -459,7 +460,11 @@ func collectStatementSequences(pkgs []*parser.ParsedPackage) ([]stmtSeq, int) {
 // collectBlockWindows generates sliding-window statement hashes for a single block.
 func collectBlockWindows(pkg *parser.ParsedPackage, block *ast.BlockStmt, sequences []stmtSeq) []stmtSeq {
 	for i := 0; i <= len(block.List)-dupMinStatements; i++ {
-		for windowSize := dupMinStatements; windowSize <= len(block.List)-i; windowSize++ {
+		maxWin := len(block.List) - i
+		if maxWin > dupMaxWindowSize {
+			maxWin = dupMaxWindowSize
+		}
+		for windowSize := dupMinStatements; windowSize <= maxWin; windowSize++ {
 			stmts := block.List[i : i+windowSize]
 			start := pkg.Fset.Position(stmts[0].Pos())
 			end := pkg.Fset.Position(stmts[len(stmts)-1].End())

@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"math"
 	"os"
 	"os/exec"
@@ -9,6 +10,9 @@ import (
 	"strings"
 	"testing"
 )
+
+// Accept -update flag passed by the parent benchmark suite (no-op here).
+var _ = flag.Bool("update", false, "ignored: only used by the benchmark package")
 
 // ---- loadYAML ----
 

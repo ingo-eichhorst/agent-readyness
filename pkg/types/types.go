@@ -219,6 +219,7 @@ type C5Metrics struct {
 	CoupledPairs         []CoupledPair // detected temporal couplings
 	TotalCommits         int
 	TimeWindowDays       int
+	RepoStalenessMonths  float64 // months since HEAD commit (wall-clock staleness)
 }
 
 // FileChurn holds churn data for a single file.

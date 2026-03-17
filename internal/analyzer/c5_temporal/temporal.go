@@ -277,6 +277,13 @@ func analyzeGitHistory(rootDir string, months int) (*types.C5Metrics, error) {
 	// Build TopHotspots (up to 10) with full detail
 	topHotspots := buildTopHotspots(commits, topHotspotsLimit)
 
+	// Compute staleness from wall-clock time vs HEAD commit time.
+	// This detects abandoned repos whose HEAD-relative window looks active.
+	stalenessMonths := time.Since(ref).Hours() / (24 * float64(approxDaysPerMonth))
+	if stalenessMonths < 0 {
+		stalenessMonths = 0
+	}
+
 	return &types.C5Metrics{
 		Available:            true,
 		ChurnRate:            churnRate,
@@ -288,6 +295,7 @@ func analyzeGitHistory(rootDir string, months int) (*types.C5Metrics, error) {
 		CoupledPairs:         coupledPairs,
 		TotalCommits:         len(commits),
 		TimeWindowDays:       months * approxDaysPerMonth,
+		RepoStalenessMonths:  stalenessMonths,
 	}, nil
 }
 

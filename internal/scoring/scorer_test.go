@@ -1369,3 +1369,150 @@ func TestScoreC1_CustomConfig(t *testing.T) {
 			defaultResult.Score, customResult.Score)
 	}
 }
+
+// --- C5 Staleness Factor tests ---
+
+func TestC5StalenessFactor_NoThreshold(t *testing.T) {
+	// Repos under 18 months should have factor 1.0 (no penalty)
+	for _, months := range []float64{0, 6, 12, 17, 18} {
+		got := c5StalenessFactor(months)
+		if got != 1.0 {
+			t.Errorf("c5StalenessFactor(%v) = %v, want 1.0", months, got)
+		}
+	}
+}
+
+func TestC5StalenessFactor_Progressive(t *testing.T) {
+	// After 18 months, factor should progressively decrease
+	prev := 1.0
+	for _, months := range []float64{24, 36, 60, 72, 120} {
+		got := c5StalenessFactor(months)
+		if got >= prev {
+			t.Errorf("c5StalenessFactor(%v) = %v, should be less than %v", months, got, prev)
+		}
+		if got <= 0 {
+			t.Errorf("c5StalenessFactor(%v) = %v, should be positive", months, got)
+		}
+		prev = got
+	}
+}
+
+func TestC5StalenessFactor_ExtremeAge(t *testing.T) {
+	// Very old repos should have factor near 0.10 (clamped at last breakpoint)
+	got := c5StalenessFactor(200)
+	if got != 0.10 {
+		t.Errorf("c5StalenessFactor(200) = %v, want 0.10 (clamped)", got)
+	}
+}
+
+func TestScoreMetrics_MultiplierConvention(t *testing.T) {
+	// Verify that _multiplier in rawValues is applied as a post-hoc multiplier
+	catConfig := CategoryConfig{
+		Name:   "Test",
+		Weight: 1.0,
+		Metrics: []MetricThresholds{
+			{
+				Name:   "metric_a",
+				Weight: 1.0,
+				Breakpoints: []Breakpoint{
+					{Value: 0, Score: 10},
+					{Value: 100, Score: 1},
+				},
+			},
+		},
+	}
+
+	rawValues := map[string]float64{
+		"metric_a": 0, // raw value 0 → score 10
+	}
+	evidence := map[string][]types.EvidenceItem{}
+
+	// Without multiplier: score should be 10
+	_, scoreNoMult := scoreMetrics(catConfig, rawValues, nil, evidence)
+	if math.Abs(scoreNoMult-10.0) > 0.01 {
+		t.Errorf("score without multiplier = %v, want 10.0", scoreNoMult)
+	}
+
+	// With multiplier 0.5: score should be 5
+	rawWithMult := map[string]float64{
+		"metric_a":    0,
+		"_multiplier": 0.5,
+	}
+	_, scoreWithMult := scoreMetrics(catConfig, rawWithMult, nil, evidence)
+	if math.Abs(scoreWithMult-5.0) > 0.01 {
+		t.Errorf("score with multiplier 0.5 = %v, want 5.0", scoreWithMult)
+	}
+
+	// With multiplier 1.0: should NOT apply (only applies when < 1.0)
+	rawMult1 := map[string]float64{
+		"metric_a":    0,
+		"_multiplier": 1.0,
+	}
+	_, scoreMult1 := scoreMetrics(catConfig, rawMult1, nil, evidence)
+	if math.Abs(scoreMult1-10.0) > 0.01 {
+		t.Errorf("score with multiplier 1.0 = %v, want 10.0 (no change)", scoreMult1)
+	}
+}
+
+func TestC5Score_StalenessReducesScore(t *testing.T) {
+	// End-to-end: a stale C5 result should score lower than a fresh one
+	s := &Scorer{Config: DefaultConfig()}
+
+	freshC5 := &types.AnalysisResult{
+		Name:     "temporal",
+		Category: "C5",
+		Metrics: map[string]types.CategoryMetrics{
+			"c5": &types.C5Metrics{
+				Available:            true,
+				ChurnRate:            80,
+				TemporalCouplingPct:  5,
+				AuthorFragmentation:  1.5,
+				CommitStability:      14,
+				HotspotConcentration: 40,
+				RepoStalenessMonths:  3, // fresh repo
+			},
+		},
+	}
+
+	staleC5 := &types.AnalysisResult{
+		Name:     "temporal",
+		Category: "C5",
+		Metrics: map[string]types.CategoryMetrics{
+			"c5": &types.C5Metrics{
+				Available:            true,
+				ChurnRate:            80,
+				TemporalCouplingPct:  5,
+				AuthorFragmentation:  1.5,
+				CommitStability:      14,
+				HotspotConcentration: 40,
+				RepoStalenessMonths:  120, // 10 years old
+			},
+		},
+	}
+
+	freshResult, err := s.Score([]*types.AnalysisResult{freshC5})
+	if err != nil {
+		t.Fatalf("Score(fresh) error: %v", err)
+	}
+	staleResult, err := s.Score([]*types.AnalysisResult{staleC5})
+	if err != nil {
+		t.Fatalf("Score(stale) error: %v", err)
+	}
+
+	freshScore := freshResult.Categories[0].Score
+	staleScore := staleResult.Categories[0].Score
+
+	if staleScore >= freshScore {
+		t.Errorf("stale C5 score (%v) should be less than fresh (%v)", staleScore, freshScore)
+	}
+
+	// 10-year-old repo should score very low (factor ~0.10)
+	if staleScore > 3.0 {
+		t.Errorf("10-year stale C5 score = %v, want < 3.0", staleScore)
+	}
+
+	// Fresh repo should be unaffected (factor 1.0)
+	if freshScore < 5.0 {
+		t.Errorf("fresh C5 score = %v, want > 5.0", freshScore)
+	}
+}

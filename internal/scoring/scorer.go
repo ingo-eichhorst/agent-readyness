@@ -176,6 +176,11 @@ func (s *Scorer) Score(results []*types.AnalysisResult) (*types.ScoredResult, er
 }
 
 // scoreMetrics is a generic scoring helper for any category.
+//
+// Supports a "_multiplier" convention: if rawValues contains a "_multiplier" key,
+// its value (0.0–1.0) is applied as a post-hoc multiplier on the category score.
+// This enables category-level penalties (e.g., C5 staleness) without changing
+// individual metric weights or breakpoints.
 func scoreMetrics(catConfig CategoryConfig, rawValues map[string]float64, unavailable map[string]bool, evidence map[string][]types.EvidenceItem) ([]types.SubScore, float64) {
 	var subScores []types.SubScore
 
@@ -204,6 +209,12 @@ func scoreMetrics(catConfig CategoryConfig, rawValues map[string]float64, unavai
 	}
 
 	score := CategoryScore(subScores)
+
+	// Apply category multiplier if present (e.g., C5 staleness penalty).
+	if mult, ok := rawValues["_multiplier"]; ok && mult < 1.0 && score > 0 {
+		score *= mult
+	}
+
 	return subScores, score
 }
 

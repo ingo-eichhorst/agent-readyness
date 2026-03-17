@@ -29,14 +29,40 @@ func extractC5(ar *types.AnalysisResult) (map[string]float64, map[string]bool, m
 		c5AuthorFragmentationEvidence(evidence, m)
 		c5HotspotConcentrationEvidence(evidence, m)
 
-		return map[string]float64{
+		values := map[string]float64{
 			"churn_rate":            m.ChurnRate,
 			"temporal_coupling_pct": m.TemporalCouplingPct,
 			"author_fragmentation":  m.AuthorFragmentation,
 			"commit_stability":      m.CommitStability,
 			"hotspot_concentration": m.HotspotConcentration,
-		}, evidence, []string{"churn_rate", "temporal_coupling_pct", "author_fragmentation", "commit_stability", "hotspot_concentration"}
+			"repo_staleness_months": m.RepoStalenessMonths,
+		}
+
+		// Apply staleness as a category-level multiplier via the _multiplier convention.
+		// Active repos (< 18 months) get factor 1.0 (no change).
+		// Stale repos get progressively lower factors, reducing the C5 category score.
+		values["_multiplier"] = c5StalenessFactor(m.RepoStalenessMonths)
+
+		return values, evidence, []string{"churn_rate", "temporal_coupling_pct", "author_fragmentation", "commit_stability", "hotspot_concentration"}
 	})
+}
+
+// c5StalenessBreakpoints maps repo staleness (months) to a score multiplier (0.0–1.0).
+// Progressive penalty: no penalty under 18 months, then smooth degradation.
+var c5StalenessBreakpoints = []Breakpoint{
+	{Value: 0, Score: 1.0},   // just committed
+	{Value: 18, Score: 1.0},  // threshold: no penalty
+	{Value: 24, Score: 0.95}, // ~2 years: very mild
+	{Value: 36, Score: 0.75}, // 3 years: noticeable
+	{Value: 60, Score: 0.50}, // 5 years: significant
+	{Value: 72, Score: 0.35}, // 6 years: heavy
+	{Value: 120, Score: 0.10}, // 10+ years: near-zero
+}
+
+// c5StalenessFactor returns a multiplier (0.0–1.0) for the C5 category score
+// based on how many months have passed since the repo's last commit.
+func c5StalenessFactor(months float64) float64 {
+	return Interpolate(c5StalenessBreakpoints, months)
 }
 
 // c5Unavailable returns empty results when C5 data is not available.

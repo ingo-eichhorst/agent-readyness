@@ -11,16 +11,18 @@ import (
 
 // C5 metric color thresholds.
 const (
-	c5ChurnGreen            = 100.0
-	c5ChurnYellow           = 300.0
-	c5TemporalCouplingGreen = 10.0
+	c5ChurnGreen             = 100.0
+	c5ChurnYellow            = 300.0
+	c5TemporalCouplingGreen  = 10.0
 	c5TemporalCouplingYellow = 30.0
-	c5AuthorFragGreen       = 2.0
-	c5AuthorFragYellow      = 4.0
-	c5CommitStabilityRed    = 3.0
-	c5CommitStabilityYellow = 7.0
-	c5HotspotGreen          = 50.0
-	c5HotspotYellow         = 75.0
+	c5AuthorFragGreen        = 2.0
+	c5AuthorFragYellow       = 4.0
+	c5CommitStabilityRed     = 3.0
+	c5CommitStabilityYellow  = 7.0
+	c5HotspotGreen           = 50.0
+	c5HotspotYellow          = 75.0
+	c5StalenessGreen         = 18.0
+	c5StalenessYellow        = 36.0
 )
 
 func renderC5(w io.Writer, ar *types.AnalysisResult, verbose bool) {
@@ -77,6 +79,9 @@ func renderC5CoreMetrics(w io.Writer, m *types.C5Metrics) {
 
 	hc := colorForFloat(m.HotspotConcentration, c5HotspotGreen, c5HotspotYellow)
 	hc.Fprintf(w, "  Hotspot concentration: %.1f%%\n", m.HotspotConcentration)
+
+	sc := colorForFloat(m.RepoStalenessMonths, c5StalenessGreen, c5StalenessYellow)
+	sc.Fprintf(w, "  Repo staleness:      %.0f months\n", m.RepoStalenessMonths)
 }
 
 func renderC5VerboseDetails(w io.Writer, m *types.C5Metrics, verbose bool, bold *color.Color) {

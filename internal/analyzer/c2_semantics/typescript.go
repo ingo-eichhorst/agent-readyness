@@ -85,7 +85,14 @@ func (a *c2TypeScriptAnalyzer) accumulateTSMetrics(sourceFiles []types.SourceFil
 }
 
 func (acc *tsAccumulator) buildMetrics(rootDir string) *types.C2LanguageMetrics {
-	metrics := &types.C2LanguageMetrics{}
+	metrics := &types.C2LanguageMetrics{
+		// TypeScript naming consistency is not yet implemented.
+		// Mark as unavailable so it's excluded from the weighted average
+		// rather than penalizing TS repos with a default of 0.
+		Unavailable: map[string]bool{
+			"naming_consistency": true,
+		},
+	}
 
 	// TypeAnnotationCoverage: inverse of any-usage rate per KLOC.
 	// TypeScript uses inference, so counting missing annotations is misleading.

@@ -90,7 +90,13 @@ func (a *c2PythonAnalyzer) accumulatePyMetrics(sourceFiles []types.SourceFile) p
 }
 
 func (acc *pyAccumulator) buildMetrics(rootDir string) *types.C2LanguageMetrics {
-	metrics := &types.C2LanguageMetrics{}
+	metrics := &types.C2LanguageMetrics{
+		// Python doesn't have Go/TypeScript-style null safety patterns.
+		// Mark as unavailable so it's excluded from the weighted average.
+		Unavailable: map[string]bool{
+			"null_safety": true,
+		},
+	}
 
 	denominator := acc.totalParams + acc.totalFunctions
 	if denominator > 0 {

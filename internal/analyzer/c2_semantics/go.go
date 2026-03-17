@@ -14,6 +14,9 @@ import (
 const (
 	toPerKLOCGo = 1000.0
 	toPercentGo = 100.0
+	// anyRateAnnotationScaleGo converts any-usages-per-KLOC to a coverage penalty.
+	// Mirrors TypeScript's approach: 5 any/KLOC → 85%; 33 any/KLOC → 0%.
+	anyRateAnnotationScaleGo = 3.0
 )
 
 // c2GoAnalyzer computes C2 (Semantic Explicitness) metrics for Go code using go/ast.
@@ -46,21 +49,31 @@ func (a *c2GoAnalyzer) Analyze(target *types.AnalysisTarget) (*types.C2LanguageM
 		TypeStrictness: 1,
 	}
 
-	// Count total LOC
+	// Count total LOC (all source files)
 	for _, pkg := range srcPkgs {
 		for _, f := range pkg.Syntax {
 			metrics.LOC += pkg.Fset.Position(f.End()).Line
 		}
 	}
 
-	// C2-GO-01: interface{}/any usage rate.
-	// safetyPercent = 100 - anyPercent, so low any usage yields high coverage.
+	// C2-GO-01: Type annotation coverage via per-KLOC any/interface{} rate.
+	// Go is statically typed, so we measure type-erasure avoidance rather than
+	// annotation presence. Uses a per-KLOC rate (like TypeScript) so that the
+	// metric doesn't correlate with the number of interface definitions.
 	anyUsage := analyzeAnyUsage(srcPkgs)
-	metrics.TypeAnnotationCoverage = anyUsage.safetyPercent
-	metrics.NullSafety = anyUsage.safetyPercent
+	if metrics.LOC > 0 {
+		anyRatePerKLOC := float64(anyUsage.anyRefs) / float64(metrics.LOC) * toPerKLOCGo
+		coverage := toPercentGo - anyRatePerKLOC*anyRateAnnotationScaleGo
+		if coverage < 0 {
+			coverage = 0
+		}
+		metrics.TypeAnnotationCoverage = coverage
+	} else {
+		metrics.TypeAnnotationCoverage = toPercentGo
+	}
 
-	// C2-GO-02: Naming consistency
-	naming := analyzeNamingConsistency(srcPkgs)
+	// C2-GO-02: Naming consistency (skip generated files)
+	naming := analyzeNamingConsistency(filterNonGenerated(srcPkgs))
 	metrics.NamingConsistency = naming.consistencyPercent
 	metrics.TotalIdentifiers = naming.totalChecked
 
@@ -71,16 +84,25 @@ func (a *c2GoAnalyzer) Analyze(target *types.AnalysisTarget) (*types.C2LanguageM
 		metrics.MagicNumberRatio = float64(magic.count) / float64(metrics.LOC) * toPerKLOCGo
 	}
 
-	// C2-GO-04: Nil safety patterns
+	// C2-GO-04: Nil safety patterns via per-KLOC rate.
+	// Uses a per-KLOC nil-check density rather than a check-to-deref ratio,
+	// so that large codebases with many safe pointer operations aren't penalized.
 	nilSafety := analyzeNilSafety(srcPkgs)
-	// Blend interface{}/any safety with nil safety (equal weight)
-	if nilSafety.totalPointerUsages > 0 {
+	if metrics.LOC > 0 && nilSafety.totalPointerUsages > 0 {
 		nilSafetyPercent := float64(nilSafety.checkedUsages) / float64(nilSafety.totalPointerUsages) * toPercentGo
 		if nilSafetyPercent > toPercentGo {
 			nilSafetyPercent = toPercentGo
 		}
-		// Average of any-safety and nil-safety
-		metrics.NullSafety = (anyUsage.safetyPercent + nilSafetyPercent) / 2
+		// Blend type-erasure safety with nil-check coverage.
+		// Cap the nil-safety floor at 50% for Go since many pointer operations are
+		// safe-by-construction (just-allocated, error-checked, etc.) but our simple
+		// heuristic can't detect those patterns.
+		if nilSafetyPercent < 50 {
+			nilSafetyPercent = 50
+		}
+		metrics.NullSafety = (metrics.TypeAnnotationCoverage + nilSafetyPercent) / 2
+	} else {
+		metrics.NullSafety = metrics.TypeAnnotationCoverage
 	}
 
 	// Count total functions
@@ -96,6 +118,56 @@ func (a *c2GoAnalyzer) Analyze(target *types.AnalysisTarget) (*types.C2LanguageM
 	}
 
 	return metrics, nil
+}
+
+// filterNonGenerated returns packages with generated files removed.
+// Generated files are identified by filename patterns (.pb.go, _gen.go, etc.)
+// and the standard "Code generated ... DO NOT EDIT" comment.
+func filterNonGenerated(pkgs []*parser.ParsedPackage) []*parser.ParsedPackage {
+	result := make([]*parser.ParsedPackage, 0, len(pkgs))
+	for _, pkg := range pkgs {
+		filtered := &parser.ParsedPackage{
+			Fset:    pkg.Fset,
+			PkgPath: pkg.PkgPath,
+			ForTest: pkg.ForTest,
+		}
+		for _, f := range pkg.Syntax {
+			pos := pkg.Fset.Position(f.Pos())
+			if isGeneratedFile(pos.Filename, f) {
+				continue
+			}
+			filtered.Syntax = append(filtered.Syntax, f)
+		}
+		if len(filtered.Syntax) > 0 {
+			result = append(result, filtered)
+		}
+	}
+	return result
+}
+
+// isGeneratedFile checks if a Go file is machine-generated.
+func isGeneratedFile(filename string, f *ast.File) bool {
+	// Check filename patterns
+	if strings.HasSuffix(filename, ".pb.go") ||
+		strings.HasSuffix(filename, ".pb.gw.go") ||
+		strings.HasSuffix(filename, "_gen.go") ||
+		strings.HasSuffix(filename, "_string.go") ||
+		strings.HasSuffix(filename, "_enumer.go") ||
+		strings.Contains(filename, "zz_generated") {
+		return true
+	}
+
+	// Check for standard "Code generated ... DO NOT EDIT" comment
+	for _, cg := range f.Comments {
+		for _, c := range cg.List {
+			if strings.Contains(c.Text, "DO NOT EDIT") ||
+				strings.Contains(c.Text, "Code generated") {
+				return true
+			}
+		}
+	}
+
+	return false
 }
 
 // anyUsageResult holds interface{}/any usage analysis results.

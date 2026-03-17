@@ -173,6 +173,10 @@ type C2LanguageMetrics struct {
 	TotalIdentifiers       int     // total identifiers checked for naming
 	MagicNumberCount       int     // raw count of magic numbers
 	LOC                    int     // lines of code for this language
+	// Unavailable tracks metrics not applicable for this language.
+	// Keyed by metric name (e.g., "null_safety"). Unavailable metrics are
+	// excluded from the weighted average during scoring.
+	Unavailable map[string]bool
 }
 
 // IsCategoryMetrics marks C2Metrics as a CategoryMetrics implementation.

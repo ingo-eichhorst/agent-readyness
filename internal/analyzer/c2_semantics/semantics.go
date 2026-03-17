@@ -93,6 +93,9 @@ func (a *C2Analyzer) Analyze(targets []*types.AnalysisTarget) (*types.AnalysisRe
 // aggregateC2Metrics computes a LOC-weighted aggregate of per-language C2 metrics.
 // If there is only one language, it returns that language's metrics directly.
 // Returns nil if no languages have metrics.
+//
+// Unavailable metrics are propagated: a metric is unavailable in the aggregate
+// only if ALL languages mark it unavailable.
 func aggregateC2Metrics(perLang map[types.Language]*types.C2LanguageMetrics) *types.C2LanguageMetrics {
 	if len(perLang) == 0 {
 		return nil
@@ -127,5 +130,56 @@ func aggregateC2Metrics(perLang map[types.Language]*types.C2LanguageMetrics) *ty
 		agg.LOC += m.LOC
 	}
 
+	// Merge unavailability: a metric is unavailable only if ALL languages
+	// mark it unavailable. If any language computes the metric, it's available.
+	agg.Unavailable = mergeUnavailable(perLang)
+
 	return agg
+}
+
+// mergeUnavailable computes the intersection of unavailable metrics across languages.
+// A metric is unavailable in the aggregate only if every language marks it unavailable.
+func mergeUnavailable(perLang map[types.Language]*types.C2LanguageMetrics) map[string]bool {
+	if len(perLang) == 0 {
+		return nil
+	}
+
+	// Start with the unavailable set of the first language
+	var intersection map[string]bool
+	first := true
+	for _, m := range perLang {
+		if first {
+			if len(m.Unavailable) > 0 {
+				intersection = make(map[string]bool)
+				for k, v := range m.Unavailable {
+					if v {
+						intersection[k] = true
+					}
+				}
+			}
+			first = false
+			continue
+		}
+
+		if intersection == nil {
+			// If any language has no unavailable metrics, intersection is empty
+			return nil
+		}
+
+		// Keep only metrics that are also unavailable in this language
+		for k := range intersection {
+			if !m.Unavailable[k] {
+				delete(intersection, k)
+			}
+		}
+
+		if len(intersection) == 0 {
+			return nil
+		}
+	}
+
+	if len(intersection) == 0 {
+		return nil
+	}
+	return intersection
 }

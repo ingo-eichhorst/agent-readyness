@@ -154,6 +154,9 @@ func (s *Scorer) Score(results []*types.AnalysisResult) (*types.ScoredResult, er
 		}
 
 		subScores, score := scoreMetrics(catConfig, rawValues, unavailable, evidence)
+		if ar.Category == "C1" {
+			score = c1FileSizeFloor(subScores, score)
+		}
 		categories = append(categories, types.CategoryScore{
 			Name:      ar.Category,
 			Score:     score,
@@ -202,6 +205,22 @@ func scoreMetrics(catConfig CategoryConfig, rawValues map[string]float64, unavai
 
 	score := CategoryScore(subScores)
 	return subScores, score
+}
+
+// c1FileSizeFloor caps the C1 category score when file_size_avg is in the
+// critical range. Even if other C1 metrics are favorable, monolithic files
+// (score <= FileSizeFloorThreshold) represent a structural blocker for AI
+// agents that the weighted average alone cannot adequately capture.
+func c1FileSizeFloor(subScores []types.SubScore, score float64) float64 {
+	for _, ss := range subScores {
+		if ss.MetricName == "file_size_avg" && ss.Available && ss.Score <= FileSizeFloorThreshold {
+			if score > FileSizeFloorCap {
+				return FileSizeFloorCap
+			}
+			break
+		}
+	}
+	return score
 }
 
 // avgMapValues computes the average of all values in a map[string]int.

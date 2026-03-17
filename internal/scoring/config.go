@@ -204,8 +204,20 @@ const (
 
 // C7 breakpoint value constants.
 const (
-	C7ScorePoor    = 4.0
+	C7ScorePoor     = 4.0
 	C7ScoreAboveAvg = 7.0
+)
+
+// C1 file size penalty floor constants.
+// When file_size_avg scores at or below FileSizeFloorThreshold (indicating
+// avg file sizes that are structurally hostile for AI agents), the C1
+// category score is capped at FileSizeFloorCap regardless of other metrics.
+// Rationale: files averaging 750+ LOC often cannot fit in agent context
+// windows, making the codebase difficult to navigate even if other metrics
+// are favorable. The weighted average alone cannot capture this blocker.
+const (
+	FileSizeFloorThreshold = 2.0 // file_size_avg score at or below this triggers the cap
+	FileSizeFloorCap       = 4.0 // maximum C1 score when the floor triggers
 )
 
 // Breakpoint defines a mapping from a raw metric value to a score.

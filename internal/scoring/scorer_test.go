@@ -461,6 +461,56 @@ func TestScoreC1_CouplingAverage(t *testing.T) {
 	}
 }
 
+// --- C1 file size penalty floor tests ---
+
+func TestScoreC1_FileSizeFloor_Applied(t *testing.T) {
+	s := &Scorer{Config: DefaultConfig()}
+	// Even with excellent other metrics, 1030 avg LOC/file triggers the floor.
+	// Without floor the score would be ~8.65; with floor it must be <= FileSizeFloorCap.
+	ar := &types.AnalysisResult{
+		Name:     "code-health",
+		Category: "C1",
+		Metrics: map[string]types.CategoryMetrics{
+			"c1": &types.C1Metrics{
+				CyclomaticComplexity: types.MetricSummary{Avg: 1.0},    // perfect
+				FunctionLength:       types.MetricSummary{Avg: 3.0},    // perfect
+				FileSize:             types.MetricSummary{Avg: 1030.0}, // critical: 1030 avg LOC/file
+				AfferentCoupling:     map[string]int{},
+				EfferentCoupling:     map[string]int{},
+				DuplicationRate:      0.0,
+			},
+		},
+	}
+	got := scoreCategory(s, ar)
+	if got.Score > FileSizeFloorCap {
+		t.Errorf("C1 score with 1030 avg LOC/file = %v, want <= %v (file size floor cap)", got.Score, FileSizeFloorCap)
+	}
+}
+
+func TestScoreC1_FileSizeFloor_NotApplied(t *testing.T) {
+	s := &Scorer{Config: DefaultConfig()}
+	// 400 avg LOC/file scores ~4.5 on file_size_avg, above FileSizeFloorThreshold (2.0).
+	// The floor must not apply; C1 should exceed FileSizeFloorCap.
+	ar := &types.AnalysisResult{
+		Name:     "code-health",
+		Category: "C1",
+		Metrics: map[string]types.CategoryMetrics{
+			"c1": &types.C1Metrics{
+				CyclomaticComplexity: types.MetricSummary{Avg: 1.0},   // perfect
+				FunctionLength:       types.MetricSummary{Avg: 3.0},   // perfect
+				FileSize:             types.MetricSummary{Avg: 400.0}, // moderate: ~4.5 score
+				AfferentCoupling:     map[string]int{},
+				EfferentCoupling:     map[string]int{},
+				DuplicationRate:      0.0,
+			},
+		},
+	}
+	got := scoreCategory(s, ar)
+	if got.Score <= FileSizeFloorCap {
+		t.Errorf("C1 score with 400 avg LOC/file = %v, want > %v (no floor applied)", got.Score, FileSizeFloorCap)
+	}
+}
+
 // --- scoreC3 tests ---
 
 func TestScoreC3_Healthy(t *testing.T) {

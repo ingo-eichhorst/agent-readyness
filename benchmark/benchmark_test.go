@@ -68,7 +68,7 @@ func TestBenchmarkRepos(t *testing.T) {
 	goldenDir := filepath.Join("golden")
 
 	// Clone all repos in parallel
-	t.Log("Cloning repos...")
+	fmt.Fprintf(os.Stderr, "Cloning %d repos...\n", len(cfg.Repos))
 	cloneRepos(t, cfg.Repos, reposDir)
 
 	// Results table for summary
@@ -190,18 +190,32 @@ func cloneRepos(t *testing.T, repos []BenchmarkRepo, reposDir string) {
 	var wg sync.WaitGroup
 	var mu sync.Mutex
 	var errs []string
+	var completedCount int
+	total := len(repos)
 
 	for _, repo := range repos {
 		repo := repo
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
+			start := time.Now()
 			dir := filepath.Join(reposDir, repo.Language, repo.Name)
-			if err := ensureRepo(dir, repo.URL, repo.Commit); err != nil {
-				mu.Lock()
+			err := ensureRepo(dir, repo.URL, repo.Commit)
+			elapsed := time.Since(start)
+
+			mu.Lock()
+			completedCount++
+			idx := completedCount
+			if err != nil {
 				errs = append(errs, fmt.Sprintf("%s: %v", repo.Name, err))
-				mu.Unlock()
 			}
+			mu.Unlock()
+
+			status := "ok"
+			if err != nil {
+				status = "FAIL"
+			}
+			fmt.Fprintf(os.Stderr, "[%d/%d] cloned  %-20s  %8s  %s\n", idx, total, repo.Name, elapsed.Round(time.Millisecond), status)
 		}()
 	}
 

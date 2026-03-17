@@ -85,13 +85,22 @@ func TestBenchmarkRepos(t *testing.T) {
 
 	var mu sync.Mutex
 	var wg sync.WaitGroup
+	var startCount int
 	var completedCount int
+
+	fmt.Fprintf(os.Stderr, "\nAnalyzing %d repos...\n", total)
 
 	for i, repo := range cfg.Repos {
 		i, repo := i, repo
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
+
+			mu.Lock()
+			startCount++
+			startIdx := startCount
+			mu.Unlock()
+			fmt.Fprintf(os.Stderr, "[%d/%d] analyzing %s (%s, %s)...\n", startIdx, total, repo.Name, repo.Language, repo.Size)
 
 			start := time.Now()
 			repoDir := filepath.Join(reposDir, repo.Language, repo.Name)
@@ -131,11 +140,16 @@ func TestBenchmarkRepos(t *testing.T) {
 			results[i] = r
 			mu.Unlock()
 
-			status := "ok"
 			if r.errMsg != "" {
-				status = "FAIL"
+				fmt.Fprintf(os.Stderr, "[%d/%d] %s: %.2f FAIL (expected %.0f–%.0f) [%s]\n",
+					idx, total, repo.Name, r.score,
+					repo.ExpectedScoreRange[0], repo.ExpectedScoreRange[1],
+					elapsed.Round(time.Millisecond))
+			} else {
+				fmt.Fprintf(os.Stderr, "[%d/%d] %s: %.2f %s ✓ [%s]\n",
+					idx, total, repo.Name, r.score, r.tier,
+					elapsed.Round(time.Millisecond))
 			}
-			fmt.Fprintf(os.Stderr, "[%d/%d] %-20s  %8s  %s\n", idx, total, repo.Name, elapsed.Round(time.Millisecond), status)
 		}()
 	}
 

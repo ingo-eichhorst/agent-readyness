@@ -219,7 +219,7 @@ var tsExternalDepModules = map[string]bool{
 // Returns isolation score (0-100, where 100 = fully isolated).
 func tsAnalyzeIsolation(files []*parser.ParsedTreeSitterFile, testFuncs []types.TestFunctionMetric) float64 {
 	if len(testFuncs) == 0 {
-		return 100 // No tests = vacuously isolated
+		return 0 // No tests = isolation is unmeasurable, not 100%
 	}
 
 	testFileHasExtDep := tsCheckTestFilesForExternalDeps(files)

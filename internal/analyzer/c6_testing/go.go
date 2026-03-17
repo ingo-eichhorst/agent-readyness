@@ -57,7 +57,6 @@ func updateAssertionDensity(metrics *types.C6Metrics) {
 // Constants for C6 metrics computation.
 const (
 	toPercentC6            = 100.0
-	vacuousIsolationScore  = 100.0
 	lcovDAPrefix           = "DA:"
 	lcovDASkipChars        = 3
 	lcovFieldCount         = 2
@@ -168,7 +167,11 @@ func mergeTestResults(metrics *types.C6Metrics, r langTestResult) {
 	metrics.SourceFileCount += r.srcFileCount
 	metrics.TestFunctions = append(metrics.TestFunctions, r.testFuncs...)
 	blendTestRatio(metrics, r.testLOC, r.srcLOC)
-	blendIsolation(metrics, r.isolation)
+	// Only blend isolation when the language target has test functions;
+	// a language with zero tests should not drag down (or inflate) the score.
+	if len(r.testFuncs) > 0 {
+		blendIsolation(metrics, r.isolation)
+	}
 }
 
 // blendTestRatio merges a language's test-to-code ratio into the combined metrics.
@@ -479,7 +482,7 @@ func analyzeIsolation(testPkgs []*parser.ParsedPackage, metrics *types.C6Metrics
 	}
 
 	if totalTests == 0 {
-		return vacuousIsolationScore // No tests = vacuously isolated
+		return 0 // No tests = isolation is unmeasurable, not 100%
 	}
 	return float64(isolatedTests) / float64(totalTests) * toPercentC6
 }

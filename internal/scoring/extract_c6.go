@@ -50,6 +50,9 @@ func c6RawValues(m *types.C6Metrics) (map[string]float64, map[string]bool) {
 	if m.CoveragePercent == -1 {
 		unavailable["coverage_percent"] = true
 	}
+	if m.TestFileCount == 0 {
+		unavailable["test_isolation"] = true
+	}
 
 	return rawValues, unavailable
 }

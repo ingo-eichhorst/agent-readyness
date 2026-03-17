@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"unicode"
 
 	tree_sitter "github.com/tree-sitter/go-tree-sitter"
 
@@ -44,6 +45,8 @@ type tsAccumulator struct {
 	totalLOC           int
 	optionalChainCount int
 	totalFunctions     int
+	consistentNames    int // identifiers following TS naming conventions
+	totalNamingChecked int // total identifiers checked for naming conventions
 }
 
 func (a *c2TypeScriptAnalyzer) Analyze(target *types.AnalysisTarget) (*types.C2LanguageMetrics, error) {
@@ -79,6 +82,9 @@ func (a *c2TypeScriptAnalyzer) accumulateTSMetrics(sourceFiles []types.SourceFil
 		acc.totalFunctions += tsCountFunctions(root)
 		acc.magicNumberCount += tsMagicNumbers(root, content)
 		acc.optionalChainCount += tsOptionalChaining(root)
+		consistent, total := tsNamingConsistency(root, content)
+		acc.consistentNames += consistent
+		acc.totalNamingChecked += total
 		tree.Close()
 	}
 	return acc
@@ -118,7 +124,11 @@ func (acc *tsAccumulator) buildMetrics(rootDir string) *types.C2LanguageMetrics 
 	}
 
 	metrics.NullSafety = tsNullSafetyScore(strictNullChecks, acc.optionalChainCount, acc.totalLOC)
+	if acc.totalNamingChecked > 0 {
+		metrics.NamingConsistency = float64(acc.consistentNames) / float64(acc.totalNamingChecked) * toPercentTS
+	}
 	metrics.TotalFunctions = acc.totalFunctions
+	metrics.TotalIdentifiers = acc.totalNamingChecked
 	metrics.LOC = acc.totalLOC
 	return metrics
 }
@@ -302,4 +312,119 @@ func isTSCommonNumeric(value string) bool {
 		return true
 	}
 	return false
+}
+
+// tsNamingConsistency checks TypeScript naming conventions:
+//   - Functions and methods: camelCase (lowercase first letter)
+//   - Classes, interfaces, and type aliases: PascalCase (uppercase first letter)
+//
+// Returns (consistent, total) counts.
+func tsNamingConsistency(root *tree_sitter.Node, content []byte) (int, int) {
+	var consistent, total int
+
+	shared.WalkTree(root, func(node *tree_sitter.Node) {
+		switch node.Kind() {
+		case "function_declaration":
+			nameNode := node.ChildByFieldName("name")
+			if nameNode == nil {
+				return
+			}
+			name := shared.NodeText(nameNode, content)
+			if tsShouldSkipName(name) {
+				return
+			}
+			total++
+			if isTSCamelCase(name) {
+				consistent++
+			}
+
+		case "method_definition":
+			nameNode := node.ChildByFieldName("name")
+			if nameNode == nil {
+				return
+			}
+			name := shared.NodeText(nameNode, content)
+			// Skip constructor and well-known lifecycle names.
+			if name == "constructor" || tsShouldSkipName(name) {
+				return
+			}
+			total++
+			if isTSCamelCase(name) {
+				consistent++
+			}
+
+		case "class_declaration":
+			nameNode := node.ChildByFieldName("name")
+			if nameNode == nil {
+				return
+			}
+			name := shared.NodeText(nameNode, content)
+			if tsShouldSkipName(name) {
+				return
+			}
+			total++
+			if isTSPascalCase(name) {
+				consistent++
+			}
+
+		case "interface_declaration":
+			nameNode := node.ChildByFieldName("name")
+			if nameNode == nil {
+				return
+			}
+			name := shared.NodeText(nameNode, content)
+			if tsShouldSkipName(name) {
+				return
+			}
+			total++
+			if isTSPascalCase(name) {
+				consistent++
+			}
+
+		case "type_alias_declaration":
+			nameNode := node.ChildByFieldName("name")
+			if nameNode == nil {
+				return
+			}
+			name := shared.NodeText(nameNode, content)
+			if tsShouldSkipName(name) {
+				return
+			}
+			total++
+			if isTSPascalCase(name) {
+				consistent++
+			}
+		}
+	})
+
+	return consistent, total
+}
+
+// isTSCamelCase returns true if the name follows camelCase convention:
+// optional leading underscore(s) for private members, then a lowercase letter,
+// then no further underscores.
+func isTSCamelCase(name string) bool {
+	if len(name) == 0 {
+		return false
+	}
+	// Strip optional leading underscores (private-by-convention prefix).
+	stripped := strings.TrimLeft(name, "_")
+	if stripped == "" {
+		return false // e.g. "___"
+	}
+	return unicode.IsLower(rune(stripped[0])) && !strings.Contains(stripped, "_")
+}
+
+// isTSPascalCase returns true if the name follows PascalCase convention:
+// starts with an uppercase letter and contains no underscores.
+func isTSPascalCase(name string) bool {
+	if len(name) == 0 {
+		return false
+	}
+	return unicode.IsUpper(rune(name[0])) && !strings.Contains(name, "_")
+}
+
+// tsShouldSkipName returns true if the identifier should be excluded from naming checks.
+func tsShouldSkipName(name string) bool {
+	return len(name) <= 1 || name == "_"
 }

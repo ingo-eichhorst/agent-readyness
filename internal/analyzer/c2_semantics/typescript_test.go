@@ -310,3 +310,113 @@ function greet(name: string): string { return "Hello " + name; }
 		t.Errorf("tsCountAnyUsages = %d, want 0 for code without any", count2)
 	}
 }
+
+func TestTSNamingConsistency(t *testing.T) {
+	tsParser, err := parser.NewTreeSitterParser()
+	if err != nil {
+		t.Fatalf("failed to create parser: %v", err)
+	}
+	defer tsParser.Close()
+
+	// Well-named code: functions camelCase, classes/interfaces/types PascalCase.
+	wellNamed := []byte(`
+function createUser(name: string): User { return { name }; }
+function parseResponse(data: unknown): ApiResult { return {}; }
+class UserService { getData(): void {} }
+interface ApiResult { status: number; }
+type RequestOptions = { timeout: number; };
+`)
+	tree, err := tsParser.ParseFile(types.LangTypeScript, ".ts", wellNamed)
+	if err != nil {
+		t.Fatalf("ParseFile error: %v", err)
+	}
+	defer tree.Close()
+
+	consistent, total := tsNamingConsistency(tree.RootNode(), wellNamed)
+	if total == 0 {
+		t.Fatal("total naming-checked identifiers = 0, want > 0")
+	}
+	if consistent != total {
+		t.Errorf("consistent=%d total=%d, want consistent==total for well-named code", consistent, total)
+	}
+	pct := float64(consistent) / float64(total) * 100
+	if pct < 99 {
+		t.Errorf("naming consistency = %.1f%%, want 100%% for well-named code", pct)
+	}
+	t.Logf("Well-named: consistent=%d total=%d (%.1f%%)", consistent, total, pct)
+
+	// Poorly-named code: snake_case functions, lowercase classes.
+	badlyNamed := []byte(`
+function create_user(name: string): void {}
+function parse_response(data: unknown): void {}
+class user_service { get_data(): void {} }
+interface api_result { status: number; }
+type request_options = { timeout: number; };
+`)
+	tree2, err := tsParser.ParseFile(types.LangTypeScript, ".ts", badlyNamed)
+	if err != nil {
+		t.Fatalf("ParseFile error: %v", err)
+	}
+	defer tree2.Close()
+
+	consistent2, total2 := tsNamingConsistency(tree2.RootNode(), badlyNamed)
+	if total2 == 0 {
+		t.Fatal("total2 = 0, want > 0")
+	}
+	pct2 := float64(consistent2) / float64(total2) * 100
+	if pct2 >= 50 {
+		t.Errorf("naming consistency = %.1f%%, want < 50%% for badly-named code", pct2)
+	}
+	t.Logf("Badly-named: consistent=%d total=%d (%.1f%%)", consistent2, total2, pct2)
+}
+
+func TestC2TypeScriptAnalyzer_NamingConsistencySet(t *testing.T) {
+	tsParser, err := parser.NewTreeSitterParser()
+	if err != nil {
+		t.Fatalf("failed to create parser: %v", err)
+	}
+	defer tsParser.Close()
+
+	analyzer := newC2TypeScriptAnalyzer(tsParser)
+
+	testDir, err := filepath.Abs("../../../testdata/valid-ts-project")
+	if err != nil {
+		t.Fatalf("cannot resolve testdata path: %v", err)
+	}
+
+	target := &types.AnalysisTarget{
+		Language: types.LangTypeScript,
+		RootDir:  testDir,
+		Files: []types.SourceFile{
+			{
+				Path:     filepath.Join(testDir, "src", "index.ts"),
+				RelPath:  "src/index.ts",
+				Language: types.LangTypeScript,
+				Class:    types.ClassSource,
+			},
+			{
+				Path:     filepath.Join(testDir, "src", "utils.ts"),
+				RelPath:  "src/utils.ts",
+				Language: types.LangTypeScript,
+				Class:    types.ClassSource,
+			},
+		},
+	}
+
+	metrics, err := analyzer.Analyze(target)
+	if err != nil {
+		t.Fatalf("Analyze() error: %v", err)
+	}
+
+	// NamingConsistency must be computed (non-zero) for the test project
+	// which follows TypeScript naming conventions throughout.
+	if metrics.NamingConsistency <= 0 {
+		t.Errorf("NamingConsistency = %.1f, want > 0 for well-named TypeScript project", metrics.NamingConsistency)
+	}
+	// The test project follows conventions, so expect high consistency.
+	if metrics.NamingConsistency < 80 {
+		t.Errorf("NamingConsistency = %.1f, want >= 80 for well-named TypeScript project", metrics.NamingConsistency)
+	}
+	t.Logf("TypeScript NamingConsistency = %.1f%%, TotalIdentifiers = %d",
+		metrics.NamingConsistency, metrics.TotalIdentifiers)
+}

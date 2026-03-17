@@ -344,10 +344,10 @@ func TestScoreC1_Healthy(t *testing.T) {
 	if got.Weight != 0.25 {
 		t.Errorf("weight = %v, want 0.25", got.Weight)
 	}
-	if len(got.SubScores) != 6 {
-		t.Fatalf("subscore count = %d, want 6", len(got.SubScores))
+	if len(got.SubScores) != 8 {
+		t.Fatalf("subscore count = %d, want 8", len(got.SubScores))
 	}
-	// With low complexity (3.0), the score should be high (>8)
+	// With low complexity (3.0) and small files, the score should be high (>7)
 	if got.Score < 7.0 {
 		t.Errorf("healthy C1 score = %v, want > 7.0", got.Score)
 	}
@@ -1073,6 +1073,7 @@ func TestExtractEvidence_AllCategories(t *testing.T) {
 						CyclomaticComplexity: types.MetricSummary{Avg: 30.0, Max: 50, MaxEntity: "pkg/big.go"},
 						FunctionLength:       types.MetricSummary{Avg: 100.0, Max: 300, MaxEntity: "pkg/big.go"},
 						FileSize:             types.MetricSummary{Avg: 800.0, Max: 2000, MaxEntity: "pkg/huge.go"},
+						LargeFilePct:         60.0,
 						AfferentCoupling:     map[string]int{"pkg/core": 10, "pkg/util": 5},
 						EfferentCoupling:     map[string]int{"pkg/core": 8, "pkg/db": 12},
 						DuplicationRate:      15.0,
@@ -1086,9 +1087,9 @@ func TestExtractEvidence_AllCategories(t *testing.T) {
 					},
 				},
 			},
-			nonEmptyMetrics: []string{"complexity_avg", "func_length_avg", "file_size_avg", "afferent_coupling_avg", "efferent_coupling_avg", "duplication_rate"},
+			nonEmptyMetrics: []string{"complexity_avg", "func_length_avg", "file_size_avg", "max_file_size", "large_file_pct", "afferent_coupling_avg", "efferent_coupling_avg", "duplication_rate"},
 			emptyMetrics:    []string{},
-			totalKeys:       6,
+			totalKeys:       8,
 		},
 		{
 			name:     "C2 - Semantic Explicitness with aggregate",

@@ -52,6 +52,10 @@ func (a *C1Analyzer) SetGoPackages(pkgs []*parser.ParsedPackage) {
 	a.pkgs = pkgs
 }
 
+// largeFileLOCThreshold is the LOC count above which a file is considered "large"
+// for the large_file_pct metric.
+const largeFileLOCThreshold = 500
+
 // c1Accumulator collects intermediate results across languages before final metric assembly.
 type c1Accumulator struct {
 	functions    []types.FunctionMetric
@@ -59,6 +63,7 @@ type c1Accumulator struct {
 	totalDupRate float64
 	dupRateCount int
 	fileSizes    []types.MetricSummary
+	fileLOCs     []int // individual file line counts for large_file_pct
 }
 
 // Analyze runs all 6 C1 sub-analyses on the given packages and returns
@@ -89,7 +94,7 @@ func (a *C1Analyzer) Analyze(targets []*types.AnalysisTarget) (*types.AnalysisRe
 
 // accumulateGo runs Go-specific C1 analysis and adds results to the accumulator.
 func (a *C1Analyzer) accumulateGo(acc *c1Accumulator, metrics *c1MetricsResult) {
-	goFunctions, goDuplicates, goDupRate, goFileSize, goCoupling := a.analyzeGoC1()
+	goFunctions, goDuplicates, goDupRate, goFileSize, goFileLOCs, goCoupling := a.analyzeGoC1()
 	acc.functions = append(acc.functions, goFunctions...)
 	acc.duplicates = append(acc.duplicates, goDuplicates...)
 	if goDupRate > 0 {
@@ -97,6 +102,7 @@ func (a *C1Analyzer) accumulateGo(acc *c1Accumulator, metrics *c1MetricsResult) 
 		acc.dupRateCount++
 	}
 	acc.fileSizes = append(acc.fileSizes, goFileSize)
+	acc.fileLOCs = append(acc.fileLOCs, goFileLOCs...)
 	for k, v := range goCoupling.afferent {
 		metrics.AfferentCoupling[k] = v
 	}
@@ -120,7 +126,9 @@ func (a *C1Analyzer) accumulateTarget(target *types.AnalysisTarget, acc *c1Accum
 		defer parser.CloseAll(parsed)
 		srcFiles := shared.FilterTreeSitterFiles(parsed, shared.IsTestFileByPath)
 		acc.functions = append(acc.functions, pyAnalyzeFunctions(srcFiles)...)
-		acc.fileSizes = append(acc.fileSizes, treeAnalyzeFileSizes(srcFiles))
+		fs, locs := treeAnalyzeFileSizes(srcFiles)
+		acc.fileSizes = append(acc.fileSizes, fs)
+		acc.fileLOCs = append(acc.fileLOCs, locs...)
 		dups, rate := treeAnalyzeDuplication(srcFiles, pyDupConfig)
 		accumulateDuplication(acc, dups, rate)
 
@@ -132,7 +140,9 @@ func (a *C1Analyzer) accumulateTarget(target *types.AnalysisTarget, acc *c1Accum
 		defer parser.CloseAll(parsed)
 		srcFiles := shared.FilterTreeSitterFiles(parsed, shared.TsIsTestFile)
 		acc.functions = append(acc.functions, tsAnalyzeFunctions(srcFiles)...)
-		acc.fileSizes = append(acc.fileSizes, treeAnalyzeFileSizes(srcFiles))
+		fs, locs := treeAnalyzeFileSizes(srcFiles)
+		acc.fileSizes = append(acc.fileSizes, fs)
+		acc.fileLOCs = append(acc.fileLOCs, locs...)
 		dups, rate := treeAnalyzeDuplication(srcFiles, tsDupConfig)
 		accumulateDuplication(acc, dups, rate)
 	}
@@ -156,6 +166,16 @@ func assembleC1Metrics(metrics *c1MetricsResult, acc *c1Accumulator) {
 	metrics.FileSize = mergeFileSizes(acc.fileSizes)
 	if acc.dupRateCount > 0 {
 		metrics.DuplicationRate = acc.totalDupRate / float64(acc.dupRateCount)
+	}
+	// Compute percentage of files exceeding the large file threshold.
+	if len(acc.fileLOCs) > 0 {
+		largeCount := 0
+		for _, loc := range acc.fileLOCs {
+			if loc > largeFileLOCThreshold {
+				largeCount++
+			}
+		}
+		metrics.LargeFilePct = float64(largeCount) / float64(len(acc.fileLOCs)) * toPercentC1
 	}
 }
 
@@ -181,7 +201,7 @@ type goCouplingResult struct {
 }
 
 // analyzeGoC1 runs Go-specific C1 analysis and returns its components.
-func (a *C1Analyzer) analyzeGoC1() ([]types.FunctionMetric, []types.DuplicateBlock, float64, types.MetricSummary, goCouplingResult) {
+func (a *C1Analyzer) analyzeGoC1() ([]types.FunctionMetric, []types.DuplicateBlock, float64, types.MetricSummary, []int, goCouplingResult) {
 	pkgs := a.pkgs
 	var srcPkgs []*parser.ParsedPackage
 	for _, pkg := range pkgs {
@@ -192,7 +212,7 @@ func (a *C1Analyzer) analyzeGoC1() ([]types.FunctionMetric, []types.DuplicateBlo
 	}
 
 	functions := analyzeFunctions(srcPkgs)
-	fileSize := analyzeFileSizes(srcPkgs)
+	fileSize, fileLOCs := analyzeFileSizes(srcPkgs)
 	duplicates, dupRate := analyzeDuplication(srcPkgs)
 
 	// Coupling
@@ -207,7 +227,7 @@ func (a *C1Analyzer) analyzeGoC1() ([]types.FunctionMetric, []types.DuplicateBlo
 		coupling.efferent[pkg.PkgPath] = len(graph.Forward[pkg.PkgPath])
 	}
 
-	return functions, duplicates, dupRate, fileSize, coupling
+	return functions, duplicates, dupRate, fileSize, fileLOCs, coupling
 }
 
 // analyzeFunctions extracts per-function complexity and line count from all source packages.
@@ -349,7 +369,8 @@ type fileEntry struct {
 }
 
 // analyzeFileSizes measures lines per file across all source packages.
-func analyzeFileSizes(pkgs []*parser.ParsedPackage) types.MetricSummary {
+// Returns the metric summary and the individual file LOC counts.
+func analyzeFileSizes(pkgs []*parser.ParsedPackage) (types.MetricSummary, []int) {
 	var entries []fileEntry
 	for _, pkg := range pkgs {
 		for _, f := range pkg.Syntax {
@@ -359,10 +380,14 @@ func analyzeFileSizes(pkgs []*parser.ParsedPackage) types.MetricSummary {
 			})
 		}
 	}
+	locs := make([]int, len(entries))
+	for i, e := range entries {
+		locs[i] = e.lines
+	}
 	return computeMetricSummary(entries,
 		func(e fileEntry) int { return e.lines },
 		func(e fileEntry) string { return e.name },
-	)
+	), locs
 }
 
 // detectModulePath extracts the module path from go.mod in the package directory,

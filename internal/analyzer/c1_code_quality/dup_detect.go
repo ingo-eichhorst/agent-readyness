@@ -257,9 +257,10 @@ func treeHashNodeStructure(h hash.Hash64, node *tree_sitter.Node, depth int, cfg
 }
 
 // treeAnalyzeFileSizes computes file size metrics from a list of tree-sitter parsed files.
-func treeAnalyzeFileSizes(files []*parser.ParsedTreeSitterFile) types.MetricSummary {
+// Returns the metric summary and the individual file LOC counts.
+func treeAnalyzeFileSizes(files []*parser.ParsedTreeSitterFile) (types.MetricSummary, []int) {
 	if len(files) == 0 {
-		return types.MetricSummary{}
+		return types.MetricSummary{}, nil
 	}
 
 	var sizes []int
@@ -296,6 +297,6 @@ func treeAnalyzeFileSizes(files []*parser.ParsedTreeSitterFile) types.MetricSumm
 		Avg:       float64(sum) / float64(len(sizes)),
 		Max:       maxVal,
 		MaxEntity: maxEntity,
-	}
+	}, sizes
 }
 

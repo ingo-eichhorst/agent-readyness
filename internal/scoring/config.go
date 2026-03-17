@@ -82,6 +82,18 @@ const (
 	DupRateAdequate = 8.0
 	DupRateWeak     = 15.0
 	DupRateCritical = 50.0
+
+	MaxFileSizeGood     = 200.0
+	MaxFileSizeAdequate = 500.0
+	MaxFileSizeWeak     = 1000.0
+	MaxFileSizePoor     = 2000.0
+	MaxFileSizeCritical = 5000.0
+
+	LargeFilePctGood     = 5.0
+	LargeFilePctAdequate = 15.0
+	LargeFilePctWeak     = 30.0
+	LargeFilePctPoor     = 50.0
+	LargeFilePctCritical = 75.0
 )
 
 // C2 breakpoint value constants.
@@ -288,7 +300,7 @@ func defaultC1Config() CategoryConfig {
 		Metrics: []MetricThresholds{
 			{
 				Name:   "complexity_avg",
-				Weight: MetricWeightHigh,
+				Weight: MetricWeightStandard,
 				Breakpoints: []Breakpoint{
 					{Value: 1, Score: ScoreExcellent},
 					{Value: ComplexityGood, Score: ScoreGood},
@@ -299,7 +311,7 @@ func defaultC1Config() CategoryConfig {
 			},
 			{
 				Name:   "func_length_avg",
-				Weight: MetricWeightMedium,
+				Weight: MetricWeightStandard,
 				Breakpoints: []Breakpoint{
 					{Value: FuncLenGood, Score: ScoreExcellent},
 					{Value: FuncLenAdequate, Score: ScoreGood},
@@ -310,7 +322,7 @@ func defaultC1Config() CategoryConfig {
 			},
 			{
 				Name:   "file_size_avg",
-				Weight: MetricWeightStandard,
+				Weight: MetricWeightMedium,
 				Breakpoints: []Breakpoint{
 					{Value: FileSizeGood, Score: ScoreExcellent},
 					{Value: FileSizeAdequate, Score: ScoreGood},
@@ -320,8 +332,31 @@ func defaultC1Config() CategoryConfig {
 				},
 			},
 			{
+				Name:   "max_file_size",
+				Weight: MetricWeightLow,
+				Breakpoints: []Breakpoint{
+					{Value: MaxFileSizeGood, Score: ScoreExcellent},
+					{Value: MaxFileSizeAdequate, Score: ScoreGood},
+					{Value: MaxFileSizeWeak, Score: ScoreBelowAvg},
+					{Value: MaxFileSizePoor, Score: ScoreWeak},
+					{Value: MaxFileSizeCritical, Score: ScoreMinimum},
+				},
+			},
+			{
+				Name:   "large_file_pct",
+				Weight: MetricWeightLow,
+				Breakpoints: []Breakpoint{
+					{Value: 0, Score: ScoreExcellent},
+					{Value: LargeFilePctGood, Score: ScoreGood},
+					{Value: LargeFilePctAdequate, Score: ScoreAdequate},
+					{Value: LargeFilePctWeak, Score: ScoreWeak},
+					{Value: LargeFilePctPoor, Score: ScoreVeryPoor},
+					{Value: LargeFilePctCritical, Score: ScoreMinimum},
+				},
+			},
+			{
 				Name:   "afferent_coupling_avg",
-				Weight: MetricWeightStandard,
+				Weight: MetricWeightLow,
 				Breakpoints: []Breakpoint{
 					{Value: 0, Score: ScoreExcellent},
 					{Value: 2, Score: ScoreGood},
@@ -343,7 +378,7 @@ func defaultC1Config() CategoryConfig {
 			},
 			{
 				Name:   "duplication_rate",
-				Weight: MetricWeightStandard,
+				Weight: MetricWeightLow,
 				Breakpoints: []Breakpoint{
 					{Value: 0, Score: ScoreExcellent},
 					{Value: DupRateGood, Score: ScoreGood},

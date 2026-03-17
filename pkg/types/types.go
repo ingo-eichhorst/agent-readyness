@@ -124,6 +124,7 @@ type C1Metrics struct {
 	CyclomaticComplexity MetricSummary
 	FunctionLength       MetricSummary
 	FileSize             MetricSummary
+	LargeFilePct         float64          // percentage of files > 500 LOC
 	AfferentCoupling     map[string]int   // pkg path -> incoming dep count
 	EfferentCoupling     map[string]int   // pkg path -> outgoing dep count
 	DuplicationRate      float64          // percentage 0-100

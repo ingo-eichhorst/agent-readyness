@@ -17,10 +17,10 @@ func TestDefaultConfig_Structure(t *testing.T) {
 		t.Fatal("Categories map is nil")
 	}
 
-	// C1 should have 6 metrics
+	// C1 should have 8 metrics
 	c1 := cfg.Categories["C1"]
-	if got := len(c1.Metrics); got != 6 {
-		t.Errorf("C1 metrics count = %d, want 6", got)
+	if got := len(c1.Metrics); got != 8 {
+		t.Errorf("C1 metrics count = %d, want 8", got)
 	}
 	if c1.Weight != 0.25 {
 		t.Errorf("C1 weight = %v, want 0.25", c1.Weight)
@@ -151,6 +151,8 @@ func TestDefaultConfig_MetricNames(t *testing.T) {
 		"complexity_avg":        false,
 		"func_length_avg":      false,
 		"file_size_avg":        false,
+		"max_file_size":        false,
+		"large_file_pct":       false,
 		"afferent_coupling_avg": false,
 		"efferent_coupling_avg": false,
 		"duplication_rate":     false,

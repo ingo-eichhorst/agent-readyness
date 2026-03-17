@@ -183,7 +183,7 @@ func TestTsAnalyzeFileSizes(t *testing.T) {
 	}
 	defer parser.CloseAll(parsed)
 
-	summary := treeAnalyzeFileSizes(parsed)
+	summary, _ := treeAnalyzeFileSizes(parsed)
 
 	if summary.Max <= 0 {
 		t.Error("FileSize.Max should be > 0")

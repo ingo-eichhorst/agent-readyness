@@ -15,6 +15,8 @@ func extractC1(ar *types.AnalysisResult) (map[string]float64, map[string]bool, m
 		c1ComplexityEvidence(m, evidence)
 		c1FuncLengthEvidence(m, evidence)
 		c1FileSizeEvidence(m, evidence)
+		c1MaxFileSizeEvidence(m, evidence)
+		c1LargeFilePctEvidence(m, evidence)
 		c1CouplingEvidence(m, evidence)
 		c1DuplicationEvidence(m, evidence)
 
@@ -22,10 +24,12 @@ func extractC1(ar *types.AnalysisResult) (map[string]float64, map[string]bool, m
 			"complexity_avg":        m.CyclomaticComplexity.Avg,
 			"func_length_avg":       m.FunctionLength.Avg,
 			"file_size_avg":         m.FileSize.Avg,
+			"max_file_size":         float64(m.FileSize.Max),
+			"large_file_pct":        m.LargeFilePct,
 			"afferent_coupling_avg": avgMapValues(m.AfferentCoupling),
 			"efferent_coupling_avg": avgMapValues(m.EfferentCoupling),
 			"duplication_rate":      m.DuplicationRate,
-		}, evidence, []string{"complexity_avg", "func_length_avg", "file_size_avg", "afferent_coupling_avg", "efferent_coupling_avg", "duplication_rate"}
+		}, evidence, []string{"complexity_avg", "func_length_avg", "file_size_avg", "max_file_size", "large_file_pct", "afferent_coupling_avg", "efferent_coupling_avg", "duplication_rate"}
 	})
 }
 
@@ -65,6 +69,28 @@ func c1FileSizeEvidence(m *types.C1Metrics, evidence map[string][]types.Evidence
 		Value:       float64(m.FileSize.Max),
 		Description: fmt.Sprintf("largest file: %d lines", m.FileSize.Max),
 	}}
+}
+
+func c1MaxFileSizeEvidence(m *types.C1Metrics, evidence map[string][]types.EvidenceItem) {
+	if m.FileSize.MaxEntity == "" {
+		return
+	}
+	evidence["max_file_size"] = []types.EvidenceItem{{
+		FilePath:    m.FileSize.MaxEntity,
+		Line:        0,
+		Value:       float64(m.FileSize.Max),
+		Description: fmt.Sprintf("largest file: %d lines", m.FileSize.Max),
+	}}
+}
+
+func c1LargeFilePctEvidence(m *types.C1Metrics, evidence map[string][]types.EvidenceItem) {
+	if m.LargeFilePct > 0 && m.FileSize.MaxEntity != "" {
+		evidence["large_file_pct"] = []types.EvidenceItem{{
+			FilePath:    m.FileSize.MaxEntity,
+			Value:       m.LargeFilePct,
+			Description: fmt.Sprintf("%.1f%% of files exceed 500 LOC", m.LargeFilePct),
+		}}
+	}
 }
 
 func c1CouplingEvidence(m *types.C1Metrics, evidence map[string][]types.EvidenceItem) {

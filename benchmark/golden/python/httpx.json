@@ -1,14 +1,14 @@
 {
-  "composite_score": 7.683016066260187,
+  "composite_score": 7.840375645258953,
   "tier": "Agent-Assisted",
   "categories": [
     {
       "name": "C1",
-      "score": 8.170118914901524
+      "score": 8.46294171046345
     },
     {
       "name": "C2",
-      "score": 7.865731104251138
+      "score": 8.628590115834598
     },
     {
       "name": "C3",

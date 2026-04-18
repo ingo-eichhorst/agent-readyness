@@ -106,12 +106,49 @@ func (a *C4Analyzer) Analyze(targets []*types.AnalysisTarget) (*types.AnalysisRe
 }
 
 // analyzeStaticDocs checks for presence of documentation artifacts (README, CHANGELOG, etc.).
+//
+// When the scan target is a subdirectory of a git repo, also consults the git toplevel
+// so that root-level docs (the conventional location for polyglot/multi-module repos)
+// are not reported as missing. Scan-dir hits take precedence over git-root hits.
 func analyzeStaticDocs(rootDir string, metrics *types.C4Metrics) {
-	metrics.ReadmePresent, metrics.ReadmeWordCount = analyzeReadme(rootDir)
-	metrics.ChangelogPresent = analyzeChangelog(rootDir)
-	metrics.ExamplesPresent = analyzeExamples(rootDir)
-	metrics.ContributingPresent = analyzeContributing(rootDir)
-	metrics.DiagramsPresent = analyzeDiagrams(rootDir)
+	searchDirs := []string{rootDir}
+	if gitRoot := findGitRoot(rootDir); gitRoot != "" && gitRoot != rootDir {
+		searchDirs = append(searchDirs, gitRoot)
+	}
+	for _, dir := range searchDirs {
+		if !metrics.ReadmePresent {
+			metrics.ReadmePresent, metrics.ReadmeWordCount = analyzeReadme(dir)
+		}
+		if !metrics.ChangelogPresent {
+			metrics.ChangelogPresent = analyzeChangelog(dir)
+		}
+		if !metrics.ExamplesPresent {
+			metrics.ExamplesPresent = analyzeExamples(dir)
+		}
+		if !metrics.ContributingPresent {
+			metrics.ContributingPresent = analyzeContributing(dir)
+		}
+		if !metrics.DiagramsPresent {
+			metrics.DiagramsPresent = analyzeDiagrams(dir)
+		}
+	}
+}
+
+// findGitRoot walks up from start looking for a .git entry (directory or file,
+// to support git worktrees where .git is a file pointing to the worktree's gitdir).
+// Returns "" if no .git is found before reaching the filesystem root.
+func findGitRoot(start string) string {
+	dir := start
+	for {
+		if _, err := os.Stat(filepath.Join(dir, ".git")); err == nil {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return ""
+		}
+		dir = parent
+	}
 }
 
 // analyzeCodeMetrics computes comment density and API doc coverage across all language targets.

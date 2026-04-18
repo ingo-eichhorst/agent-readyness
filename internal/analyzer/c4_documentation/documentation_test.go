@@ -222,6 +222,132 @@ func TestAnalyzeDiagrams(t *testing.T) {
 	}
 }
 
+func TestFindGitRoot(t *testing.T) {
+	// Layout: parent/.git/  parent/sub/nested/
+	parent := t.TempDir()
+	if err := os.Mkdir(filepath.Join(parent, ".git"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	nested := filepath.Join(parent, "sub", "nested")
+	if err := os.MkdirAll(nested, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	if got := findGitRoot(nested); got != parent {
+		t.Errorf("findGitRoot(nested) = %q, want %q", got, parent)
+	}
+	if got := findGitRoot(parent); got != parent {
+		t.Errorf("findGitRoot(parent) = %q, want %q", got, parent)
+	}
+
+	// .git as a file (git worktree style).
+	wtParent := t.TempDir()
+	if err := os.WriteFile(filepath.Join(wtParent, ".git"), []byte("gitdir: /tmp/x"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if got := findGitRoot(wtParent); got != wtParent {
+		t.Errorf("findGitRoot(.git as file) = %q, want %q", got, wtParent)
+	}
+}
+
+func TestAnalyzeStaticDocs_GitRootFallback(t *testing.T) {
+	parent := t.TempDir()
+	if err := os.Mkdir(filepath.Join(parent, ".git"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"README.md", "CHANGELOG.md", "CONTRIBUTING.md"} {
+		if err := os.WriteFile(filepath.Join(parent, name), []byte("# "+name), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.Mkdir(filepath.Join(parent, "examples"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	docs := filepath.Join(parent, "docs")
+	if err := os.Mkdir(docs, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(docs, "architecture-diagram.png"), []byte("PNG"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	sub := filepath.Join(parent, "core")
+	if err := os.Mkdir(sub, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	metrics := &types.C4Metrics{}
+	analyzeStaticDocs(sub, metrics)
+
+	if !metrics.ReadmePresent {
+		t.Error("ReadmePresent: want true (root README should be detected)")
+	}
+	if metrics.ReadmeWordCount == 0 {
+		t.Error("ReadmeWordCount: want > 0 when root README is found")
+	}
+	if !metrics.ChangelogPresent {
+		t.Error("ChangelogPresent: want true")
+	}
+	if !metrics.ContributingPresent {
+		t.Error("ContributingPresent: want true")
+	}
+	if !metrics.ExamplesPresent {
+		t.Error("ExamplesPresent: want true (examples/ at root)")
+	}
+	if !metrics.DiagramsPresent {
+		t.Error("DiagramsPresent: want true (docs/architecture-diagram.png at root)")
+	}
+}
+
+func TestAnalyzeStaticDocs_ScanDirTakesPrecedence(t *testing.T) {
+	parent := t.TempDir()
+	if err := os.Mkdir(filepath.Join(parent, ".git"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(parent, "README.md"), []byte("root readme one two three"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	sub := filepath.Join(parent, "core")
+	if err := os.Mkdir(sub, 0755); err != nil {
+		t.Fatal(err)
+	}
+	subReadme := "scan dir readme with notably more words than the root readme has"
+	if err := os.WriteFile(filepath.Join(sub, "README.md"), []byte(subReadme), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	metrics := &types.C4Metrics{}
+	analyzeStaticDocs(sub, metrics)
+
+	wantWords := countWords(subReadme)
+	if metrics.ReadmeWordCount != wantWords {
+		t.Errorf("ReadmeWordCount = %d, want %d (scan-dir README must win over git-root README)", metrics.ReadmeWordCount, wantWords)
+	}
+}
+
+func TestAnalyzeStaticDocs_NoFallbackOutsideRepo(t *testing.T) {
+	// Create a chain of empty dirs with no .git anywhere; findGitRoot should
+	// return "" and analyzeStaticDocs should not invent presence.
+	parent := t.TempDir()
+	sub := filepath.Join(parent, "core")
+	if err := os.Mkdir(sub, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Sanity: parent of t.TempDir() can occasionally be inside a git repo on
+	// the developer machine. Skip if so to keep the test hermetic.
+	if findGitRoot(sub) != "" {
+		t.Skip("ambient git repo above TempDir would mask the no-fallback case")
+	}
+
+	metrics := &types.C4Metrics{}
+	analyzeStaticDocs(sub, metrics)
+
+	if metrics.ReadmePresent || metrics.ChangelogPresent || metrics.ContributingPresent ||
+		metrics.ExamplesPresent || metrics.DiagramsPresent {
+		t.Errorf("expected all flags false outside a git repo, got %+v", metrics)
+	}
+}
+
 func TestAnalyzeGoComments(t *testing.T) {
 	dir := t.TempDir()
 
